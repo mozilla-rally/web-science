@@ -1,0 +1,22 @@
+{
+
+    "manifest_version": 2,
+    "name": "Data",
+    "version": "1.0",
+
+    "description": "Collect specified browsing information",
+    "icons": {
+        "48": "icons/eye-48.png"
+    },
+
+    "permissions": [
+        "activeTab"
+    ],
+
+    "browser_action": {
+        "default_icon": "icons/eye-32.png",
+        "default_title": "Data Collection",
+        "default_popup": "popup/choose_beast.html"
+    }
+
+}
