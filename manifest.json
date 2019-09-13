@@ -17,6 +17,12 @@
 
     "background": {
         "scripts": ["scripts/collection.js"]
+    },
+
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "collect@example.com"
+        }
     }
 
 }
