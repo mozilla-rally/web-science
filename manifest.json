@@ -10,13 +10,19 @@
     },
 
     "permissions": [
-        "activeTab"
+        "<all_urls>",
+        "tabs",
+        "storage"
     ],
 
     "browser_action": {
         "default_icon": "icons/eye-32.png",
         "default_title": "Data Collection",
         "default_popup": "popup/choose_beast.html"
+    },
+
+    "background": {
+        "scripts": ["scripts/collection.js"]
     }
 
 }
