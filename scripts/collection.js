@@ -1,8 +1,9 @@
 (function() {
 
-    var currentTab = -1;
+    var currentTabId = -1;
+    var currentTabHostname = "";
     var startTime = 0;
-    var debug = true;
+    var debug = false;
 
     /* takes a string representing a url and returns the hostname
      * ex: https://www.vox.com/policy-and-politics/2019/9/12/20860452/julian-castro-2020-immigration-animals-policy-trump-climate-homeless
@@ -17,7 +18,7 @@
 
     function errorGetSites(err) {
         if (debug) console.log("errorGetSites");
-        console.log("error getting site: ", err);
+        console.log("error getting sites: ", err);
     }
 
     function findActiveTab(windowInfo) {
@@ -29,8 +30,7 @@
 
     function initSite(sites, hostname) {
         if (debug) console.log("initSite");
-        sites[hostname] = {"visits":1, "time":0.0};
-        browser.storage.local.set({sites});
+        sites[hostname] = {"visits":0, "time":0.0};
         console.log("added sites %s to sites", hostname);
     }
 
@@ -38,8 +38,8 @@
         if (debug) console.log("printStats");
         console.log("******* printing full stats *********");
         for (var site in sites) {
-            console.log("%s was visited %d times for total elapsed time %d milliseconds",
-                        site, sites[site]["visits"], sites[site]["time"]);
+            console.log("%s was visited %d times for total elapsed time %.2f seconds",
+                        site, sites[site]["visits"], sites[site]["time"]/1000);
         }
     }
 
@@ -49,14 +49,16 @@
 
         try { var hostname = extractHostnameUrl(tab.url); }
         catch(err) {
-            console.log("couldn't extract hostname from ", tab.url);
+            if (debug) console.log("couldn't extract hostname from ", tab.url);
             return;
         }
 
         if (!(hostname in sites)) initSite(sites, hostname);
         (sites[hostname])["visits"]++;
 
-        browser.storage.local.set({sites});
+        browser.storage.local.set({sites})
+            .then(() => {},
+                  () => {console.log("error storing sites in visit callback");} );
     }
 
     function logSiteVisit(tab) {
@@ -65,56 +67,52 @@
             .then(obj => logSiteVisitCallback(obj, tab), errorGetSites);
     }
 
-    function logSiteTimeCallback(obj, timeElapsed, tabId) {
+    function logSiteTimeCallback(obj, timeElapsed, tabId, tabHostname) {
         if (debug) console.log("logSiteTimeCallback");
         let sites = obj["sites"];
-        browser.tabs.get(tabId)
-        .then(function (tab) {
-            try { var hostname = extractHostnameUrl(tab.url); }
-            catch(err) {
-                console.log("couldn't extract hostname from ", tab.url);
-                return;
-            }
-
-            if (!(hostname in sites)) initSite(sites, hostname);
-            (sites[hostname])["time"] += timeElapsed;
-            console.log("adding %d milliseconds to %s", timeElapsed, hostname);
-            browser.storage.local.set({sites});
-            printStats(sites);
-        });
+        if (!(tabHostname in sites)) initSite(sites, tabHostname);
+        (sites[tabHostname])["time"] += timeElapsed;
+        console.log("adding %d milliseconds to %s", timeElapsed, tabHostname);
+        browser.storage.local.set({sites})
+            .then(() => {},
+                  () => {console.log("error storing sites in visit callback");} );
+        printStats(sites);
     }
 
-    function recordTime(timeEnded, timeStarted, tabId) {
+    function recordTime(timeEnded, timeStarted, tabId, tabHostname) {
         if (debug) console.log("recordTime");
+        if (tabHostname === "") {
+            if (debug) console.log("ignoring unknown site");
+            return;
+        }
         browser.storage.local.get("sites")
-        .then(obj => logSiteTimeCallback(obj, timeEnded - timeStarted, tabId),
+        .then(obj => logSiteTimeCallback(obj, timeEnded - timeStarted, tabId, tabHostname),
               errorGetSites);
     }
 
     function unsetCurrrentTab() {
         if (debug) console.log("unsetCurrrentTab");
-        if (currentTab != -1) {
-            recordTime(Date.now(), startTime, currentTab);
+        if (currentTabId != -1) {
+            recordTime(Date.now(), startTime, currentTabId, currentTabHostname);
             //console.log("no active tab");
-            currentTab = -1;
+            currentTabId = -1;
+            currentTabHostname = "";
         }
     }
 
     function setCurrentTab(tab) {
         if (debug) console.log("setCurrentTab");
-        if (currentTab != -1) {
-            recordTime(Date.now(), startTime, currentTab);
+        if (currentTabId != -1) {
+            recordTime(Date.now(), startTime, currentTabId, currentTabHostname);
         }
-        currentTab = tab.id;
         startTime = Date.now();
-        /*
+        currentTabId = tab.id;
         try {
-            var hostname = extractHostnameUrl(tab.url);
-            console.log("tab %d (hostname %s) is active tab", tab.id, hostname);
-        } catch {
-            console.log("tab %d (url %s) is active tab", tab.id, tab.url);
+            currentTabHostname = extractHostnameUrl(tab.url);
+        } catch(err) {
+            currentTabHostname = "";
+            if (debug) console.log("couldn't extract hostname from %s", tab.url);
         }
-        */
     }
 
     function handleTabUpdated(tabId, changeInfo, tab) {
@@ -153,21 +151,25 @@
     /* user could:
      *   - switch tabs within same window
      *     - easy to catch with onActivated
-     *     - set currentTab variable
+     *     - set currentTabId variable
      *   - open a new tab
      *     - don't really need to do anything
      *   - change the url of an existing tab
      *     - catch with careful reading of onUpdated
-     *     - set currentTab for new URL
+     *     - set currentTabId for new URL
      *   - open a new window or switch windows
      *     - easy to catch with windows.onFocusChanged
-     *     - set currentTab
+     *     - set currentTabId
+     * FIXED:
+     *   - doesn't handle tab closed events well -- tries to look up
+     *     - now, stores hostname as well as tabId so it can log w/o lookup
+     *   - seems to loop sometimes
+     *     - fixed? never found proof or a cause but it stopped happening
+     *
      * TODO:
      *   - if user opens new tab with no content, then switches
      *       away to tab i, then switches back to the empty tab,
      *       tab i will still be stored as the active tab
-     *   - seems to loop sometimes
-     *   - doesn't handle tab closed events well -- tries to look up
      */
 
     browser.tabs.onUpdated.addListener(handleTabUpdated);
