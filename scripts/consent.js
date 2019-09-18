@@ -1,0 +1,5 @@
+(function() {
+
+    //browser.runtime.openOptionsPage();
+
+})();

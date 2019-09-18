@@ -1,5 +1,4 @@
 {
-
     "manifest_version": 2,
     "name": "Data",
     "version": "1.0",
@@ -9,6 +8,10 @@
         "48": "icons/eye-48.png"
     },
 
+    "options_ui": {
+        "page": "settings/options.html"
+    },
+
     "permissions": [
         "<all_urls>",
         "tabs",
@@ -16,7 +19,7 @@
     ],
 
     "background": {
-        "scripts": ["scripts/collection.js"]
+        "scripts": ["scripts/consent.js", "scripts/collection.js"]
     },
 
     "browser_specific_settings": {
