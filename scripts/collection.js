@@ -1,7 +1,7 @@
 var currentTabId = -1;
 var currentTabHostname = "";
 var startTime = 0;
-var debug = false;
+var debug = 2;
 
 
 /* takes a string representing a url and returns the hostname
@@ -9,33 +9,33 @@ var debug = false;
  *    becomes www.vox.com
  */
 function extractHostnameUrl(url) {
-    if (debug) console.log("extractHostnameUrl");
+    if (debug > 4) console.log("extractHostnameUrl");
     urlObj = new URL(url);
     if (urlObj.hostname) return urlObj.hostname;
     else { throw "hostnameErr"; }
 }
 
 function errorGetSites(err) {
-    if (debug) console.log("errorGetSites");
-    console.log("error getting sites: ", err);
+    if (debug > 4) console.log("errorGetSites");
+    if (debug > 0) console.log("error getting sites: ", err);
 }
 
 function findActiveTab(windowInfo) {
-    if (debug) console.log("findActiveTab");
+    if (debug > 4) console.log("findActiveTab");
     for (tabInfo of windowInfo.tabs) {
         if (tabInfo.active) return tabInfo;
     }
 }
 
 function initSite(sites, hostname) {
-    if (debug) console.log("initSite");
+    if (debug > 4) console.log("initSite");
     sites[hostname] = {"numVisits":0, "totalTime":0.0, "visits":[{"visitTime": 0.0}]};
-    console.log("added sites %s to sites", hostname);
+    if (debug > 1) console.log("added sites %s to sites", hostname);
 }
 
 function printStats(sites) {
-    if (debug) console.log("printStats");
-    console.log("******* printing full stats *********");
+    if (debug > 4) console.log("printStats");
+    console.log("\n******* printing full stats *********");
     for (var site in sites) {
         console.log("%s was visited %d times for total elapsed time %.2f seconds",
             site, sites[site]["numVisits"], sites[site]["totalTime"]/1000);
@@ -47,63 +47,60 @@ function printStats(sites) {
 }
 
 function logSiteVisitCallback(obj, tab) {
-    if (debug) console.log("logSiteVisitCallback");
+    if (debug > 4) console.log("logSiteVisitCallback");
     let sites = obj["sites"];
 
     try { var hostname = extractHostnameUrl(tab.url); }
     catch(err) {
-        if (debug) console.log("couldn't extract hostname from ", tab.url);
+        if (debug > 2) console.log("couldn't extract hostname from ", tab.url);
         return;
     }
 
     if (!(hostname in sites)) initSite(sites, hostname);
     (sites[hostname])["numVisits"]++;
     var currentVisitIndex = (sites[hostname])["numVisits"] - 1;
-    //console.log("currentVisitIndex: %d", currentVisitIndex);
     var allVisits = sites[hostname]["visits"];
     var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date()};
     allVisits[currentVisitIndex] = currentVisit;
-    //(sites[hostname])["visits"][currentVisit] = 0.0;
 
     browser.storage.local.set({sites})
         .then(() => {},
-            () => {console.log("error storing sites in visit callback");} );
+            () => {if (debug > 0) console.log("error storing sites in visit callback");} );
 }
 
 function logSiteVisit(tab) {
-    if (debug) console.log("logSiteVisit");
+    if (debug > 4) console.log("logSiteVisit");
     browser.storage.local.get("sites")
         .then(obj => logSiteVisitCallback(obj, tab), errorGetSites);
 }
 
 function logSiteTimeCallback(obj, timeElapsed, tabId, tabHostname) {
-    if (debug) console.log("logSiteTimeCallback");
+    if (debug > 4) console.log("logSiteTimeCallback");
     let sites = obj["sites"];
     if (!(tabHostname in sites)) {
-        console.log("#### close existing tabs before restarting extension");
+        if (debug > 0) console.log("#### close existing tabs before restarting extension");
         initSite(sites, tabHostname);
     }
     (sites[tabHostname])["totalTime"] += timeElapsed;
-    console.log("adding %d milliseconds to %s", timeElapsed, tabHostname);
+    if (debug > 2) console.log("adding %d milliseconds to %s", timeElapsed, tabHostname);
 
     var numVisits = (sites[tabHostname])["numVisits"];
     var currentVisitIndex = numVisits - 1;
     var currentVisit = sites[tabHostname]["visits"][currentVisitIndex];
     var currentVisitTime = currentVisit["visitTime"];
 
-    //console.log("seeing %d visits in logSiteTimeCallback, writing visit index %d", numVisits, currentVisitIndex);
     currentVisit["visitTime"] = currentVisitTime + timeElapsed;
 
     browser.storage.local.set({sites})
         .then(() => {},
-            () => {console.log("error storing sites in visit callback");} );
+            () => {if (debug > 0) console.log("error storing sites in visit callback");} );
     printStats(sites);
 }
 
 function recordTime(timeEnded, timeStarted, tabId, tabHostname) {
-    if (debug) console.log("recordTime");
+    if (debug > 4) console.log("recordTime");
     if (tabHostname === "") {
-        if (debug) console.log("ignoring unknown site");
+        if (debug > 3) console.log("ignoring unknown site");
         return;
     }
     browser.storage.local.get("sites")
@@ -112,17 +109,16 @@ function recordTime(timeEnded, timeStarted, tabId, tabHostname) {
 }
 
 function unsetCurrrentTab() {
-    if (debug) console.log("unsetCurrrentTab");
+    if (debug > 4) console.log("unsetCurrrentTab");
     if (currentTabId != -1) {
         recordTime(Date.now(), startTime, currentTabId, currentTabHostname);
-        //console.log("no active tab");
         currentTabId = -1;
         currentTabHostname = "";
     }
 }
 
 function setCurrentTab(tab) {
-    if (debug) console.log("setCurrentTab");
+    if (debug > 4) console.log("setCurrentTab");
     if (currentTabId != -1) {
         recordTime(Date.now(), startTime, currentTabId, currentTabHostname);
     }
@@ -132,14 +128,14 @@ function setCurrentTab(tab) {
         currentTabHostname = extractHostnameUrl(tab.url);
     } catch(err) {
         currentTabHostname = "";
-        if (debug) console.log("couldn't extract hostname from %s", tab.url);
+        if (debug > 3) console.log("couldn't extract hostname from %s", tab.url);
     }
 }
 
 function handleTabUpdated(tabId, changeInfo, tab) {
-    /*if (debug) */console.log("handleTabUpdated");
+    if (debug > 4) console.log("handleTabUpdated");
     if ("url" in changeInfo || "status" in changeInfo && changeInfo["status"] === "complete") {
-        console.log("changeInfo", changeInfo);
+        if (debug > 2) console.log("changeInfo", changeInfo);
     }
 
     //if ("url" in changeInfo) {
@@ -150,7 +146,7 @@ function handleTabUpdated(tabId, changeInfo, tab) {
 }
 
 function handleTabActivated(info) {
-    if (debug) console.log("handleTabActivated");
+    if (debug > 4) console.log("handleTabActivated");
     var newTabId = info.tabId;
     browser.tabs.get(newTabId)
         .then(function(tab){
@@ -159,7 +155,7 @@ function handleTabActivated(info) {
 }
 
 function handleWindowChanged(windowId) {
-    if (debug) console.log("handleWindowChanged");
+    if (debug > 4) console.log("handleWindowChanged");
     if (windowId == -1) {
         unsetCurrrentTab();
         return;
@@ -200,13 +196,15 @@ browser.storage.local.set({sites})
  *     - change format of stored record to include array of visits
  *
  * TODO:
- *   - consent form needs a lot more content
+ *   - handling of two tabs at same site at same time?
+ *   - could only listen for some onUpdated events
+ *   - track referrer
  *   - print dates in right timezone
- *   - handling of two tabs at same domain at same time?
+ *   - consent form needs a lot more content
  *   - remove debugging setup code at bottom of file
  */
 function initCollectionListeners() {
-    console.log("setting up data collection");
+    if (debug > 1) console.log("setting up data collection");
     browser.tabs.onUpdated.addListener(handleTabUpdated);
     browser.tabs.onActivated.addListener(handleTabActivated);
     browser.windows.onFocusChanged.addListener(handleWindowChanged);
@@ -218,7 +216,7 @@ function collectionMain() {
             if ("collectionConsent" in obj && obj["collectionConsent"])
                 initCollectionListeners();
             else {
-                console.log("removing data collection");
+                if (debug > 1) console.log("removing data collection");
                 browser.tabs.onUpdated.removeListener(handleTabUpdated);
                 browser.tabs.onActivated.removeListener(handleTabActivated);
                 browser.windows.onFocusChanged.removeListener(handleWindowChanged);
