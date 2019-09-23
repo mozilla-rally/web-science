@@ -29,7 +29,7 @@ function findActiveTab(windowInfo) {
 
 function initSite(sites, hostname) {
     if (debug) console.log("initSite");
-    sites[hostname] = {"visits":0, "time":0.0};
+    sites[hostname] = {"numVisits":0, "totalTime":0.0, "visits":[{"visitTime": 0.0}]};
     console.log("added sites %s to sites", hostname);
 }
 
@@ -38,7 +38,11 @@ function printStats(sites) {
     console.log("******* printing full stats *********");
     for (var site in sites) {
         console.log("%s was visited %d times for total elapsed time %.2f seconds",
-            site, sites[site]["visits"], sites[site]["time"]/1000);
+            site, sites[site]["numVisits"], sites[site]["totalTime"]/1000);
+        for (var i = 0; i < sites[site]["numVisits"]; i++) {
+            var start = sites[site]["visits"][i]["visitStartTime"];
+            console.log("%s visit %d: loaded %s, duration %d", site, i, start.toISOString(), sites[site]["visits"][i]["visitTime"]);
+        }
     }
 }
 
@@ -53,7 +57,13 @@ function logSiteVisitCallback(obj, tab) {
     }
 
     if (!(hostname in sites)) initSite(sites, hostname);
-    (sites[hostname])["visits"]++;
+    (sites[hostname])["numVisits"]++;
+    var currentVisitIndex = (sites[hostname])["numVisits"] - 1;
+    //console.log("currentVisitIndex: %d", currentVisitIndex);
+    var allVisits = sites[hostname]["visits"];
+    var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date()};
+    allVisits[currentVisitIndex] = currentVisit;
+    //(sites[hostname])["visits"][currentVisit] = 0.0;
 
     browser.storage.local.set({sites})
         .then(() => {},
@@ -69,9 +79,21 @@ function logSiteVisit(tab) {
 function logSiteTimeCallback(obj, timeElapsed, tabId, tabHostname) {
     if (debug) console.log("logSiteTimeCallback");
     let sites = obj["sites"];
-    if (!(tabHostname in sites)) initSite(sites, tabHostname);
-    (sites[tabHostname])["time"] += timeElapsed;
+    if (!(tabHostname in sites)) {
+        console.log("#### close existing tabs before restarting extension");
+        initSite(sites, tabHostname);
+    }
+    (sites[tabHostname])["totalTime"] += timeElapsed;
     console.log("adding %d milliseconds to %s", timeElapsed, tabHostname);
+
+    var numVisits = (sites[tabHostname])["numVisits"];
+    var currentVisitIndex = numVisits - 1;
+    var currentVisit = sites[tabHostname]["visits"][currentVisitIndex];
+    var currentVisitTime = currentVisit["visitTime"];
+
+    //console.log("seeing %d visits in logSiteTimeCallback, writing visit index %d", numVisits, currentVisitIndex);
+    currentVisit["visitTime"] = currentVisitTime + timeElapsed;
+
     browser.storage.local.set({sites})
         .then(() => {},
             () => {console.log("error storing sites in visit callback");} );
@@ -115,8 +137,13 @@ function setCurrentTab(tab) {
 }
 
 function handleTabUpdated(tabId, changeInfo, tab) {
-    if (debug) console.log("handleTabUpdated");
-    if ("url" in changeInfo) {
+    /*if (debug) */console.log("handleTabUpdated");
+    if ("url" in changeInfo || "status" in changeInfo && changeInfo["status"] === "complete") {
+        console.log("changeInfo", changeInfo);
+    }
+
+    //if ("url" in changeInfo) {
+    if ("status" in changeInfo && changeInfo["status"] === "complete" && !("url" in changeInfo)) {
         logSiteVisit(tab);
         setCurrentTab(tab);
     }
@@ -169,9 +196,14 @@ browser.storage.local.set({sites})
  *       tab i will still be stored as the active tab
  *     - fixed by more closely following window events
  *   - consent form before collecting data
+ *   - log each visit separately
+ *     - change format of stored record to include array of visits
  *
  * TODO:
  *   - consent form needs a lot more content
+ *   - print dates in right timezone
+ *   - handling of two tabs at same domain at same time?
+ *   - remove debugging setup code at bottom of file
  */
 function initCollectionListeners() {
     console.log("setting up data collection");
@@ -191,6 +223,13 @@ function collectionMain() {
                 browser.tabs.onActivated.removeListener(handleTabActivated);
                 browser.windows.onFocusChanged.removeListener(handleWindowChanged);
             }}, err => {console.log(err);});
-
-
 }
+
+/* TODO only for debugging, remove later */
+browser.storage.local.set({"collectionConsent":true})
+    .then(() => {
+        sites = {};
+        browser.storage.local.set(sites)
+            .then(() => {
+                collectionMain();
+            })});
