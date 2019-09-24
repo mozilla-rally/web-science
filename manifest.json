@@ -11,7 +11,14 @@
     "options_ui": {
         "page": "settings/options.html"
     },
-
+    "content_scripts": [
+    {
+	    "matches": ["https://developer.mozilla.org/*",
+                    "https://www.nytimes.com/*",
+                    "https://www.ft.com/*"],
+	    "js": ["scripts/jquery.js", "scripts/inspect.js"]
+    }
+    ],
     "permissions": [
         "<all_urls>",
         "tabs",
