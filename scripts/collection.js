@@ -194,18 +194,20 @@ browser.storage.local.set({sites})
  *   - consent form before collecting data
  *   - log each visit separately
  *     - change format of stored record to include array of visits
+ *   - only listen for some onUpdated events
+ *     - "filter" for just status updates
  *
  * TODO:
  *   - handling of two tabs at same site at same time?
- *   - could only listen for some onUpdated events
  *   - track referrer
  *   - print dates in right timezone
  *   - consent form needs a lot more content
  *   - remove debugging setup code at bottom of file
  */
+const filter = { properties:["status"] }
 function initCollectionListeners() {
     if (debug > 1) console.log("setting up data collection");
-    browser.tabs.onUpdated.addListener(handleTabUpdated);
+    browser.tabs.onUpdated.addListener(handleTabUpdated, properties=filter);
     browser.tabs.onActivated.addListener(handleTabActivated);
     browser.windows.onFocusChanged.addListener(handleWindowChanged);
 }
