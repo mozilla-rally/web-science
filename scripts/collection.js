@@ -210,7 +210,7 @@ function initCollectionListeners() {
     browser.windows.onFocusChanged.addListener(handleWindowChanged);
 }
 
-function collectionMain() {
+async function collectionMain() {
     browser.storage.local.get("collectionConsent")
         .then(obj => {
             if ("collectionConsent" in obj && obj["collectionConsent"])
@@ -222,6 +222,9 @@ function collectionMain() {
                 browser.windows.onFocusChanged.removeListener(handleWindowChanged);
             }}, err => {console.log(err);});
 }
+
+
+
 
 /* TODO only for debugging, remove later */
 browser.storage.local.set({"collectionConsent":true})
