@@ -19,7 +19,7 @@
     ],
 
     "background": {
-        "scripts": ["scripts/consent.js", "scripts/collection.js"]
+        "scripts": ["scripts/consent.js", "scripts/localforage.min.js", "scripts/collection.js"]
     },
 
     "browser_specific_settings": {
