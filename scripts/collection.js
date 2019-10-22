@@ -43,21 +43,9 @@ function printStats(sites) {
             key, value["numVisits"], value["totalTime"]/1000);
         for (var i = 0; i < value["numVisits"]; i++) {
             var start = value["visits"][i]["visitStartTime"];
-            console.log("%s visit %d: loaded %s, duration %d", key, i, start.toISOString(), value["visits"][i]["visitTime"]);
+            console.log("%s visit %d: loaded %s, duration %d, openerId %d", key, i, start.toISOString(), value["visits"][i]["visitTime"], value["visits"][i]["openerTabId"]);
         }
     });
-
-
-    /*
-    for (var site in sites) {
-        console.log("%s was visited %d times for total elapsed time %.2f seconds",
-            site, sites[site]["numVisits"], sites[site]["totalTime"]/1000);
-        for (var i = 0; i < sites[site]["numVisits"]; i++) {
-            var start = sites[site]["visits"][i]["visitStartTime"];
-            console.log("%s visit %d: loaded %s, duration %d", site, i, start.toISOString(), sites[site]["visits"][i]["visitTime"]);
-        }
-    }
-    */
 }
 
 function logSiteVisitCallback(obj, tab, hostname) {
@@ -67,7 +55,10 @@ function logSiteVisitCallback(obj, tab, hostname) {
     obj["numVisits"]++;
     var currentVisitIndex = obj["numVisits"] - 1;
     var allVisits = obj["visits"];
-    var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date()};
+    var openerTabId;
+    if (tab.openerTabId) openerTabId = tab.openerTabId;
+    else openerTabId = -1;
+    var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date(), "openerTabId":openerTabId};
     allVisits[currentVisitIndex] = currentVisit;
 
     localforage.setItem(hostname, obj)
@@ -82,6 +73,12 @@ function logSiteVisit(tab) {
     catch(err) {
         if (debug > 2) console.log("couldn't extract hostname from ", tab.url);
         return;
+    }
+    if (tab.openerTabId) {
+        console.log("logsitevisit for hn %s, openerTabId %d", hostname, tab.openerTabId);
+    }
+    else {
+        console.log("no openerTabId for hn %s", hostname);
     }
 
     localforage.getItem(hostname)
@@ -151,10 +148,11 @@ function handleTabUpdated(tabId, changeInfo, tab) {
         if (debug > 2) console.log("changeInfo", changeInfo);
     }
 
-    //if ("url" in changeInfo) {
     if ("status" in changeInfo && changeInfo["status"] === "complete" && !("url" in changeInfo)) {
         logSiteVisit(tab);
-        setCurrentTab(tab);
+        if (tab.active) {
+            setCurrentTab(tab);
+        }
     }
 }
 
@@ -177,7 +175,7 @@ function handleWindowChanged(windowId) {
         .then(function(windowInfo) {
             tab = findActiveTab(windowInfo);
             setCurrentTab(tab);
-        }, unsetCurrrentTab())
+        }, unsetCurrrentTab)
 }
 
 /* user could:
@@ -204,10 +202,12 @@ function handleWindowChanged(windowId) {
  *   - consent form before collecting data
  *   - log each visit separately
  *     - change format of stored record to include array of visits
+ *   - opening tab in background incorrectly sets it as the active site
+ *     - fixed by checking whether tab is active once it loads
  *
  * TODO:
  *   - handling of two tabs at same site at same time?
- *   - could only listen for some onUpdated events
+ *   - need to store hostname of openerTabId, not the number
  *   - track referrer
  *   - print dates in right timezone
  *   - consent form needs a lot more content
