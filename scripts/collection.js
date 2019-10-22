@@ -3,7 +3,6 @@ var currentTabHostname = "";
 var startTime = 0;
 var debug = 2;
 
-
 /* takes a string representing a url and returns the hostname
  * ex: https://www.vox.com/policy-and-politics/2019/9/12/20860452/julian-castro-2020-immigration-animals-policy-trump-climate-homeless
  *    becomes www.vox.com
@@ -27,74 +26,85 @@ function findActiveTab(windowInfo) {
     }
 }
 
-function initSite(sites, hostname) {
+function initSite(hostname) {
     if (debug > 4) console.log("initSite");
-    sites[hostname] = {"numVisits":0, "totalTime":0.0, "visits":[{"visitTime": 0.0}]};
+    var obj  = {"numVisits":0, "totalTime":0.0, "visits":[{"visitTime": 0.0}]};
     if (debug > 1) console.log("added sites %s to sites", hostname);
+    return obj;
 }
 
 function printStats(sites) {
     if (debug > 4) console.log("printStats");
     console.log("\n******* printing full stats *********");
-    for (var site in sites) {
+
+    localforage.iterate(function(value, key, iterationNumber) {
+        if (key === "collectionConsent") return;
         console.log("%s was visited %d times for total elapsed time %.2f seconds",
-            site, sites[site]["numVisits"], sites[site]["totalTime"]/1000);
-        for (var i = 0; i < sites[site]["numVisits"]; i++) {
-            var start = sites[site]["visits"][i]["visitStartTime"];
-            console.log("%s visit %d: loaded %s, duration %d", site, i, start.toISOString(), sites[site]["visits"][i]["visitTime"]);
+            key, value["numVisits"], value["totalTime"]/1000);
+        for (var i = 0; i < value["numVisits"]; i++) {
+            var start = value["visits"][i]["visitStartTime"];
+            console.log("%s visit %d: loaded %s, duration %d, openerId %d", key, i, start.toISOString(), value["visits"][i]["visitTime"], value["visits"][i]["openerTabId"]);
         }
-    }
+    });
 }
 
-function logSiteVisitCallback(obj, tab) {
+function logSiteVisitCallback(obj, tab, hostname) {
     if (debug > 4) console.log("logSiteVisitCallback");
-    let sites = obj["sites"];
 
-    try { var hostname = extractHostnameUrl(tab.url); }
-    catch(err) {
-        if (debug > 2) console.log("couldn't extract hostname from ", tab.url);
-        return;
-    }
-
-    if (!(hostname in sites)) initSite(sites, hostname);
-    (sites[hostname])["numVisits"]++;
-    var currentVisitIndex = (sites[hostname])["numVisits"] - 1;
-    var allVisits = sites[hostname]["visits"];
-    var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date()};
+    if (obj == null) obj = initSite(hostname);
+    obj["numVisits"]++;
+    var currentVisitIndex = obj["numVisits"] - 1;
+    var allVisits = obj["visits"];
+    var openerTabId;
+    if (tab.openerTabId) openerTabId = tab.openerTabId;
+    else openerTabId = -1;
+    var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date(), "openerTabId":openerTabId};
     allVisits[currentVisitIndex] = currentVisit;
 
-    browser.storage.local.set({sites})
+    localforage.setItem(hostname, obj)
         .then(() => {},
             () => {if (debug > 0) console.log("error storing sites in visit callback");} );
 }
 
 function logSiteVisit(tab) {
     if (debug > 4) console.log("logSiteVisit");
-    browser.storage.local.get("sites")
-        .then(obj => logSiteVisitCallback(obj, tab), errorGetSites);
+
+    try { var hostname = extractHostnameUrl(tab.url); }
+    catch(err) {
+        if (debug > 2) console.log("couldn't extract hostname from ", tab.url);
+        return;
+    }
+    if (tab.openerTabId) {
+        console.log("logsitevisit for hn %s, openerTabId %d", hostname, tab.openerTabId);
+    }
+    else {
+        console.log("no openerTabId for hn %s", hostname);
+    }
+
+    localforage.getItem(hostname)
+        .then(obj => logSiteVisitCallback(obj, tab, hostname), errorGetSites);
 }
 
 function logSiteTimeCallback(obj, timeElapsed, tabId, tabHostname) {
     if (debug > 4) console.log("logSiteTimeCallback");
-    let sites = obj["sites"];
-    if (!(tabHostname in sites)) {
+
+    if (obj == null) {
         if (debug > 0) console.log("#### close existing tabs before restarting extension");
-        initSite(sites, tabHostname);
+        obj = initSite(tabHostname);
     }
-    (sites[tabHostname])["totalTime"] += timeElapsed;
+    obj["totalTime"] += timeElapsed;
     if (debug > 2) console.log("adding %d milliseconds to %s", timeElapsed, tabHostname);
 
-    var numVisits = (sites[tabHostname])["numVisits"];
+    var numVisits = obj["numVisits"];
     var currentVisitIndex = numVisits - 1;
-    var currentVisit = sites[tabHostname]["visits"][currentVisitIndex];
+    var currentVisit = obj["visits"][currentVisitIndex];
     var currentVisitTime = currentVisit["visitTime"];
 
     currentVisit["visitTime"] = currentVisitTime + timeElapsed;
 
-    browser.storage.local.set({sites})
-        .then(() => {},
+    localforage.setItem(tabHostname, obj)
+        .then(() => {printStats()},
             () => {if (debug > 0) console.log("error storing sites in visit callback");} );
-    printStats(sites);
 }
 
 function recordTime(timeEnded, timeStarted, tabId, tabHostname) {
@@ -103,7 +113,7 @@ function recordTime(timeEnded, timeStarted, tabId, tabHostname) {
         if (debug > 3) console.log("ignoring unknown site");
         return;
     }
-    browser.storage.local.get("sites")
+    localforage.getItem(tabHostname)
         .then(obj => logSiteTimeCallback(obj, timeEnded - timeStarted, tabId, tabHostname),
             errorGetSites);
 }
@@ -138,10 +148,11 @@ function handleTabUpdated(tabId, changeInfo, tab) {
         if (debug > 2) console.log("changeInfo", changeInfo);
     }
 
-    //if ("url" in changeInfo) {
     if ("status" in changeInfo && changeInfo["status"] === "complete" && !("url" in changeInfo)) {
         logSiteVisit(tab);
-        setCurrentTab(tab);
+        if (tab.active) {
+            setCurrentTab(tab);
+        }
     }
 }
 
@@ -164,11 +175,8 @@ function handleWindowChanged(windowId) {
         .then(function(windowInfo) {
             tab = findActiveTab(windowInfo);
             setCurrentTab(tab);
-        }, unsetCurrrentTab())
+        }, unsetCurrrentTab)
 }
-
-var sites = {}
-browser.storage.local.set({sites})
 
 /* user could:
  *   - switch tabs within same window
@@ -196,9 +204,12 @@ browser.storage.local.set({sites})
  *     - change format of stored record to include array of visits
  *   - only listen for some onUpdated events
  *     - "filter" for just status updates
+ *   - opening tab in background incorrectly sets it as the active site
+ *     - fixed by checking whether tab is active once it loads
  *
  * TODO:
  *   - handling of two tabs at same site at same time?
+ *   - need to store hostname of openerTabId, not the number
  *   - track referrer
  *   - print dates in right timezone
  *   - consent form needs a lot more content
@@ -212,24 +223,25 @@ function initCollectionListeners() {
     browser.windows.onFocusChanged.addListener(handleWindowChanged);
 }
 
-function collectionMain() {
-    browser.storage.local.get("collectionConsent")
-        .then(obj => {
-            if ("collectionConsent" in obj && obj["collectionConsent"])
-                initCollectionListeners();
-            else {
-                if (debug > 1) console.log("removing data collection");
-                browser.tabs.onUpdated.removeListener(handleTabUpdated);
-                browser.tabs.onActivated.removeListener(handleTabActivated);
-                browser.windows.onFocusChanged.removeListener(handleWindowChanged);
-            }}, err => {console.log(err);});
+function collectionMain(colCon) {
+    if (colCon) initCollectionListeners();
+    else {
+        if (debug > 1) console.log("removing data collection");
+        browser.tabs.onUpdated.removeListener(handleTabUpdated);
+        browser.tabs.onActivated.removeListener(handleTabActivated);
+        browser.windows.onFocusChanged.removeListener(handleWindowChanged);
+    }
 }
 
+localforage.config({
+    driver: [localforage.INDEXEDDB,
+             localforage.WEBSQL,
+             localforage.LOCALSTORAGE],
+    name: "datacollectionDB"
+});
+
 /* TODO only for debugging, remove later */
-browser.storage.local.set({"collectionConsent":true})
+localforage.setItem("collectionConsent", true)
     .then(() => {
-        sites = {};
-        browser.storage.local.set(sites)
-            .then(() => {
-                collectionMain();
-            })});
+        collectionMain(true);
+    });

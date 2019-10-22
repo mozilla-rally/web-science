@@ -1,24 +1,27 @@
 function saveOptions(e) {
     e.preventDefault();
-    browser.storage.local.set({
-        "collectionConsent": document.querySelector("#collection").checked
-    })
-    .then(collectionMain());
-   
+    var curr = document.querySelector("#collection").checked;
+    console.log("in saveOptions curr is ", curr);
+    localforage.setItem("collectionConsent", curr)
+        .then(collectionMain);
 }
 
 function restoreOptions() {
 
     function setCurrentChoice(result) {
-        document.querySelector("#collection").checked = result["collectionConsent"] || false;
+        var curr = result;
+        if (result == null) curr = false;
+        console.log("result was ", result);
+        console.log("and so curr is ", curr);
+        document.querySelector("#collection").checked = curr;
     }
 
     function onError(error) {
         console.log(`Error: ${error}`);
     }
 
-    browser.storage.local.get("collectionConsent")
-    .then(setCurrentChoice, onError);
+    localforage.getItem("collectionConsent")
+        .then(setCurrentChoice, onError);
 }
 
 document.addEventListener("DOMContentLoaded", restoreOptions);
