@@ -29,21 +29,40 @@ function findActiveTab(windowInfo) {
 function initSite(hostname) {
     if (debug > 4) console.log("initSite");
     var obj  = {"numVisits":0, "totalTime":0.0, "visits":[{"visitTime": 0.0}]};
-    if (debug > 1) console.log("added sites %s to sites", hostname);
+    
+    visitStore.setItem(hostname, obj)
+        .then(() => {if (debug > 1) console.log("added site %s to visitStore", hostname);});
+    contentsStore.setItem(hostname, {"path":[]})
+        .then(() => {if (debug > 1) console.log("added site %s to contentsStore", hostname);});
+
     return obj;
 }
 
-function printStats(sites) {
+function printStats() {
     if (debug > 4) console.log("printStats");
     console.log("\n******* printing full stats *********");
 
-    localforage.iterate(function(value, key, iterationNumber) {
-        if (key === "collectionConsent") return;
+    visitStore.iterate(function(value, key, iterationNumber) {
         console.log("%s was visited %d times for total elapsed time %.2f seconds",
             key, value["numVisits"], value["totalTime"]/1000);
         for (var i = 0; i < value["numVisits"]; i++) {
             var start = value["visits"][i]["visitStartTime"];
             console.log("%s visit %d: loaded %s, duration %d, openerId %d", key, i, start.toISOString(), value["visits"][i]["visitTime"], value["visits"][i]["openerTabId"]);
+        }
+    });
+}
+
+function printContentsStats() {
+    if (debug > 4) console.log("printContentsStats");
+
+    console.log("\n******* printing contents stats *********");
+
+    contentsStore.iterate(function(value, key, iterationNumber) {
+        console.log("site %s has these pages stored:", key);
+        for (page in value["path"]) {
+            console.log("url %s has these links",
+                value["path"][page]["url"],
+                value["path"][page]["allLinks"]);
         }
     });
 }
@@ -61,7 +80,7 @@ function logSiteVisitCallback(obj, tab, hostname) {
     var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date(), "openerTabId":openerTabId};
     allVisits[currentVisitIndex] = currentVisit;
 
-    localforage.setItem(hostname, obj)
+    visitStore.setItem(hostname, obj)
         .then(() => {},
             () => {if (debug > 0) console.log("error storing sites in visit callback");} );
 }
@@ -81,7 +100,7 @@ function logSiteVisit(tab) {
         console.log("no openerTabId for hn %s", hostname);
     }
 
-    localforage.getItem(hostname)
+    visitStore.getItem(hostname)
         .then(obj => logSiteVisitCallback(obj, tab, hostname), errorGetSites);
 }
 
@@ -102,7 +121,7 @@ function logSiteTimeCallback(obj, timeElapsed, tabId, tabHostname) {
 
     currentVisit["visitTime"] = currentVisitTime + timeElapsed;
 
-    localforage.setItem(tabHostname, obj)
+    visitStore.setItem(tabHostname, obj)
         .then(() => {printStats()},
             () => {if (debug > 0) console.log("error storing sites in visit callback");} );
 }
@@ -113,7 +132,7 @@ function recordTime(timeEnded, timeStarted, tabId, tabHostname) {
         if (debug > 3) console.log("ignoring unknown site");
         return;
     }
-    localforage.getItem(tabHostname)
+    visitStore.getItem(tabHostname)
         .then(obj => logSiteTimeCallback(obj, timeEnded - timeStarted, tabId, tabHostname),
             errorGetSites);
 }
@@ -156,6 +175,19 @@ function handleTabUpdated(tabId, changeInfo, tab) {
     }
 }
 
+function handleTabUpdatedAll(tabId, changeInfo, tab) {
+    if ("url" in changeInfo) {
+        try {var hostname = extractHostnameUrl(changeInfo["url"]);}
+        catch(err) {
+            if (debug > 2) console.log("couldn't extract hostname from ", tab.url);
+            return;
+        }
+
+        visitStore.getItem(hostname)
+            .then(obj => {if (obj == null) initSite(hostname); });
+    }
+}
+
 function handleTabActivated(info) {
     if (debug > 4) console.log("handleTabActivated");
     var newTabId = info.tabId;
@@ -178,7 +210,22 @@ function handleWindowChanged(windowId) {
         }, unsetCurrrentTab)
 }
 
-/* user could:
+function logAllLinksMessage(obj, links, hostname, url) {
+    (obj["path"]).push({"url" : hostname, "allLinks" : links});
+    contentsStore.setItem(hostname, obj);
+        //.then(printContentsStats);
+}
+
+function handleMessage(request, sender, sendResponse) {
+    if (request.type === "documentReady") {
+        //console.log(request, sender, sendResponse);
+        var hostname = extractHostnameUrl(sender.url);
+        contentsStore.getItem(hostname)
+            .then(obj => { logAllLinksMessage(obj, request.links, hostname, sender.url); });
+    }
+}
+
+/* user actions:
  *   - switch tabs within same window
  *     - easy to catch with onActivated
  *     - set currentTabId variable
@@ -190,22 +237,7 @@ function handleWindowChanged(windowId) {
  *   - open a new window or switch windows
  *     - easy to catch with windows.onFocusChanged
  *     - set currentTabId
- * FIXED:
- *   - doesn't handle tab closed events well -- tries to look up by ID, which fails
- *     - now, stores hostname as well as tabId so it can log w/o lookup
- *   - seems to loop sometimes
- *     - fixed? never found proof or a cause but it stopped happening
- *   - if user opens new tab with no content, then switches
- *       away to tab i, then switches back to the empty tab,
- *       tab i will still be stored as the active tab
- *     - fixed by more closely following window events
- *   - consent form before collecting data
- *   - log each visit separately
- *     - change format of stored record to include array of visits
- *   - only listen for some onUpdated events
- *     - "filter" for just status updates
- *   - opening tab in background incorrectly sets it as the active site
- *     - fixed by checking whether tab is active once it loads
+ * also storing all links on each loaded site in visitStore
  *
  * TODO:
  *   - handling of two tabs at same site at same time?
@@ -215,12 +247,15 @@ function handleWindowChanged(windowId) {
  *   - consent form needs a lot more content
  *   - remove debugging setup code at bottom of file
  */
-const filter = { properties:["status"] }
+const filterStatus = { properties:["status"] }
+//const filterURL = { properties:["url"] }
 function initCollectionListeners() {
     if (debug > 1) console.log("setting up data collection");
-    browser.tabs.onUpdated.addListener(handleTabUpdated, properties=filter);
+    browser.tabs.onUpdated.addListener(handleTabUpdated, properties=filterStatus);
+    browser.tabs.onUpdated.addListener(handleTabUpdatedAll);
     browser.tabs.onActivated.addListener(handleTabActivated);
     browser.windows.onFocusChanged.addListener(handleWindowChanged);
+    browser.runtime.onMessage.addListener(handleMessage);
 }
 
 function collectionMain(colCon) {
@@ -239,6 +274,10 @@ localforage.config({
              localforage.LOCALSTORAGE],
     name: "datacollectionDB"
 });
+
+var visitStore = localforage.createInstance({name: "visitStore"});
+var configStore = localforage.createInstance({name: "configStore"});
+var contentsStore = localforage.createInstance({name: "contentsStore"});
 
 /* TODO only for debugging, remove later */
 localforage.setItem("collectionConsent", true)
