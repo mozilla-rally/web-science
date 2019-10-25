@@ -9,8 +9,10 @@ $( document ).ready(function() {
     // Get unique links in the loaded page
     links = getLinks();
     var message = {type: "documentReady",
-                   links: links};
+                   links: links,
+                   referrer: document.referrer};
     browser.runtime.sendMessage(message);
+    console.log("message sent");
     /*
     links.forEach(element => {
         console.log(element);

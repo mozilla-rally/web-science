@@ -16,6 +16,11 @@
     {
         "matches": ["*://*.developer.mozilla.org/*",
                     "*://*.nytimes.com/*",
+                    "*://*.washingtonpost.com/*",
+                    "*://*.vox.com/*",
+                    "*://*.arstechnica.com/*",
+                    "*://*.justice.gov/*",
+                    "*://*.wsj.com/*",
                     "*://*.ft.com/*"],
         "js": ["scripts/jquery.js", "scripts/localforage.min.js", "scripts/inspect.js"]
     }

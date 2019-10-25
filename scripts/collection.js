@@ -29,7 +29,7 @@ function findActiveTab(windowInfo) {
 function initSite(hostname) {
     if (debug > 4) console.log("initSite");
     var obj  = {"numVisits":0, "totalTime":0.0, "visits":[{"visitTime": 0.0}]};
-    
+
     visitStore.setItem(hostname, obj)
         .then(() => {if (debug > 1) console.log("added site %s to visitStore", hostname);});
     contentsStore.setItem(hostname, {"path":[]})
@@ -47,7 +47,9 @@ function printStats() {
             key, value["numVisits"], value["totalTime"]/1000);
         for (var i = 0; i < value["numVisits"]; i++) {
             var start = value["visits"][i]["visitStartTime"];
-            console.log("%s visit %d: loaded %s, duration %d, openerId %d", key, i, start.toISOString(), value["visits"][i]["visitTime"], value["visits"][i]["openerTabId"]);
+            console.log("%s visit %d: loaded %s, duration %d, openerId %d", key, i,
+                start.toISOString(), value["visits"][i]["visitTime"],
+                value["visits"][i]["openerTabId"]);
         }
     });
 }
@@ -60,9 +62,10 @@ function printContentsStats() {
     contentsStore.iterate(function(value, key, iterationNumber) {
         console.log("site %s has these pages stored:", key);
         for (page in value["path"]) {
-            console.log("url %s has these links",
+            console.log("url %s has referrer %s and showed %d links",
                 value["path"][page]["url"],
-                value["path"][page]["allLinks"]);
+                value["path"][page]["referrer"],
+                (value["path"][page]["allLinks"]).size);
         }
     });
 }
@@ -210,18 +213,19 @@ function handleWindowChanged(windowId) {
         }, unsetCurrrentTab)
 }
 
-function logAllLinksMessage(obj, links, hostname, url) {
-    (obj["path"]).push({"url" : hostname, "allLinks" : links});
-    contentsStore.setItem(hostname, obj);
-        //.then(printContentsStats);
+function logAllLinksMessage(obj, sender, request, hostname) {
+    if (debug > 4) console.log("logAllLinksMessage");
+    (obj["path"]).push({"url" : sender.url, "allLinks" : request.links, "referrer": request.referrer});
+    contentsStore.setItem(hostname, obj)
+        .then(printContentsStats);
 }
 
 function handleMessage(request, sender, sendResponse) {
+    if (debug > 4) console.log("handleMessage");
     if (request.type === "documentReady") {
-        //console.log(request, sender, sendResponse);
         var hostname = extractHostnameUrl(sender.url);
         contentsStore.getItem(hostname)
-            .then(obj => { logAllLinksMessage(obj, request.links, hostname, sender.url); });
+            .then(obj => { logAllLinksMessage(obj, sender, request, hostname); });
     }
 }
 
