@@ -15,6 +15,9 @@
     {
 	    "matches": ["https://developer.mozilla.org/*",
                     "https://www.nytimes.com/*",
+                    "https://www.nytimes.com/*",
+                    "https://www.facebook.com/*",
+                    "<all_urls>",
                     "https://www.ft.com/*"],
 	    "js": ["scripts/jquery.js", "scripts/inspect.js"]
     }
@@ -26,7 +29,7 @@
     ],
 
     "background": {
-        "scripts": ["scripts/consent.js", "scripts/collection.js"]
+        "scripts": ["scripts/consent.js", "scripts/localforage.js", "scripts/collection.js"]
     },
 
     "browser_specific_settings": {
