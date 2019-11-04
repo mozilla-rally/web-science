@@ -7,7 +7,7 @@ function handleError(error) {
 }
 
 function notifyBackgroundPage(ref) {
-  alert("sending to bg "+ref);
+  console.log("sending to bg "+ref);
   var sending = browser.runtime.sendMessage({ "data": ref });
   sending.then(handleResponse, handleError);  
 }

@@ -35,8 +35,8 @@ function dl() {
     chrome.storage.local.get(null, function (items) {
         var blob = new Blob([JSON.stringify(items, null, '  ')], { type: "text/plain" });
         var url = URL.createObjectURL(blob);
-        chrome.tabs.create({ url: url }); // requires that the extension has the "tabs" permission
-        //chrome.downloads.download({ url: url }); // requires that the extension has the "downloads" permission
+        //chrome.tabs.create({ url: url }); // requires that the extension has the "tabs" permission
+        chrome.downloads.download({ url: url }); // requires that the extension has the "downloads" permission
     });
 }
   browser.browserAction.onClicked.addListener((tab) => {
