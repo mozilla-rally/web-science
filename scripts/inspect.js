@@ -1,7 +1,7 @@
 $( document ).ready(function() {
     // Get unique links in the loaded page
     links = getLinks();
-    var message = {type: "documentReady",
+    var message = {type: "newsSitesAllLinks",
                    links: links,
                    referrer: document.referrer};
     browser.runtime.sendMessage(message);

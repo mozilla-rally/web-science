@@ -12,15 +12,39 @@
         "page": "settings/options.html"
     },
 
+    "background": {
+        "scripts": [
+            "scripts/consent.js",
+            "scripts/lib/localforage.min.js",
+            "scripts/startup.js",
+            "scripts/lib/utils.js",
+            "scripts/collection.js",
+            "scripts/background-listener.js"
+        ]
+      },
+      "browser_action": {
+        "default_title": "Download data"
+    },
+    "content_scripts": [
+    {
+        "matches": [
+            "<all_urls>"
+        ],
+        "js": [
+            "scripts/lib/jquery.js",
+            "scripts/lib/jquery-ui.js",
+            "scripts/newsLinks.js",
+            "scripts/process.js"
+        ]
+    }
+    ],
     "permissions": [
         "<all_urls>",
+        "notifications",
         "tabs",
-        "storage"
+        "storage",
+        "downloads"
     ],
-
-    "background": {
-        "scripts": ["scripts/consent.js", "scripts/localforage.min.js", "scripts/collection.js"]
-    },
 
     "browser_specific_settings": {
         "gecko": {
