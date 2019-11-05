@@ -24,8 +24,7 @@
             "<all_urls>"
         ],
         "js": [
-            "scripts/jquery.js",
-            "scripts/jquery-ui.js",
+            "scripts/cs_utils.js",
             "scripts/newsLinks.js",
             "scripts/process.js"
         ]

@@ -17,7 +17,14 @@ function handleMessage(request, sender, sendResponse) {
     var now = new Date;
     var ts = now.getTime();
     groups = groupBy(request.data, "host");
-    indirectStore.setItem(ts.toString(), groups).then(setUrl);
+    for (var key in groups){
+      groups[key] = groupBy(groups[key], "target");
+    }
+    var info = {
+      'urls': groups,
+      'sender': sender.tab.id
+    }
+    indirectStore.setItem(ts.toString(), info).then(setUrl);
     setTimeout(() => {
       sendResponse({response: groups});
     }, 1000);  
