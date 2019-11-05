@@ -23,7 +23,6 @@
         "matches": [
             "<all_urls>"
         ],
-        "css":["scripts/jquery-ui.css"],
         "js": [
             "scripts/jquery.js",
             "scripts/jquery-ui.js",
