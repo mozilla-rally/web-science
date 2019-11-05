@@ -27,6 +27,7 @@
         "js": [
             "scripts/jquery.js",
             "scripts/jquery-ui.js",
+            "scripts/localforage.js",
             "scripts/newsLinks.js",
             "scripts/process.js"
         ]

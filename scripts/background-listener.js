@@ -1,4 +1,7 @@
-  // background-script.js
+
+var indirectStore = localforage.createInstance({
+  name:"indirectVisits"
+});
 
 function setUrl() {
     console.log("OK");
@@ -15,12 +18,12 @@ function handleMessage(request, sender, sendResponse) {
     var ts = now.getTime();
     var link = {
         urls: request.data,
-        time: ts,
     }
+    indirectStore.setItem(ts, link)
     // get current data or empty array if it doesn't exist
-    obj = {};
-    obj[ts] = link;
-    browser.storage.local.set(obj).then(setUrl, onError);
+    //obj = {};
+    //obj[ts] = link;
+    //browser.storage.local.set(obj).then(setUrl, onError);
     setTimeout(() => {
       sendResponse({response: link});
     }, 1000);  
