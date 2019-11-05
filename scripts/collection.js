@@ -253,7 +253,6 @@ function handleMessage(request, sender, sendResponse) {
  *   - remove debugging setup code at bottom of file
  */
 const filterStatus = { properties:["status"] }
-//const filterURL = { properties:["url"] }
 function initCollectionListeners() {
     if (debug > 1) console.log("setting up data collection");
     browser.tabs.onUpdated.addListener(handleTabUpdated, properties=filterStatus);
