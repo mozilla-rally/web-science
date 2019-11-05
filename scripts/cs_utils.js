@@ -7,7 +7,7 @@ function decode(url) {
     if(hasU) {
         return u.searchParams.get("u").split('?')[0];
     }
-    return u;
+    return u.href;
 }
 
 function getDomain(url) {
