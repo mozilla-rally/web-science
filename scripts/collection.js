@@ -2,6 +2,7 @@ var currentTabId = -1;
 var currentTabHostname = "";
 var startTime = 0;
 var debug = 2;
+var unregCS = null;
 
 /* takes a string representing a url and returns the hostname
  * ex: https://www.vox.com/policy-and-politics/2019/9/12/20860452/julian-castro-2020-immigration-animals-policy-trump-climate-homeless
@@ -260,6 +261,20 @@ function initCollectionListeners() {
     browser.tabs.onActivated.addListener(handleTabActivated);
     browser.windows.onFocusChanged.addListener(handleWindowChanged);
     browser.runtime.onMessage.addListener(handleMessage);
+    browser.contentScripts.register({
+        "matches": ["*://*.developer.mozilla.org/*",
+                    "*://*.nytimes.com/*",
+                    "*://*.washingtonpost.com/*",
+                    "*://*.vox.com/*",
+                    "*://*.arstechnica.com/*",
+                    "*://*.justice.gov/*",
+                    "*://*.wsj.com/*",
+                    "*://*.ft.com/*"],
+        "js": [{"file":"/scripts/jquery.js"},
+               {"file":"/scripts/localforage.min.js"},
+               {"file":"/scripts/inspect.js"}]
+    }).then(unregObj => {unregCS = unregObj;},
+            () => {console.log("error in registering cs");});
 }
 
 function collectionMain(colCon) {
@@ -267,8 +282,11 @@ function collectionMain(colCon) {
     else {
         if (debug > 1) console.log("removing data collection");
         browser.tabs.onUpdated.removeListener(handleTabUpdated);
+        browser.tabs.onUpdated.removeListener(handleTabUpdatedAll);
         browser.tabs.onActivated.removeListener(handleTabActivated);
         browser.windows.onFocusChanged.removeListener(handleWindowChanged);
+        browser.runtime.onMessage.removeListener(handleMessage);
+        if (unregCS != null) unregCS.unregister();
     }
 }
 
