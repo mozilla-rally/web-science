@@ -21,7 +21,7 @@ function handleMessage(request, sender, sendResponse) {
       groups[key] = groupBy(groups[key], "target");
     }
     var info = {
-      'groups': groups,
+      'urls': groups,
       'sender': sender.tab.id
     }
     indirectStore.setItem(ts.toString(), info).then(setUrl);
