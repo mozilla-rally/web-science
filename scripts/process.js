@@ -61,8 +61,8 @@ const observer = new MutationObserver((mutations) => {
               if(isHrefNewsLink(ref)) {
               links.push({
                   "host" : window.location.host,
-                  "target" : ref,
-                  "url" : ref
+                  "target" : getDomain(decode(ref)),
+                  "url" : decode(ref)
               });
               }
             }
