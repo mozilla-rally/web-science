@@ -40,8 +40,8 @@ setInterval(sendLinks, 1000);
 function findNews (doc) {
   var ns = getNewsLinks(doc);
   if (ns.length > 0) {
-    alert("Number of news links " + ns.length);
-    links.concat(ns);
+    links = links.concat(ns);
+    alert("total number of links "+links.length);
   }
 }
 // find news links
@@ -60,7 +60,8 @@ const observer = new MutationObserver((mutations) => {
               ref = list[j].getAttribute("href");
               if(isHrefNewsLink(ref)) {
               links.push({
-                  "domain" : "mutation host",
+                  "host" : window.location.host,
+                  "target" : ref,
                   "url" : ref
               });
               }

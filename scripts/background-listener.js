@@ -16,16 +16,10 @@ function handleMessage(request, sender, sendResponse) {
     // get local time
     var now = new Date;
     var ts = now.getTime();
-    var link = {
-        urls: request.data,
-    }
-    indirectStore.setItem(ts, link)
-    // get current data or empty array if it doesn't exist
-    //obj = {};
-    //obj[ts] = link;
-    //browser.storage.local.set(obj).then(setUrl, onError);
+    groups = groupBy(request.data, "host");
+    indirectStore.setItem(ts.toString(), groups).then(setUrl);
     setTimeout(() => {
-      sendResponse({response: link});
+      sendResponse({response: groups});
     }, 1000);  
     return true;
   }

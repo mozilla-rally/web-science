@@ -12,7 +12,7 @@
         "page": "settings/options.html"
     },
     "background": {
-        "scripts": ["scripts/background-listener.js"]
+        "scripts": ["scripts/localforage.min.js", "scripts/utils.js", "scripts/background-listener.js"]
       },
       "browser_action": {
         "default_title": "Favourite colour option"
@@ -27,7 +27,6 @@
         "js": [
             "scripts/jquery.js",
             "scripts/jquery-ui.js",
-            "scripts/localforage.js",
             "scripts/newsLinks.js",
             "scripts/process.js"
         ]

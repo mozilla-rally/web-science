@@ -17,14 +17,16 @@ function getNewsLinks(doc) {
     for(let link of doc.links) {
         if (domains.has(link.hostname)) {
             news.push({
-                "domain" : link.hostname,
-                "url" : link.href
+                "target" : link.hostname,
+                "url" : link.href,
+                "host": window.location.host
             });
         }
         if (isHrefNewsLink(link.href)) {
             news.push({
-                "domain" : link.hostname,
-                "url" : link.href
+                "target" : link.hostname,
+                "url" : link.href,
+                "host": window.location.host
             });
 
         }
