@@ -31,6 +31,7 @@
             "<all_urls>"
         ],
         "js": [
+            "scripts/lib/cs_utils.js",
             "scripts/lib/jquery.js",
             "scripts/lib/jquery-ui.js",
             "scripts/newsLinks.js",
