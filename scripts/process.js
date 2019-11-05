@@ -41,7 +41,6 @@ function findNews (doc) {
   var ns = getNewsLinks(doc);
   if (ns.length > 0) {
     links = links.concat(ns);
-    alert("total number of links "+links.length);
   }
 }
 // find news links
