@@ -63,10 +63,11 @@ function printContentsStats() {
     contentsStore.iterate(function(value, key, iterationNumber) {
         console.log("site %s has these pages stored:", key);
         for (page in value["path"]) {
-            console.log("url %s has referrer %s and showed %d links",
+            console.log("url %s was loaded %s, has referrer %s, and showed %d links",
                 value["path"][page]["url"],
+                value["path"][page]["time"],
                 value["path"][page]["referrer"],
-                (value["path"][page]["allLinks"]).size);
+               (value["path"][page]["allLinks"]).size);
         }
     });
 }
@@ -216,7 +217,12 @@ function handleWindowChanged(windowId) {
 
 function logAllLinksMessage(obj, sender, request, hostname) {
     if (debug > 4) console.log("logAllLinksMessage");
-    (obj["path"]).push({"url" : sender.url, "allLinks" : request.links, "referrer": request.referrer});
+    (obj["path"]).push({
+        "url" : sender.url,
+        "allLinks" : request.links,
+        "time" : new Date(),
+        "referrer": request.referrer,
+    });
     contentsStore.setItem(hostname, obj)
         .then(printContentsStats);
 }
