@@ -41,7 +41,6 @@ function findNews (doc) {
   var ns = getNewsLinks(doc);
   if (ns.length > 0) {
     links = links.concat(ns);
-    alert("total number of links "+links.length);
   }
 }
 // find news links
@@ -61,8 +60,8 @@ const observer = new MutationObserver((mutations) => {
               if(isHrefNewsLink(ref)) {
               links.push({
                   "host" : window.location.host,
-                  "target" : ref,
-                  "url" : ref
+                  "target" : getDomain(decode(ref)),
+                  "url" : decode(ref)
               });
               }
             }
