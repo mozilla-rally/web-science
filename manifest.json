@@ -19,7 +19,8 @@
             "scripts/startup.js",
             "scripts/lib/utils.js",
             "scripts/collection.js",
-            "scripts/background-listener.js"
+            "scripts/background-listener.js",
+            "scripts/newsSitesListener.js"
         ]
       },
       "browser_action": {

@@ -1,8 +1,8 @@
 var currentTabId = -1;
-var currentTabHostname = "";
 var startTime = 0;
 var debug = 2;
-var unregCS = null;
+var cumulTimes = new Array();
+var cumulHostnames = new Array();
 
 /* takes a string representing a url and returns the hostname
  * ex: https://www.vox.com/policy-and-politics/2019/9/12/20860452/julian-castro-2020-immigration-animals-policy-trump-climate-homeless
@@ -27,170 +27,45 @@ function findActiveTab(windowInfo) {
     }
 }
 
-function initSite(hostname) {
-    if (debug > 4) console.log("initSite");
-    var obj  = {"numVisits":0, "totalTime":0.0, "visits":[{"visitTime": 0.0}]};
+function printNewContentsStats() {
 
-    visitStore.setItem(hostname, obj)
-        .then(() => {if (debug > 1) console.log("added site %s to visitStore", hostname);});
-    contentsStore.setItem(hostname, {"path":[]})
-        .then(() => {if (debug > 1) console.log("added site %s to contentsStore", hostname);});
+    console.log("\n******* printing new contents stats *********");
 
-    return obj;
-}
-
-function printStats() {
-    if (debug > 4) console.log("printStats");
-    console.log("\n******* printing full stats *********");
-
-    visitStore.iterate(function(value, key, iterationNumber) {
-        console.log("%s was visited %d times for total elapsed time %.2f seconds",
-            key, value["numVisits"], value["totalTime"]/1000);
-        for (var i = 0; i < value["numVisits"]; i++) {
-            var start = value["visits"][i]["visitStartTime"];
-            console.log("%s visit %d: loaded %s, duration %d, openerId %d", key, i,
-                start.toISOString(), value["visits"][i]["visitTime"],
-                value["visits"][i]["openerTabId"]);
-        }
-    });
-}
-
-function printContentsStats() {
-    if (debug > 4) console.log("printContentsStats");
-
-    console.log("\n******* printing contents stats *********");
-
-    contentsStore.iterate(function(value, key, iterationNumber) {
+    newContentsStore.iterate(function(value, key, iterationNumber) {
         console.log("site %s has these pages stored:", key);
         for (page in value["path"]) {
-            console.log("url %s was loaded %s, has referrer %s, and showed %d links",
+            console.log("url %s was loaded %s, looked at for %.2f seconds, left at %s, has referrer %s",
                 value["path"][page]["url"],
-                value["path"][page]["time"],
-                value["path"][page]["referrer"],
-               (value["path"][page]["allLinks"]).size);
+                value["path"][page]["startTime"],
+                value["path"][page]["cumulative"]/1000.0,
+                value["path"][page]["endTime"],
+                value["path"][page]["referer"]);
         }
     });
 }
 
-function logSiteVisitCallback(obj, tab, hostname) {
-    if (debug > 4) console.log("logSiteVisitCallback");
+function recordTime(timeEnded, timeStarted, tabId) {
 
-    if (obj == null) obj = initSite(hostname);
-    obj["numVisits"]++;
-    var currentVisitIndex = obj["numVisits"] - 1;
-    var allVisits = obj["visits"];
-    var openerTabId;
-    if (tab.openerTabId) openerTabId = tab.openerTabId;
-    else openerTabId = -1;
-    var currentVisit = {"visitTime": 0.0, "visitStartTime":new Date(), "openerTabId":openerTabId};
-    allVisits[currentVisitIndex] = currentVisit;
-
-    visitStore.setItem(hostname, obj)
-        .then(() => {},
-            () => {if (debug > 0) console.log("error storing sites in visit callback");} );
-}
-
-function logSiteVisit(tab) {
-    if (debug > 4) console.log("logSiteVisit");
-
-    try { var hostname = extractHostnameUrl(tab.url); }
-    catch(err) {
-        if (debug > 2) console.log("couldn't extract hostname from ", tab.url);
-        return;
-    }
-    if (tab.openerTabId) {
-        console.log("logsitevisit for hn %s, openerTabId %d", hostname, tab.openerTabId);
-    }
-    else {
-        console.log("no openerTabId for hn %s", hostname);
-    }
-
-    visitStore.getItem(hostname)
-        .then(obj => logSiteVisitCallback(obj, tab, hostname), errorGetSites);
-}
-
-function logSiteTimeCallback(obj, timeElapsed, tabId, tabHostname) {
-    if (debug > 4) console.log("logSiteTimeCallback");
-
-    if (obj == null) {
-        if (debug > 0) console.log("#### close existing tabs before restarting extension");
-        obj = initSite(tabHostname);
-    }
-    obj["totalTime"] += timeElapsed;
-    if (debug > 2) console.log("adding %d milliseconds to %s", timeElapsed, tabHostname);
-
-    var numVisits = obj["numVisits"];
-    var currentVisitIndex = numVisits - 1;
-    var currentVisit = obj["visits"][currentVisitIndex];
-    var currentVisitTime = currentVisit["visitTime"];
-
-    currentVisit["visitTime"] = currentVisitTime + timeElapsed;
-
-    visitStore.setItem(tabHostname, obj)
-        .then(() => {printStats()},
-            () => {if (debug > 0) console.log("error storing sites in visit callback");} );
-}
-
-function recordTime(timeEnded, timeStarted, tabId, tabHostname) {
-    if (debug > 4) console.log("recordTime");
-    if (tabHostname === "") {
-        if (debug > 3) console.log("ignoring unknown site");
-        return;
-    }
-    visitStore.getItem(tabHostname)
-        .then(obj => logSiteTimeCallback(obj, timeEnded - timeStarted, tabId, tabHostname),
-            errorGetSites);
+    if (cumulTimes[tabId]) cumulTimes[tabId] += timeEnded - timeStarted;
+    else cumulTimes[tabId] = timeEnded - timeStarted;
+    console.log("added %d seconds to tabId %d, now %d", (timeEnded - timeStarted)/1000.0, tabId, cumulTimes[tabId]/1000.0);
 }
 
 function unsetCurrrentTab() {
     if (debug > 4) console.log("unsetCurrrentTab");
     if (currentTabId != -1) {
-        recordTime(Date.now(), startTime, currentTabId, currentTabHostname);
+        recordTime(Date.now(), startTime, currentTabId);
         currentTabId = -1;
-        currentTabHostname = "";
     }
 }
 
-function setCurrentTab(tab) {
+function setCurrentTab(tabId) {
     if (debug > 4) console.log("setCurrentTab");
     if (currentTabId != -1) {
-        recordTime(Date.now(), startTime, currentTabId, currentTabHostname);
+        recordTime(Date.now(), startTime, currentTabId);
     }
     startTime = Date.now();
-    currentTabId = tab.id;
-    try {
-        currentTabHostname = extractHostnameUrl(tab.url);
-    } catch(err) {
-        currentTabHostname = "";
-        if (debug > 3) console.log("couldn't extract hostname from %s", tab.url);
-    }
-}
-
-function handleTabUpdated(tabId, changeInfo, tab) {
-    if (debug > 4) console.log("handleTabUpdated");
-    if ("url" in changeInfo || "status" in changeInfo && changeInfo["status"] === "complete") {
-        if (debug > 2) console.log("changeInfo", changeInfo);
-    }
-
-    if ("status" in changeInfo && changeInfo["status"] === "complete" && !("url" in changeInfo)) {
-        logSiteVisit(tab);
-        if (tab.active) {
-            setCurrentTab(tab);
-        }
-    }
-}
-
-function handleTabUpdatedAll(tabId, changeInfo, tab) {
-    if ("url" in changeInfo) {
-        try {var hostname = extractHostnameUrl(changeInfo["url"]);}
-        catch(err) {
-            if (debug > 2) console.log("couldn't extract hostname from ", tab.url);
-            return;
-        }
-
-        visitStore.getItem(hostname)
-            .then(obj => {if (obj == null) initSite(hostname); });
-    }
+    currentTabId = tabId;
 }
 
 function handleTabActivated(info) {
@@ -198,7 +73,7 @@ function handleTabActivated(info) {
     var newTabId = info.tabId;
     browser.tabs.get(newTabId)
         .then(function(tab){
-            setCurrentTab(tab);
+            setCurrentTab(tab.id);
         })
 }
 
@@ -211,19 +86,22 @@ function handleWindowChanged(windowId) {
     browser.windows.get(windowId, {populate: true})
         .then(function(windowInfo) {
             tab = findActiveTab(windowInfo);
-            setCurrentTab(tab);
+            setCurrentTab(tab.id);
         }, unsetCurrrentTab)
 }
 
-function logAllLinksMessage(obj, sender, request, hostname) {
-    if (debug > 4) console.log("logAllLinksMessage");
-    (obj["path"]).push({
-        "url" : sender.url,
-        "allLinks" : request.links,
-        "time" : new Date(),
-        "referrer": request.referrer,
-    });
-    contentsStore.setItem(hostname, obj)
-        .then(printContentsStats);
+function getAndResetCumulTime(tabId) {
+    setCurrentTab(tabId);
+    var cumul = cumulTimes[tabId];
+    cumulTimes[tabId] = 0.0;
+    console.log("returning %d seconds for tabId %d", cumul / 1000.0, tabId);
+    return cumul;
 }
 
+function clearTabIdCumul(hostname, tabId) {
+    setCurrentTab(tabId);
+    if (hostname === cumulHostnames[tabId]) return;
+    cumulTimes[tabId] = 0.0;
+    cumulHostnames[tabId] = hostname;
+    console.log("cleared cumulTime for hn %s, tabId %d", hostname, tabId);
+}
