@@ -52,6 +52,7 @@ export async function runStudy({
 
   // Add a dynamically generated content script to every HTTP/HTTPS page that
   // supports checking for whether a link's domain matches the set for the study
+  // Note that we have to carefully escape the domain matching regular expression
   await browser.contentScripts.register({
       matches: [ "*://*/*" ],
       js: [ { code: "const domainMatchRE = \"" + domainMatchRE.replace(/\\/g, "\\\\") + "\"; const domainMatcher = new RegExp(domainMatchRE);" } ],
@@ -65,6 +66,7 @@ export async function runStudy({
       runAt: "document_idle"
   });
 
+  // Listen for initial link exposure messages and save them to the database
   browser.runtime.onMessage.addListener((message, sender) => {
     if((message == null) || !("type" in message) || message.type != "WebScience.linkExposureInitial")
       return;
