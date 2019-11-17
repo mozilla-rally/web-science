@@ -32,7 +32,6 @@ async function initializeStorage() {
      * trackUserAttention - whether to record user attention to webpages (default false)
 
      * savePageContent - whether to record page content (default false) */
-// TODO implement pageContent option
 
 export async function runStudy({
   domains = [ ],
@@ -79,7 +78,8 @@ export async function runStudy({
       attentionDuration: 0,
       attentionSpanCount: 0,
       attentionSpanStarts: [ ],
-      attentionSpanEnds: [ ]
+      attentionSpanEnds: [ ],
+      pageContent: ""
     };
     debugLog("startPageVisit: " + JSON.stringify(currentTabInfo[tabId]));
     nextPageId = nextPageId + 1;
@@ -100,10 +100,12 @@ export async function runStudy({
     storage.pages.setItem(tabInfoToSave.pageId, tabInfoToSave);
   };
 
-  // Set up the content script for determining the referrer of a page with a matching domain
+  // Build the domain matching set for content scripts
   var contentScriptMatches = [ ];
   for (const domain of domains)
     contentScriptMatches.push("*://*." + domain + "/*");
+
+  // Set up the content script for determining the referrer of a page with a matching domain
   await browser.contentScripts.register({
       matches: contentScriptMatches,
       js: [ { file: "/WebScience/content-scripts/referrer.js" } ],
@@ -122,6 +124,28 @@ export async function runStudy({
     currentTabInfo[sender.tab.id].referrer = message.content.referrer;
     debugLog("referrerUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
   });
+
+  // Set up the content script for saving page content
+  if(savePageContent) {
+    await browser.contentScripts.register({
+        matches: contentScriptMatches,
+        js: [ { file: "/WebScience/content-scripts/pageContent.js" } ],
+        runAt: "document_idle"
+    });
+
+    browser.runtime.onMessage.addListener((message, sender) => {
+      if((message == null) || !("type" in message) || message.type != "WebScience.pageContentUpdate")
+        return;
+
+      // If the page content message isn't from a tab or we aren't tracking the tab,
+      // ignore the message (neither of these things should happen)
+      if(!("tab" in sender) || !(sender.tab.id in currentTabInfo))
+        return;
+
+      currentTabInfo[sender.tab.id].pageContent = message.content.pageContent;
+      debugLog("pageContentUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
+    });
+  }
 
   // Keep track of the currently focused window, the currently active tab,
   // whether to record the user's attention for that window and tab combination,
