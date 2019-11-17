@@ -84,6 +84,7 @@ export async function runStudy({
     // Save the link exposure to the database
     storage.pages.setItem("" + nextPageId, message.content);
     nextPageId = nextPageId + 1;
+    storage.configuration.setItem("nextPageId", nextPageId);
     debugLog("linkExposureInitial: " + JSON.stringify(message.content));
   });
 
@@ -96,8 +97,8 @@ function debugLog(text) {
     console.log(text);
 }
 
-// Helper function that dumps the navigation study data as text
-export async function getStudyDataAsText() {
+// Helper function that dumps the navigation study data as an object
+export async function getStudyDataAsObject() {
   var output = {
     "linkExposure.pages": { },
     "linkExposure.configuration": { }
@@ -108,5 +109,5 @@ export async function getStudyDataAsText() {
   await storage.configuration.iterate((value, key, iterationNumber) => {
     output["linkExposure.configuration"][key] = value;
   });
-  return JSON.stringify(output);
+  return output;
 }

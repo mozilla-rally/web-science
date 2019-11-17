@@ -28,13 +28,15 @@ for(var aElement of aElements) {
   }
 }
 
-browser.runtime.sendMessage({
-  type: "WebScience.linkExposureInitial",
-  content: {
-    loadTime: initialLoadTime,
-    visible: initialVisibility,
-    url: document.location.href,
-    referrer: document.referrer,
-    links: matchingLinks
-  }
-});
+if(matchingLinks.length > 0) {
+  browser.runtime.sendMessage({
+    type: "WebScience.linkExposureInitial",
+    content: {
+      loadTime: initialLoadTime,
+      visible: initialVisibility,
+      url: document.location.href,
+      referrer: document.referrer,
+      links: matchingLinks
+    }
+  });
+}
