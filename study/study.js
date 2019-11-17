@@ -19,13 +19,10 @@ browser.browserAction.onClicked.addListener(async (tab) => {
 });
 
 // Configure exposure collection
-// TODO implement something like...
 
-/*
 WebScience.LinkExposure.runStudy({
   domains: studyDomains
 });
-*/
 
 // Configure surveys
 // TODO something like...

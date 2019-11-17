@@ -1,6 +1,9 @@
 import * as Navigation from "/WebScience/study-modules/Navigation.js"
 export { Navigation }
 
+import * as LinkExposure from "/WebScience/study-modules/LinkExposure.js"
+export { LinkExposure }
+
 /* Module Variables */
 
 var studySpecificConsentRequired = true;
