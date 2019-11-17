@@ -8,8 +8,8 @@ WebScience.disableStudySpecificConsent();
 // Configure navigation collection
 WebScience.Navigation.runStudy({
   domains: studyDomains,
-  attention: true,
-  pageContent: false
+  trackUserAttention: true,
+  savePageContent: false
 });
 
 // Temporary support for dumping the navigation study data to a downloaded file
