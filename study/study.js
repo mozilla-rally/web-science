@@ -14,8 +14,13 @@ WebScience.Navigation.runStudy({
 
 // Temporary support for dumping the navigation study data to a downloaded file
 browser.browserAction.onClicked.addListener(async (tab) => {
-  var studyData = await WebScience.Navigation.getStudyDataAsText();
-  browser.downloads.download( { url: URL.createObjectURL(new Blob([ studyData ], { type: "application/json" })) } );
+  var navigationStudyData = await WebScience.Navigation.getStudyDataAsObject();
+  var linkExposureStudyData = await WebScience.LinkExposure.getStudyDataAsObject();
+  var combinedStudyData = {
+    navigation: navigationStudyData,
+    linkExposure: linkExposureStudyData
+  };
+  browser.downloads.download( { url: URL.createObjectURL(new Blob([ JSON.stringify(combinedStudyData) ], { type: "application/json" })) } );
 });
 
 // Configure exposure collection

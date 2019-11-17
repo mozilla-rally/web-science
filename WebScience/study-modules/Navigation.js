@@ -97,6 +97,7 @@ export async function runStudy({
 
     debugLog("stopPageVisit: " + JSON.stringify(tabInfoToSave));
 
+    // Store the final set of information for the page
     storage.pages.setItem("" + tabInfoToSave.pageId, tabInfoToSave);
   };
 
@@ -319,8 +320,8 @@ function debugLog(text) {
     console.log(text);
 }
 
-// Helper function that dumps the navigation study data as text
-export async function getStudyDataAsText() {
+// Helper function that dumps the navigation study data as an object
+export async function getStudyDataAsObject() {
   var output = {
     "navigation.pages": { },
     "navigation.configuration": { }
@@ -331,5 +332,5 @@ export async function getStudyDataAsText() {
   await storage.configuration.iterate((value, key, iterationNumber) => {
     output["navigation.configuration"][key] = value;
   });
-  return JSON.stringify(output);
+  return output;
 }
