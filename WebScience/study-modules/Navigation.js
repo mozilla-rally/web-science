@@ -27,7 +27,7 @@ async function initializeStorage() {
    per extension. runStudy requires an options object with the following
    properties.
 
-     * domains - array of domains to run the study on (default [ ])
+     * domains - array of domains for tracking navigation events (default [ ])
 
      * trackUserAttention - whether to record user attention to webpages (default false)
 
@@ -43,10 +43,10 @@ export async function runStudy({
 
   // Generate the regular expression object for domain matching
   // Uses the built-in regular expression library for performance
-  var domainMatchRE = "^";
+  var domainMatchRE = "^(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*(?:";
   for (const domain of domains)
-    domainMatchRE = domainMatchRE + "(?:(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*" + domain + "(?:$|/.*))|"
-  domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1)
+    domainMatchRE = domainMatchRE + domain.replace(/\./g, "\\.") + "|"
+  domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1) + ")(?:$|/.*)"
   const domainMatcher = new RegExp(domainMatchRE);
 
   // Use a unique identifier for each webpage the user visits that has a matching domain
@@ -97,7 +97,7 @@ export async function runStudy({
 
     debugLog("stopPageVisit: " + JSON.stringify(tabInfoToSave));
 
-    storage.pages.setItem(tabInfoToSave.pageId, tabInfoToSave);
+    storage.pages.setItem("" + tabInfoToSave.pageId, tabInfoToSave);
   };
 
   // Build the domain matching set for content scripts
