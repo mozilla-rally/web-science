@@ -112,6 +112,8 @@ export async function runStudy({
       runAt: "document_start"
   });
 
+  // Listen for a referrer update message and associate it with the current
+  // set of tab information
   browser.runtime.onMessage.addListener((message, sender) => {
     if((message == null) || !("type" in message) || message.type != "WebScience.referrerUpdate")
       return;
