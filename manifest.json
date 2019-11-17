@@ -1,11 +1,16 @@
 {
-    "manifest_version": 2,
-    "name": "Data",
-    "version": "1.0",
 
-    "description": "Collect specified browsing information",
+    "manifest_version": 2,
+
+    "name": "Princeton University News Study",
+
+    "version": "0.1",
+
+    "description": "A research project on how web users consume, are exposed to, and share news.",
+
     "icons": {
-        "48": "icons/eye-48.png"
+        "48": "icons/princeton_university_shield_book_gray.svg",
+        "96": "icons/princeton_university_shield_book_gray.svg"
     },
 
     "options_ui": {
@@ -13,44 +18,26 @@
     },
 
     "background": {
-        "scripts": [
-            "scripts/consent.js",
-            "scripts/lib/localforage.min.js",
-            "scripts/startup.js",
-            "scripts/lib/utils.js",
-            "scripts/collection.js",
-            "scripts/background-listener.js",
-            "scripts/newsSitesListener.js"
-        ]
+        "page": "study/study.html"
       },
-      "browser_action": {
-        "default_title": "Download data"
+
+    "browser_action": {
+        "default_title": "Download Recorded Data"
     },
-    "content_scripts": [
-    {
-        "matches": [
-            "<all_urls>"
-        ],
-        "js": [
-            "scripts/lib/cs_utils.js",
-            "scripts/lib/jquery.js",
-            "scripts/lib/jquery-ui.js",
-            "scripts/newsLinks.js",
-            "scripts/process.js"
-        ]
-    }
-    ],
+
     "permissions": [
         "<all_urls>",
         "notifications",
         "tabs",
         "storage",
+        "unlimitedStorage",
         "downloads"
     ],
 
     "browser_specific_settings": {
         "gecko": {
-            "id": "collect@example.com"
+            "id": "news.study@princeton.edu",
+            "strict_min_version": "60.0"
         }
     }
 
