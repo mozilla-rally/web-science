@@ -45,8 +45,8 @@ export async function runStudy({
   // Generate the regular expression object for domain matching
   // Uses the built-in regular expression library for performance
   var domainMatchRE = "^";
-  for (var i = 0; i < domains.length; i++)
-    domainMatchRE = domainMatchRE + "(?:(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*" + domains[i] + "(?:$|/.*))|"
+  for (const domain of domains)
+    domainMatchRE = domainMatchRE + "(?:(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*" + domain + "(?:$|/.*))|"
   domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1)
   const domainMatcher = new RegExp(domainMatchRE);
 
@@ -102,8 +102,8 @@ export async function runStudy({
 
   // Set up the content script for determining the referrer of a page with a matching domain
   var contentScriptMatches = [ ];
-  for (var i = 0; i < domains.length; i++)
-    contentScriptMatches.push("*://*." + domains[i] + "/*");
+  for (const domain of domains)
+    contentScriptMatches.push("*://*." + domain + "/*");
   await browser.contentScripts.register({
       matches: contentScriptMatches,
       js: [ { file: "/WebScience/content-scripts/referrer.js" } ],
@@ -182,20 +182,22 @@ export async function runStudy({
   // Get the currently active tab and current window when the study starts running in this browser session
   // Note that we're assuming the current window is focused
   // If the page in that tab has a matching domain, start tracking it and shift attention to it
-  var currentActiveTabAtStartup = await browser.tabs.query({ windowId: browser.windows.WINDOW_ID_CURRENT, active: true });
-  if(currentActiveTabAtStartup.length > 0) {
-    startPageVisit(currentActiveTabAtStartup[0].id, currentActiveTabAtStartup[0].url);
-    startAttentionSpan(currentActiveTabAtStartup[0].id, currentActiveTabAtStartup[0].windowId);
+  var activeTabAtStartup = null;
+  var activeTabsAtStartup = await browser.tabs.query({ windowId: browser.windows.WINDOW_ID_CURRENT, active: true });
+  if(activeTabsAtStartup.length > 0) {
+    activeTabAtStartup = activeTabsAtStartup[0];
+    startPageVisit(activeTabAtStartup.id, activeTabAtStartup.url);
+    startAttentionSpan(activeTabAtStartup.id, activeTabAtStartup.windowId);
   }
 
   // Get the current set of open tabs
-  // Ignore the currently active tab, since we've already handled it
+  // If there is a currently active tab, ignore it since we've already handled it
   // Store information about any tab that contains a webpage with a matching domain
-  var currentTabsAtStartup = await browser.tabs.query({ windowType: "normal" });
-  if (currentTabsAtStartup.length > 0)
-    for (var i = 0; i < currentTabsAtStartup.length; i++)
-      if(currentTabsAtStartup[i].id != currentActiveTabAtStartup[0].id)
-        startPageVisit(currentTabsAtStartup[i].id, currentTabsAtStartup[i].url);
+  var tabsAtStartup = await browser.tabs.query({ windowType: "normal" });
+  if (tabsAtStartup.length > 0)
+    for (const tabAtStartup of tabsAtStartup)
+      if((activeTabAtStartup == null) || (tabAtStartup.id != activeTabAtStartup.id))
+        startPageVisit(tabAtStartup.id, tabAtStartup.url);
 
   // Check when the webpage contained in a tab changes, because the browser might be
   // navigating from or to a webpage with a matching domain
@@ -246,6 +248,9 @@ export async function runStudy({
 
   // Check when the window focus changes, because the user might be changing
   // attention from or to a tab containing a webpage with a matching domain
+  // Note that we don't currently detect when the user switches to a Private
+  // Browsing window, since notifications related to those windows don't fire
+  // unless the extension has permission to run in private browsing mode
   browser.windows.onFocusChanged.addListener(async windowId => {
 
     stopAttentionSpan(false);
