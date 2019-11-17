@@ -76,6 +76,11 @@ export async function runStudy({
     if(!("tab" in sender))
       return;
 
+    // TODO check whether the tab's window is the current browser window, since
+    // the content script can only tell whether its tab is active within its window
+    // One option: use browser.windows.getCurrent (asynchronous)
+    // Another option: reuse the window and tab tracking from WebScience.Navigation (synchronous)
+
     // Save the link exposure to the database
     storage.pages.setItem("" + nextPageId, message.content);
     nextPageId = nextPageId + 1;
