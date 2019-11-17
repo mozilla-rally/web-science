@@ -5,13 +5,13 @@ const debug = true;
 /* Navigation - This module is used to run studies that track the user's
    navigation of and attention to webpages. */
 
-/* initializeStorage - Opens (and if necessary creates) a database for storing
-   study data. */
+// Storage spaces for navigation studies
 var storage = {
   pages: null, // key-value store for information about page loads
   configuration: null // key-value store for study state
 };
 
+// Helper function to set up the storage spaces
 async function initializeStorage() {
   await localforage.config({
       driver: [localforage.INDEXEDDB,
@@ -29,15 +29,15 @@ async function initializeStorage() {
 
      * domains - array of domains to run the study on (default [ ])
 
-     * attention - whether to record user attention to webpages (default false)
+     * trackUserAttention - whether to record user attention to webpages (default false)
 
-     * pageContent - whether to record page content (default false) */
+     * savePageContent - whether to record page content (default false) */
 // TODO implement pageContent option
 
 export async function runStudy({
   domains = [ ],
-  attention = false,
-  pageContent = false
+  trackUserAttention = false,
+  savePageContent = false
 }) {
 
   await initializeStorage();
@@ -59,12 +59,13 @@ export async function runStudy({
 
   // Keep track of information about pages with matching domains that are currently loaded into a tab
   // If a tab ID is in this object, the page currently contained in that tab has a matching domain
-  var currentTabInfo = {}
+  // Note that this is currently implemented with an object, we might want to switch it to a Map
+  var currentTabInfo = { }
 
   // Helper function for when a webpage loads into a tab
   // If the webpage doesn't have a matching domain, it's ignored
   // If the webpage does have a matching domain, create a new record
-  async function startTrackingTab(tabId, url) {
+  async function startPageVisit(tabId, url) {
     if(!domainMatcher.test(url))
       return;
     if(tabId in currentTabInfo)
@@ -76,15 +77,17 @@ export async function runStudy({
       visitStart: Date.now(),
       visitEnd: -1,
       attentionDuration: 0,
-      attentionCount: 0
+      attentionSpanCount: 0,
+      attentionSpanStarts: [ ],
+      attentionSpanEnds: [ ]
     };
-    debugLog("startTrackingTab: " + JSON.stringify(currentTabInfo[tabId]));
+    debugLog("startPageVisit: " + JSON.stringify(currentTabInfo[tabId]));
     nextPageId = nextPageId + 1;
     storage.configuration.setItem("nextPageId", nextPageId);
   };
 
   // Helper function for when a webpage with a matching domain unloads from a tab
-  async function stopTrackingTab(tabId) {
+  async function stopPageVisit(tabId) {
     if(!(tabId in currentTabInfo))
       return;
 
@@ -92,7 +95,7 @@ export async function runStudy({
     tabInfoToSave.visitEnd = Date.now();
     delete currentTabInfo[tabId];
 
-    debugLog("stopTrackingTab: " + JSON.stringify(tabInfoToSave));
+    debugLog("stopPageVisit: " + JSON.stringify(tabInfoToSave));
 
     storage.pages.setItem(tabInfoToSave.pageId, tabInfoToSave);
   };
@@ -127,68 +130,72 @@ export async function runStudy({
     currentFocusedWindow: -1,
     currentActiveTab: -1,
     currentActiveTabNeedsAttentionTracking: false,
-    startOfCurrentAttention: -1
+    startOfCurrentAttentionSpan: -1
   };
 
-  // Helper functions for determining whether a specified tab and/or window have the user's attention
+  // Helper function for determining whether a specified tab and window have the user's attention
   function checkTabAndWindowHaveAttention(tabId, windowId) {
     return ((attentionState.currentActiveTab == tabId) && (attentionState.currentFocusedWindow == windowId));
   }
 
+  // Helper function for determining whether a specified window has the user's attention
   function checkWindowHasAttention(windowId) {
     return (attentionState.currentFocusedWindow == windowId);
   }
 
   // Helper function for starting a new user attention span
   // If the newly active window and tab don't contain a page with a matching domain, ignore them
-  function startAttention(newTabId, newWindowId) {
-    if(!attention)
+  function startAttentionSpan(newTabId, newWindowId) {
+    if(!trackUserAttention)
       return;
     attentionState.currentFocusedWindow = newWindowId;
     attentionState.currentActiveTab = newTabId;
     attentionState.currentActiveTabNeedsAttentionTracking = newTabId in currentTabInfo;
-    attentionState.startOfCurrentAttention = Date.now();
-    debugLog("startAttention: " + JSON.stringify(attentionState));
+    attentionState.startOfCurrentAttentionSpan = Date.now();
+    debugLog("startAttentionSpan: " + JSON.stringify(attentionState));
   }
 
   // Helper function for ending a user attention span
   // If the previously active window and tab contained a page with a matching domain, update the attention information
   // Note that the retainWindow parameter is needed to handle the case where the user closes the active tab in the focused window
-  function stopAttention(retainWindow) {
-    if(!attention)
+  function stopAttentionSpan(retainWindow) {
+    if(!trackUserAttention)
       return;
 
     // If the tab that's losing attention was getting tracked, update the attention information for that tab
     if(attentionState.currentActiveTabNeedsAttentionTracking) {
-      currentTabInfo[attentionState.currentActiveTab].attentionDuration = currentTabInfo[attentionState.currentActiveTab].attentionDuration + (Date.now() - attentionState.startOfCurrentAttention);
-      currentTabInfo[attentionState.currentActiveTab].attentionCount = currentTabInfo[attentionState.currentActiveTab].attentionCount + 1;
+      var currentTime = Date.now();
+      currentTabInfo[attentionState.currentActiveTab].attentionDuration = currentTabInfo[attentionState.currentActiveTab].attentionDuration + (currentTime - attentionState.startOfCurrentAttentionSpan);
+      currentTabInfo[attentionState.currentActiveTab].attentionSpanCount = currentTabInfo[attentionState.currentActiveTab].attentionSpanCount + 1;
+      currentTabInfo[attentionState.currentActiveTab].attentionSpanStarts.push(attentionState.startOfCurrentAttentionSpan);
+      currentTabInfo[attentionState.currentActiveTab].attentionSpanEnds.push(currentTime);
     }
 
     if(!retainWindow)
       attentionState.currentFocusedWindow = -1;
     attentionState.currentActiveTab = -1;
-    attentionState.startOfCurrentAttention = -1;
+    attentionState.startOfCurrentAttentionSpan = -1;
     attentionState.currentActiveTabNeedsAttentionTracking = false;
-    debugLog("stopAttention");
+    debugLog("stopAttentionSpan");
   };
 
-  // Get the currently active tab and current window
+  // Get the currently active tab and current window when the study starts running in this browser session
   // Note that we're assuming the current window is focused
   // If the page in that tab has a matching domain, start tracking it and shift attention to it
   var currentActiveTabAtStartup = await browser.tabs.query({ windowId: browser.windows.WINDOW_ID_CURRENT, active: true });
   if(currentActiveTabAtStartup.length > 0) {
-    startTrackingTab(currentActiveTabAtStartup[0].id, currentActiveTabAtStartup[0].url);
-    startAttention(currentActiveTabAtStartup[0].id, currentActiveTabAtStartup[0].windowId);
+    startPageVisit(currentActiveTabAtStartup[0].id, currentActiveTabAtStartup[0].url);
+    startAttentionSpan(currentActiveTabAtStartup[0].id, currentActiveTabAtStartup[0].windowId);
   }
 
   // Get the current set of open tabs
+  // Ignore the currently active tab, since we've already handled it
   // Store information about any tab that contains a webpage with a matching domain
-  // Ignore the currently active tab
   var currentTabsAtStartup = await browser.tabs.query({ windowType: "normal" });
   if (currentTabsAtStartup.length > 0)
     for (var i = 0; i < currentTabsAtStartup.length; i++)
       if(currentTabsAtStartup[i].id != currentActiveTabAtStartup[0].id)
-        startTrackingTab(currentTabsAtStartup[i].id, currentTabsAtStartup[i].url);
+        startPageVisit(currentTabsAtStartup[i].id, currentTabsAtStartup[i].url);
 
   // Check when the webpage contained in a tab changes, because the browser might be
   // navigating from or to a webpage with a matching domain
@@ -200,25 +207,25 @@ export async function runStudy({
     // If the user's attention is currently on this tab, end the attention span
     var userAttentionOnTab = checkTabAndWindowHaveAttention(tabId, tab.windowId);
     if (userAttentionOnTab)
-      stopAttention(false);
+      stopAttentionSpan(false);
 
     // If this is a navigation from a page with a matching domain, record the event
-    stopTrackingTab(tabId);
+    stopPageVisit(tabId);
 
     // If this is a navigation to a page with a matching domain, record the event
-    startTrackingTab(tabId, changeInfo.url);
+    startPageVisit(tabId, changeInfo.url);
 
     // If the user's attention is currently on this tab, start an attention span
     if (userAttentionOnTab)
-      startAttention(tabId, tab.windowId);
+      startAttentionSpan(tabId, tab.windowId);
   });
 
   // Check when the user closes a tab, because the page loaded in the tab might
   // have attention and a matching domain
   browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
     if(checkTabAndWindowHaveAttention(tabId, removeInfo.windowId))
-      stopAttention(true);
-    stopTrackingTab(tabId);
+      stopAttentionSpan(true);
+    stopPageVisit(tabId);
   });
 
   // Check when the user activates a tab, because the user might be changing
@@ -233,15 +240,15 @@ export async function runStudy({
       return;
 
     // Otherwise, shift attention from the old tab to the new tab
-    stopAttention(false);
-    startAttention(activeInfo.tabId, activeInfo.windowId);
+    stopAttentionSpan(false);
+    startAttentionSpan(activeInfo.tabId, activeInfo.windowId);
   });
 
   // Check when the window focus changes, because the user might be changing
   // attention from or to a tab containing a webpage with a matching domain
   browser.windows.onFocusChanged.addListener(async windowId => {
 
-    stopAttention(false);
+    stopAttentionSpan(false);
 
     // Try to learn more about the window
     // Note that this can result in an error for non-browser windows
@@ -252,16 +259,23 @@ export async function runStudy({
     catch(error) {
     }
 
-    // If all windows have lost focus or the focused window isn't a browser window, don't resume attention tracking
-    if((windowId == browser.windows.WINDOW_ID_NONE) || (windowDetails.type != "normal"))
+    // Handle if all windows have lost focus or the focused window isn't a browser window
+    // Note that we're using -1 as a placeholder for an untracked tab and/or window ID
+    // This isn't necessary, but it improves the readability of debugging by
+    // ensuring that every attention span has a start and an end
+    if((windowId == browser.windows.WINDOW_ID_NONE) || (windowDetails.type != "normal")) {
+      startAttentionSpan(-1, -1);
       return;
+    }
 
-    // If there isn't an active tab in the new window, don't resume attention tracking
+    // Handle if there isn't an active tab in the new window
     var tabInfo = await browser.tabs.query({ windowId: windowId, active: true });
-    if (tabInfo.length == 0)
+    if (tabInfo.length == 0) {
+      startAttentionSpan(-1, windowId);
       return;
+    }
 
-    startAttention(tabInfo[0].id, windowId);
+    startAttentionSpan(tabInfo[0].id, windowId);
 
   });
 
