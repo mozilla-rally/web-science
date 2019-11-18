@@ -1,3 +1,6 @@
+// Function encapsulation to maintain unique variable scope for each content script
+(function() {
+
 // Save the time the page initially completed loading
 var initialLoadTime = Date.now();
 
@@ -28,6 +31,9 @@ for(var aElement of aElements) {
   }
 }
 
+// TODO implement a better data model, such as link exposure tracking within the
+// content script that sends the full set of link exposure data when the page
+// is unloading (e.g., with window.addEventListener("beforeunload", ...))
 if(matchingLinks.length > 0) {
   browser.runtime.sendMessage({
     type: "WebScience.linkExposureInitial",
@@ -42,13 +48,19 @@ if(matchingLinks.length > 0) {
 }
 
 // TODO add logic to handle link presentation/redirection quirks, including:
-// * Facebook - e.g., https://l.facebook.com/l.php?u=...
+// * Facebook - e.g., https://l.facebook.com/l.php?u=... this should be
+//   straightforward, just parsing the URL out of a parameter
 // * Twitter - this is tricky... it looks like if a tweet body includes a URL,
 //   then the original URL is included in <a title=..., but if a tweet only
 //   includes a media object (e.g., the author deleted the URL after the story
 //   attached to the tweet), then there's only a hostname in the media object
-//   and a t.co URL to resolve
-// * Google Search - e.g., https://www.google.com/url?...
+//   and a t.co URL to resolve... one option for the time being would be to grab
+//   the URL if it's availabile and the hostname if it isn't... another option
+//   would be to provide a service in the background page that resolves
+//   shortened URLs (note that we can't do this in a content script because of
+//   CORS)
+// * Google Search - e.g., https://www.google.com/url?... this should be
+//   straightforward URL parameter parsing
 // * Google News - this is also tricky, since it looks like the article URL
 //   is embedded with some unusual twist on base64url encoding (e.g.,
 //   https://news.google.com/articles/...)
@@ -67,5 +79,7 @@ if(matchingLinks.length > 0) {
 // from getBoundingClientRect)
 
 // TODO add logic to monitor for when a tags enter or exit the user's view
-// (e.g., iterate tags checking the viewport or use an IntersectionObserver on
-// each tag)
+// (e.g., iterate tags of interest checking the viewport or use an
+// IntersectionObserver on those tags
+
+})();
