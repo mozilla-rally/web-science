@@ -23,11 +23,46 @@ browser.browserAction.onClicked.addListener(async (tab) => {
   browser.downloads.download( { url: URL.createObjectURL(new Blob([ JSON.stringify(combinedStudyData) ], { type: "application/json" })) } );
 });
 
-// Configure exposure collection
+// Configure link exposure collection
 
 WebScience.LinkExposure.runStudy({
   domains: studyDomains
 });
+
+// TODO configure social media account exposure collection
+// Something like...
+
+/*
+WebScience.SocialMediaAccountExposure.runStudy({
+  facebookAccounts: [ ],
+  twitterAccounts: [ ],
+  youtubeAccounts: [ ]
+});
+*/
+
+// TODO configure social media news exposure collection (i.e., content
+// recognized by platforms as news regardless of whether we recognize the domain
+// Something like...
+
+/*
+WebScience.SocialMediaNewsExposure.runStudy({
+  facebook: true,
+  twitter: true,
+  youtube: true
+});
+*/
+
+// TODO configure social media news sharing collection
+// Something like...
+
+/*
+WebScience.SocialMediaSharing.runStudy({
+  domains: [ ],
+  facebook: true,
+  twitter: true,
+  reddit: true
+});
+*/
 
 // Configure surveys
 // TODO something like...
