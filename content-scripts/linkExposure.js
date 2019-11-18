@@ -6,13 +6,10 @@ var initialLoadTime = Date.now();
 // we have to separately check in the content script whether the window is active
 var initialVisibility = document.visibilityState == "visible";
 
-// TODO check if the Page Visibility API properly handles when a tab is active in
-// its browser window but the window isn't focused
-
 // Get all the links on the page that have an href attribute
 // Not that this is using the slower querySelectorAll, which returns a static NodeList
 // We might want to use the faster getElement, which returns a live (possibly risky) HTMLCollection
-// We also might want to try embedding the domains into the CSS selector
+// We also might want to try embedding the matching domains into the CSS selector, which might be faster
 var aElements = document.body.querySelectorAll("a[href]");
 
 var matchingLinks = [ ];
@@ -22,6 +19,9 @@ for(var aElement of aElements) {
 
   // Use a DOM expando attribute to label a tags with whether the domain matches
   aElement.linkExposureMatchingDomain = domainMatcher.test(aElement.href);
+
+  // TODO check that we aren't missing href attributes that omit the current domain
+  // e.g., <a href="/foo/bar.html">
 
   if(aElement.linkExposureMatchingDomain) {
     matchingLinks.push(aElement.href);
@@ -40,3 +40,32 @@ if(matchingLinks.length > 0) {
     }
   });
 }
+
+// TODO add logic to handle link presentation/redirection quirks, including:
+// * Facebook - e.g., https://l.facebook.com/l.php?u=...
+// * Twitter - this is tricky... it looks like if a tweet body includes a URL,
+//   then the original URL is included in <a title=..., but if a tweet only
+//   includes a media object (e.g., the author deleted the URL after the story
+//   attached to the tweet), then there's only a hostname in the media object
+//   and a t.co URL to resolve
+// * Google Search - e.g., https://www.google.com/url?...
+// * Google News - this is also tricky, since it looks like the article URL
+//   is embedded with some unusual twist on base64url encoding (e.g.,
+//   https://news.google.com/articles/...)
+
+// TODO add logic to handle new a tags added to the DOM, would start with
+// periodicially iterating the a tags and ignoring tags we've already tagged with
+// an expando attribute
+
+// TODO add logic to handle href attribute changes in a tags we've already seen
+// This might be overkill... it probably doesn't come up much
+
+// TODO add logic to check whether an a tag is visible to the user (e.g.,
+// compare the viewport to getBoundingClientRect)
+
+// TODO add logic to check the visual size of the tag (e.g., get dimensions
+// from getBoundingClientRect)
+
+// TODO add logic to monitor for when a tags enter or exit the user's view
+// (e.g., iterate tags checking the viewport or use an IntersectionObserver on
+// each tag)
