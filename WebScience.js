@@ -4,6 +4,9 @@ export { Navigation }
 import * as LinkExposure from "/WebScience/study-modules/LinkExposure.js"
 export { LinkExposure }
 
+import * as SocialMediaSharing from "/WebScience/study-modules/SocialMediaSharing.js"
+export { SocialMediaSharing }
+
 /* Module Variables */
 
 var studySpecificConsentRequired = true;
