@@ -16,9 +16,11 @@ WebScience.Navigation.runStudy({
 browser.browserAction.onClicked.addListener(async (tab) => {
   var navigationStudyData = await WebScience.Navigation.getStudyDataAsObject();
   var linkExposureStudyData = await WebScience.LinkExposure.getStudyDataAsObject();
+  var socialMediaSharingStudyData = await WebScience.SocialMediaSharing.getStudyDataAsObject();
   var combinedStudyData = {
     navigation: navigationStudyData,
-    linkExposure: linkExposureStudyData
+    linkExposure: linkExposureStudyData,
+    socialMediaSharing: socialMediaSharingStudyData
   };
   browser.downloads.download( { url: URL.createObjectURL(new Blob([ JSON.stringify(combinedStudyData) ], { type: "application/json" })) } );
 });
@@ -52,17 +54,12 @@ WebScience.SocialMediaNewsExposure.runStudy({
 });
 */
 
-// TODO configure social media news sharing collection
-// Something like...
-
-/*
 WebScience.SocialMediaSharing.runStudy({
-  domains: [ ],
+  domains: studyDomains,
   facebook: true,
   twitter: true,
   reddit: true
 });
-*/
 
 // Configure surveys
 // TODO something like...
