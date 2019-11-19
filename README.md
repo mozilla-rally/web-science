@@ -1,10 +1,12 @@
-# web-science
-You need npm to install web-ext, which I (on Ubuntu 18.04) did by following the directions here: https://github.com/nodesource/distributions/blob/master/README.md, namely,
-```# Using Ubuntu
-curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
+# Web Science
+A research project on how web users consume, are exposed to, and share news. Also, we hope, a library and template for [Firefox Pioneer](https://support.mozilla.org/en-US/kb/about-firefox-pioneer) studies.
 
-Then, install web-ext: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Getting_started_with_web-ext
+## Requirements
+* [Node.js](https://nodejs.org/en/), available via [Homebrew](https://brew.sh/) on macOS
+* [Mozilla web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/)
 
-and then run `make`.
+## Running the Extension
+Launch an instance of Firefox with a temporary profile using `web-ext run` in the extension directory.
+
+## Debugging the Extension
+Debugging output is available in Tools → Web Developer → Browser Console. Make sure that the Show Content Messages option is checked. You might find it helpful to set a filter for debugging messages of interest. You can also download the set of measurements currently in storage by clicking the Princeton icon in the toolbar.
