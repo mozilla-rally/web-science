@@ -47,9 +47,11 @@ if(matchingLinks.length > 0) {
   });
 }
 
-// TODO add logic to handle link presentation/redirection quirks, including:
-// * Facebook - e.g., https://l.facebook.com/l.php?u=... this should be
-//   straightforward, just parsing the URL out of a parameter
+// TODO add logic to handle platform link shims, shorteners, and other services,
+// including:
+// * Facebook - e.g., https://l.facebook.com/l.php?u=... and
+//   https://facebook.com/l/..., this should be straightforward, just parsing
+//   the URL out of a parameter
 // * Twitter - this is tricky... it looks like if a tweet body includes a URL,
 //   then the original URL is included in <a title=..., but if a tweet only
 //   includes a media object (e.g., the author deleted the URL after the story
@@ -64,6 +66,10 @@ if(matchingLinks.length > 0) {
 // * Google News - this is also tricky, since it looks like the article URL
 //   is embedded with some unusual twist on base64url encoding (e.g.,
 //   https://news.google.com/articles/...)
+
+// TODO add logic to handle popular third-party link shorteners, e.g., bit.ly,
+// goo.gl, etc., and custom domains for those shorters, e.g., nyti.ms and
+// theatln.tc
 
 // TODO add logic to handle new a tags added to the DOM, would start with
 // periodicially iterating the a tags and ignoring tags we've already tagged with
