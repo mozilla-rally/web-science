@@ -116,7 +116,13 @@ export async function runStudy({
   // Will have to resolve the tweet getting quoted for any URLs
 
   // Facebook
-  // TODO implement support
+
+  // TODO implement post support
+  // Looks like the relevant API endpoint is https://www.facebook.com/webgraphql/mutation/?doc_id=...
+  // Will have to check the form body's variables.input.message.text (for post
+  // text) and variables.input.attachments (for attached URLs)
+
+  // TODO implement reshare support
 
   // Reddit
 
