@@ -39,8 +39,8 @@ export async function runStudy({
   // Uses the built-in regular expression library for performance
   var domainMatchRE = "^(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*(?:";
   for (const domain of domains)
-    domainMatchRE = domainMatchRE + domain.replace(/\./g, "\\.") + "|"
-  domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1) + ")(?:$|/.*)"
+    domainMatchRE = domainMatchRE + domain.replace(/\./g, "\\.") + "|";
+  domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1) + ")(?:$|/.*)";
   const domainMatcher = new RegExp(domainMatchRE);
 
   // Use a unique identifier for each webpage the user visits
