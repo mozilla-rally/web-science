@@ -31,7 +31,8 @@
         "tabs",
         "storage",
         "unlimitedStorage",
-        "downloads"
+        "downloads",
+        "webRequest"
     ],
 
     "browser_specific_settings": {
