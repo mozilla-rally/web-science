@@ -20,7 +20,8 @@ async function initializeStorage() {
   });
 
   storage.shares = await localforage.createInstance( { name: "socialMediaSharing.shares" } );
-  storage.configuration = await localforage.createInstance( { name: "socialMediaSharing.configuration" } );
+  storage.configuration = await localforage.createInstance( 
+      { name: "socialMediaSharing.configuration" } );
 }
 
 /* runStudy - Starts a SocialMediaSharing study. Note that only one study is supported
@@ -76,7 +77,10 @@ export async function runStudy({
       return;
 
     // Check that this is a recognizable status update (i.e., tweet) request
-    if ((requestDetails.requestBody == null) || !("formData" in requestDetails.requestBody) || !("status" in requestDetails.requestBody.formData) || (requestDetails.requestBody.formData["status"].length == 0))
+    if ((requestDetails.requestBody == null) ||
+        !("formData" in requestDetails.requestBody) ||
+        !("status" in requestDetails.requestBody.formData) ||
+        (requestDetails.requestBody.formData["status"].length == 0))
       return;
 
     var shareTime = Date.now();
@@ -98,7 +102,8 @@ export async function runStudy({
     }
 
   },
-  { urls: [ "https://api.twitter.com/*/statuses/update.json" ] }, // Using a wildcard for the API version in case that changes
+  // Using a wildcard for the API version in case that changes
+  { urls: [ "https://api.twitter.com/*/statuses/update.json" ] }, 
   [ "requestBody" ]);
 
   // TODO handle retweets
@@ -138,7 +143,8 @@ export async function runStudy({
     var shareTime = Date.now();
 
     // Handle if there's a URL attached to the post
-    if(("url" in requestDetails.requestBody.formData) && (requestDetails.requestBody.formData["url"].length == 1)) {
+    if(("url" in requestDetails.requestBody.formData) &&
+        (requestDetails.requestBody.formData["url"].length == 1)) {
         var postUrl = requestDetails.requestBody.formData["url"][0];
         if(domainMatcher.test(postUrl)) {
           var shareRecord = createShareRecord(shareTime, "reddit", postUrl, "post");
@@ -152,7 +158,8 @@ export async function runStudy({
     // TODO handle if there's a URL embedded in the post body
 
   },
-  { urls: [ "https://oauth.reddit.com/api/submit*" ] }, // Using a wildcard at the end of the URL because Reddit adds parameters
+  // Using a wildcard at the end of the URL because Reddit adds parameters
+  { urls: [ "https://oauth.reddit.com/api/submit*" ] }, 
   [ "requestBody" ]);
 
 }

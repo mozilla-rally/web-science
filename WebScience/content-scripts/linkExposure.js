@@ -12,7 +12,8 @@ var initialVisibility = document.visibilityState == "visible";
 // Get all the links on the page that have an href attribute
 // Not that this is using the slower querySelectorAll, which returns a static NodeList
 // We might want to use the faster getElement, which returns a live (possibly risky) HTMLCollection
-// We also might want to try embedding the matching domains into the CSS selector, which might be faster
+// We also might want to try embedding the matching domains into the CSS
+//  selector, which might be faster
 var aElements = document.body.querySelectorAll("a[href]");
 
 var matchingLinks = [ ];

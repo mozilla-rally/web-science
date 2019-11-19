@@ -68,7 +68,9 @@ export async function runStudy({
 
   // Listen for initial link exposure messages and save them to the database
   browser.runtime.onMessage.addListener((message, sender) => {
-    if((message == null) || !("type" in message) || message.type != "WebScience.linkExposureInitial")
+    if((message == null) ||
+        !("type" in message) ||
+        message.type != "WebScience.linkExposureInitial")
       return;
 
     // If the link exposure message isn't from a tab, ignore the message
@@ -79,7 +81,8 @@ export async function runStudy({
     // TODO check whether the tab's window is the current browser window, since
     // the content script can only tell whether its tab is active within its window
     // One option: use browser.windows.getCurrent (asynchronous)
-    // Another option: set a listener for browser.windows.onFocusChanged to keep track of the current window (synchronous in this context)
+    // Another option: set a listener for browser.windows.onFocusChanged to keep track of
+    //  the current window (synchronous in this context)
     // Another option: reuse the window and tab tracking from WebScience.Navigation (synchronous)
 
     // Save the link exposure to the database
