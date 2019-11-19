@@ -59,6 +59,15 @@ export async function runStudy({
     await storage.configuration.setItem("nextShareId", nextShareId);
   }
 
+  // TODO when saving a sharing event, check in the browser history for whether
+  // the user has visited the URL
+  // Probably the best way to do this is parse the URL, strip out HTTP/HTTPS and
+  // parameters, and then use browser.history.search to get whether the page
+  // was visited, how many times it was visited, and when it was most recently
+  // visited
+  // We might also want to check the WebScience.Navigation database to look up
+  // how long the user spent on the page
+
   // Twitter
 
   // If the user POSTS a status update, parse it for matching URLs
