@@ -1,12 +1,40 @@
 {
     "version": "0.2.0",
     "configurations": [
+        // Note: automatic extension reloading is not reliable... after the first reload, the debugger appears
+        // to remain connected, but the Visual Studio debug console disconnects and the Firefox debug console
+        // shows errors
         {
-            "name": "Launch WebExtension",
+            "name": "Launch WebExtension (With Automatic Extension Reloading)",
             "type": "firefox",
             "request": "launch",
             "reAttach": false,
-            "addonPath": "${workspaceFolder}"
+            "reloadOnChange": {
+                "watch": [ "${workspaceFolder}/**/*.js", "${workspaceFolder}/**/*.json", "${workspaceFolder}/**/*.html" ],
+                "ignore": [ ],
+                "debounce": false
+            },
+            "popupAutohideButton": false,
+            "addonPath": "${workspaceFolder}",
+            "firefoxArgs": [ "-jsconsole", "-foreground" ],
+            "preferences": {
+                "devtools.browserconsole.contentMessages": true,
+                "app.normandy.enabled": false
+            }
+        },
+        // Note: it's possible to manually reload the extension inside Firefox from about:debugging
+        {
+            "name": "Launch WebExtension (Without Automatic Extension Reloading)",
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": false,
+            "popupAutohideButton": false,
+            "addonPath": "${workspaceFolder}",
+            "firefoxArgs": [  "-jsconsole", "-foreground", "-new-window", "about:blank", "-url", "about:debugging#/runtime/this-firefox" ],
+            "preferences": {
+                "devtools.browserconsole.contentMessages": true,
+                "app.normandy.enabled": false
+            }
         }
     ]
 }
