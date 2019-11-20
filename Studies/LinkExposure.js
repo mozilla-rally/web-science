@@ -62,7 +62,7 @@ export async function runStudy({
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
       matches: [ "*://*/*" ],
-      js: [ { file: "/WebScience/content-scripts/linkExposure.js" } ],
+      js: [ { file: "/WebScience/Studies/content-scripts/linkExposure.js" } ],
       runAt: "document_idle"
   });
 
