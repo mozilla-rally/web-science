@@ -1,6 +1,5 @@
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
-
-const debug = true;
+import { debugLog } from "/WebScience/Utilities/DebugLog.js"
 
 /* LinkExposure - This module is used to run studies that track the user's
    exposure to links. */
@@ -95,11 +94,6 @@ export async function runStudy({
 }
 
 /* Utilities */
-
-function debugLog(text) {
-  if(debug == true)
-    console.log(text);
-}
 
 // Helper function that dumps the navigation study data as an object
 export async function getStudyDataAsObject() {

@@ -1,6 +1,5 @@
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
-
-const debug = true;
+import { debugLog } from "/WebScience/Utilities/DebugLog.js"
 
 /* SocialMediaSharing - This module is used to run studies that track the user's
    social media sharing of links. */
@@ -173,11 +172,6 @@ function createShareRecord(shareTime, platform, url, event) {
     url: url,
     event: event
   };
-}
-
-function debugLog(text) {
-  if(debug == true)
-    console.log(text);
 }
 
 // Helper function that dumps the navigation study data as an object

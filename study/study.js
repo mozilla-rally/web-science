@@ -1,6 +1,8 @@
 import { studyDomains } from "/study/domains.js"
 import * as WebScience from "/WebScience/WebScience.js"
 
+WebScience.Utilities.DebugLog.enableDebugging();
+
 // This is a study that won't involve identifiable data or any intervention,
 // so we're disabling the study-specific consent feature.
 WebScience.disableStudySpecificConsent();
