@@ -109,7 +109,7 @@ export async function runStudy({
   // Set up the content script for determining the referrer of a page with a matching domain
   await browser.contentScripts.register({
       matches: contentScriptMatches,
-      js: [ { file: "/WebScience/content-scripts/referrer.js" } ],
+      js: [ { file: "/WebScience/Studies/content-scripts/referrer.js" } ],
       runAt: "document_start"
   });
 
@@ -132,7 +132,7 @@ export async function runStudy({
   if(savePageContent) {
     await browser.contentScripts.register({
         matches: contentScriptMatches,
-        js: [ { file: "/WebScience/content-scripts/pageContent.js" } ],
+        js: [ { file: "/WebScience/Studies/content-scripts/pageContent.js" } ],
         runAt: "document_idle"
     });
 

@@ -1,11 +1,5 @@
-import * as Navigation from "/WebScience/study-modules/Navigation.js"
-export { Navigation }
-
-import * as LinkExposure from "/WebScience/study-modules/LinkExposure.js"
-export { LinkExposure }
-
-import * as SocialMediaSharing from "/WebScience/study-modules/SocialMediaSharing.js"
-export { SocialMediaSharing }
+import * as Studies from "/WebScience/Studies/Studies.js"
+export { Studies }
 
 /* Module Variables */
 

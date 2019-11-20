@@ -6,19 +6,19 @@ import * as WebScience from "/WebScience/WebScience.js"
 WebScience.disableStudySpecificConsent();
 
 // Configure navigation collection
-WebScience.Navigation.runStudy({
+WebScience.Studies.Navigation.runStudy({
   domains: studyDomains,
   trackUserAttention: true,
   savePageContent: false
 });
 
 // Configure link exposure collection
-WebScience.LinkExposure.runStudy({
+WebScience.Studies.LinkExposure.runStudy({
   domains: studyDomains
 });
 
 // Configure social media sharing collection
-WebScience.SocialMediaSharing.runStudy({
+WebScience.Studies.SocialMediaSharing.runStudy({
   domains: studyDomains,
   facebook: true,
   twitter: true,
@@ -61,9 +61,9 @@ WebScience.UserSurvey.runStudy({
 
 // Temporary support for dumping the navigation study data to a downloaded file
 browser.browserAction.onClicked.addListener(async (tab) => {
-  var navigationStudyData = await WebScience.Navigation.getStudyDataAsObject();
-  var linkExposureStudyData = await WebScience.LinkExposure.getStudyDataAsObject();
-  var socialMediaSharingStudyData = await WebScience.SocialMediaSharing.getStudyDataAsObject();
+  var navigationStudyData = await WebScience.Studies.Navigation.getStudyDataAsObject();
+  var linkExposureStudyData = await WebScience.Studies.LinkExposure.getStudyDataAsObject();
+  var socialMediaSharingStudyData = await WebScience.Studies.SocialMediaSharing.getStudyDataAsObject();
   var combinedStudyData = {
     navigation: navigationStudyData,
     linkExposure: linkExposureStudyData,
