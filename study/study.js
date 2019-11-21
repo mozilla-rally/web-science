@@ -31,7 +31,7 @@ WebScience.Studies.SocialMediaSharing.runStudy({
 // Something like...
 
 /*
-WebScience.SocialMediaAccountExposure.runStudy({
+WebScience.Studies.SocialMediaAccountExposure.runStudy({
   facebookAccounts: [ ],
   twitterAccounts: [ ],
   youtubeAccounts: [ ]
@@ -43,7 +43,7 @@ WebScience.SocialMediaAccountExposure.runStudy({
 // Something like...
 
 /*
-WebScience.SocialMediaNewsExposure.runStudy({
+WebScience.Studies.SocialMediaNewsExposure.runStudy({
   facebook: true,
   twitter: true,
   youtube: true
@@ -54,7 +54,7 @@ WebScience.SocialMediaNewsExposure.runStudy({
 // TODO something like...
 
 /*
-WebScience.UserSurvey.runStudy({
+WebScience.Studies.UserSurvey.runStudy({
   surveyPromptText: "foo",
   surveyUrl: "bar",
   surveyTimeAfterInitialRun: 12345
