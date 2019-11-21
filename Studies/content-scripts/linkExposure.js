@@ -17,10 +17,15 @@ var initialVisibility = document.visibilityState == "visible";
 var aElements = document.body.querySelectorAll("a[href]");
 
 var matchingLinks = [ ];
+var shortLinks = [];
 
 // Check each link for whether the href matches a domain in the study
 for(var aElement of aElements) {
 
+  if(shortURLMatcher.test(aElement.href)) {
+    shortLinks.push(aElement.href);
+    continue;
+  }
   // Use a DOM expando attribute to label a tags with whether the domain matches
   aElement.linkExposureMatchingDomain = urlMatcher.test(aElement.href);
 
@@ -31,6 +36,22 @@ for(var aElement of aElements) {
     matchingLinks.push(aElement.href);
   }
 }
+
+if(shortLinks.length > 0) {
+  browser.runtime.sendMessage({
+    type: "WebScience.shortLinks",
+    content: {
+      loadTime: initialLoadTime,
+      visible: initialVisibility,
+      url: document.location.href,
+      referrer: document.referrer,
+      links: shortLinks
+    }
+  });
+}
+
+// append shortLinks to matchingLinks 
+//matchingLinks = shortLinks.concat(matchingLinks);
 
 // TODO implement a better data model, such as link exposure tracking within the
 // content script that sends the full set of link exposure data when the page
@@ -48,11 +69,21 @@ if(matchingLinks.length > 0) {
   });
 }
 
-// TODO add logic to handle platform link shims, shorteners, and other services,
-// including:
-// * Facebook - e.g., https://l.facebook.com/l.php?u=... and
-//   https://facebook.com/l/..., this should be straightforward, just parsing
-//   the URL out of a parameter
+// TODO : matching for urls must be done prior to regular expression matching
+
+function fb_decode(url) {
+  var u = new URL(url);
+  // this is for facebook posts
+  hasU = u.searchParams.get('u') != null;
+  if(hasU) {
+      return u.searchParams.get("u").split('?')[0];
+  }
+  return u.href;
+}
+
+// TODO add logic to handle link presentation/redirection quirks, including:
+// * Facebook - e.g., https://l.facebook.com/l.php?u=... this should be
+//   straightforward, just parsing the URL out of a parameter
 // * Twitter - this is tricky... it looks like if a tweet body includes a URL,
 //   then the original URL is included in <a title=..., but if a tweet only
 //   includes a media object (e.g., the author deleted the URL after the story
