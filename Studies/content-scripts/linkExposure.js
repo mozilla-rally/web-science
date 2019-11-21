@@ -22,7 +22,7 @@ var matchingLinks = [ ];
 for(var aElement of aElements) {
 
   // Use a DOM expando attribute to label a tags with whether the domain matches
-  aElement.linkExposureMatchingDomain = domainMatcher.test(aElement.href);
+  aElement.linkExposureMatchingDomain = urlMatcher.test(aElement.href);
 
   // TODO check that we aren't missing href attributes that omit the current domain
   // e.g., <a href="/foo/bar.html">

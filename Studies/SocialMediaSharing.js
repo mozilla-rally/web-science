@@ -1,5 +1,6 @@
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
-import { debugLog } from "/WebScience/Utilities/DebugLog.js"
+import * as WebScience from "/WebScience/WebScience.js"
+var debugLog = WebScience.Utilities.DebugLog.debugLog;
 
 /* SocialMediaSharing - This module is used to run studies that track the user's
    social media sharing of links. */
@@ -44,13 +45,7 @@ export async function runStudy({
 
   await initializeStorage();
 
-  // Generate the regular expression object for domain matching
-  // Uses the built-in regular expression library for performance
-  var domainMatchRE = "^(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*(?:";
-  for (const domain of domains)
-    domainMatchRE = domainMatchRE + domain.replace(/\./g, "\\.") + "|";
-  domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1) + ")(?:$|/.*)";
-  const domainMatcher = new RegExp(domainMatchRE);
+  const urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
 
   // Use a unique identifier for each webpage the user visits
   var nextShareId = await storage.configuration.getItem("nextShareId");
@@ -91,7 +86,7 @@ export async function runStudy({
 
     // If there's a URL match, record the sharing event
     for (var tweetToken of tweetTokens) {
-      if (domainMatcher.test(tweetToken)) {
+      if (urlMatcher.testUrl(tweetToken)) {
         var shareRecord = createShareRecord(shareTime, "twitter", tweetToken, "tweet");
         storage.shares.setItem("" + nextShareId, shareRecord);
         nextShareId = nextShareId + 1;
