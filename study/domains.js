@@ -1,3 +1,9 @@
+export const shortDomains = [
+  "nyti.ms",
+  "bit.ly",
+  "goo.gl",
+  "t.co"
+];
 export const studyDomains = [
   // Temporary: popular shorteners until the shim resolution functionality is done
   "nyti.ms",

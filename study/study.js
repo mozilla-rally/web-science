@@ -1,4 +1,5 @@
 import { studyDomains } from "/study/domains.js"
+import { shortDomains } from "/study/domains.js"
 import * as WebScience from "/WebScience/WebScience.js"
 
 WebScience.Utilities.Debugging.enableDebugging();
@@ -36,10 +37,11 @@ function runStudies() {
     savePageContent: false
   });
 
-  // Configure link exposure collection
-  WebScience.Studies.LinkExposure.runStudy({
-    domains: studyDomains
-  });
+// Configure link exposure collection
+WebScience.Studies.LinkExposure.runStudy({
+  domains: studyDomains,
+  shortdomains: shortDomains
+});
 
   // Configure social media sharing collection
   WebScience.Studies.SocialMediaSharing.runStudy({
