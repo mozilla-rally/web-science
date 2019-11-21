@@ -10,8 +10,5 @@ export { Matching }
 import * as Storage from "/WebScience/Utilities/Storage.js"
 export { Storage }
 
-import * as PageVisit from "/WebScience/Utilities/PageVisit.js"
-export { PageVisit }
-
-import * as PageAttention from "/WebScience/Utilities/PageAttention.js"
-export { PageAttention }
+import * as PageEvents from "/WebScience/Utilities/PageEvents.js"
+export { PageEvents }
