@@ -1,5 +1,6 @@
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
-import { debugLog } from "/WebScience/Utilities/DebugLog.js"
+import * as WebScience from "/WebScience/WebScience.js"
+var debugLog = WebScience.Utilities.DebugLog.debugLog;
 
 /* LinkExposure - This module is used to run studies that track the user's
    exposure to links. */
@@ -34,14 +35,6 @@ export async function runStudy({
 
   await initializeStorage();
 
-  // Generate the regular expression object for domain matching
-  // Uses the built-in regular expression library for performance
-  var domainMatchRE = "^(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*(?:";
-  for (const domain of domains)
-    domainMatchRE = domainMatchRE + domain.replace(/\./g, "\\.") + "|";
-  domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1) + ")(?:$|/.*)";
-  const domainMatcher = new RegExp(domainMatchRE);
-
   // Use a unique identifier for each webpage the user visits
   var nextPageId = await storage.configuration.getItem("nextPageId");
   if(nextPageId == null) {
@@ -54,7 +47,13 @@ export async function runStudy({
   // Note that we have to carefully escape the domain matching regular expression
   await browser.contentScripts.register({
       matches: [ "*://*/*" ],
-      js: [ { code: "const domainMatchRE = \"" + domainMatchRE.replace(/\\/g, "\\\\") + "\"; const domainMatcher = new RegExp(domainMatchRE);" } ],
+      js: [
+        {
+          code: "const urlMatchRE = \"" + 
+          WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") + 
+            "\"; const urlMatcher = new RegExp(urlMatchRE);"
+        }
+      ],
       runAt: "document_start"
   });
 

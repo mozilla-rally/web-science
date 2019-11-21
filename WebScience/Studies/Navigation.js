@@ -1,5 +1,6 @@
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
-import { debugLog } from "/WebScience/Utilities/DebugLog.js"
+import * as WebScience from "/WebScience/WebScience.js"
+var debugLog = WebScience.Utilities.DebugLog.debugLog;
 
 /* Navigation - This module is used to run studies that track the user's
    navigation of and attention to webpages. */
@@ -40,13 +41,7 @@ export async function runStudy({
 
   await initializeStorage();
 
-  // Generate the regular expression object for domain matching
-  // Uses the built-in regular expression library for performance
-  var domainMatchRE = "^(?:http|https)://(?:[A-Za-z0-9\\-]+\\.)*(?:";
-  for (const domain of domains)
-    domainMatchRE = domainMatchRE + domain.replace(/\./g, "\\.") + "|";
-  domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1) + ")(?:$|/.*)";
-  const domainMatcher = new RegExp(domainMatchRE);
+  const urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
 
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageId = await storage.configuration.getItem("nextPageId");
@@ -64,7 +59,7 @@ export async function runStudy({
   // If the webpage doesn't have a matching domain, it's ignored
   // If the webpage does have a matching domain, create a new record
   async function startPageVisit(tabId, url) {
-    if(!domainMatcher.test(url))
+    if(!urlMatcher.testUrl(url))
       return;
     if(tabId in currentTabInfo)
       return;
