@@ -5,7 +5,7 @@ WebScience.Utilities.DebugLog.enableDebugging();
 
 // This is a study that won't involve identifiable data or any intervention,
 // so we're disabling the study-specific consent feature.
-WebScience.disableStudySpecificConsent();
+WebScience.Utilities.Consent.disableStudySpecificConsent();
 
 // Configure navigation collection
 WebScience.Studies.Navigation.runStudy({
