@@ -1,10 +1,10 @@
 /*  This module provides a research abstraction over extension events related to
     webpage loading and user attention. The abstraction consists of the following
     events:
-        * Page Start - the browser has started to load a webpage in a tab
-        * Attention Start - the user has shifted attention to a tab
-        * Attention Stop - the user has shifted attention from a tab
-        * Page Stop - the browser has unloaded a webpage from a tab
+        * Page Visit Start - the browser has started to load a webpage in a tab
+        * Page Attention Start - the user has shifted attention to a tab
+        * Page Attention Stop - the user has shifted attention from a tab
+        * Page Visit Stop - the browser has unloaded a webpage from a tab
     
     Attention is defined as satisfying all of the following conditions:
         * The tab is the active tab in its browser window
@@ -12,13 +12,14 @@
         * The current browser window has focus in the operating system
     
     If the user's attention is on a tab and the tab closes, the sequence of events
-    will be Attention Stop -> Page Stop. The timestamp is syncronized for the events.
+    will be Page Attention Stop -> Page Visit Stop. The timestamp is syncronized for
+    the events.
 
     If the user's attention is on a tab and the page in the tab changes, the sequence
-    of events will be Attention Stop -> Page Stop -> Page Start -> Attention Start.
-    The timestamp is syncronized for the events.
+    of events will be Page Attention Stop -> Page Visit Stop -> Page Visit Start ->
+    Page Attention Start. The timestamp is syncronized for the events.
 
-    The page and attention events are implemented in one module in order to
+    The page visit and attention events are implemented in one module in order to
     guarantee the ordering of events. */
 
 /*  Support for registering and notifying listeners on page visit start.
