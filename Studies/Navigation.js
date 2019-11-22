@@ -1,6 +1,6 @@
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 import * as WebScience from "/WebScience/WebScience.js"
-var debugLog = WebScience.Utilities.DebugLog.debugLog;
+const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Navigation");
 
 /*  Navigation - This module is used to run studies that track the user's
     navigation of and attention to webpages. */
