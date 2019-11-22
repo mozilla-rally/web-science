@@ -42,6 +42,8 @@ function isElementInViewport (el) {
 // Check each link for whether the href matches a domain in the study
 for(var aElement of aElements) {
 
+  // Test for short domains that are in the viewport
+  // Test case : navigate to https://support.google.com/faqs/answer/190768?hl=en
   if(testForMatch(shortURLMatcher, aElement.href) && isElementInViewport(aElement)) {
     shortLinks.push(aElement.href);
     continue;
