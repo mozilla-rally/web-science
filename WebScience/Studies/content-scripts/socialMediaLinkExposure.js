@@ -16,8 +16,7 @@ var initialVisibility = document.visibilityState == "visible";
 //  selector, which might be faster
 var aElements = document.body.querySelectorAll("a[href]");
 
-var matchingLinks = [ ];
-var shortLinks = [];
+var matches = [];
 
 // Helper function to test if the hostname matches to a known domain
 function testForMatch(matcher, link) {
@@ -39,60 +38,7 @@ function isElementInViewport (el) {
   );
 }
 
-// Check each link for whether the href matches a domain in the study
-for(var aElement of aElements) {
-
-  // Test for short domains that are in the viewport
-  // Test case : navigate to https://support.google.com/faqs/answer/190768?hl=en
-  if(testForMatch(shortURLMatcher, aElement.href) && isElementInViewport(aElement)) {
-    shortLinks.push(aElement.href);
-    continue;
-  }
-  // Use a DOM expando attribute to label a tags with whether the domain matches
-  aElement.linkExposureMatchingDomain = testForMatch(urlMatcher, aElement.href);
-
-  // TODO check that we aren't missing href attributes that omit the current domain
-  // e.g., <a href="/foo/bar.html">
-
-  if(aElement.linkExposureMatchingDomain) {
-    matchingLinks.push(aElement.href);
-  }
-}
-
-if(shortLinks.length > 0) {
-  browser.runtime.sendMessage({
-    type: "WebScience.shortLinks",
-    content: {
-      loadTime: initialLoadTime,
-      visible: initialVisibility,
-      url: document.location.href,
-      referrer: document.referrer,
-      links: shortLinks
-    }
-  });
-}
-
-// append shortLinks to matchingLinks 
-//matchingLinks = shortLinks.concat(matchingLinks);
-
-// TODO implement a better data model, such as link exposure tracking within the
-// content script that sends the full set of link exposure data when the page
-// is unloading (e.g., with window.addEventListener("beforeunload", ...))
-if(matchingLinks.length > 0) {
-  browser.runtime.sendMessage({
-    type: "WebScience.socialMediaLinkExposureInitial",
-    content: {
-      loadTime: initialLoadTime,
-      visible: initialVisibility,
-      url: document.location.href,
-      referrer: document.referrer,
-      links: matchingLinks
-    }
-  });
-}
-
-// TODO : matching for urls must be done prior to regular expression matching
-
+// helper function for parsing fb urls
 function fb_decode(url) {
   var u = new URL(url);
   // this is for facebook posts
@@ -100,46 +46,34 @@ function fb_decode(url) {
   if(hasU) {
       return u.searchParams.get("u").split('?')[0];
   }
-  return u.href;
+  return "";
 }
 
-// TODO add logic to handle link presentation/redirection quirks, including:
-// * Facebook - e.g., https://l.facebook.com/l.php?u=... this should be
-//   straightforward, just parsing the URL out of a parameter
-// * Twitter - this is tricky... it looks like if a tweet body includes a URL,
-//   then the original URL is included in <a title=..., but if a tweet only
-//   includes a media object (e.g., the author deleted the URL after the story
-//   attached to the tweet), then there's only a hostname in the media object
-//   and a t.co URL to resolve... one option for the time being would be to grab
-//   the URL if it's availabile and the hostname if it isn't... another option
-//   would be to provide a service in the background page that resolves
-//   shortened URLs (note that we can't do this in a content script because of
-//   CORS)
-// * Google Search - e.g., https://www.google.com/url?... this should be
-//   straightforward URL parameter parsing
-// * Google News - this is also tricky, since it looks like the article URL
-//   is embedded with some unusual twist on base64url encoding (e.g.,
-//   https://news.google.com/articles/...)
+// Check each link for whether the href matches a domain in the study
+for(var aElement of aElements) {
 
-// TODO add logic to handle popular third-party link shorteners, e.g., bit.ly,
-// goo.gl, etc., and custom domains for those shorters, e.g., nyti.ms and
-// theatln.tc
 
-// TODO add logic to handle new a tags added to the DOM, would start with
-// periodicially iterating the a tags and ignoring tags we've already tagged with
-// an expando attribute
+  // Test for short domains that are in the viewport
+  // Test case : navigate to https://support.google.com/faqs/answer/190768?hl=en
+  if(testForMatch(smURLMatcher, aElement.href) && isElementInViewport(aElement) && fb_decode(aElement.href)) {
+    matches.push([aElement.href, fb_decode(aElement.href)]);
+    continue;
+  }
+}
 
-// TODO add logic to handle href attribute changes in a tags we've already seen
-// This might be overkill... it probably doesn't come up much
+if(matches.length > 0) {
+  browser.runtime.sendMessage({
+    type: "WebScience.socialMediaLinkExposureInitial",
+    content: {
+      loadTime: initialLoadTime,
+      visible: initialVisibility,
+      url: document.location.href,
+      referrer: document.referrer,
+      smmatcher: shortURLMatcher,
+      links: matches
+    }
+  });
+}
 
-// TODO add logic to check whether an a tag is visible to the user (e.g.,
-// compare the viewport to getBoundingClientRect)
-
-// TODO add logic to check the visual size of the tag (e.g., get dimensions
-// from getBoundingClientRect)
-
-// TODO add logic to monitor for when a tags enter or exit the user's view
-// (e.g., iterate tags of interest checking the viewport or use an
-// IntersectionObserver on those tags
 
 })();

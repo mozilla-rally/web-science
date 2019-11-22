@@ -61,12 +61,11 @@ export async function runStudy({
     await storage.configuration.setItem("nextPageId", nextPageId);
   }
 
+  var sm = ["facebook.com"];
   // create code for url and short domain matching
-  var injectcode = "const urlMatchRE = \"" + 
-  WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") + 
-    "\"; const urlMatcher = new RegExp(urlMatchRE);" +  "const shortURLMatchRE = \"" + 
-          WebScience.Utilities.Matching.createUrlRegexString(shortdomains).replace(/\\/g, "\\\\") + 
-            "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);"
+  var injectcode = "const smURLMatchRE = \"" + 
+          WebScience.Utilities.Matching.createUrlRegexString(sm).replace(/\\/g, "\\\\") + 
+            "\"; const smURLMatcher = new RegExp(smURLMatchRE);"
   console.log("code is "+injectcode);
 
   // Add a dynamically generated content script to every HTTP/HTTPS page that
