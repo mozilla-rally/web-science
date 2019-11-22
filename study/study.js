@@ -9,22 +9,22 @@ WebScience.Utilities.Consent.disableStudySpecificConsent();
 
 // Configure navigation collection
 WebScience.Studies.Navigation.runStudy({
-  domains: studyDomains,
-  trackUserAttention: true,
-  savePageContent: false
+    domains: studyDomains,
+    trackUserAttention: true,
+    savePageContent: false
 });
 
 // Configure link exposure collection
 WebScience.Studies.LinkExposure.runStudy({
-  domains: studyDomains
+    domains: studyDomains
 });
 
 // Configure social media sharing collection
 WebScience.Studies.SocialMediaSharing.runStudy({
-  domains: studyDomains,
-  facebook: true,
-  twitter: true,
-  reddit: true
+    domains: studyDomains,
+    facebook: true,
+    twitter: true,
+    reddit: true
 });
 
 // TODO configure social media account exposure collection
@@ -32,9 +32,9 @@ WebScience.Studies.SocialMediaSharing.runStudy({
 
 /*
 WebScience.Studies.SocialMediaAccountExposure.runStudy({
-  facebookAccounts: [ ],
-  twitterAccounts: [ ],
-  youtubeAccounts: [ ]
+    facebookAccounts: [ ],
+    twitterAccounts: [ ],
+    youtubeAccounts: [ ]
 });
 */
 
@@ -44,9 +44,9 @@ WebScience.Studies.SocialMediaAccountExposure.runStudy({
 
 /*
 WebScience.Studies.SocialMediaNewsExposure.runStudy({
-  facebook: true,
-  twitter: true,
-  youtube: true
+    facebook: true,
+    twitter: true,
+    youtube: true
 });
 */
 
@@ -55,21 +55,23 @@ WebScience.Studies.SocialMediaNewsExposure.runStudy({
 
 /*
 WebScience.Studies.UserSurvey.runStudy({
-  surveyPromptText: "foo",
-  surveyUrl: "bar",
-  surveyTimeAfterInitialRun: 12345
+    surveyPromptText: "foo",
+    surveyUrl: "bar",
+    surveyTimeAfterInitialRun: 12345
 });
 */
 
 // Temporary support for dumping the navigation study data to a downloaded file
 browser.browserAction.onClicked.addListener(async (tab) => {
-  var navigationStudyData = await WebScience.Studies.Navigation.getStudyDataAsObject();
-  var linkExposureStudyData = await WebScience.Studies.LinkExposure.getStudyDataAsObject();
-  var socialMediaSharingStudyData = await WebScience.Studies.SocialMediaSharing.getStudyDataAsObject();
-  var combinedStudyData = {
-    navigation: navigationStudyData,
-    linkExposure: linkExposureStudyData,
-    socialMediaSharing: socialMediaSharingStudyData
-  };
-  browser.downloads.download( { url: URL.createObjectURL(new Blob([ JSON.stringify(combinedStudyData) ], { type: "application/json" })) } );
+    var navigationStudyData = await WebScience.Studies.Navigation.getStudyDataAsObject();
+    var linkExposureStudyData = await WebScience.Studies.LinkExposure.getStudyDataAsObject();
+    var socialMediaSharingStudyData = await WebScience.Studies.SocialMediaSharing.getStudyDataAsObject();
+    var counterData = await WebScience.Utilities.Storage.Counter.getContentsAsObject();
+    var combinedStudyData = {
+        navigation: navigationStudyData,
+        linkExposure: linkExposureStudyData,
+        socialMediaSharing: socialMediaSharingStudyData,
+        counters: counterData
+    };
+    browser.downloads.download( { url: URL.createObjectURL(new Blob([ JSON.stringify(combinedStudyData) ], { type: "application/json" })) } );
 });

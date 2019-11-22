@@ -1,27 +1,10 @@
-import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 import * as WebScience from "/WebScience/WebScience.js"
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Navigation");
+const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.Navigation");
 
 /*  Navigation - This module is used to run studies that track the user's
     navigation of and attention to webpages. */
 
-// Storage spaces for navigation studies
-var storage = {
-    pages: null, // key-value store for information about page loads
-    configuration: null // key-value store for study state
-};
-
-// Helper function to set up the storage spaces
-async function initializeStorage() {
-    await localforage.config({
-        driver: [localforage.INDEXEDDB,
-                localforage.WEBSQL,
-                localforage.LOCALSTORAGE],
-    });
-
-    storage.pages = await localforage.createInstance( { name: "navigation.pages" } );
-    storage.configuration = await localforage.createInstance( { name: "navigation.configuration" } );
-}
+var storage = null;
 
 /*  runStudy - Starts a Navigation study. Note that only one study is supported
     per extension. runStudy requires an options object with the following
@@ -36,16 +19,12 @@ export async function runStudy({
     savePageContent = false
 }) {
 
-    await initializeStorage();
+    storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.Navigation")).initialize();
 
     const urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
-    var nextPageId = await storage.configuration.getItem("nextPageId");
-    if(nextPageId == null) {
-        nextPageId = 0;
-        await storage.configuration.setItem("nextPageId", nextPageId);
-    }
+    var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.Navigation.nextPageId")).initialize();
 
     // Keep track of information about pages with matching domains that are currently loaded into a tab
     // If a tab ID is in this object, the page currently contained in that tab has a matching domain
@@ -68,7 +47,7 @@ export async function runStudy({
         
         // Otherwise, remember the page visit start and increment the page counter
         currentTabInfo[tabId] = {
-            pageId: nextPageId,
+            pageId: await nextPageIdCounter.getAndIncrement(),
             url: url,
             referrer: "",
             visitStart: timeStamp,
@@ -80,8 +59,6 @@ export async function runStudy({
             pageContent: ""
         };
         debugLog("pageVisitStartListener: " + JSON.stringify(currentTabInfo[tabId]));
-        nextPageId = nextPageId + 1;
-        storage.configuration.setItem("nextPageId", nextPageId);
     };
 
     // Handle when a page visit stops
@@ -101,7 +78,7 @@ export async function runStudy({
         debugLog("pageVisitStopListener: " + JSON.stringify(tabInfoToSave));
 
         // Store the final set of information for the page
-        storage.pages.setItem("" + tabInfoToSave.pageId, tabInfoToSave);
+        storage.set(tabInfoToSave.pageId.toString(), tabInfoToSave);
     };
 
     var inAttentionSpan = false;
@@ -228,15 +205,7 @@ export async function runStudy({
 
 // Helper function that dumps the navigation study data as an object
 export async function getStudyDataAsObject() {
-    var output = {
-        "navigation.pages": { },
-        "navigation.configuration": { }
-    };
-    await storage.pages.iterate((value, key, iterationNumber) => {
-        output["navigation.pages"][key] = value;
-    });
-    await storage.configuration.iterate((value, key, iterationNumber) => {
-        output["navigation.configuration"][key] = value;
-    });
-    return output;
+    if(storage != null)
+        return await storage.getContentsAsObject();
+    return null;
 }
