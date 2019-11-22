@@ -4,19 +4,29 @@
 // if needed (e.g., a trie or URL parsing and a set of domains)
 export class UrlMatcher {
     constructor(domains, matchSubdomains = true) {
-        this.domainMatcher = new RegExp(createUrlRegexString(domains, matchSubdomains));
+        this.regExp = new RegExp(createUrlRegexString(domains, matchSubdomains));
     }
 
     testUrl(url) {
-        return this.domainMatcher.test(url);
+        return this.regExp.test(url);
     }
 }
 
-// Returns a regular expression for matching URLs against an array of domains
+// Returns a regular expression string for matching URLs against an array of domains
 export function createUrlRegexString(domains, matchSubdomains = true) {
-    var domainMatchRE = "^(?:http|https)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
+    var urlMatchRE = "^(?:http|https)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
     for (const domain of domains)
-      domainMatchRE = domainMatchRE + domain.replace(/\./g, "\\.") + "|";
-    domainMatchRE = domainMatchRE.substring(0, domainMatchRE.length - 1) + ")(?:$|/.*)";
-    return domainMatchRE;
+        urlMatchRE = urlMatchRE + domain.replace(/\./g, "\\.") + "|";
+    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|/.*)";
+    return urlMatchRE;
+}
+
+// Returns an array of match patterns for matching URLs against an array of domains
+export function createUrlMatchPatternArray(domains, matchSubdomains = true) {
+    var matchPatterns = [ ];
+    for (const domain of domains) {
+        matchPatterns.push("http://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
+        matchPatterns.push("https://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
+    }
+    return matchPatterns;
 }
