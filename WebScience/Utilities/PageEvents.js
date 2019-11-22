@@ -215,6 +215,7 @@ async function initialize() {
         var tabInfo = await browser.tabs.query({ windowId: windowId, active: true });
         if (tabInfo.length == 0) {
             currentActiveTab = -1;
+            currentFocusedWindow = windowId;
           return;
         }
 
