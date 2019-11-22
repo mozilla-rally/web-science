@@ -1,6 +1,6 @@
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 import * as WebScience from "/WebScience/WebScience.js"
-var debugLog = WebScience.Utilities.DebugLog.debugLog;
+const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("SocialMediaSharing");
 
 /* SocialMediaSharing - This module is used to run studies that track the user's
    social media sharing of links. */
