@@ -23,10 +23,26 @@ var shortLinks = [];
 function testForMatch(matcher, link) {
   return matcher.test(link)
 }
+
+// Helper function to test if DOM element is in viewport
+function isElementInViewport (el) {
+  //if we are using jquery
+  if (typeof jQuery === "function" && el instanceof jQuery) {
+      el = el[0];
+  }
+  var rect = el.getBoundingClientRect();
+  return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && /*or $(window).height() */
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth) /*or $(window).width() */
+  );
+}
+
 // Check each link for whether the href matches a domain in the study
 for(var aElement of aElements) {
 
-  if(testForMatch(shortURLMatcher, aElement.href)) {
+  if(testForMatch(shortURLMatcher, aElement.href) && isElementInViewport(aElement)) {
     shortLinks.push(aElement.href);
     continue;
   }
