@@ -27,7 +27,8 @@
         * tabId - the tab containing the page, unique to the browsing session
         * windowId - the window containing the page, unique to the browsing session,
                      note that tabs can subsequently move between windows
-        * url - the URL of the page loading in the tab */
+        * url - the URL of the page loading in the tab
+        * timeStamp - the time when the underlying browser event fired */
 
 var pageVisitStartListeners = [ ];
 
@@ -38,9 +39,9 @@ export async function registerPageVisitStartListener(pageVisitStartListener, not
         notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, timeStamp);
 }
 
-function notifyPageVisitStartListeners(tabId, windowId, url) {
+export function notifyPageVisitStartListeners(tabId, windowId, url, timeStamp = Date.now()) {
     for (const pageVisitStartListener of pageVisitStartListeners)
-        pageVisitStartListener(tabId, windowId, url);
+        pageVisitStartListener(tabId, windowId, url, timeStamp);
 }
 
 /*  Support for registering and notifying listeners on page visit stop.
@@ -48,7 +49,8 @@ function notifyPageVisitStartListeners(tabId, windowId, url) {
         * tabId - the tab containing the page, unique to the browsing session
         * windowId - the window containing the page, unique to the browsing session,
                      note that this window may differ from the window that contained
-                     the tab when the page visit start event fired */
+                     the tab when the page visit start event fired
+        * timeStamp - the time when the underlying browser event fired */
 
 var pageVisitStopListeners = [ ];
 
@@ -57,9 +59,9 @@ export function registerPageVisitStopListener(pageVisitStopListener) {
     pageVisitStopListeners.push(pageVisitStopListener);
 }
 
-function notifyPageVisitStopListeners(tabId, windowId) {
+function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
     for (const pageVisitStopListener of pageVisitStopListeners)
-        pageVisitStopListener(tabId, windowId);
+        pageVisitStopListener(tabId, windowId, timeStamp);
 }
 
 /*  Support for registering and notifying listeners on page attention start.
@@ -78,7 +80,7 @@ export async function registerPageAttentionStartListener(pageAttentionStartListe
         notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, timeStamp);
 }
 
-function notifyPageAttentionStartListeners(tabId, windowId, timeStamp) {
+function notifyPageAttentionStartListeners(tabId, windowId, timeStamp = Date.now()) {
     for (const pageAttentionStartListener of pageAttentionStartListeners)
         pageAttentionStartListener(tabId, windowId, timeStamp);
 }
@@ -97,7 +99,7 @@ export async function registerPageAttentionStopListener(pageAttentionStopListene
     pageAttentionStopListeners.push(pageAttentionStopListener);
 }
 
-function notifypageAttentionStopListeners(tabId, windowId, timeStamp) {
+function notifyPageAttentionStopListeners(tabId, windowId, timeStamp = Date.now()) {
     for (const pageAttentionStopListener of pageAttentionStopListeners)
         pageAttentionStopListener(tabId, windowId, timeStamp);
 }
@@ -129,7 +131,7 @@ async function initialize() {
     browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         var timeStamp = Date.now();
 
-        // Ignore changes that don't involve the URL
+        // Ignore changes that do not involve the URL
         if (!("url" in changeInfo))
             return;
 
@@ -189,7 +191,7 @@ async function initialize() {
 
         // End the attention span
         notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
-    
+
         // Try to learn more about the new window
         // Note that this can result in an error for non-browser windows
         var windowDetails = { type: "unknown" };
@@ -198,7 +200,7 @@ async function initialize() {
         }
         catch(error) {
         }
-    
+
         // If the browser has lost focus in the operating system, or if the new window is not
         // a browser window, remember tab ID = -1 and window ID = -1, and do not start a new
         // attention span
@@ -207,7 +209,7 @@ async function initialize() {
             currentFocusedWindow = -1;
             return;
         }
-    
+
         // If there is not an active tab in the new window, remember tab ID = -1 and the new
         // focused window, and do not start a new attention span
         var tabInfo = await browser.tabs.query({ windowId: windowId, active: true });
@@ -215,7 +217,7 @@ async function initialize() {
             currentActiveTab = -1;
           return;
         }
-    
+
         // Otherwise, remember the new active tab and focused window, and start a new attention span
         currentActiveTab = tabInfo[0].id;
         currentFocusedWindow = windowId;
@@ -229,7 +231,6 @@ async function initialize() {
     try {
         lastFocusedWindow = await browser.windows.getLastFocused({
             populate: true,
-            windowTypes: [ "normal", "popup" ]
         });
     }
     catch(error) {
@@ -240,6 +241,11 @@ async function initialize() {
     if(lastFocusedWindow == null)
         return;
     
+    // If the most recently focused window cannot contain a webpage, keep the default values
+    // of tab ID = -1 and window ID = -1
+    if((lastFocusedWindow.type != "normal") && (lastFocusedWindow.type != "popup"))
+        return;
+
     // If the most recently focused window does not have focus (i.e., there is no window with
     // focus because the browser does not have focus in the operating system), keep the default
     // values of tab ID = -1 and window ID = -1
@@ -261,40 +267,31 @@ async function initialize() {
 
 // Notifies a listener about the current set of open pages, useful for when the extension
 // launches in the middle of a browsing session
-
 async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, timeStamp) {
-
     // Get the current set of open tabs
     // We have to separately get tabs in normal windows and in popup windows
     var currentTabs = await browser.tabs.query({
-        windowType: "normal"
+        windowType: "normal",
+        url: [ "http://*/*", "https://*/*" ]
     });
     currentTabs = currentTabs.concat(await browser.tabs.query({
-        windowType: "popup"
+        windowType: "popup",
+        url: [ "http://*/*", "https://*/*" ]
     }));
 
     // Notify the listener
     if (currentTabs.length > 0)
         for (const currentTab of currentTabs)
             pageVisitStartListener(currentTab.id, currentTab.windowId, currentTab.url, timeStamp);
-
 }
 
 // Notifies a listener about the current page with attention, useful for when the extension
 // launches in the middle of a browsing session
-
 async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, timeStamp) {
+    // If there is no active tab or focused window, there is no notification to provide
+    if((currentActiveTab == -1) || (currentFocusedWindow == -1))
+        return;
 
-    // Get the active tab in the  open tabs
-    var activeTabInCurrentWindow = await browser.tabs.query({
-        windowId: browser.windows.WINDOW_ID_CURRENT,
-        active: true,
-        windowType: "normal",
-        url: [ "http://*/*", "https://*/*" ]
-    });
-
-    // Notify the listener
-    if (activeTabInCurrentWindow.length > 0)
-        pageAttentionStartListener(activeTabInCurrentWindow[0].id, activeTabInCurrentWindow[0].windowId, timeStamp);
-
+    // Otherwise, notify the listener
+    pageAttentionStartListener(currentActiveTab, currentFocusedWindow, timeStamp);
 }
