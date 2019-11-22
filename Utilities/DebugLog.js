@@ -5,5 +5,5 @@ export function enableDebugging() {
 }
 
 export function debugLog(text) {
-    console.log(text);
+    console.debug(text);
 }
