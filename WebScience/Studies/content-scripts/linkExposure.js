@@ -19,15 +19,19 @@ var aElements = document.body.querySelectorAll("a[href]");
 var matchingLinks = [ ];
 var shortLinks = [];
 
+// Helper function to test if the hostname matches to a known domain
+function testForMatch(matcher, link) {
+  return matcher.test(link)
+}
 // Check each link for whether the href matches a domain in the study
 for(var aElement of aElements) {
 
-  if(shortURLMatcher.test(aElement.href)) {
+  if(testForMatch(shortURLMatcher, aElement.href)) {
     shortLinks.push(aElement.href);
     continue;
   }
   // Use a DOM expando attribute to label a tags with whether the domain matches
-  aElement.linkExposureMatchingDomain = urlMatcher.test(aElement.href);
+  aElement.linkExposureMatchingDomain = testForMatch(urlMatcher, aElement.href);
 
   // TODO check that we aren't missing href attributes that omit the current domain
   // e.g., <a href="/foo/bar.html">
