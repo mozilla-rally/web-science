@@ -19,6 +19,11 @@
             "firefoxArgs": [ "-jsconsole", "-foreground" ],
             "preferences": {
                 "devtools.browserconsole.contentMessages": true,
+                "devtools.browserconsole.filter.debug": true,
+                "devtools.browserconsole.filter.error": false,
+                "devtools.browserconsole.filter.info": false,
+                "devtools.browserconsole.filter.log": false,
+                "devtools.browserconsole.filter.warn": false,
                 "app.normandy.enabled": false
             }
         },
@@ -33,6 +38,11 @@
             "firefoxArgs": [  "-jsconsole", "-foreground", "-new-window", "about:blank", "-url", "about:debugging#/runtime/this-firefox" ],
             "preferences": {
                 "devtools.browserconsole.contentMessages": true,
+                "devtools.browserconsole.filter.debug": true,
+                "devtools.browserconsole.filter.error": false,
+                "devtools.browserconsole.filter.info": false,
+                "devtools.browserconsole.filter.log": false,
+                "devtools.browserconsole.filter.warn": false,
                 "app.normandy.enabled": false
             }
         }
