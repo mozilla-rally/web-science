@@ -32,7 +32,8 @@
         "storage",
         "unlimitedStorage",
         "downloads",
-        "webRequest"
+        "webRequest",
+        "idle"
     ],
 
     "browser_specific_settings": {
