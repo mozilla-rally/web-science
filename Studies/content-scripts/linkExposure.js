@@ -39,13 +39,25 @@ function isElementInViewport (el) {
   );
 }
 
+// Helper function to get size of element
+function getElementSize(el) {
+  var rect = el.getBoundingClientRect();
+  return {
+    width : rect.right-rect.left,
+    height : rect.bottom-rect.top
+  };
+}
+
 // Check each link for whether the href matches a domain in the study
 for(var aElement of aElements) {
 
   // Test for short domains that are in the viewport
   // Test case : navigate to https://support.google.com/faqs/answer/190768?hl=en
   if(testForMatch(shortURLMatcher, aElement.href) && isElementInViewport(aElement)) {
-    shortLinks.push(aElement.href);
+    shortLinks.push({
+      href : aElement.href,
+      size : getElementSize(aElement)
+    });
     continue;
   }
   // Use a DOM expando attribute to label a tags with whether the domain matches
@@ -55,7 +67,10 @@ for(var aElement of aElements) {
   // e.g., <a href="/foo/bar.html">
 
   if(aElement.linkExposureMatchingDomain) {
-    matchingLinks.push(aElement.href);
+    matchingLinks.push({
+      href : aElement.href,
+      size : getElementSize(aElement)
+    });
   }
 }
 
