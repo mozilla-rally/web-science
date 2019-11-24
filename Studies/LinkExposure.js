@@ -6,32 +6,9 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExp
 
 var storage = null;
 
-<<<<<<< HEAD
-/*  runStudy - Starts a LinkExposure study. Note that only one study is supported
-    per extension. runStudy requires an options object with the following
-    property.
-=======
-// Helper function to resolve short urls
-async function resolveURL(link) {
-      fetch(link, {
-        // Manual mode doesn't seem to return the URL to follow 
-        // https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
-        // TODO  : Is there a better way to get the url
-        //redirect: "manual",
-      })
-        .then(
-          function (response) {
-            if(response.url != link) {
-              debugLog("redirected to" + response.url);
-              // TODO : send this link back to the content script for processing further
-              return response.url
-            }
-          });
-}
 /* runStudy - Starts a LinkExposure study. Note that only one study is supported
    per extension. runStudy requires an options object with the following
    property.
->>>>>>> helper function for resolving urls
 
         * domains - array of domains for tracking link exposure events */
 
@@ -91,7 +68,9 @@ export async function runStudy({
 
 
     for(var link of message.content.links) {
-      resolveURL(link);
+      WebScience.Utilities.LinkResolution.resolveURL(link.href).then(res => {
+      debugLog("url = " + link.href + " resolved url = " + res);
+      });
     }
 
     // Save the link exposure to the database

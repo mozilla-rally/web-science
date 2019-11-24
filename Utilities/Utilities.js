@@ -15,3 +15,5 @@ export { PageEvents }
 
 import * as ResponseBody from "/WebScience/Utilities/ResponseBody.js"
 export { ResponseBody }
+import * as LinkResolution from "/WebScience/Utilities/LinkResolution.js"
+export { LinkResolution }
