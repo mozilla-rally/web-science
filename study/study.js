@@ -44,15 +44,6 @@ WebScience.Studies.LinkExposure.runStudy({
   shortdomains: shortDomains
 });
 
-<<<<<<< HEAD
-  // Configure social media sharing collection
-  WebScience.Studies.SocialMediaSharing.runStudy({
-    domains: studyDomains,
-    facebook: true,
-    twitter: true,
-    reddit: true
-  });
-=======
 // Configure link exposure collection
 WebScience.Studies.SocialMediaLinkExposure.runStudy({
   domains: studyDomains,
@@ -67,7 +58,6 @@ WebScience.Studies.SocialMediaSharing.runStudy({
   twitter: true,
   reddit: true
 });
->>>>>>> adding social media new exposure study
 
   // TODO configure social media account exposure collection
   // Something like...
