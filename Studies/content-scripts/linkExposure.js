@@ -26,10 +26,6 @@ function testForMatch(matcher, link) {
 
 // Helper function to test if DOM element is in viewport
 function isElementInViewport (el) {
-  //if we are using jquery
-  if (typeof jQuery === "function" && el instanceof jQuery) {
-      el = el[0];
-  }
   var rect = el.getBoundingClientRect();
   return (
       rect.top >= 0 &&
