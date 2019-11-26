@@ -47,7 +47,7 @@ export async function runStudy({
         
         // Otherwise, remember the page visit start and increment the page counter
         currentTabInfo[tabId] = {
-            pageId: await nextPageIdCounter.getAndIncrement(),
+            pageId: nextPageIdCounter.get(),
             url: url,
             referrer: "",
             visitStart: timeStamp,
@@ -59,6 +59,7 @@ export async function runStudy({
             pageContent: ""
         };
         debugLog("pageVisitStartListener: " + JSON.stringify(currentTabInfo[tabId]));
+        await nextPageIdCounter.increment();
     };
 
     // Handle when a page visit stops

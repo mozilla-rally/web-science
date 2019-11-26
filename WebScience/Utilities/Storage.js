@@ -5,11 +5,10 @@ import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 // or ditch a storage library entirely
 
 export class KeyValueStorage {
-    storageAreaName = "";
-    storageInstance = null;
 
     constructor(storageAreaName) {
         this.storageAreaName = storageAreaName;
+        this.storageInstance = null;
     }
 
     // Note that this initialization has to be separate from the constructor so it can
@@ -48,11 +47,10 @@ KeyValueStorage.localForageInitialized = false; // workaround for static class v
 
 // Convenience class for maintaining counters (e.g., unique IDs)
 export class Counter {
-    counterName = "";
-    counterValue = 0;
 
     constructor(counterName) {
         this.counterName = counterName;
+        this.counterValue = 0;
     }
 
     async initialize() {
@@ -70,10 +68,14 @@ export class Counter {
         return this.counterValue;
     }
 
-    async getAndIncrement() {
+    async increment() {
         this.counterValue = this.counterValue + 1;
-        Counter.storage.set(this.counterName, this.counterValue);
-        return this.counterValue - 1;
+        await Counter.storage.set(this.counterName, this.counterValue);
+    }
+
+    async getAndIncrement() {
+        await this.increment();
+        return this.counterValue;
     }
 
     static async getContentsAsObject() {
