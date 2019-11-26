@@ -23,7 +23,7 @@ WebScience.Utilities.Consent.disableStudySpecificConsent();
 WebScience.Utilities.Consent.requestConsentAndBegin();
 
 function stopStudies() {
-    // TODO -- implement stopStudy functions for each study module
+    // TODO -- send Telemetry message to delete remote data, and uninstall
     debugLog("Ending study");
 }
 
