@@ -23,6 +23,8 @@ async function restoreOptions() {
    *  the study is currently enabled, and then set the slider
    *  to reflect that -- the response from the listener is
    *  the answer.
+   * Note: expect the listener in Consent.js to be the
+   *  only one to provide a response.
    */
   browser.runtime.sendMessage({
     type: "WebScience.Options.checkStudySpecificConsent"
