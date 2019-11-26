@@ -37,15 +37,6 @@ export function enableStudySpecificConsent() {
   studySpecificConsentRequired = true;
 }
 
-/* This is used to indicate to the user whether the study is enabled.
- * A study is enabled if we either have consent for it, or if
- *  consent is not required, due to the specifics of the study.
- */
-export async function checkStudySpecificConsent() {
-  var consent = await storage.get("studySpecificConsent");
-  return consent || !studySpecificConsentRequired;
-}
-
 function startStudy() {
   for (const listener of studyStartedListeners) {
     listener();
@@ -58,6 +49,15 @@ function endStudy() {
     listener();
   }
   studyCurrentlyRunning = false;
+}
+
+/* This is used to indicate to the user whether the study is enabled.
+ * A study is enabled if we either have consent for it, or if
+ *  consent is not required, due to the specifics of the study.
+ */
+export async function checkStudySpecificConsent() {
+  var consent = await storage.get("studySpecificConsent");
+  return consent || !studySpecificConsentRequired;
 }
 
 /* Save the new setting of the consent for this study
@@ -76,10 +76,27 @@ export async function saveStudySpecificConsent(consent) {
 export async function requestConsentAndBegin() {
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Utilities.Consent")).initialize();
   await storage.set("studySpecificConsent", false);
+
+  browser.runtime.onMessage.addListener((message) => {
+    if (!(message != null) ||
+        !("type" in message) ||
+        !(message.type == "WebScience.Options.saveStudySpecificConsent") ||
+        !("content" in message) ||
+        !("studySpecificConsent" in message.content))
+    return;
+
+    saveStudySpecificConsent(message.content.studySpecificConsent);
+  });
+
+  browser.runtime.onMessage.addListener((message) => {
+    if (!(message != null) ||
+        !("type" in message) ||
+        !(message.type == "WebScience.Options.checkStudySpecificConsent"))
+    return;
+
+    return checkStudySpecificConsent();
+  });
+
   if (studySpecificConsentRequired) { browser.runtime.openOptionsPage(); }
   else { startStudy(); }
 }
-
-/* Need these for the options page code to see this version */
-window.checkStudySpecificConsent = checkStudySpecificConsent;
-window.saveStudySpecificConsent = saveStudySpecificConsent;
