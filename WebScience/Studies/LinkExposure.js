@@ -44,7 +44,7 @@ export async function runStudy({
     });
 
     // Listen for initial link exposure messages and save them to the database
-    browser.runtime.onMessage.addListener(async (message, sender) => {
+    browser.runtime.onMessage.addListener((message, sender) => {
         if((message == null) ||
               !("type" in message) ||
               message.type != "WebScience.linkExposureInitial")
@@ -63,10 +63,15 @@ export async function runStudy({
         // Another option: reuse the window and tab tracking from WebScience.Navigation (synchronous)
 
         // Save the link exposure to the database
-        await storage.set((await nextPageIdCounter.getAndIncrement()).toString(), message.content);
-        debugLog("linkExposureInitial: " + JSON.stringify(message.content));
+        /* Coverted from awaits to .thens to avoid making this an async function,
+         *  which was preventing other listeners from sending responses
+         */
+        nextPageIdCounter.getAndIncrement().then(pageId => {
+            storage.set(pageId.toString(), message.content).then(() => {
+              debugLog("linkExposureInitial: " + JSON.stringify(message.content));
+            })
+        });
     });
-
 }
 
 /* Utilities */
