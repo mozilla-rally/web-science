@@ -45,11 +45,11 @@ WebScience.Studies.LinkExposure.runStudy({
 });
 
 // Configure link exposure collection
-WebScience.Studies.SocialMediaLinkExposure.runStudy({
+/*WebScience.Studies.SocialMediaLinkExposure.runStudy({
   domains: studyDomains,
   shortdomains: shortDomains,
   socialmedia: socialMedia
-});
+});*/
 
 // Configure social media sharing collection
 WebScience.Studies.SocialMediaSharing.runStudy({
