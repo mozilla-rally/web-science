@@ -1,6 +1,18 @@
 {
     "version": "0.2.0",
     "configurations": [
+        {
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": true,
+            "name": "Launch add-on",
+            "addonPath": "${workspaceFolder}",
+            "log": {
+                "fileName": "${workspaceFolder}/log.txt",
+                "fileLevel": {
+                    "default": "Debug"
+                },
+        },
         // Note: automatic extension reloading is not reliable... after the first reload, the debugger appears
         // to remain connected, but the Visual Studio debug console disconnects and the Firefox debug console
         // shows errors
