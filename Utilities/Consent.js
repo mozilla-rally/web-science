@@ -62,11 +62,21 @@ export async function checkStudySpecificConsent() {
 
 /* Save the new setting of the consent for this study
  *  and, if we needed this consent, call the listeners to start or stop
- *  the study, respectively
+ *  the study, respectively.
+ * If the user is removing consent, prompt to uninstall the extension.
  */
 export async function saveStudySpecificConsent(consent) {
   await storage.set("studySpecificConsent", consent);
-  if (!consent && studyCurrentlyRunning) { endStudy(); }
+  if (!consent) { 
+    if (studyCurrentlyRunning) { endStudy(); }
+    // TODO: send request in next telemetry ping to delete remote data
+    browser.management.uninstallSelf({
+      showConfirmDialog: true,
+      dialogMessage: "Uninstalling the extension will stop all current information collection for this study. \
+If you'd still like to participate in the study, you may keep the extension installed and re-enable the study.\n"
+      // TODO: add "Data already collected will be deleted." once we've done that part.
+    }).then(null, () => {});
+  }
   else if (consent && !studyCurrentlyRunning) { startStudy(); }
 }
 
