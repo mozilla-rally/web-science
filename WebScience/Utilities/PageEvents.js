@@ -146,8 +146,9 @@ async function initialize() {
 
         // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
         var hasAttention = checkForAttention(tabId, tab.windowId);
-        if (hasAttention)
+        if (hasAttention) {
             notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+        }
 
         // End the page visit
         notifyPageVisitStopListeners(tabId, tab.windowId, timeStamp);
@@ -165,8 +166,9 @@ async function initialize() {
         var timeStamp = Date.now();
 
         // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
-        if(checkForAttention(tabId, removeInfo.windowId))
+        if(checkForAttention(tabId, removeInfo.windowId)) {
             notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+        }
         
         // If this is the active tab, forget it
         if(currentActiveTab == tabId)
@@ -205,8 +207,22 @@ async function initialize() {
 
         // If the browser is active or (optionally) we are not considering user input, end the
         // attention span
-        if(browserIsActive || !considerUserInputForAttention)
+        if(browserIsActive || !considerUserInputForAttention) {
             notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+        }
+
+        // If the browser has lost focus in the operating system
+        // remember tab ID = -1 and window ID = -1, and do not start a new
+        // attention span
+        // NOTE: placing this before the await below, because quick sequential
+        //  events can cause this listener to run again before the await resolves,
+        //  and trigger errors if currentActiveTab and currentFocusedWindow are not
+        //  set properly.
+        if (windowId == browser.windows.WINDOW_ID_NONE) {
+            currentActiveTab = -1;
+            currentFocusedWindow = -1;
+            return;
+        }
 
         // Try to learn more about the new window
         // Note that this can result in an error for non-browser windows
@@ -217,10 +233,10 @@ async function initialize() {
         catch(error) {
         }
 
-        // If the browser has lost focus in the operating system, or if the new window is not
+        // If the new window is not
         // a browser window, remember tab ID = -1 and window ID = -1, and do not start a new
         // attention span
-        if((windowId == browser.windows.WINDOW_ID_NONE) || ((windowDetails.type != "normal") && (windowDetails.type != "popup"))) {
+        if(((windowDetails.type != "normal") && (windowDetails.type != "popup"))) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
             return;
@@ -264,8 +280,9 @@ async function initialize() {
             if((currentActiveTab >= 0) && (currentFocusedWindow >= 0)) {
                 if(browserIsActive)
                     notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, timeStamp);
-                else
+                else {
                     notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+                }
             }
         });
     }
