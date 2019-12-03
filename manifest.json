@@ -33,6 +33,7 @@
         "unlimitedStorage",
         "downloads",
         "webRequest",
+        "webRequestBlocking",
         "idle"
     ],
 
