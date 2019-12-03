@@ -12,3 +12,6 @@ export { Storage }
 
 import * as PageEvents from "/WebScience/Utilities/PageEvents.js"
 export { PageEvents }
+
+import * as ResponseBody from "/WebScience/Utilities/ResponseBody.js"
+export { ResponseBody }
