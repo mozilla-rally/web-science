@@ -40,6 +40,13 @@ export async function runStudy({
     // Twitter
     if(twitter) {
         // If the user POSTS a status update, parse it for matching URLs
+        /* Note that there's 'url' field that gets set if the user
+         *  shares from, for example, a news article. However, if the user
+         *  doesn't also include the url in the body of the tweet, it won't
+         *  be shown in the tweet as it displays to others, so I'm not
+         *  considering the 'url' field when deciding whether a user tweeted
+         *  an article, just urls in the body of the tweet.
+         */
         browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
             if(requestDetails.method != "POST")
                 return;
@@ -68,7 +75,11 @@ export async function runStudy({
 
         },
         // Using a wildcard for the API version in case that changes
-        { urls: [ "https://api.twitter.com/*/statuses/update.json" ] }, 
+        { urls: [
+            "https://api.twitter.com/*/statuses/update.json", /* catches tweets made from twitter.com */
+            "https://twitter.com/intent/tweet", /* catches tweets made via share links on websites */
+                ]
+        }, 
         [ "requestBody" ]);
 
         // TODO handle retweets
@@ -113,15 +124,45 @@ export async function runStudy({
             if(("url" in requestDetails.requestBody.formData) &&
                 (requestDetails.requestBody.formData["url"].length == 1)) {
                 var postUrl = requestDetails.requestBody.formData["url"][0];
-                if(domainMatcher.test(postUrl)) {
+                if(urlMatcher.testUrl(postUrl)) {
                     var shareRecord = createShareRecord(shareTime, "reddit", postUrl, "post");
                     storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
                     debugLog("Reddit: " + JSON.stringify(shareRecord));
                 }
             }
 
-            // TODO handle if there's a URL embedded in the post body
-            
+            /* check that this is a post whose body we can read */
+            /* Reddit breaks up what the user types in the post. The "c" element of
+             *  the "document" array is another array of objects with "e" and "t" attributes.
+             * The "e" attribute tells you the type of element it is ("text" or "link"),
+             *  and then the "t" attribute is the actual content. So, a post with the content:
+             *  Here are some words www.example.com more words
+             *  would generate a document[0].c with three elements:
+             *  {"e":"text", "t":"Here are some words "}
+             *  {"e":"link", "t":"www.example.com"}
+             *  {"e":"text", "t":" more words"}
+             *  (sometimes there are more attributes besides e and t -- but those are the ones that seem relevant)
+             * Therefore, we walk through the array and check all the "link" types against the urlmatcher.
+             */
+            if (!("richtext_json" in requestDetails.requestBody.formData)) return;
+            var postObject = JSON.parse(requestDetails.requestBody.formData["richtext_json"]);
+            if (!("document" in postObject &&
+                  postObject.document.length > 0 &&
+                  "c" in postObject.document[0]))
+              return;
+
+            // Handle when there's a url in the post body
+            var postBody = postObject.document[0].c;
+            for (var element of postBody) {
+                if (element.e == "link") {
+                    if (urlMatcher.testUrl(element.t)) {
+                        var shareRecord = createShareRecord(shareTime, "reddit", element.t, "post");
+                        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                        debugLog("Reddit: " + JSON.stringify(shareRecord));
+                    }
+                }
+            }
+
         },
         // Using a wildcard at the end of the URL because Reddit adds parameters
         { urls: [ "https://oauth.reddit.com/api/submit*" ] }, 
