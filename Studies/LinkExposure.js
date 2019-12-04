@@ -67,10 +67,14 @@ export async function runStudy({
       return;
 
 
-    for(var link of message.content.links) {
-      WebScience.Utilities.LinkResolution.resolveURL(link.href).then(res => {
-      debugLog("url = " + link.href + " resolved url = " + res);
-      });
+    for (var link of message.content.links) {
+        var p = WebScience.Utilities.LinkResolution.resolveURL(link.href);
+        p.then(function (chain) {
+          debugLog("resolve urls");
+          for (var i = 0; i < chain.length; i++) {
+            debugLog("next url " + chain[i]);
+          }
+        });
     }
 
     // Save the link exposure to the database
