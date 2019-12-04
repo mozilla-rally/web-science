@@ -39,6 +39,22 @@ export async function runStudy({
 
     // Twitter
     if (twitter) {
+    /* Still TODO with twitter:
+     *  - I don't know how retweets/likes/quote-tweets made from sites other
+     *     than twitter.com itself work -- I think some don't send the nice replies
+     *     we're using for everything else, though, so we'll probably have to pull
+     *     tweet ids out of the request and resolve them.
+     *    I still think it makes sense to use the response bodies when they're available,
+     *     though, since they're getting sent to the user anyway, and we get to avoid
+     *     having to make our own network request to resolve the tweet contents.
+     *  - We don't currently store anything if the user replies (? the little speech bubble)
+     *     to a tweet with a link. Here, twitter also doesn't seem to send the nice
+     *     response body, but I need to explore that more.
+     *
+     * DONE:
+     *  - tweets made from twitter.com or from share buttons
+     *  - likes, retweets, and quote tweets made from twitter.com
+     */
         // If the user POSTS a status update, parse it for matching URLs
         /* When the user tweets from the share button on a website, there's a
          *  'url' field in the request that has the url of the story in it.
@@ -84,18 +100,102 @@ export async function runStudy({
 
         },
             // Using a wildcard for the API version in case that changes
-            {
-                urls: [
+            { urls: [
                     "https://api.twitter.com/*/statuses/update.json", /* catches tweets made from twitter.com */
                     "https://twitter.com/intent/tweet", /* catches tweets made via share links on websites */
-                ]
-            },
-            ["requestBody"]);
+                ]},
+            ["requestBody", "blocking"]);
 
-        // TODO handle retweets
-        // Looks like the relevant API endpoint is https://api.twitter.com/1.1/statuses/retweet.json
-        // Will likely have to resolve the tweet getting retweeted with another API call
-        // to the endpoint at https://api.twitter.com/1.1/statuses/lookup.json
+        /* For quote tweets, retweets, and likes, the response body contains details about the tweet.
+         * Here, we get those details, look through them for links, filter the links to the
+         *  ones that map to domains we're tracking, and call the callback on the resulting
+         *  array of links.
+         */
+        function processTwitterResponse(requestId, callback) {
+            /* The response to the POST request for a retweet/like contains details about the tweet that was retweeted/liked.
+             * Unfortunately, that data is in the *body* of the response, not the headers, so it's trickier to get.
+             * Our ResponseBody library listens for and collects together the response, and calls the 
+             *  listener below once the response body comes through.
+             */
+            WebScience.Utilities.ResponseBody.registerResponseBodyListener(requestId, (responseContents) => {
+
+                var expanded_urls = [];
+
+                // grab all urls mentioned in the tweet this response mentions
+                if (("entities" in responseContents &&
+                    "urls" in responseContents.entities)) {
+                    for (var urlObject of responseContents.entities.urls) {
+                        if ("expanded_url" in urlObject) {
+                            expanded_urls.push(urlObject.expanded_url);
+                        }
+                    }
+                }
+
+                // if this is a retweet (or a like of a retweet), grab all the urls in the original tweet
+                if (("retweeted_status" in responseContents &&
+                    "entities" in responseContents.retweeted_status &&
+                    "urls" in responseContents.retweeted_status.entities)) {
+                    for (var urlObject of responseContents.retweeted_status.entities.urls) {
+                        if ("expanded_url" in urlObject) {
+                            expanded_urls.push(urlObject.expanded_url)
+                        }
+                    }
+                }
+
+                // if this is a quote-tweet (or a like of a quote-tweet), grab all the urls in the original tweet
+                if (("quoted_status" in responseContents &&
+                    "entities" in responseContents.quoted_status &&
+                    "urls" in responseContents.quoted_status.entities)) {
+                    for (var urlObject of responseContents.quoted_status.entities.urls) {
+                        if ("expanded_url" in urlObject) {
+                            expanded_urls.push(urlObject.expanded_url)
+                        }
+                    }
+                }
+                /* TODO: deduplicate this with the rest of the deduplication
+                 */
+                var urlsToSave = [];
+                // check whether the found urls are ones we care about and report if so
+                for (var expanded_url of expanded_urls) {
+                    if (urlMatcher.testUrl(expanded_url)) {
+                        urlsToSave.push(expanded_url);
+                    }
+                }
+                callback(urlsToSave);
+
+            }, true); // pass true to tell ResponseBody to json parse the reply for us
+
+        }
+
+        // Handle retweets
+        browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
+            if (requestDetails.method != "POST")
+                return;
+
+            /* confirm that this is a recognizable retweet */
+            if ((requestDetails.requestBody == null) ||
+                !("formData" in requestDetails.requestBody) ||
+                !("id" in requestDetails.requestBody.formData) ||
+                (requestDetails.requestBody.formData["id"].length == 0))
+                return;
+
+            var retweetTime = Date.now();
+
+            var requestId = requestDetails.requestId;
+
+            processTwitterResponse(requestId, async urlsToSave => {
+                for (var urlToSave of urlsToSave) {
+                    var shareRecord = createShareRecord(retweetTime, "twitter", urlToSave, "retweet");
+                    storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                    debugLog("Twitter retweet: " + JSON.stringify(shareRecord));
+                }
+            });
+        },
+            // Using a wildcard for the API version in case that changes
+            { urls: [
+                    "https://api.twitter.com/*/statuses/retweet.json", /* catches retweets made from twitter.com */
+                ]},
+            ["requestBody", "blocking"]);
 
         // Handle Twitter likes
         browser.webRequest.onBeforeRequest.addListener((requestDetails) => {
@@ -112,63 +212,50 @@ export async function runStudy({
             var favoriteTime = Date.now();
 
             var requestId = requestDetails.requestId;
+            processTwitterResponse(requestId, async urlsToSave => {
 
-            /* The response to the POST request for the favorite contains details about the tweet that was liked.
-             * Unfortunately, that data is in the *body* of the response, not the headers, so it's trickier to get.
-             * Our ResponseBody library listens for and collects together the response, and calls the 
-             *  listener below once the response body comes through.
-             */
-            WebScience.Utilities.ResponseBody.registerResponseBodyListener(requestId, async (responseContents) => {
-
-                var expanded_urls = [];
-                // grab all the urls in the liked tweet itself
-                if (("entities" in responseContents &&
-                    "urls" in responseContents.entities)) {
-                    for (var urlObject of responseContents.entities.urls) {
-                        if ("expanded_url" in urlObject) {
-                            expanded_urls.push(urlObject.expanded_url);
-                        }
-                    }
+                for (var urlToSave of urlsToSave) {
+                    var shareRecord = createShareRecord(favoriteTime, "twitter", urlToSave, "favorite");
+                    storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                    debugLog("Twitter favorite: " + JSON.stringify(shareRecord));
                 }
-
-                // if this is a retweet, grab all the urls in the original tweet
-                if (("retweeted_status" in responseContents &&
-                    "entities" in responseContents.retweeted_status &&
-                    "urls" in responseContents.retweeted_status.entities)) {
-                    for (var urlObject of responseContents.retweeted_status.entities.urls) {
-                        if ("expanded_url" in urlObject) {
-                            expanded_urls.push(urlObject.expanded_url)
-                        }
-                    }
-                }
-
-                /* TODO: probably I don't understand Twitter well enough, but sometimes the urls are
-                 *  duplicated because they appear in the tweet and the retweet? Even when it doesn't
-                 *  look like they're in both. Anyway, we should de-duplicate that.
-                 */
-                // check whether the found urls are ones we care about and report if so
-                for (var expanded_url of expanded_urls) {
-                    if (urlMatcher.testUrl(expanded_url)) {
-                        var shareRecord = createShareRecord(favoriteTime, "twitter", expanded_url, "favorite");
-                        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
-                        debugLog("Twitter favorite: " + JSON.stringify(shareRecord));
-                    }
-                }
-            }, true); // pass true to tell ResponseBody to json parse the reply for us
-
+            })
         },
             // Using a wildcard for the API version in case that changes
-            {
-                urls: [
+            { urls: [
                     "https://api.twitter.com/*/favorites/create.json", /* catches likes made from twitter.com */
-                ]
-            },
+                ]},
             ["requestBody", "blocking"]);
 
-        // TODO handle quote tweets
-        // Looks like quoted tweets are referenced in the attachment_url property using
-        // the ordinary Twitter API
-        // Will have to resolve the tweet getting quoted for any URLs
+        // Handle quote tweets
+        browser.webRequest.onBeforeRequest.addListener((requestDetails) => {
+            if (requestDetails.method != "POST")
+                return;
+
+            // Check that this is a recognizable quote tweet
+            if ((requestDetails.requestBody == null) ||
+                !("formData" in requestDetails.requestBody) ||
+                !("attachment_url" in requestDetails.requestBody.formData) ||
+                (requestDetails.requestBody.formData["attachment_url"].length == 0))
+                return;
+
+            var quoteTweetTime = Date.now();
+
+            var requestId = requestDetails.requestId;
+            processTwitterResponse(requestId, async urlsToSave => {
+
+                for (var urlToSave of urlsToSave) {
+                    var shareRecord = createShareRecord(quoteTweetTime, "twitter", urlToSave, "quoteTweet");
+                    storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                    debugLog("Twitter quote tweet: " + JSON.stringify(shareRecord));
+                }
+            })
+        },
+            // Using a wildcard for the API version in case that changes
+            { urls: [
+                    "https://api.twitter.com/*/statuses/update.json", /* catches quote tweets made from twitter.com */
+                ]},
+            ["requestBody", "blocking"]);
     }
 
     // Facebook
