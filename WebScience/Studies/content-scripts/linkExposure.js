@@ -33,24 +33,17 @@ function isElementInViewport (el) {
   );
 }
 
-// Helper function to get size of element
-function getElementSize(el) {
-  var rect = el.getBoundingClientRect();
-  return {
-    width : rect.right-rect.left,
-    height : rect.bottom-rect.top
-  };
-}
-
-//var test = Array.filter(Array.from(aElements), element => testForMatch(shortURLMatcher, element.href));
-/*let items = Array.from(aElements);
-let filtered = items.filter((item) => {
-  return testForMatch(shortURLMatcher, item.href);
-});*/
-//alert(filtered);
+  // Helper function to get size of element
+  function getElementSize(el) {
+    var rect = el.getBoundingClientRect();
+    return {
+      width: rect.right - rect.left,
+      height: rect.bottom - rect.top
+    };
+  }
 
   function getShortLinks(aElements) {
-    return Array.filter(Array.from(aElements), (ele) => { return testForMatch(shortURLMatcher, ele.href, ele); }).map((x) => { return { href: x.href} });
+    return Array.filter(Array.from(aElements), (ele) => { return testForMatch(shortURLMatcher, ele.href, ele); }).map((x) => { return { href: x.href } });
   }
   function getDomainMatches(aElements) {
     return Array.filter(Array.from(aElements), (ele) => { return testForMatch(urlMatcher, ele.href, ele); }).map((x) => { return { href: x.href, size: getElementSize(x) } });
