@@ -80,18 +80,10 @@ function onResponse(details) {
     }
 }
 
-function sendHeader(details) {
-  if (isResolving ){
-    details.requestHeaders['User-Agent'] = 'MyAgent'
-    debugLog(details);
-  }
-}
-
 // add listeners for the three events
 browser.webRequest.onBeforeRequest.addListener(onRequest, { urls: ["<all_urls>"] });
 browser.webRequest.onBeforeRedirect.addListener(onRedirect, { urls: ["<all_urls>"] });
 browser.webRequest.onResponseStarted.addListener(onResponse, { urls: ["<all_urls>"] });
-//browser.webRequest.onBeforeSendHeaders.addListener(sendHeader, { urls: ["<all_urls>"] });
 
 export function resolveURL(url) {
     if(!isResolving) {
