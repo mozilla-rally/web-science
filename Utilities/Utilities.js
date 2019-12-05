@@ -15,3 +15,6 @@ export { PageEvents }
 
 import * as ResponseBody from "/WebScience/Utilities/ResponseBody.js"
 export { ResponseBody }
+
+import * as StudyTelemetry from "/WebScience/Utilities/StudyTelemetry.js"
+export { StudyTelemetry }
