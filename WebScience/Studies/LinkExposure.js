@@ -6,6 +6,12 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExp
 
 var storage = null;
 
+// helper function to get results of promises
+function reflect(promise){
+  return promise.then(function(v){ return {v:v, status: "fulfilled" }},
+                      function(e){ return {e:e, status: "rejected" }});
+}
+
 /* runStudy - Starts a LinkExposure study. Note that only one study is supported
    per extension. runStudy requires an options object with the following
    property.
@@ -67,17 +73,15 @@ export async function runStudy({
       return;
 
 
+    var promises = [];
     for (var link of message.content.links) {
         var p = WebScience.Utilities.LinkResolution.resolveURL(link.href);
-        p.then(function (chain) {
-          debugLog("resolve urls");
-          for (var i = 0; i < chain.length; i++) {
-            debugLog("next url " + chain[i]);
-          }
-        }, function (err) {
-          debugLog("resolve error " + err);
-        });
+        promises.push(p);
     }
+    Promise.all(promises.map(reflect)).then(function (results) {
+      var success = results.filter(x => x.status === "fulfilled");
+      success.map(x => debugLog(x.v));
+    });
 
     // Save the link exposure to the database
     storage.pages.setItem("" + nextPageId, message.content);
