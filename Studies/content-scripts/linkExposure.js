@@ -50,10 +50,10 @@ let filtered = items.filter((item) => {
 //alert(filtered);
 
   function getShortLinks(aElements) {
-    return Array.filter(Array.from(aElements), (ele) => {return testForMatch(shortURLMatcher, ele.href, ele);}).map((x) => { return {href : x.href, rect: x.getBoundingClientRect()}});
+    return Array.filter(Array.from(aElements), (ele) => { return testForMatch(shortURLMatcher, ele.href, ele); }).map((x) => { return { href: x.href} });
   }
   function getDomainMatches(aElements) {
-    return Array.filter(Array.from(aElements), (ele) => {return testForMatch(urlMatcher, ele.href, ele);}).map((x) => { return {href : x.href}});
+    return Array.filter(Array.from(aElements), (ele) => { return testForMatch(urlMatcher, ele.href, ele); }).map((x) => { return { href: x.href, size: getElementSize(x) } });
   }
 
   function sendMessageToBg(type, data) {
@@ -71,6 +71,18 @@ let filtered = items.filter((item) => {
     }
   }
 
+  function getLinkSize(newlinks) {
+    // create an object with key = init and value is resolved url
+    var assoc = {};
+    newlinks.forEach((key, i) => assoc[key.init] = key.href);
+    var query = newlinks.map(x => { return ["a[href='", x.init, "']"].join("");}).join(",");
+    var elements = document.body.querySelectorAll(query);
+    var data = Array.from(elements).map(x => {
+      return {href: assoc[x.href], size: getElementSize(x)}
+    });
+    return data;
+  }
+
 var aElements = document.body.querySelectorAll("a[href]");
 var matchingLinks = getDomainMatches(aElements);
 var shortLinks = getShortLinks(aElements);
@@ -82,10 +94,9 @@ sendMessageToBg("WebScience.linkExposureInitial", matchingLinks);
     console.log("Message from the background script:");
     console.log(data.links);
     // get domain matching links from texpanded links
-    var newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1] } }).filter(link => testForMatch(urlMatcher, link.href));
+    var newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1], init: x.v[0] } }).filter(link => testForMatch(urlMatcher, link.href));
     // send the new filtered links to background script for storage
-    alert(data.links.length + " --> " + newlinks.length);
-    sendMessageToBg("WebScience.linkExposureInitial", newlinks);
+    sendMessageToBg("WebScience.linkExposureInitial", getLinkSize(newlinks));
     return Promise.resolve({ response: "received messages" });
   });
 
