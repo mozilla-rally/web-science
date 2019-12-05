@@ -81,6 +81,7 @@ export async function runStudy({
     Promise.all(promises.map(reflect)).then(function (results) {
       var success = results.filter(x => x.status === "fulfilled");
       success.map(x => debugLog(x.v));
+      browser.tabs.sendMessage(sender.tab.id, {'links': success}).then(resp => debugLog(resp)).catch(err => debugLog("error in sending " + err));
     });
 
     // Save the link exposure to the database
