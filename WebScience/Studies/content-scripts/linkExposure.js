@@ -17,16 +17,17 @@ var initialVisibility = document.visibilityState == "visible";
 
 
 // Helper function to test if the hostname matches to a known domain
-function testForMatch(matcher, link) {
-  return matcher.test(link)
+function testForMatch(matcher, link, element=null) {
+  // if element is not null check if its in the viewport
+  return (element == null || isElementInViewport(element)) && matcher.test(link);
 }
 
 // Helper function to test if DOM element is in viewport
 function isElementInViewport (el) {
   var rect = el.getBoundingClientRect();
   return (
-      rect.top >= 0 &&
-      rect.left >= 0 &&
+      rect.top > 0 && // should this be strictly greater ? With >= invisible links have 0,0,0,0 in bounding rect
+      rect.left > 0 &&
       rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && /*or $(window).height() */
       rect.right <= (window.innerWidth || document.documentElement.clientWidth) /*or $(window).width() */
   );
@@ -49,10 +50,10 @@ let filtered = items.filter((item) => {
 //alert(filtered);
 
   function getShortLinks(aElements) {
-    return Array.filter(Array.from(aElements), (ele) => {return testForMatch(shortURLMatcher, ele.href);}).map((x) => { return {href : x.href}});
+    return Array.filter(Array.from(aElements), (ele) => {return testForMatch(shortURLMatcher, ele.href, ele);}).map((x) => { return {href : x.href, rect: x.getBoundingClientRect()}});
   }
   function getDomainMatches(aElements) {
-    return Array.filter(Array.from(aElements), (ele) => {return testForMatch(urlMatcher, ele.href);}).map((x) => { return {href : x.href}});
+    return Array.filter(Array.from(aElements), (ele) => {return testForMatch(urlMatcher, ele.href, ele);}).map((x) => { return {href : x.href}});
   }
 
   function sendMessageToBg(type, data) {
@@ -83,6 +84,7 @@ sendMessageToBg("WebScience.linkExposureInitial", matchingLinks);
     // get domain matching links from texpanded links
     var newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1] } }).filter(link => testForMatch(urlMatcher, link.href));
     // send the new filtered links to background script for storage
+    alert(data.links.length + " --> " + newlinks.length);
     sendMessageToBg("WebScience.linkExposureInitial", newlinks);
     return Promise.resolve({ response: "received messages" });
   });
