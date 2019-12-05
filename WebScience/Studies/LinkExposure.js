@@ -66,13 +66,10 @@ export async function runStudy({
         !("type" in message) ||
         message.type != "WebScience.shortLinks")
       return;
-
     // If the link exposure message isn't from a tab, ignore the message
     // (this shouldn't happen)
     if(!("tab" in sender))
       return;
-
-
     var promises = [];
     for (var link of message.content.links) {
         var p = WebScience.Utilities.LinkResolution.resolveURL(link.href);
@@ -83,12 +80,6 @@ export async function runStudy({
       success.map(x => debugLog(x.v));
       browser.tabs.sendMessage(sender.tab.id, {'links': success}).then(resp => debugLog(resp)).catch(err => debugLog("error in sending " + err));
     });
-
-    // Save the link exposure to the database
-    storage.pages.setItem("" + nextPageId, message.content);
-    nextPageId = nextPageId + 1;
-    storage.configuration.setItem("nextPageId", nextPageId);
-    debugLog("short urls: " + JSON.stringify(message.content));
   });
 
   // Listen for initial link exposure messages and save them to the database
@@ -97,13 +88,10 @@ export async function runStudy({
         !("type" in message) ||
         message.type != "WebScience.linkExposureInitial")
       return;
-
-
     // If the link exposure message isn't from a tab, ignore the message
     // (this shouldn't happen)
     if(!("tab" in sender))
       return;
-
     // TODO check whether the tab's window is the current browser window, since
     // the content script can only tell whether its tab is active within its window
     // One option: use browser.windows.getCurrent (asynchronous)
@@ -116,15 +104,6 @@ export async function runStudy({
     nextPageId = nextPageId + 1;
     storage.configuration.setItem("nextPageId", nextPageId);
     debugLog("linkExposureInitial: " + JSON.stringify(message.content));
-  });
-
-  // Listen for requests to expand shortened URLs
-  browser.runtime.onMessage.addListener((message, sender) => {
-    if((message == null) ||
-        !("type" in message) ||
-        message.type != "WebScience.expandURL")
-      debugLog("expand url :"+ JSON.stringify(message.content));
-      return;
   });
 
 }

@@ -77,14 +77,15 @@ var shortLinks = getShortLinks(aElements);
 sendMessageToBg("WebScience.shortLinks", shortLinks);
 sendMessageToBg("WebScience.linkExposureInitial", matchingLinks);
 
-browser.runtime.onMessage.addListener((data, sender) => {
-  console.log("Message from the background script:");
-  console.log(data.links);
-  // get domain matching links from texpanded links
-  var newlinks = Array.from(data.links).map(x => x.v[x.v.length-1]).filter(link => testForMatch(urlMatcher, link));
-  alert(data.links.length + " --> " + newlinks.length);
-return Promise.resolve({response: "received messages"});
-});
+  browser.runtime.onMessage.addListener((data, sender) => {
+    console.log("Message from the background script:");
+    console.log(data.links);
+    // get domain matching links from texpanded links
+    var newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1] } }).filter(link => testForMatch(urlMatcher, link.href));
+    // send the new filtered links to background script for storage
+    sendMessageToBg("WebScience.linkExposureInitial", newlinks);
+    return Promise.resolve({ response: "received messages" });
+  });
 
 function fb_decode(url) {
   var u = new URL(url);
