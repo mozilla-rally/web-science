@@ -1,5 +1,5 @@
 import { studyDomains } from "/study/domains.js"
-import { shortDomains } from "/study/domains.js"
+import { shortDomains } from "/study/shortdomains.js"
 import { socialMedia } from "/study/socialmedia.js"
 import * as WebScience from "/WebScience/WebScience.js"
 
@@ -52,12 +52,12 @@ WebScience.Studies.LinkExposure.runStudy({
 });*/
 
 // Configure social media sharing collection
-WebScience.Studies.SocialMediaSharing.runStudy({
+/*WebScience.Studies.SocialMediaSharing.runStudy({
   domains: studyDomains,
   facebook: true,
   twitter: true,
   reddit: true
-});
+});*/
 
   // TODO configure social media account exposure collection
   // Something like...
