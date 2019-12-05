@@ -74,6 +74,8 @@ export async function runStudy({
           for (var i = 0; i < chain.length; i++) {
             debugLog("next url " + chain[i]);
           }
+        }, function (err) {
+          debugLog("resolve error " + err);
         });
     }
 

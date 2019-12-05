@@ -1,3 +1,7 @@
+// twitter response
+//<head><noscript><META http-equiv="refresh" content="0;URL=https://nyti.ms/2loU4p0"></noscript><title>https://nyti.ms/2loU4p0</title></head><script>window.opener = null; location.replace("https:\/\/nyti.ms\/2loU4p0")</script>
+
+
 import { debugLog } from './DebugLog.js';
 
 var isResolving = false;
@@ -93,18 +97,42 @@ browser.webRequest.onBeforeRedirect.addListener(onRedirect, { urls: ["<all_urls>
 browser.webRequest.onResponseStarted.addListener(onResponse, { urls: ["<all_urls>"] });
 //browser.webRequest.onBeforeSendHeaders.addListener(sendHeader, { urls: ["<all_urls>"] });
 
+// special handling for non-standard link shorteners such as t.co
+var trex = new RegExp(/https?\:\/\/t.co\/.*/);
+function istwitter(url) {
+  return trex.test(url);
+}
+
+function getTwitter(url) {
+    return new Promise(function (resolve, reject) {
+      fetch(url)
+        .then(response => response.text())
+        .then(htmlstr => {
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(htmlstr, "text/html");
+          debugLog(doc);
+          resolve([url, doc.title]);
+        }).catch(err => reject(err))});
+}
+
 export function resolveURL(url) {
     if(!isResolving) {
         isResolving = true;
     }
-    // returns a promise that resolves to the final url
-    var p = new Promise(function(resolve, reject) {
-        // store this resolve object in the store
-        var resolves = store[url] || [];
-        resolves.push(resolve);
-        store.set(url, resolves);
-        // fetch this url
-        fetch(url, {redirect: 'follow'});
-    });
-    return p;
+    // handle special cases
+    var match = istwitter(url);
+    if(match) {
+      return getTwitter(url);
+    } else {
+      // returns a promise that resolves to the final url
+      var p = new Promise(function(resolve, reject) {
+          // store this resolve object in the store
+          var resolves = store[url] || [];
+          resolves.push(resolve);
+          store.set(url, resolves);
+          // fetch this url
+          fetch(url, {redirect: 'follow'});
+      });
+      return p;
+    }
 }
