@@ -3,6 +3,7 @@ import * as WebScience from "/WebScience/WebScience.js"
 
 WebScience.Utilities.Debugging.enableDebugging();
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("study");
+WebScience.Utilities.StudyTelemetry.initialize();
 
 /* These will be called depending on the consent setting for this study,
  *  in response to study events (e.g. stating the necessity of consent)
