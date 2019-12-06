@@ -85,6 +85,21 @@ browser.webRequest.onBeforeRequest.addListener(onRequest, { urls: ["<all_urls>"]
 browser.webRequest.onBeforeRedirect.addListener(onRedirect, { urls: ["<all_urls>"] });
 browser.webRequest.onResponseStarted.addListener(onResponse, { urls: ["<all_urls>"] });
 
+// Create a promise that rejects in <ms> milliseconds
+const promiseTimeout = function(ms, promise){
+  let timeout = new Promise((resolve, reject) => {
+    let id = setTimeout(() => {
+      clearTimeout(id);
+      reject('Timed out in '+ ms + 'ms.')
+    }, ms)
+  })
+  // Returns a race between our timeout and the passed in promise
+  return Promise.race([
+    promise,
+    timeout
+  ])
+}
+
 export function resolveURL(url) {
     if(!isResolving) {
         isResolving = true;
@@ -97,5 +112,5 @@ export function resolveURL(url) {
     // fetch this url
     fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'curl/7.37.0' } });
   });
-  return p;
+  return promiseTimeout(1000, p);
 }
