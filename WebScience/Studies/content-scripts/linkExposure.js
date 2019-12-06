@@ -1,7 +1,7 @@
 // Function encapsulation to maintain unique variable scope for each content script
 (
   function() {
-    setTimeout(x, 1000);
+    setTimeout(x, 5000);
   function x() {
   // Save the time the page initially completed loading
   var initialLoadTime = Date.now();
@@ -90,6 +90,7 @@
       console.log(data.links);
       // get domain matching links from texpanded links
       var newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1], init: x.v[0] } }).filter(link => testForMatch(urlMatcher, link.href));
+      alert(data.links.length + " --> " + newlinks.length);
       // send the new filtered links to background script for storage
       sendMessageToBg("WebScience.linkExposureInitial", getLinkSize(newlinks));
       return Promise.resolve({ response: "received messages" });
