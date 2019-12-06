@@ -1,7 +1,9 @@
 // Function encapsulation to maintain unique variable scope for each content script
 (
   function() {
+    // Wait for 5 seconds for the dom load (after document idle)
     setTimeout(x, 5000);
+    // setup listeners and setInterval to observe changes to the dom
   function x() {
   // Save the time the page initially completed loading
   let initialLoadTime = Date.now();
