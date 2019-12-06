@@ -5,18 +5,7 @@
   function x() {
   // Save the time the page initially completed loading
   let initialLoadTime = Date.now();
-
-  // Save whether the page was initially visible
-  // Note that the Page Visibility API only handles if a tab is active in its window,
-  // we have to separately check in the content script whether the window is active
   let initialVisibility = document.visibilityState == "visible";
-
-  // Get all the links on the page that have an href attribute
-  // Not that this is using the slower querySelectorAll, which returns a static NodeList
-  // We might want to use the faster getElement, which returns a live (possibly risky) HTMLCollection
-  // We also might want to try embedding the matching domains into the CSS
-  //  selector, which might be faster
-
 
   // Helper function to test if the hostname matches to a known domain
   function testForMatch(matcher, link, element=null) {
