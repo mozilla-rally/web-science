@@ -1,4 +1,5 @@
-import { debugLog } from './DebugLog.js';
+import { getDebuggingLog } from './Debugging.js';
+const debugLog = getDebuggingLog("Studies.LinkExposure");
 
 var isResolving = false;
 var nredirects = 4;
