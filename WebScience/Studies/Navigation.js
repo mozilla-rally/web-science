@@ -32,25 +32,25 @@ export async function runStudy({
     var currentTabInfo = { }
 
     // Handle when a page visit starts
-    async function pageVisitStartListener(tabId, windowId, url, timeStamp) {
+    async function pageVisitStartListener(pageVisitStartDetails) {
 
         // If the URL does not match the study domains, ignore the page visit start
-        if(!urlMatcher.testUrl(url))
+        if(!urlMatcher.testUrl(pageVisitStartDetails.url))
             return;
         
         // If we are already tracking a page in this tab, ignore the page visit start
         // This shouldn't happen!
-        if(tabId in currentTabInfo) {
+        if(pageVisitStartDetails.tabId in currentTabInfo) {
             debugLog("Warning: page start event for tab that already has a page");
             return;
         }
         
         // Otherwise, remember the page visit start and increment the page counter
-        currentTabInfo[tabId] = {
+        currentTabInfo[pageVisitStartDetails.tabId] = {
             pageId: nextPageIdCounter.get(),
-            url: url,
+            url: pageVisitStartDetails.url,
             referrer: "",
-            visitStart: timeStamp,
+            visitStart: pageVisitStartDetails.timeStamp,
             visitEnd: -1,
             attentionDuration: 0,
             attentionSpanCount: 0,
@@ -63,18 +63,18 @@ export async function runStudy({
     };
 
     // Handle when a page visit stops
-    async function pageVisitStopListener(tabId, windowId, timeStamp) {
+    async function pageVisitStopListener(pageVisitStopDetails) {
         
         // If we are not tracking a page in this tab, ignore the page visit stop
-        if(!(tabId in currentTabInfo))
+        if(!(pageVisitStopDetails.tabId in currentTabInfo))
             return;
 
         // Otherwise create a copy of what we have remembered about the page visit,
         // remove the page from the current set of tracked pages, and save the copy
         // to storage 
-        var tabInfoToSave = Object.assign({}, currentTabInfo[tabId]);
-        tabInfoToSave.visitEnd = timeStamp;
-        delete currentTabInfo[tabId];
+        var tabInfoToSave = Object.assign({}, currentTabInfo[pageVisitStopDetails.tabId]);
+        tabInfoToSave.visitEnd = pageVisitStopDetails.timeStamp;
+        delete currentTabInfo[pageVisitStopDetails.tabId];
 
         debugLog("pageVisitStopListener: " + JSON.stringify(tabInfoToSave));
 
@@ -86,23 +86,23 @@ export async function runStudy({
     var startOfCurrentAttentionSpan = -1;
 
     // Handle when a page attention span starts
-    function pageAttentionStartListener(tabId, windowId, timeStamp) {
+    function pageAttentionStartListener(pageAttentionStartDetails) {
         // If we have not remembered the page receiving attention, the page does not have a matching
         // domain, so ignore the page attention start event
-        if(!(tabId in currentTabInfo))
+        if(!(pageAttentionStartDetails.tabId in currentTabInfo))
             return;
 
         // Remember the start of the attention span
         inAttentionSpan = true;
-        startOfCurrentAttentionSpan = timeStamp;
-        debugLog("pageAttentionStartListener: " + JSON.stringify(currentTabInfo[tabId]));
+        startOfCurrentAttentionSpan = pageAttentionStartDetails.timeStamp;
+        debugLog("pageAttentionStartListener: " + JSON.stringify(currentTabInfo[pageAttentionStartDetails.tabId]));
     };
 
     // Handle when a page attention span ends
-    function pageAttentionStopListener(tabId, windowId, timeStamp) {
+    function pageAttentionStopListener(pageAttentionStopDetails) {
         // If we have not remembered the page receiving attention, the page does not have a matching
         // domain, so ignore the page attention stop event
-        if(!(tabId in currentTabInfo))
+        if(!(pageAttentionStopDetails.tabId in currentTabInfo))
             return;
 
         // If we are not currently in an attention span, ignore the page attention stop event
@@ -113,17 +113,17 @@ export async function runStudy({
         }
 
         // Remember the end of the attention span
-        currentTabInfo[tabId].attentionDuration = 
-            currentTabInfo[tabId].attentionDuration + 
-            (timeStamp - startOfCurrentAttentionSpan);
-        currentTabInfo[tabId].attentionSpanCount = 
-            currentTabInfo[tabId].attentionSpanCount + 1;
-        currentTabInfo[tabId].attentionSpanStarts.push(startOfCurrentAttentionSpan);
-        currentTabInfo[tabId].attentionSpanEnds.push(timeStamp);
+        currentTabInfo[pageAttentionStopDetails.tabId].attentionDuration = 
+            currentTabInfo[pageAttentionStopDetails.tabId].attentionDuration + 
+            (pageAttentionStopDetails.timeStamp - startOfCurrentAttentionSpan);
+        currentTabInfo[pageAttentionStopDetails.tabId].attentionSpanCount = 
+            currentTabInfo[pageAttentionStopDetails.tabId].attentionSpanCount + 1;
+        currentTabInfo[pageAttentionStopDetails.tabId].attentionSpanStarts.push(startOfCurrentAttentionSpan);
+        currentTabInfo[pageAttentionStopDetails.tabId].attentionSpanEnds.push(pageAttentionStopDetails.timeStamp);
 
         inAttentionSpan = false;
         startOfCurrentAttentionSpan = -1;
-        debugLog("pageAttentionStopListener: " + JSON.stringify(currentTabInfo[tabId]));
+        debugLog("pageAttentionStopListener: " + JSON.stringify(currentTabInfo[pageAttentionStopDetails.tabId]));
     };
 
     // Register the page visit listeners and, if needed for the study, the page attention listeners
