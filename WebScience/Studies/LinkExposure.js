@@ -70,6 +70,7 @@ export async function runStudy({
     // (this shouldn't happen)
     if(!("tab" in sender))
       return;
+      debugLog("incoming requests " + message.content.links);
     var promises = [];
     for (var link of message.content.links) {
         var p = WebScience.Utilities.LinkResolution.resolveURL(link.href);
@@ -77,6 +78,8 @@ export async function runStudy({
     }
     Promise.all(promises.map(reflect)).then(function (results) {
       var success = results.filter(x => x.status === "fulfilled");
+      var errors = results.filter(x => x.status === "rejected");
+      debugLog("success " + success);
       success.map(x => debugLog(x.v));
       browser.tabs.sendMessage(sender.tab.id, {'links': success}).then(resp => debugLog(resp)).catch(err => debugLog("error in sending " + err));
     });
