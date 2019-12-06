@@ -4,12 +4,12 @@
     setTimeout(x, 5000);
   function x() {
   // Save the time the page initially completed loading
-  var initialLoadTime = Date.now();
+  let initialLoadTime = Date.now();
 
   // Save whether the page was initially visible
   // Note that the Page Visibility API only handles if a tab is active in its window,
   // we have to separately check in the content script whether the window is active
-  var initialVisibility = document.visibilityState == "visible";
+  let initialVisibility = document.visibilityState == "visible";
 
   // Get all the links on the page that have an href attribute
   // Not that this is using the slower querySelectorAll, which returns a static NodeList
@@ -78,25 +78,28 @@
       return data;
     }
 
-  //var aElements = document.body.querySelectorAll("a[href]");
-  // href that doesn't have the expando attribute
-  var aElements = document.body.querySelectorAll("a[href]:not([_visited])");
-  // now add visited tags to the aElements
-  Array.from(aElements).map(x => {
-    x._visited = true;
-  });
-  var matchingLinks = getDomainMatches(aElements);
-  var shortLinks = getShortLinks(aElements);
+  function update() {
+    //var aElements = document.body.querySelectorAll("a[href]");
+    // href that doesn't have the expando attribute
+    let aElements = Array.filter(document.body.querySelectorAll("a[href]"), (x) => !x.hasAttribute("_visited") && isElementInViewport(x)).map((x) => {
+      x.setAttribute("_visited", "");
+      return x;
+    });
+    let matchingLinks = getDomainMatches(aElements);
+    let shortLinks = getShortLinks(aElements);
 
-  sendMessageToBg("WebScience.shortLinks", shortLinks);
-  sendMessageToBg("WebScience.linkExposureInitial", matchingLinks);
+    sendMessageToBg("WebScience.shortLinks", shortLinks);
+    sendMessageToBg("WebScience.linkExposureInitial", matchingLinks);
+  }
+
+  // call update every 2 seconds
+  setInterval(update, 2000);
 
     browser.runtime.onMessage.addListener((data, sender) => {
       console.log("Message from the background script:");
       console.log(data.links);
       // get domain matching links from texpanded links
-      var newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1], init: x.v[0] } }).filter(link => testForMatch(urlMatcher, link.href));
-      alert(data.links.length + " --> " + newlinks.length);
+      let newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1], init: x.v[0] } }).filter(link => testForMatch(urlMatcher, link.href));
       // send the new filtered links to background script for storage
       sendMessageToBg("WebScience.linkExposureInitial", getLinkSize(newlinks));
       return Promise.resolve({ response: "received messages" });
