@@ -22,6 +22,15 @@
 
     The page visit and attention events are implemented in one module in order to
     guarantee the ordering of events.
+
+    Represented as a finite-state automaton, the research abstraction consists of
+    the following states and transitions.
+            
+           Page Attention Start <----------------------> Page Attention Stop
+                   ^                                              |
+                   |                                              |
+                   |                                              V
+    Page Visit Start -------------------------------------------> Page Visit Stop 
     
     WARNING: Firefox can take several seconds after user input before transitioning
     from inactive to active state based on user input. This introduces measurement
