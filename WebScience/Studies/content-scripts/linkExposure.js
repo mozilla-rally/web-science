@@ -78,7 +78,13 @@
       return data;
     }
 
-  var aElements = document.body.querySelectorAll("a[href]");
+  //var aElements = document.body.querySelectorAll("a[href]");
+  // href that doesn't have the expando attribute
+  var aElements = document.body.querySelectorAll("a[href]:not([_visited])");
+  // now add visited tags to the aElements
+  Array.from(aElements).map(x => {
+    x._visited = true;
+  });
   var matchingLinks = getDomainMatches(aElements);
   var shortLinks = getShortLinks(aElements);
 
