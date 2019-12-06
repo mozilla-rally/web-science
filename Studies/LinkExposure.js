@@ -23,14 +23,10 @@ export async function runStudy({
   shortdomains = []
 }) {
 
-  await initializeStorage();
+  storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
 
   // Use a unique identifier for each webpage the user visits
-  var nextPageId = await storage.configuration.getItem("nextPageId");
-  if(nextPageId == null) {
-    nextPageId = 0;
-    await storage.configuration.setItem("nextPageId", nextPageId);
-  }
+  var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
 
   // create code for url and short domain matching
   var injectcode = "const urlMatchRE = \"" + 
@@ -102,11 +98,11 @@ export async function runStudy({
     //  the current window (synchronous in this context)
     // Another option: reuse the window and tab tracking from WebScience.Navigation (synchronous)
 
-    // Save the link exposure to the database
-    storage.pages.setItem("" + nextPageId, message.content);
-    nextPageId = nextPageId + 1;
-    storage.configuration.setItem("nextPageId", nextPageId);
-    debugLog("linkExposureInitial: " + JSON.stringify(message.content));
+    nextPageIdCounter.getAndIncrement().then(pageId => {
+      storage.set(pageId.toString(), message.content).then(() => {
+        debugLog("linkExposureInitial: " + JSON.stringify(message.content));
+      })
+  });
   });
 
 }
