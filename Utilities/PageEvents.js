@@ -44,7 +44,7 @@ browser.idle.setDetectionInterval(idleThreshold);
 const considerUserInputForAttention = true;
 
 /*  Support for registering and notifying listeners on page visit start.
-    The listener receives the following parameters:
+    The listener receives a details object with the following properties:
         * tabId - the tab containing the page, unique to the browsing session
         * windowId - the window containing the page, unique to the browsing session,
                      note that tabs can subsequently move between windows
@@ -62,11 +62,16 @@ export async function registerPageVisitStartListener(pageVisitStartListener, not
 
 export function notifyPageVisitStartListeners(tabId, windowId, url, timeStamp = Date.now()) {
     for (const pageVisitStartListener of pageVisitStartListeners)
-        pageVisitStartListener(tabId, windowId, url, timeStamp);
+        pageVisitStartListener({
+            tabId: tabId,
+            windowId: windowId,
+            url: url.repeat(1), // copy the URL string in case a listener modifies it
+            timeStamp: timeStamp
+        });
 }
 
 /*  Support for registering and notifying listeners on page visit stop.
-    The listener receives the following parameters:
+    The listener receives a details object with the following properties:
         * tabId - the tab containing the page, unique to the browsing session
         * windowId - the window containing the page, unique to the browsing session,
                      note that this window may differ from the window that contained
@@ -82,11 +87,15 @@ export function registerPageVisitStopListener(pageVisitStopListener) {
 
 function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
     for (const pageVisitStopListener of pageVisitStopListeners)
-        pageVisitStopListener(tabId, windowId, timeStamp);
+        pageVisitStopListener({
+            tabId: tabId,
+            windowId: windowId,
+            timeStamp: timeStamp
+        });
 }
 
 /*  Support for registering and notifying listeners on page attention start.
-    The listener receives the following parameters:
+    The listener receives a details object with the following properties:
         * tabId - the tab gaining attention, unique to the browsing session
         * windowId - the window containing the tab, unique to the browsing
                      session, note that tabs can subsequently move between windows
@@ -103,11 +112,15 @@ export async function registerPageAttentionStartListener(pageAttentionStartListe
 
 function notifyPageAttentionStartListeners(tabId, windowId, timeStamp = Date.now()) {
     for (const pageAttentionStartListener of pageAttentionStartListeners)
-        pageAttentionStartListener(tabId, windowId, timeStamp);
+        pageAttentionStartListener({
+            tabId: tabId,
+            windowId: windowId,
+            timeStamp: timeStamp
+        });
 }
 
 /*  Support for registering and notifying listeners on page attention stop.
-    The listener receives the following parameters:
+    The listener receives a details object with the following properties:
         * tabId - the tab losing attention, unique to the browsing session
         * windowId - the window containing the tab, unique to the browsing
                      session, note that tabs can subsequently move between windows
@@ -122,7 +135,11 @@ export async function registerPageAttentionStopListener(pageAttentionStopListene
 
 function notifyPageAttentionStopListeners(tabId, windowId, timeStamp = Date.now()) {
     for (const pageAttentionStopListener of pageAttentionStopListeners)
-        pageAttentionStopListener(tabId, windowId, timeStamp);
+        pageAttentionStopListener({
+            tabId: tabId,
+            windowId: windowId,
+            timeStamp: timeStamp
+        });
 }
 
 // Keep track of the current focused window, the current active tab, and the current
@@ -357,7 +374,12 @@ async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListe
     // Notify the listener
     if (currentTabs.length > 0)
         for (const currentTab of currentTabs)
-            pageVisitStartListener(currentTab.id, currentTab.windowId, currentTab.url, timeStamp);
+            pageVisitStartListener({
+                tabId: currentTab.id,
+                windowId: currentTab.windowId,
+                url: currentTab.url.repeat(1), // copy the URL string in case a listener modifies it
+                timeStamp: timeStamp
+            });
 }
 
 // Notifies a listener about the current page with attention, useful for when the extension
@@ -372,5 +394,9 @@ async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAtt
         return;
 
     // Otherwise, notify the listener
-    pageAttentionStartListener(currentActiveTab, currentFocusedWindow, timeStamp);
+    pageAttentionStartListener({
+        tabId: currentActiveTab,
+        windowId: currentFocusedWindow,
+        timeStamp: timeStamp
+    });
 }
