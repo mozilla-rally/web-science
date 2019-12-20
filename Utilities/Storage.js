@@ -83,4 +83,10 @@ export class Counter {
     }
 }
 
-Counter.storage = null; // workaround for static class variable
+// Workaround for static class variable
+Counter.storage = null;
+
+// Prevents IndexedDB data from getting deleted without user intervention
+// Ignoring the promise resolution because we still want to use storage
+// even if Firefox won't guarantee persistence
+navigator.storage.persist();
