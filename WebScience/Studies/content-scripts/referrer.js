@@ -2,10 +2,8 @@
 (function() {
 
 browser.runtime.sendMessage({
-  type: "WebScience.referrerUpdate",
-  content: {
+    type: "WebScience.referrerUpdate",
     referrer: document.referrer
-  }
 });
 
 })();

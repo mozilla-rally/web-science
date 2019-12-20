@@ -7,9 +7,7 @@ async function saveOptions(e) {
 
   browser.runtime.sendMessage({
     type: "WebScience.Options.saveStudySpecificConsent",
-    content: {
-      studySpecificConsent: consent
-    }
+    studySpecificConsent: consent
   });
 }
 

@@ -87,23 +87,12 @@ export async function requestConsentAndBegin() {
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Utilities.Consent")).initialize();
   await storage.set("studySpecificConsent", false);
 
-  browser.runtime.onMessage.addListener((message) => {
-    if (!(message != null) ||
-        !("type" in message) ||
-        !(message.type == "WebScience.Options.saveStudySpecificConsent") ||
-        !("content" in message) ||
-        !("studySpecificConsent" in message.content))
-    return;
-
+  WebScience.Utilities.Messaging.registerListener("WebScience.Options.saveStudySpecificConsent", (message) => {
     saveStudySpecificConsent(message.content.studySpecificConsent);
-  });
+  },
+  { studySpecificConsent: "boolean" });
 
-  browser.runtime.onMessage.addListener((message) => {
-    if (!(message != null) ||
-        !("type" in message) ||
-        !(message.type == "WebScience.Options.checkStudySpecificConsent"))
-    return;
-
+  WebScience.Utilities.Messaging.registerListener("WebScience.Options.checkStudySpecificConsent", (message) => {
     return checkStudySpecificConsent();
   });
 
