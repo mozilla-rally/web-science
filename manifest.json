@@ -27,14 +27,13 @@
 
     "permissions": [
         "<all_urls>",
+        "downloads",
+        "idle",
         "notifications",
         "tabs",
-        "storage",
         "unlimitedStorage",
-        "downloads",
         "webRequest",
-        "webRequestBlocking",
-        "idle"
+        "webRequestBlocking"
     ],
 
     "browser_specific_settings": {
