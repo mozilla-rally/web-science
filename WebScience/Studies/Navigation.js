@@ -129,17 +129,12 @@ export async function runStudy({
     // Register the page visit listeners and, if needed for the study, the page attention listeners
     // Use a timestamp to synchronize initial page visit and page attention times
 
-    try {
-        var timeStamp = Date.now();
-        WebScience.Utilities.PageEvents.registerPageVisitStartListener(pageVisitStartListener, true, timeStamp);
-        WebScience.Utilities.PageEvents.registerPageVisitStopListener(pageVisitStopListener);
-        if(trackUserAttention) {
-            WebScience.Utilities.PageEvents.registerPageAttentionStartListener(pageAttentionStartListener, true, timeStamp);
-            WebScience.Utilities.PageEvents.registerPageAttentionStopListener(pageAttentionStopListener);
-        }
-    }
-    catch(error) {
-        console.log(error);
+    var timeStamp = Date.now();
+    WebScience.Utilities.PageEvents.registerPageVisitStartListener(pageVisitStartListener, true, timeStamp);
+    WebScience.Utilities.PageEvents.registerPageVisitStopListener(pageVisitStopListener);
+    if(trackUserAttention) {
+        WebScience.Utilities.PageEvents.registerPageAttentionStartListener(pageAttentionStartListener, true, timeStamp);
+        WebScience.Utilities.PageEvents.registerPageAttentionStopListener(pageAttentionStopListener);
     }
 
     // Build the URL matching set for content scripts
