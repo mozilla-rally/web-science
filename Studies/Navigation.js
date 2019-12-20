@@ -148,10 +148,7 @@ export async function runStudy({
     });
 
     // Listen for update messages from the referrer content script
-    browser.runtime.onMessage.addListener((message, sender) => {
-        if((message == null) || !("type" in message) || message.type != "WebScience.referrerUpdate")
-            return;
-
+    WebScience.Utilities.Messaging.registerListener("WebScience.referrerUpdate", (message, sender) => {
         // If the referrer message is not from a tab, or if we are not tracking
         // the tab, ignore the message
         // Neither of these things should happen!
@@ -161,9 +158,10 @@ export async function runStudy({
         }
 
         // Remember the referrer for this page
-        currentTabInfo[sender.tab.id].referrer = message.content.referrer;
+        currentTabInfo[sender.tab.id].referrer = message.referrer;
         debugLog("referrerUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
-    });
+    },
+    { referrer: "string" });
 
     // If the study should save page content...
     if(savePageContent) {
@@ -176,12 +174,7 @@ export async function runStudy({
         });
 
         // Listen for update messages from the page content content script
-        browser.runtime.onMessage.addListener((message, sender) => {
-            if((message == null) ||
-              !("type" in message) ||
-              message.type != "WebScience.pageContentUpdate")
-                return;
-
+        WebScience.Utilities.Messaging.registerListener("WebScience.pageContentUpdate", (message, sender) => {
             // If the page content message is not from a tab, or if we are not tracking
             // the tab, ignore the message
             // Neither of these things should happen!
@@ -191,9 +184,10 @@ export async function runStudy({
             }
 
             // Remember the page content for this page
-            currentTabInfo[sender.tab.id].pageContent = message.content.pageContent;
+            currentTabInfo[sender.tab.id].pageContent = message.pageContent;
             debugLog("pageContentUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
-        });
+        },
+        { pageContent: "string" });
     }
 }
 
