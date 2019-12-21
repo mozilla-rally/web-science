@@ -28,34 +28,6 @@ export async function runStudy({
   // Use a unique identifier for each webpage the user visits
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
 
-  // create code for url and short domain matching
-  var injectcode = "const urlMatchRE = \"" + 
-  WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") + 
-    "\"; const urlMatcher = new RegExp(urlMatchRE);" +  "const shortURLMatchRE = \"" + 
-          WebScience.Utilities.Matching.createUrlRegexString(shortdomains).replace(/\\/g, "\\\\") + 
-            "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);"
-  console.log("code is "+injectcode);
-
-  // Add a dynamically generated content script to every HTTP/HTTPS page that
-  // supports checking for whether a link's domain matches the set for the study
-  // Note that we have to carefully escape the domain matching regular expression
-  await browser.contentScripts.register({
-      matches: [ "*://*/*" ],
-      js: [
-        {
-          code: injectcode
-        }
-      ],
-      runAt: "document_start"
-  });
-
-  // Add the content script for checking links on pages
-  await browser.contentScripts.register({
-      matches: [ "*://*/*" ],
-      js: [ { file: "/WebScience/Studies/content-scripts/linkExposure.js" } ],
-      runAt: "document_idle"
-  });
-
   // Listen for requests to expand short urls
   browser.runtime.onMessage.addListener((message, sender) => {
     if((message == null) ||
@@ -102,7 +74,35 @@ export async function runStudy({
       storage.set(pageId.toString(), message.content).then(() => {
         debugLog("linkExposureInitial: " + JSON.stringify(message.content));
       })
+    });
   });
+
+  // create code for url and short domain matching
+  var injectcode = "const urlMatchRE = \"" + 
+  WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") + 
+    "\"; const urlMatcher = new RegExp(urlMatchRE);" +  "const shortURLMatchRE = \"" + 
+          WebScience.Utilities.Matching.createUrlRegexString(shortdomains).replace(/\\/g, "\\\\") + 
+            "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);"
+  console.log("code is "+injectcode);
+
+  // Add a dynamically generated content script to every HTTP/HTTPS page that
+  // supports checking for whether a link's domain matches the set for the study
+  // Note that we have to carefully escape the domain matching regular expression
+  await browser.contentScripts.register({
+      matches: [ "*://*/*" ],
+      js: [
+        {
+          code: injectcode
+        }
+      ],
+      runAt: "document_start"
+  });
+
+  // Add the content script for checking links on pages
+  await browser.contentScripts.register({
+      matches: [ "*://*/*" ],
+      js: [ { file: "/WebScience/Studies/content-scripts/linkExposure.js" } ],
+      runAt: "document_idle"
   });
 
 }

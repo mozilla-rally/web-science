@@ -140,13 +140,6 @@ export async function runStudy({
     // Build the URL matching set for content scripts
     var contentScriptMatches = WebScience.Utilities.Matching.createUrlMatchPatternArray(domains, true);
 
-    // Register the content script for sharing the referrer of a page with a matching domain
-    await browser.contentScripts.register({
-        matches: contentScriptMatches,
-        js: [ { file: "/WebScience/Studies/content-scripts/referrer.js" } ],
-        runAt: "document_start"
-    });
-
     // Listen for update messages from the referrer content script
     WebScience.Utilities.Messaging.registerListener("WebScience.referrerUpdate", (message, sender) => {
         // If the referrer message is not from a tab, or if we are not tracking
@@ -163,16 +156,15 @@ export async function runStudy({
     },
     { referrer: "string" });
 
+    // Register the content script for sharing the referrer of a page with a matching domain
+    await browser.contentScripts.register({
+        matches: contentScriptMatches,
+        js: [ { file: "/WebScience/Studies/content-scripts/referrer.js" } ],
+        runAt: "document_start"
+    });
+
     // If the study should save page content...
     if(savePageContent) {
-
-        // Register the content script for sharing the content of a page with a matching domain
-        await browser.contentScripts.register({
-            matches: contentScriptMatches,
-            js: [ { file: "/WebScience/Studies/content-scripts/pageContent.js" } ],
-            runAt: "document_idle"
-        });
-
         // Listen for update messages from the page content content script
         WebScience.Utilities.Messaging.registerListener("WebScience.pageContentUpdate", (message, sender) => {
             // If the page content message is not from a tab, or if we are not tracking
@@ -188,6 +180,13 @@ export async function runStudy({
             debugLog("pageContentUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
         },
         { pageContent: "string" });
+
+        // Register the content script for sharing the content of a page with a matching domain
+        await browser.contentScripts.register({
+            matches: contentScriptMatches,
+            js: [ { file: "/WebScience/Studies/content-scripts/pageContent.js" } ],
+            runAt: "document_idle"
+        });
     }
 }
 
