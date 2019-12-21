@@ -117,6 +117,8 @@ function notifyPageAttentionStartListeners(tabId, windowId, timeStamp = Date.now
             windowId: windowId,
             timeStamp: timeStamp
         });
+    if(notifyContentScriptsAboutPageAttention)
+        browser.tabs.sendMessage(tabId, { type: "WebScience.pageAttentionStart" });
 }
 
 /*  Support for registering and notifying listeners on page attention stop.
@@ -140,6 +142,18 @@ function notifyPageAttentionStopListeners(tabId, windowId, timeStamp = Date.now(
             windowId: windowId,
             timeStamp: timeStamp
         });
+    if(notifyContentScriptsAboutPageAttention)
+        browser.tabs.sendMessage(tabId, { type: "WebScience.pageAttentionStop" });
+}
+
+/* Support for notifying content scripts when page attention state changes.
+   We don't need to notify content scripts about page visit state changes,
+   since content scripts can observe those directly and there are possible
+   race condition oddities. */
+var notifyContentScriptsAboutPageAttention = false;
+export async function setPageAttentionContentScriptMessages(notificationSetting) {
+    initialize();
+    notifyContentScriptsAboutPageAttention = notificationSetting;
 }
 
 // Keep track of the current focused window, the current active tab, and the current
