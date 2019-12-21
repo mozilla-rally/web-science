@@ -198,7 +198,7 @@ async function initialize() {
 
         // If this is the active tab and focused window, and (optionally) the browser is active, start an attention span
         if (hasAttention)
-            notifyPageAttentionStartListeners(currentActiveTab, tab.currentFocusedWindow, timeStamp);
+            notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, timeStamp);
     });
 
     // Handle when a tab closes
@@ -225,15 +225,17 @@ async function initialize() {
         // If this is a non-browser tab, ignore it
         if(activeInfo.tabId == browser.tabs.TAB_ID_NONE)
             return;
-    
-        // If the tab update is not in the focused window, ignore it
-        if(activeInfo.windowId != currentFocusedWindow)
+        
+        // If there isn't a focused window, or the tab update is not in the focused window, ignore it
+        if((currentFocusedWindow < 0) || (activeInfo.windowId != currentFocusedWindow))
             return;
 
-        // If the browser is active or (optionally) we are not considering user input, end the
-        // attention span and start a new attention span
-        if(browserIsActive || !considerUserInputForAttention) {
-            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+        // If the browser is active or (optionally) we are not considering user input,
+        // first end the attention span if there is an active tab in the focused window,
+        // then start a new attention span
+        if((browserIsActive || !considerUserInputForAttention)) {
+            if((currentActiveTab >= 0) && (currentFocusedWindow >= 0))
+                notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
             notifyPageAttentionStartListeners(activeInfo.tabId, currentFocusedWindow, timeStamp);
         }
         
@@ -245,19 +247,18 @@ async function initialize() {
     browser.windows.onFocusChanged.addListener(async windowId => {
         var timeStamp = Date.now();
 
-        // If the browser is active or (optionally) we are not considering user input, end the
-        // attention span
-        if(browserIsActive || !considerUserInputForAttention) {
+        // If the browser is active or (optionally) we are not considering user input, and if
+        // if there is an active tab in a focused window, end the attention span
+        if((browserIsActive || !considerUserInputForAttention) && ((currentActiveTab >= 0) && (currentFocusedWindow >= 0))) {
             notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
         }
 
-        // If the browser has lost focus in the operating system
-        // remember tab ID = -1 and window ID = -1, and do not start a new
-        // attention span
-        // NOTE: placing this before the await below, because quick sequential
-        //  events can cause this listener to run again before the await resolves,
-        //  and trigger errors if currentActiveTab and currentFocusedWindow are not
-        //  set properly.
+        // If the browser has lost focus in the operating system, remember 
+        // tab ID = -1 and window ID = -1, and do not start a new attention span
+        // Note that this check should happen before the browser.windows.get await below,
+        // because quick sequential events can cause the browser.windows.onFocusChanged
+        // listener to run again before the await resolves and trigger errors if currentActiveTab
+        // and currentFocusedWindow are not set properly
         if (windowId == browser.windows.WINDOW_ID_NONE) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
@@ -273,9 +274,8 @@ async function initialize() {
         catch(error) {
         }
 
-        // If the new window is not
-        // a browser window, remember tab ID = -1 and window ID = -1, and do not start a new
-        // attention span
+        // If the new window is not a browser window, remember tab ID = -1 and window ID = -1,
+        // and do not start a new attention span
         if(((windowDetails.type != "normal") && (windowDetails.type != "popup"))) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
