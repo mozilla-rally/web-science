@@ -32,9 +32,23 @@
                    |                                              V
     Page Visit Start -------------------------------------------> Page Visit Stop 
     
-    WARNING: Firefox can take several seconds after user input before transitioning
-    from inactive to active state based on user input. This introduces measurement
-    error. */
+    Note that this module depends on the idle API, which has a couple quirks in Firefox:
+        * There is a five-second interval when polling idle status from the operating
+          system.
+        * Depending on the platform, the idle API reports either time since user input to
+          the browser or time since user input to the operating system.
+    
+    The polling interval coarsens the timing of page attention events related to idle state.
+    As long as the polling interval is relatively short in comparison to the idle threshold,
+    that should not be an issue.
+    
+    The platform-specific meaning of idle state should also not be an issue. There is only a
+    difference between the two meanings of idle state when the user is providing input to
+    another application; if the user is providing input to the browser, or is not providing
+    input at all, the two meanings are identical. In the scenario where the user is providing
+    input to another application, the browser will lose focus in the operating system; this
+    module will detect that with the windows API and fire a page attention stop (if needed).
+*/
 
 // The threshold N (in seconds) for determining whether the browser has the user's attention
 const idleThreshold = 15;
