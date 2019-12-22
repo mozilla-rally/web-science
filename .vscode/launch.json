@@ -37,7 +37,8 @@
                 "devtools.browserconsole.filter.info": false,
                 "devtools.browserconsole.filter.log": false,
                 "devtools.browserconsole.filter.warn": false,
-                "app.normandy.enabled": false
+                "app.normandy.enabled": false,
+                "extensions.allowPrivateBrowsingByDefault": true
             }
         },
         // Note: it's possible to manually reload the extension inside Firefox from about:debugging
@@ -56,7 +57,8 @@
                 "devtools.browserconsole.filter.info": false,
                 "devtools.browserconsole.filter.log": false,
                 "devtools.browserconsole.filter.warn": false,
-                "app.normandy.enabled": false
+                "app.normandy.enabled": false,
+                "extensions.allowPrivateBrowsingByDefault": true
             }
         }
     ]
