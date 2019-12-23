@@ -1,4 +1,4 @@
-import * as WebScience from "/WebScience/WebScience.js"
+import * as WebScience from "../WebScience.js"
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExposure");
 
 /*  LinkExposure - This module is used to run studies that track the user's

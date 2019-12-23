@@ -1,7 +1,7 @@
 import { studyDomains } from "/study/domains.js"
 import { shortDomains } from "/study/shortdomains.js"
 import { socialMedia } from "/study/socialmedia.js"
-import * as WebScience from "/WebScience/WebScience.js"
+import * as WebScience from "../WebScience/WebScience.js"
 
 WebScience.Utilities.Debugging.enableDebugging();
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("study");

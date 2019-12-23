@@ -9,7 +9,7 @@
  */
 
 // Currently implemented with localforage
-import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
+import { localforage } from "../dependencies/localforagees6.min.js"
 
 /** 
  * Class for a key-value storage area, where the key is a string and the value can have

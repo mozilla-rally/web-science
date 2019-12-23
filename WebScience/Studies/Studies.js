@@ -1,11 +1,11 @@
-import * as Navigation from "/WebScience/Studies/Navigation.js"
+import * as Navigation from "./Navigation.js"
 export { Navigation }
 
-import * as LinkExposure from "/WebScience/Studies/LinkExposure.js"
+import * as LinkExposure from "./LinkExposure.js"
 export { LinkExposure }
 
-import * as SocialMediaLinkExposure from "/WebScience/Studies/SocialMediaLinkExposure.js"
+import * as SocialMediaLinkExposure from "./SocialMediaLinkExposure.js"
 export { SocialMediaLinkExposure }
 
-import * as SocialMediaSharing from "/WebScience/Studies/SocialMediaSharing.js"
+import * as SocialMediaSharing from "./SocialMediaSharing.js"
 export { SocialMediaSharing }
