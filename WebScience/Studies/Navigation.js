@@ -1,18 +1,24 @@
+/**
+ * This module is used to run studies that track the user's navigation of
+ * and attention to webpages on domains of interest.
+ * 
+ * @module WebScience.Utilities.Navigation
+ */
+
 import * as WebScience from "/WebScience/WebScience.js"
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.Navigation");
 
-/*  Navigation - This module is used to run studies that track the user's
-    navigation of and attention to webpages. */
-
 var storage = null;
 
-/*  runStudy - Starts a Navigation study. Note that only one study is supported
-    per extension. runStudy requires an options object with the following
-    properties
-        * domains - array of domains for tracking navigation events (default [ ])
-        * trackUserAttention - whether to record user attention to webpages (default false)
-        * savePageContent - whether to record page content (default false) */
-
+/**
+ * Start a navigation study. Note that only one study is supported per extension.
+ * @param {Object} options - A set of options for the study.
+ * @param {string[]} [options.domains=[]] - The domains of interest for the study.
+ * @param {boolean} [options.trackUserAttention=false] - Whether to track user
+ * attention during the study.
+ * @param {boolean} [options.savePageContent=false] - Whether to save webpage HTML
+ * content during the study.
+ */
 export async function runStudy({
     domains = [ ],
     trackUserAttention = false,
@@ -192,7 +198,12 @@ export async function runStudy({
 
 /* Utilities */
 
-// Helper function that dumps the navigation study data as an object
+/**
+ * Retrieve the study data as an object. Note that this could be very
+ * slow if there is a large volume of study data.
+ * @returns {(Object|null)} - The study data, or `null` if no data
+ * could be retrieved.
+ */
 export async function getStudyDataAsObject() {
     if(storage != null)
         return await storage.getContentsAsObject();
