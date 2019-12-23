@@ -7,3 +7,4 @@ beta:
 	web-ext run --firefox=$(ffloc)/firefox/firefox
 docs:
 	jsdoc . -r -c jsdoc-conf.json -d docs
+.PHONY : docs
