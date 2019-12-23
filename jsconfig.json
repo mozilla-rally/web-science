@@ -1,0 +1,15 @@
+// Visual Studio Code configuration for the JavaScript project
+{
+    "compilerOptions": {
+        "module": "es6",
+        "target": "es2019"
+    },
+    "moduleResolution": "classic",
+    "checkJs": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+        "WebScience.Studies.*": [ "./WebScience/Studies/*" ],
+        "WebScience.Utilities.*": [ "./WebScience/Utilities/*" ]
+    }
+}
