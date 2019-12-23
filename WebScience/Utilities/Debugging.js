@@ -9,6 +9,7 @@
 /**
  * Whether to log debugging events.
  * @private
+ * @type {boolean}
  * @default
  */
 var debug = false;
