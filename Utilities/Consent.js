@@ -1,4 +1,4 @@
-import * as WebScience from "/WebScience/WebScience.js"
+import * as WebScience from "../WebScience.js"
 var studySpecificConsentRequired = true;
 var studyCurrentlyRunning = false;
 

@@ -6,7 +6,7 @@
  * @module WebScience.Utilities.Messaging
  */
 
-import * as WebScience from "/WebScience/WebScience.js"
+import * as WebScience from "../WebScience.js"
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Utilities.Messaging");
 
 /**

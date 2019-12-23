@@ -1,5 +1,5 @@
-import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
-import * as WebScience from "/WebScience/WebScience.js"
+import { localforage } from "../dependencies/localforagees6.min.js"
+import * as WebScience from "../WebScience.js"
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.SocialMediaLinkExposure");
 
 /* SocialMediaLinkExposure - This module is used to run studies that track the user's

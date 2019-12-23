@@ -1,26 +1,26 @@
 // Note that the order of module imports matters, since utility
 // modules can depend on other utility modules
 
-import * as Debugging from "/WebScience/Utilities/Debugging.js"
+import * as Debugging from "./Debugging.js"
 export { Debugging }
 
-import * as Messaging from "/WebScience/Utilities/Messaging.js"
+import * as Messaging from "./Messaging.js"
 export { Messaging }
 
-import * as Consent from "/WebScience/Utilities/Consent.js"
+import * as Consent from "./Consent.js"
 export { Consent }
 
-import * as Matching from "/WebScience/Utilities/Matching.js"
+import * as Matching from "./Matching.js"
 export { Matching }
 
-import * as Storage from "/WebScience/Utilities/Storage.js"
+import * as Storage from "./Storage.js"
 export { Storage }
 
-import * as PageEvents from "/WebScience/Utilities/PageEvents.js"
+import * as PageEvents from "./PageEvents.js"
 export { PageEvents }
 
-import * as ResponseBody from "/WebScience/Utilities/ResponseBody.js"
+import * as ResponseBody from "./ResponseBody.js"
 export { ResponseBody }
 
-import * as LinkResolution from "/WebScience/Utilities/LinkResolution.js"
+import * as LinkResolution from "./LinkResolution.js"
 export { LinkResolution }
