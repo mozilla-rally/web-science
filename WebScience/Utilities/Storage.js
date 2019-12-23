@@ -11,7 +11,10 @@
 // Currently implemented with localforage
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 
-/** Class for a key-value storage area, where both the key and the value are strings. */
+/** 
+ * Class for a key-value storage area, where the key is a string and the value can have
+ * any of a number of basic types.
+ */
 export class KeyValueStorage {
     /**
      * Create a key-value storage area. Note that, because creating a storage area
@@ -47,7 +50,7 @@ export class KeyValueStorage {
      * @param {string} key - The key to use in the storage area.
      * @returns {Promise<Array>|Promise<ArrayBuffer>|Promise<Blob>|Promise<Float32Array>|Promise<Float64Array>|
      * Promise<Int8Array>|Promise<Int16Array>|Promise<Int32Array>|Promise<Number>|Promise<Object>|Promise<Uint8Array>|
-     * Promise<Uint8ClampedArray>|Promise<Uint16Array>|Promise<Uint32Array>|Promise<String>} The value in the
+     * Promise<Uint8ClampedArray>|Promise<Uint16Array>|Promise<Uint32Array>|Promise<string>} The value in the
      * storage area for the key, or `null` if the key is not in storage.
      */
     async get(key) {
@@ -58,7 +61,7 @@ export class KeyValueStorage {
      * Set a value in storage.
      * @param {string} key - The key to use in the storage area.
      * @param {(Array|ArrayBuffer|Blob|Float32Array|Float64Array|Int8Array|Int16Array|Int32Array|
-     * Number|Object|Uint8Array|Uint8ClampedArray|Uint16Array|Uint32Array|String)} value - The value
+     * Number|Object|Uint8Array|Uint8ClampedArray|Uint16Array|Uint32Array|string)} value - The value
      * to store in the storage area for the key.
      */
     async set(key, value) {
