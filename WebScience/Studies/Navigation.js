@@ -8,6 +8,11 @@
 import * as WebScience from "/WebScience/WebScience.js"
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.Navigation");
 
+/**
+ * A KeyValueStorage object for data associated with the study.
+ * @type {Object}
+ * @private
+ */
 var storage = null;
 
 /**
