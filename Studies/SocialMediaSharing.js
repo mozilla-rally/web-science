@@ -1,19 +1,28 @@
+/**
+ * This module is used to run studies that track the user's
+ * social media sharing of links.
+ * 
+ * @module WebScience.Utilities.Navigation
+ */
+
 import * as WebScience from "/WebScience/WebScience.js"
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("SocialMediaSharing");
 
-/*  SocialMediaSharing - This module is used to run studies that track the user's
-    social media sharing of links. */
-
+/**
+ * A KeyValueStorage object for data associated with the study.
+ * @type {Object}
+ * @private
+ */
 var storage = null;
 
-/*  runStudy - Starts a SocialMediaSharing study. Note that only one study is supported
-    per extension. runStudy requires an options object with the following
-    property.
-        * domains - array of domains for tracking URL shares on social media (default [ ])
-        * facebook - whether to track URL shares on Facebook (default false)
-        * twitter - whether to track URL shares on Twitter (default false)
-        * reddit - whether to track URL shares on Reddit (default false) */
-
+/**
+ * Start a social media sharing study. Note that only one study is supported per extension.
+ * @param {Object} options - A set of options for the study.
+ * @param {string[]} [options.domains=[]] - The domains of interest for the study.
+ * @param {boolean} [options.facebook=false] - Whether to track URL shares on Facebook.
+ * @param {boolean} [options.twitter=false] - Whether to track URL shares on Twitter.
+ * @param {boolean} [options.reddit=false] - Whether to track URL shares on Reddit.
+ */
 export async function runStudy({
     domains = [],
     facebook = false,
@@ -99,14 +108,14 @@ export async function runStudy({
             }
 
         },
-            // Using a wildcard for the API version in case that changes
-            {
-                urls: [
-                    "https://api.twitter.com/*/statuses/update.json", /* catches tweets made from twitter.com */
-                    "https://twitter.com/intent/tweet", /* catches tweets made via share links on websites */
-                ]
-            },
-            ["requestBody", "blocking"]);
+        // Using a wildcard for the API version in case that changes
+        {
+            urls: [
+                "https://api.twitter.com/*/statuses/update.json", /* catches tweets made from twitter.com */
+                "https://twitter.com/intent/tweet" /* catches tweets made via share links on websites */
+            ]
+        },
+        [ "requestBody", "blocking" ]);
 
         /* For quote tweets, retweets, and likes, the response body contains details about the tweet.
          * Here, we get those details, look through them for links, filter the links to the
@@ -165,7 +174,7 @@ export async function runStudy({
                         }
                         resolve(urlsToSave);
                     }, (error) => { reject(error); });
-            })
+            });
         }
 
         // Handle retweets
@@ -188,12 +197,12 @@ export async function runStudy({
                 }
             });
         },
-            {
-                urls: [
-                    "https://api.twitter.com/*/statuses/retweet.json", /* catches retweets made from twitter.com */
-                ]
-            },
-            ["responseHeaders", "blocking"]);
+        {
+            urls: [
+                "https://api.twitter.com/*/statuses/retweet.json" /* catches retweets made from twitter.com */
+            ]
+        },
+        [ "responseHeaders", "blocking" ]);
 
         // Handle favorites
         browser.webRequest.onHeadersReceived.addListener((details) => {
@@ -207,15 +216,15 @@ export async function runStudy({
                     storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
                     debugLog("Twitter favorite: " + JSON.stringify(shareRecord));
                 }
-            })
+            });
         },
-            // Using a wildcard for the API version in case that changes
-            {
-                urls: [
-                    "https://api.twitter.com/*/favorites/create.json", /* catches likes made from twitter.com */
-                ]
-            },
-            ["responseHeaders", "blocking"]);
+        // Using a wildcard for the API version in case that changes
+        {
+            urls: [
+                "https://api.twitter.com/*/favorites/create.json" /* catches likes made from twitter.com */
+            ]
+        },
+        [ "responseHeaders", "blocking" ]);
 
         // Handle quote tweets
         browser.webRequest.onHeadersReceived.addListener((details) => {
@@ -229,15 +238,15 @@ export async function runStudy({
                     storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
                     debugLog("Twitter quote tweet: " + JSON.stringify(shareRecord));
                 }
-            })
+            });
         },
-            // Using a wildcard for the API version in case that changes
-            {
-                urls: [
-                    "https://api.twitter.com/*/statuses/update.json", /* catches quote tweets made from twitter.com */
-                ]
-            },
-            ["responseHeaders", "blocking"]);
+        // Using a wildcard for the API version in case that changes
+        {
+            urls: [
+                "https://api.twitter.com/*/statuses/update.json" /* catches quote tweets made from twitter.com */
+            ]
+        },
+        [ "responseHeaders", "blocking" ]);
 
     }
 
@@ -308,25 +317,39 @@ export async function runStudy({
             }
 
         },
-            // Using a wildcard at the end of the URL because Reddit adds parameters
-            { urls: ["https://oauth.reddit.com/api/submit*"] },
-            ["requestBody"]);
+        // Using a wildcard at the end of the URL because Reddit adds parameters
+        {
+            urls: [
+                "https://oauth.reddit.com/api/submit*"
+            ]
+        },
+        [ "requestBody" ]);
     }
 
 }
 
 /* Utilities */
 
+/**
+ * Create an object that records a sharing event.
+ * @param {number} shareTime - The time that the user shared the URL.
+ * @param {string} platform - The social media platform where the user
+ * shared the URL.
+ * @param {string} url - The URL that the user shared.
+ * @param {string} event - The type of sharing event.
+ * @returns {Object} - An object containing the `shareTime`, `platform`,
+ * `url`, and `event` as properties.
+ */
 function createShareRecord(shareTime, platform, url, event) {
-    return {
-        shareTime: shareTime,
-        platform: platform,
-        url: url,
-        event: event
-    };
+    return { shareTime, platform, url, event };
 }
 
-// Helper function that dumps the navigation study data as an object
+/**
+ * Retrieve the study data as an object. Note that this could be very
+ * slow if there is a large volume of study data.
+ * @returns {(Object|null)} - The study data, or `null` if no data
+ * could be retrieved.
+ */
 export async function getStudyDataAsObject() {
     if (storage != null)
         return await storage.getContentsAsObject();
