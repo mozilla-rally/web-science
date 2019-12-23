@@ -73,7 +73,7 @@ const considerUserInputForAttention = true;
 /**
  * A listener function for page visit start events.
  * @callback pageVisitStartListener
- * @param {object} details - Additional information about the page visit start event.
+ * @param {Object} details - Additional information about the page visit start event.
  * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
  * @param {number} details.windowId - The window containing the page, unique to the browsing session.
  * Note that tabs can subsequently move between windows.
@@ -154,7 +154,7 @@ async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListe
 /**
  * A listener function for page visit stop events.
  * @callback pageVisitStopListener
- * @param {object} details - Additional information about the page visit stop event.
+ * @param {Object} details - Additional information about the page visit stop event.
  * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
  * @param {number} details.windowId - The window containing the page, unique to the browsing session.
  * @param {number} details.timeStamp - The time when the underlying browser event fired.
@@ -195,7 +195,7 @@ function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
 /**
  * A listener function for page attention start events.
  * @callback pageAttentionStartListener
- * @param {object} details - Additional information about the page attention start event.
+ * @param {Object} details - Additional information about the page attention start event.
  * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
  * @param {number} details.windowId - The window containing the page, unique to the browsing session.
  * Note that tabs can subsequently move between windows.
@@ -271,7 +271,7 @@ async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAtt
 /**
  * A listener function for page attention stop events.
  * @callback pageAttentionStopListener
- * @param {object} details - Additional information about the page attention stop event.
+ * @param {Object} details - Additional information about the page attention stop event.
  * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
  * @param {number} details.windowId - The window containing the page, unique to the browsing session.
  * Note that tabs can subsequently move between windows.
