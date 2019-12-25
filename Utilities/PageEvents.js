@@ -53,6 +53,8 @@
  * @module WebScience.Utilities.PageEvents
  */
 
+import * as Idle from "./Idle.js"
+
 /**
  * The threshold N (in seconds) for determining whether the browser has the user's attention.
  * @private
@@ -60,7 +62,6 @@
  * @default
  */
 const idleThreshold = 15;
-browser.idle.setDetectionInterval(idleThreshold);
 
 /**
  * Whether to consider user input in determining attention state.
@@ -519,7 +520,7 @@ async function initialize() {
     // Active means the user has recently provided input to the browser, inactive means any other
     // state (regardless of whether a screensaver or lock screen is enabled)
     if(considerUserInputForAttention) {
-        browser.idle.onStateChanged.addListener((newState) => {
+        await Idle.registerIdleStateListener((newState) => {
             var timeStamp = Date.now();
 
             // If the browser is not transitioning between active and inactive states, ignore the event
@@ -539,13 +540,14 @@ async function initialize() {
                     notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
                 }
             }
-        });
+        }, idleThreshold);
     }
 
     // Remember the browser activity state, the focused window, and the active tab in that window at the time of initialization
 
     // Get and remember the browser activity state
-    browserIsActive = ((await browser.idle.queryState(idleThreshold)) == "active");
+    if(considerUserInputForAttention)
+        browserIsActive = Idle.queryState(idleThreshold) === "active";
     
     // Get the most recently focused window and the tabs in that window
     var lastFocusedWindow = null;
