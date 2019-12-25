@@ -18,8 +18,9 @@
     },
 
     "background": {
-        "page": "study/study.html"
-      },
+        "page": "study/study.html",
+        "persistent": true
+    },
 
     "browser_action": {
         "default_title": "Download Recorded Data"
