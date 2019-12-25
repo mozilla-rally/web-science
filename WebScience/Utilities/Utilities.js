@@ -10,6 +10,9 @@ export { Messaging }
 import * as Consent from "./Consent.js"
 export { Consent }
 
+import * as Idle from "./Idle.js"
+export { Idle }
+
 import * as Matching from "./Matching.js"
 export { Matching }
 
