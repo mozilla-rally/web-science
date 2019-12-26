@@ -135,10 +135,8 @@ function idleOnStateChangedListener(newState) {
     lastIdleTime = Date.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000);
 
     // Set timeouts for all the idle state listeners
-    console.log("setting idle timeouts");
     for(const [detectionIntervalInSeconds, idleStateListenersWithDetectionInterval] of idleStateListeners)
         scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds);
-    console.log("idle timeouts");
 }
 
 /**
