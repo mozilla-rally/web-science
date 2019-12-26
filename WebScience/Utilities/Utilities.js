@@ -19,6 +19,9 @@ export { Matching }
 import * as Storage from "./Storage.js"
 export { Storage }
 
+import * as Scheduling from "./Scheduling.js"
+export { Scheduling }
+
 import * as PageEvents from "./PageEvents.js"
 export { PageEvents }
 
