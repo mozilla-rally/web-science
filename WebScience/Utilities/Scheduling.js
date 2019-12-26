@@ -38,7 +38,7 @@ import * as Storage from "./Storage.js"
  * @const {number}
  * @default
  */
-const secondsPerDay = 20;
+const secondsPerDay = 86400;
 
 /**
  * The ordinary idle state detection interval (in seconds) to use for
@@ -48,7 +48,7 @@ const secondsPerDay = 20;
  * @const {number}
  * @default
  */
-const idleIntervalInSeconds = 20;
+const idleIntervalInSeconds = 180;
 
 /**
  * The shortened idle state detection interval (in seconds) to use
