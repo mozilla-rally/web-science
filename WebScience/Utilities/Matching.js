@@ -1,7 +1,7 @@
 /**
  * This module provides utilities for matching URLs against domain names.
  * 
- * @module WebScience.Utilities.Matching
+ * @module "WebScience.Utilities.Matching"
  */
 
 /** 

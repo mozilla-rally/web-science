@@ -3,7 +3,7 @@
  * The module currently just outputs events with `console.debug`.
  * It should eventually support debugging via Telemetry.
  * 
- * @module WebScience.Utilities.Debugging
+ * @module "WebScience.Utilities.Debugging"
  */
 
 /**

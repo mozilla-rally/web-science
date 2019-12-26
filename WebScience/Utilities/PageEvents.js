@@ -50,7 +50,7 @@
  * input to another application, the browser will lose focus in the operating system; this
  * module will detect that with the windows API and fire a page attention stop (if needed).
  * 
- * @module WebScience.Utilities.PageEvents
+ * @module "WebScience.Utilities.PageEvents"
  */
 
 import * as Idle from "./Idle.js"
