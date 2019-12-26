@@ -60,7 +60,7 @@ var currentIdleState = "active";
  * detection intervals in seconds and the values are Sets of
  * browser idle state listeners.
  * @private
- * @const {Map<number,Set<function>}
+ * @const {Map<number,Set<function>>}
  */
 const idleStateListeners = new Map();
 
@@ -69,7 +69,7 @@ const idleStateListeners = new Map();
  * detection intervals in seconds and the values are `timeoutID`
  * values from `setTimeout()`.
  * @private
- * @const {Map<number,number}
+ * @const {Map<number,number>}
  */
 const idleStateTimeouts = new Map();
 
