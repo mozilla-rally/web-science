@@ -29,11 +29,8 @@
  * @module "WebScience.Utilities.Scheduling"
  */
 
-import * as Debugging from "./Debugging.js"
 import * as Idle from "./Idle.js"
 import * as Storage from "./Storage.js"
-
-const debugLog = Debugging.getDebuggingLog("Utilities.Scheduling");
 
 /**
  * The number of seconds in a day.
@@ -172,7 +169,6 @@ function setIdleStateDetectionTimeout() {
     // browser has not been open for a day).
     var timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) - Date.now(), 0);
     timeoutId = setTimeout(function() {
-        debugLog("timeout1");
         // If the browser is already in an idle state with the ordinary
         // idle state detection interval, fire the idle events.
         if(Idle.queryState(idleIntervalInSeconds) === "idle") {
@@ -185,7 +181,6 @@ function setIdleStateDetectionTimeout() {
         // at 0. 
         timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) + (shortenedIdleIntervalThresholdInSeconds * 1000) - Date.now(), 0);
         timeoutId = setTimeout(function() {
-            debugLog("timeout2");
             // If the browser is already in an idle state with the
             // shortened idle state detection interval, fire the idle
             // events.
@@ -235,12 +230,10 @@ async function notifyListeners() {
  * @private
  */
 async function idleStateListener(newState) {
-    debugLog("idleStateListener");
     // If it's been less than a day since the most recent idle
     // daily event, ignore the idle state event.
     if(Date.now() < (lastIdleDailyTime + (secondsPerDay * 1000)))
         return;
-    debugLog("idleStateListener2");
     // If the browser has entered an idle state, fire the idle
     // events.
     if(newState === "idle")
@@ -254,7 +247,6 @@ async function idleStateListener(newState) {
  * @private
  */
 async function shortenedIdleStateListener(newState) {
-    debugLog("shortenedIdleStateListener");
     // If it's been less than two days since the most recent idle
     // daily event, ignore the idle state event.
     if(Date.now() < (lastIdleDailyTime + (secondsPerDay * 1000) + (shortenedIdleIntervalThresholdInSeconds * 1000)))
