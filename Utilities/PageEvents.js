@@ -354,6 +354,26 @@ var currentActiveTab = -1;
 var currentFocusedWindow = -1;
 
 /**
+ * @typedef {Object} WindowDetails
+ * @property {string} type - The type of window. This string has the same
+ * values as `windows.WindowType`.
+ * @property {number} activeTab - The ID of the active tab in the window,
+ * or -1 if there is no active tab.
+ * @property {boolean} privacy - Whether the window is a private window. Values
+ * are `"normal"` for a non-private window, `"private"` for a private window,
+ * and `"unknown"` if the window's privacy status is unknown.
+ */
+
+/**
+ * A Map that tracks the current state of browser windows. We need this cached
+ * state to avoid asynchronous queries when the focused window changes.
+ * @private
+ * @const {Map<number,WindowDetails>}
+ * @default
+ */
+const windowState = new Map();
+
+/**
  * Whether the browser is active or idle. Ignored if the module is configured to
  * not consider user input when determining the attention state.
  * @private
@@ -377,23 +397,38 @@ function checkForAttention(tabId, windowId) {
 }
 
 /**
- * Whether the module has configured browser event handlers.
+ * Whether the module is in the process of configuring browser event handlers
+ * and caching initial state.
+ * @private
+ * @type {boolean}
+ */
+var initializing = false;
+
+/**
+ * Whether the module has started configuring browser event handlers and caching
+ * initial state.
  * @private
  * @type {boolean}
  */
 var initialized = false;
 
 /**
- * Configure browser event handlers. Runs only once.
+ * Configure browser event handlers and cache initial state. Runs only once.
  * @private
  */
 async function initialize() {
-    if(initialized)
+    if(initialized || initializing)
         return;
-    initialized = true;
+    initializing = true;
+
+    // Configure event listeners
+    // Note that we have to call Idle.registerIdleStateListener before we call
+    // Idle.queryState, so this comes before caching the initial state
 
     // Handle when the webpage in a tab changes
     browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        if(!initialized)
+            return;
         var timeStamp = Date.now();
 
         // Ignore changes that do not involve the URL
@@ -419,6 +454,8 @@ async function initialize() {
 
     // Handle when a tab closes
     browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
+        if(!initialized)
+            return;
         var timeStamp = Date.now();
 
         // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
@@ -436,7 +473,24 @@ async function initialize() {
 
     // Handle when the active tab in a window changes
     browser.tabs.onActivated.addListener(activeInfo => {
+        if(!initialized)
+            return;
         var timeStamp = Date.now();
+
+        // Save the active tab in the cached window state
+        // Note that we might receive the tabs.onActivated
+        // event before the windows.onCreated event for a new
+        // window, in which case we should create state for
+        // the window with other properties "unknown"
+        var activeTabWindowDetails = windowState.get(activeInfo.windowId);
+        if(activeTabWindowDetails === undefined) {
+            activeTabWindowDetails = {
+                type: "unknown",
+                privacy: "unknown"
+            };
+            windowState.set(activeInfo.windowId, activeTabWindowDetails);
+        }
+        activeTabWindowDetails.activeTab = activeInfo.tabId;
 
         // If this is a non-browser tab, ignore it
         if(activeInfo.tabId == browser.tabs.TAB_ID_NONE)
@@ -459,8 +513,49 @@ async function initialize() {
         currentActiveTab = activeInfo.tabId;
     });
 
+    // Handle when a window is created
+    browser.windows.onCreated.addListener(createdWindow => {
+        if(!initialized)
+            return;
+        
+        // If the window doesn't have a window ID, ignore it
+        // This shouldn't happen, but checking anyway since
+        // the id property is optional in the windows.Window
+        // type
+        if(!("id" in createdWindow))
+            return;
+
+        // Check whether there is already state cached for this window
+        // and, if there is, copy the active tab ID
+        // This handles the scenario where tabs.onActivated fires before
+        // windows.onCreated fires for a tab in a new window
+        var activeTabInCreatedWindow = -1;
+        var createdWindowDetails = windowState.get(createdWindow.id);
+        if(createdWindowDetails !== undefined)
+            activeTabInCreatedWindow = createdWindowDetails.activeTab;
+
+        // Save the created window in the cached window state
+        windowState.set(createdWindow.id, {
+            type: "type" in createdWindow ? createdWindow.type : "unknown",
+            activeTab: activeTabInCreatedWindow,
+            privacy: createdWindow.incognito ? "private" : "normal"
+        });
+    });
+
+    // Handle when a window is removed
+    browser.windows.onRemoved.addListener(windowId => {
+        if(!initialized)
+            return;
+        
+        // If we have cached state for this window, drop it
+        if(windowState.has(windowId))
+            windowState.delete(windowId);
+    });
+
     // Handle when the focused window changes
-    browser.windows.onFocusChanged.addListener(async windowId => {
+    browser.windows.onFocusChanged.addListener(windowId => {
+        if(!initialized)
+            return;
         var timeStamp = Date.now();
 
         // If the browser is active or (optionally) we are not considering user input, and if
@@ -481,35 +576,30 @@ async function initialize() {
             return;
         }
 
-        // Try to learn more about the new window
-        // Note that this can result in an error for non-browser windows
-        var windowDetails = { type: "unknown" };
-        try {
-            windowDetails = await browser.windows.get(windowId);
-        }
-        catch(error) {
-        }
+        // Get information about the focused window from the cached window state
+        var focusedWindowDetails = windowState.get(windowId);
 
-        // If the new window is not a browser window, remember tab ID = -1 and window ID = -1,
-        // and do not start a new attention span
-        if(((windowDetails.type != "normal") && (windowDetails.type != "popup"))) {
+        // If we haven't seen this window before, assume that it's not a browser window,
+        // remember tab ID = -1 and window ID -1, and do not start a new attention span
+        // This situation can come up with unusual browser windows, which do not seem to
+        // consistently appear in the set of windows from browser.windows.getAll
+        if(focusedWindowDetails === undefined) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
             return;
         }
 
-        // If there is not an active tab in the new window, remember tab ID = -1 and the new
-        // focused window, and do not start a new attention span
-        var tabInfo = await browser.tabs.query({ windowId: windowId, active: true });
-        if (tabInfo.length == 0) {
+        // If the new window is not a browser window, remember tab ID = -1 and window ID = -1,
+        // and do not start a new attention span
+        if(((focusedWindowDetails.type != "normal") && (focusedWindowDetails.type != "popup"))) {
             currentActiveTab = -1;
-            currentFocusedWindow = windowId;
+            currentFocusedWindow = -1;
             return;
         }
 
         // Otherwise, remember the new active tab and focused window, and if the browser is active
         // or (optionally) we are not considering user input, start a new attention span
-        currentActiveTab = tabInfo[0].id;
+        currentActiveTab = focusedWindowDetails.activeTab;
         currentFocusedWindow = windowId;
         if(browserIsActive || !considerUserInputForAttention)
             notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, timeStamp);
@@ -520,7 +610,9 @@ async function initialize() {
     // Active means the user has recently provided input to the browser, inactive means any other
     // state (regardless of whether a screensaver or lock screen is enabled)
     if(considerUserInputForAttention) {
-        await Idle.registerIdleStateListener((newState) => {
+        await Idle.registerIdleStateListener(newState => {
+            if(!initialized)
+                return;
             var timeStamp = Date.now();
 
             // If the browser is not transitioning between active and inactive states, ignore the event
@@ -543,47 +635,48 @@ async function initialize() {
         }, idleThreshold);
     }
 
-    // Remember the browser activity state, the focused window, and the active tab in that window at the time of initialization
-
-    // Get and remember the browser activity state
+    // Get and remember the browser idle state
     if(considerUserInputForAttention)
-        browserIsActive = Idle.queryState(idleThreshold) === "active";
+        browserIsActive = (Idle.queryState(idleThreshold) === "active");
     
-    // Get the most recently focused window and the tabs in that window
-    var lastFocusedWindow = null;
-    try {
-        lastFocusedWindow = await browser.windows.getLastFocused({
-            populate: true,
+    // Get and remember the browser window state
+    var openWindows = await browser.windows.getAll({
+        populate: true,
+        windowTypes: [ "normal", "popup", "panel", "devtools" ]
+    });
+    for(const openWindow of openWindows) {
+        // If the window doesn't have a window ID, ignore it
+        // This shouldn't happen, but checking anyway since
+        // the id property is optional in the windows.Window
+        // type
+        if(!("id" in openWindow))
+            continue;
+        // Iterate the tabs in the window to find the active tab
+        // (if there is one), otherwise save active tab ID = -1
+        // for the window
+        var activeTabInOpenWindow = -1;
+        if("tabs" in openWindow)
+            for(const tab of openWindow.tabs)
+                if(tab.active)
+                    activeTabInOpenWindow = tab.id;
+        windowState.set(openWindow.id, {
+            type: openWindow.type,
+            activeTab: activeTabInOpenWindow,
+            privacy: openWindow.incognito ? "private" : "normal"
         });
-    }
-    catch(error) {
-    }
 
-    // If there was an error or there is no most recently focused window, keep the default
-    // values of tab ID = -1 and window ID = -1
-    if(lastFocusedWindow == null)
-        return;
-    
-    // If the most recently focused window cannot contain a webpage, keep the default values
-    // of tab ID = -1 and window ID = -1
-    if((lastFocusedWindow.type != "normal") && (lastFocusedWindow.type != "popup"))
-        return;
-
-    // If the most recently focused window does not have focus (i.e., there is no window with
-    // focus because the browser does not have focus in the operating system), keep the default
-    // values of tab ID = -1 and window ID = -1
-    if(!lastFocusedWindow.focused)
-        return;
-
-    // Otherwise remember the window with focus
-    currentFocusedWindow = lastFocusedWindow.id;
-
-    // If there is an active tab in the focused window, remember it, otherwise keep the default
-    // value of tab ID = -1
-    for(const tab in lastFocusedWindow.tabs) {
-        if(tab.active) {
-            currentActiveTab = tab.id;
-            return;
+        // If this is the focused window and it is a normal or popup
+        // window, remember the window ID and active tab ID (if any)
+        // If there is no focused window, or the focused window isn't
+        // a normal or popup window, this block will not run and we
+        // will retain the default values of tab ID = -1 and window
+        // ID = -1
+        if((openWindow.focused) && ((openWindow.type === "normal") || (openWindow.type === "popup"))) {
+            currentFocusedWindow = openWindow.id;
+            currentActiveTab = activeTabInOpenWindow;
         }
     }
+
+    initializing = false;
+    initialized = true;
 }
