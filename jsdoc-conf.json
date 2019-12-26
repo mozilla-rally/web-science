@@ -2,5 +2,10 @@
     "plugins": ["plugins/markdown"],
     "opts": {
         "private": true
+    },
+    "templates": {
+        "default": {
+            "useLongnameInNav": true
+        }
     }
 }

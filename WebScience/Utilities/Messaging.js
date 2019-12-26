@@ -3,7 +3,7 @@
  * routing messages to the right listener(s) based on the message type.
  * Message types are defined as strings, and a message must be an object with a
  * type property to be handled correctly.
- * @module "WebScience.Utilities.Messaging"
+ * @module WebScience.Utilities.Messaging
  */
 
 import * as WebScience from "../WebScience.js"
