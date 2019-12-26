@@ -1,6 +1,8 @@
 {
     "plugins": ["plugins/markdown"],
     "opts": {
+        "destination": "./docs/",
+        "recurse": true,
         "private": true
     },
     "templates": {
