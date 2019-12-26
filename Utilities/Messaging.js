@@ -13,7 +13,7 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Utilities.Messa
  * A Map that stores message listeners. The keys are message types and the values
  * are Sets of message listeners.
  * @private
- * @const {Map<string,Set<function>}
+ * @const {Map<string,Set<function>>}
  */
 const messageRouter = new Map();
 
