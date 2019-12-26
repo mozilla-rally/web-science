@@ -85,9 +85,9 @@ const considerUserInputForAttention = true;
 /**
  * The set of listener functions for page visit start events.
  * @private
- * @constant {pageVisitStartListener[]}
+ * @constant {Set<pageVisitStartListener>}
  */
-const pageVisitStartListeners = [ ];
+const pageVisitStartListeners = new Set();
 
 /** 
  * Register a listener function that will be notified about page visit start events.
@@ -97,7 +97,7 @@ const pageVisitStartListeners = [ ];
  */
 export async function registerPageVisitStartListener(pageVisitStartListener, notifyAboutCurrentPages = true, timeStamp = Date.now()) {
     initialize();
-    pageVisitStartListeners.push(pageVisitStartListener);
+    pageVisitStartListeners.add(pageVisitStartListener);
     if(notifyAboutCurrentPages)
         notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, timeStamp);
 }
@@ -164,9 +164,9 @@ async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListe
  /**
  * The set of listener functions for page visit stop events.
  * @private
- * @constant {pageVisitStopListener[]}
+ * @constant {Set<pageVisitStopListener>}
  */
-const pageVisitStopListeners = [ ];
+const pageVisitStopListeners = new Set();
 
 /** 
  * Register a listener function that will be notified about page visit stop events.
@@ -174,7 +174,7 @@ const pageVisitStopListeners = [ ];
  */
 export function registerPageVisitStopListener(pageVisitStopListener) {
     initialize();
-    pageVisitStopListeners.push(pageVisitStopListener);
+    pageVisitStopListeners.add(pageVisitStopListener);
 }
 
 /** 
@@ -206,9 +206,9 @@ function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
 /**
  * The set of listener functions for page attention start events.
  * @private
- * @constant {pageAttentionStartListener[]}
+ * @constant {Set<pageAttentionStartListener>}
  */
-const pageAttentionStartListeners = [ ];
+const pageAttentionStartListeners = new Set();
 
 /** 
  * Register a listener function that will be notified about page attention start events.
@@ -220,7 +220,7 @@ const pageAttentionStartListeners = [ ];
  */
 export async function registerPageAttentionStartListener(pageAttentionStartListener, notifyAboutCurrentPageAttention = true, timeStamp = Date.now()) {
     initialize();
-    pageAttentionStartListeners.push(pageAttentionStartListener);
+    pageAttentionStartListeners.add(pageAttentionStartListener);
     if(notifyAboutCurrentPageAttention)
         notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, timeStamp);
 }
@@ -282,9 +282,9 @@ async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAtt
 /**
  * The set of listener functions for page attention stop events.
  * @private
- * @constant {pageAttentionStopListener[]}
+ * @constant {Set<pageAttentionStopListener>}
  */
-const pageAttentionStopListeners = [ ];
+const pageAttentionStopListeners = new Set();
 
 /** 
  * Register a listener function that will be notified about page attention stop events.
@@ -292,7 +292,7 @@ const pageAttentionStopListeners = [ ];
  */
 export async function registerPageAttentionStopListener(pageAttentionStopListener) {
     initialize();
-    pageAttentionStopListeners.push(pageAttentionStopListener);
+    pageAttentionStopListeners.add(pageAttentionStopListener);
 }
 
 /** 
