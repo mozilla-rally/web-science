@@ -22,10 +22,6 @@
         "persistent": true
     },
 
-    "browser_action": {
-        "default_title": "Download Recorded Data"
-    },
-
     "permissions": [
         "<all_urls>",
         "downloads",
