@@ -26,7 +26,7 @@
  * `nsIdleService` to minimize privileged extension code and so that it runs
  * on a different schedule from Firefox daily tasks (e.g., Telemetry).
  * 
- * @module "WebScience.Utilities.Scheduling"
+ * @module WebScience.Utilities.Scheduling
  */
 
 import * as Idle from "./Idle.js"

@@ -14,7 +14,7 @@
  * the idle state detection interval in the `idle` API will result in
  * unpredictable behavior.
  * 
- * @module "WebScience.Utilities.Idle"
+ * @module WebScience.Utilities.Idle
  */
 
 /**
