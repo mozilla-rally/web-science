@@ -5,7 +5,7 @@
  * needed (e.g., switching from localforage to Dexie, or directly using browser
  * storage APIs).
  * 
- * @module WebScience.Utilities.Storage
+ * @module "WebScience.Utilities.Storage"
  */
 
 // Currently implemented with localforage

@@ -2,7 +2,7 @@
  * This module is used to run studies that track the user's navigation of
  * and attention to webpages on domains of interest.
  * 
- * @module WebScience.Utilities.Navigation
+ * @module "WebScience.Studies.Navigation"
  */
 
 import * as WebScience from "../WebScience.js"
