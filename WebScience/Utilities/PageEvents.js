@@ -94,11 +94,18 @@ const considerUserInputForAttention = true;
  */
 
 /**
- * The set of listener functions for page visit start events.
- * @private
- * @constant {Set<pageVisitStartListener>}
+ * Additional information about a page visit start event listener function.
+ * @typedef {Object} PageVisitStartListenerDetails
+ * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
+ * @property {pageVisitStartListener} listener - The listener function.
  */
-const pageVisitStartListeners = new Set();
+
+/**
+ * The set of listener details for page visit start events.
+ * @private
+ * @constant {Set<PageVisitStartListenerDetails>}
+ */
+const pageVisitStartListenerSet = new Set();
 
 /** 
  * Register a listener function that will be notified about page visit start events.
@@ -108,7 +115,9 @@ const pageVisitStartListeners = new Set();
  */
 export async function registerPageVisitStartListener(pageVisitStartListener, notifyAboutCurrentPages = true, timeStamp = Date.now()) {
     initialize();
-    pageVisitStartListeners.add(pageVisitStartListener);
+    pageVisitStartListenerSet.add({
+        listener: pageVisitStartListener
+    });
     if(notifyAboutCurrentPages)
         notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, timeStamp);
 }
@@ -123,8 +132,8 @@ export async function registerPageVisitStartListener(pageVisitStartListener, not
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
 function notifyPageVisitStartListeners(tabId, windowId, url, privateWindow, timeStamp = Date.now()) {
-    for (const pageVisitStartListener of pageVisitStartListeners)
-        pageVisitStartListener({
+    for (const pageVisitStartListenerDetails of pageVisitStartListenerSet)
+        pageVisitStartListenerDetails.listener({
             tabId: tabId,
             windowId: windowId,
             url: url.repeat(1), // copy the URL string in case a listener modifies it
@@ -173,12 +182,19 @@ async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListe
  * @param {number} details.timeStamp - The time when the underlying browser event fired.
  */
 
+/**
+ * Additional information about a page visit start stop listener function.
+ * @typedef {Object} PageVisitStopListenerDetails
+ * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
+ * @property {pageVisitStopListener} listener - The listener function.
+ */
+
  /**
  * The set of listener functions for page visit stop events.
  * @private
- * @constant {Set<pageVisitStopListener>}
+ * @constant {Set<PageVisitStopListenerDetails>}
  */
-const pageVisitStopListeners = new Set();
+const pageVisitStopListenerSet = new Set();
 
 /** 
  * Register a listener function that will be notified about page visit stop events.
@@ -186,7 +202,9 @@ const pageVisitStopListeners = new Set();
  */
 export function registerPageVisitStopListener(pageVisitStopListener) {
     initialize();
-    pageVisitStopListeners.add(pageVisitStopListener);
+    pageVisitStopListenerSet.add({
+        listener: pageVisitStopListener
+    });
 }
 
 /** 
@@ -197,8 +215,8 @@ export function registerPageVisitStopListener(pageVisitStopListener) {
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
 function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
-    for (const pageVisitStopListener of pageVisitStopListeners)
-        pageVisitStopListener({
+    for (const pageVisitStopListenerDetails of pageVisitStopListenerSet)
+        pageVisitStopListenerDetails.listener({
             tabId: tabId,
             windowId: windowId,
             timeStamp: timeStamp
@@ -216,11 +234,18 @@ function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
  */
 
 /**
+ * Additional information about a page attention start event listener function.
+ * @typedef {Object} PageAttentionStartListenerDetails
+ * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
+ * @property {pageAttentionStartListener} listener - The listener function.
+ */
+
+/**
  * The set of listener functions for page attention start events.
  * @private
- * @constant {Set<pageAttentionStartListener>}
+ * @constant {Set<PageAttentionStartListenerDetails>}
  */
-const pageAttentionStartListeners = new Set();
+const pageAttentionStartListenerSet = new Set();
 
 /** 
  * Register a listener function that will be notified about page attention start events.
@@ -232,7 +257,9 @@ const pageAttentionStartListeners = new Set();
  */
 export async function registerPageAttentionStartListener(pageAttentionStartListener, notifyAboutCurrentPageAttention = true, timeStamp = Date.now()) {
     initialize();
-    pageAttentionStartListeners.add(pageAttentionStartListener);
+    pageAttentionStartListenerSet.add({
+        listener: pageAttentionStartListener
+    });
     if(notifyAboutCurrentPageAttention)
         notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, timeStamp);
 }
@@ -245,8 +272,8 @@ export async function registerPageAttentionStartListener(pageAttentionStartListe
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
 function notifyPageAttentionStartListeners(tabId, windowId, timeStamp = Date.now()) {
-    for (const pageAttentionStartListener of pageAttentionStartListeners)
-        pageAttentionStartListener({
+    for (const pageAttentionStartListenerDetails of pageAttentionStartListenerSet)
+        pageAttentionStartListenerDetails.listener({
             tabId: tabId,
             windowId: windowId,
             timeStamp: timeStamp
@@ -292,11 +319,18 @@ async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAtt
  */
 
 /**
+ * Additional information about a page attention stop event listener function.
+ * @typedef {Object} PageAttentionStopListenerDetails
+ * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
+ * @property {pageAttentionStartListener} listener - The listener function.
+ */
+
+/**
  * The set of listener functions for page attention stop events.
  * @private
- * @constant {Set<pageAttentionStopListener>}
+ * @constant {Set<PageAttentionStopListenerDetails>}
  */
-const pageAttentionStopListeners = new Set();
+const pageAttentionStopListenerSet = new Set();
 
 /** 
  * Register a listener function that will be notified about page attention stop events.
@@ -304,7 +338,9 @@ const pageAttentionStopListeners = new Set();
  */
 export async function registerPageAttentionStopListener(pageAttentionStopListener) {
     initialize();
-    pageAttentionStopListeners.add(pageAttentionStopListener);
+    pageAttentionStopListenerSet.add({
+        listener: pageAttentionStopListener
+    });
 }
 
 /** 
@@ -315,8 +351,8 @@ export async function registerPageAttentionStopListener(pageAttentionStopListene
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
 function notifyPageAttentionStopListeners(tabId, windowId, timeStamp = Date.now()) {
-    for (const pageAttentionStopListener of pageAttentionStopListeners)
-        pageAttentionStopListener({
+    for (const pageAttentionStopListenerDetails of pageAttentionStopListenerSet)
+        pageAttentionStopListenerDetails.listener({
             tabId: tabId,
             windowId: windowId,
             timeStamp: timeStamp
