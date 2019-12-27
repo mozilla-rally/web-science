@@ -189,14 +189,14 @@ async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListe
  * @property {pageVisitStopListener} listener - The listener function.
  */
 
- /**
- * The set of listener functions for page visit stop events.
+/**
+ * The set of listener details for page visit stop events.
  * @private
  * @constant {Set<PageVisitStopListenerDetails>}
  */
 const pageVisitStopListenerSet = new Set();
 
-/** 
+/**
  * Register a listener function that will be notified about page visit stop events.
  * @param {pageVisitStopListener} pageVisitStopListener - The listener function.
  */
@@ -241,7 +241,7 @@ function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
  */
 
 /**
- * The set of listener functions for page attention start events.
+ * The set of listener details for page attention start events.
  * @private
  * @constant {Set<PageAttentionStartListenerDetails>}
  */
@@ -326,7 +326,7 @@ async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAtt
  */
 
 /**
- * The set of listener functions for page attention stop events.
+ * The set of listener details for page attention stop events.
  * @private
  * @constant {Set<PageAttentionStopListenerDetails>}
  */
