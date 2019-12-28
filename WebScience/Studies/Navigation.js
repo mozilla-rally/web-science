@@ -46,7 +46,7 @@ export async function runStudy({
     var currentTabInfo = { }
 
     // Handle when a page visit starts
-    async function pageVisitStartListener({url, tabId, timeStamp}) {
+    async function pageVisitStartListener({url, referrer, tabId, timeStamp}) {
 
         // If the URL does not match the study domains, ignore the page visit start
         if(!urlMatcher.testUrl(url))
@@ -62,8 +62,8 @@ export async function runStudy({
         // Otherwise, remember the page visit start and increment the page counter
         currentTabInfo[tabId] = {
             pageId: nextPageIdCounter.get(),
-            url: url,
-            referrer: "",
+            url,
+            referrer,
             visitStart: timeStamp,
             visitEnd: -1,
             attentionDuration: 0,
@@ -154,32 +154,9 @@ export async function runStudy({
     // Build the URL matching set for content scripts
     var contentScriptMatches = WebScience.Utilities.Matching.createUrlMatchPatternArray(domains, true);
 
-    // Listen for update messages from the referrer content script
-    WebScience.Utilities.Messaging.registerListener("WebScience.Studies.Navigation.referrerUpdate", (message, sender) => {
-        // If the referrer message is not from a tab, or if we are not tracking
-        // the tab, ignore the message
-        // Neither of these things should happen!
-        if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
-            debugLog("Warning: unexpected page referrer update");
-            return;
-        }
-
-        // Remember the referrer for this page
-        currentTabInfo[sender.tab.id].referrer = message.referrer;
-        debugLog("referrerUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
-    },
-    { referrer: "string" });
-
     // Store whether the Navigation study is running in private windows in extension
     // local storage, so that it is available to content scripts
     await browser.storage.local.set({ "WebScience.Studies.Navigation.privateWindows": privateWindows });
-
-    // Register the content script for sharing the referrer of a page with a matching domain
-    await browser.contentScripts.register({
-        matches: contentScriptMatches,
-        js: [ { file: "/WebScience/Studies/content-scripts/referrer.js" } ],
-        runAt: "document_start"
-    });
 
     // If the study should save page content...
     if(savePageContent) {
