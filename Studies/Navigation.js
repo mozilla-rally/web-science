@@ -21,12 +21,15 @@ var storage = null;
  * @param {string[]} [options.domains=[]] - The domains of interest for the study.
  * @param {boolean} [options.trackUserAttention=false] - Whether to track user
  * attention during the study.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in
+ * private windows.
  * @param {boolean} [options.savePageContent=false] - Whether to save webpage HTML
  * content during the study.
  */
 export async function runStudy({
     domains = [ ],
     trackUserAttention = false,
+    privateWindows = false,
     savePageContent = false
 }) {
 
@@ -141,11 +144,11 @@ export async function runStudy({
     // Use a timestamp to synchronize initial page visit and page attention times
 
     var timeStamp = Date.now();
-    WebScience.Utilities.PageEvents.registerPageVisitStartListener(pageVisitStartListener, true, timeStamp);
-    WebScience.Utilities.PageEvents.registerPageVisitStopListener(pageVisitStopListener);
+    WebScience.Utilities.PageEvents.registerPageVisitStartListener(pageVisitStartListener, true, privateWindows, timeStamp);
+    WebScience.Utilities.PageEvents.registerPageVisitStopListener(pageVisitStopListener, privateWindows);
     if(trackUserAttention) {
-        WebScience.Utilities.PageEvents.registerPageAttentionStartListener(pageAttentionStartListener, true, timeStamp);
-        WebScience.Utilities.PageEvents.registerPageAttentionStopListener(pageAttentionStopListener);
+        WebScience.Utilities.PageEvents.registerPageAttentionStartListener(pageAttentionStartListener, true, privateWindows, timeStamp);
+        WebScience.Utilities.PageEvents.registerPageAttentionStopListener(pageAttentionStopListener, privateWindows);
     }
 
     // Build the URL matching set for content scripts
