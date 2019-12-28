@@ -27,6 +27,7 @@
         "downloads",
         "idle",
         "notifications",
+        "storage",
         "tabs",
         "unlimitedStorage",
         "webRequest",

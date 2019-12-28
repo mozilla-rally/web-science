@@ -155,7 +155,7 @@ export async function runStudy({
     var contentScriptMatches = WebScience.Utilities.Matching.createUrlMatchPatternArray(domains, true);
 
     // Listen for update messages from the referrer content script
-    WebScience.Utilities.Messaging.registerListener("WebScience.referrerUpdate", (message, sender) => {
+    WebScience.Utilities.Messaging.registerListener("WebScience.Studies.Navigation.referrerUpdate", (message, sender) => {
         // If the referrer message is not from a tab, or if we are not tracking
         // the tab, ignore the message
         // Neither of these things should happen!
@@ -170,6 +170,10 @@ export async function runStudy({
     },
     { referrer: "string" });
 
+    // Store whether the Navigation study is running in private windows in extension
+    // local storage, so that it is available to content scripts
+    await browser.storage.local.set({ "WebScience.Studies.Navigation.privateWindows": privateWindows });
+
     // Register the content script for sharing the referrer of a page with a matching domain
     await browser.contentScripts.register({
         matches: contentScriptMatches,
@@ -180,7 +184,7 @@ export async function runStudy({
     // If the study should save page content...
     if(savePageContent) {
         // Listen for update messages from the page content content script
-        WebScience.Utilities.Messaging.registerListener("WebScience.pageContentUpdate", (message, sender) => {
+        WebScience.Utilities.Messaging.registerListener("WebScience.Studies.Navigation.pageContentUpdate", (message, sender) => {
             // If the page content message is not from a tab, or if we are not tracking
             // the tab, ignore the message
             // Neither of these things should happen!
