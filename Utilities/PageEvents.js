@@ -109,17 +109,19 @@ const pageVisitStartListenerSet = new Set();
 
 /** 
  * Register a listener function that will be notified about page visit start events.
- * @param {pageVisitStartListener} pageVisitStartListener - The listener function. 
+ * @param {pageVisitStartListener} pageVisitStartListener - The listener function.
  * @param {boolean} [notifyAboutCurrentPages=true] - Whether the listener should be fired for the currently open set of pages.
+ * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
  * @param {number} [timeStamp=Date.now()] - The time to use if the listener should be fired for the currently open set of pages.
  */
-export async function registerPageVisitStartListener(pageVisitStartListener, notifyAboutCurrentPages = true, timeStamp = Date.now()) {
+export async function registerPageVisitStartListener(pageVisitStartListener, notifyAboutCurrentPages = true, privateWindows = false, timeStamp = Date.now()) {
     initialize();
     pageVisitStartListenerSet.add({
-        listener: pageVisitStartListener
+        listener: pageVisitStartListener,
+        privateWindows: privateWindows
     });
     if(notifyAboutCurrentPages)
-        notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, timeStamp);
+        notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, privateWindows, timeStamp);
 }
 
 /** 
@@ -128,18 +130,19 @@ export async function registerPageVisitStartListener(pageVisitStartListener, not
  * @param {number} tabId - The tab containing the page, unique to the browsing session.
  * @param {number} windowId - The window containing the page, unique to the browsing session.
  * @param {string} url - The URL of the page loading in the tab.
- * @param {boolean} privateWindow - Whether the page is loading in a private window.
+ * @param {boolean} privateWindow - Whether the event is in a private window.
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
 function notifyPageVisitStartListeners(tabId, windowId, url, privateWindow, timeStamp = Date.now()) {
     for (const pageVisitStartListenerDetails of pageVisitStartListenerSet)
-        pageVisitStartListenerDetails.listener({
-            tabId: tabId,
-            windowId: windowId,
-            url: url.repeat(1), // copy the URL string in case a listener modifies it
-            privateWindow: privateWindow,
-            timeStamp: timeStamp
-        });
+        if(!privateWindow || pageVisitStartListenerDetails.privateWindows)
+            pageVisitStartListenerDetails.listener({
+                tabId: tabId,
+                windowId: windowId,
+                url: url.repeat(1), // copy the URL string in case a listener modifies it
+                privateWindow: privateWindow,
+                timeStamp: timeStamp
+            });
 }
 
 /**
@@ -148,9 +151,11 @@ function notifyPageVisitStartListeners(tabId, windowId, url, privateWindow, time
  * was just installed or the user just gave consent).
  * @private
  * @param {pageVisitStartListener} pageVisitStartListener - The listener.
+ * @param {boolean} privateWindows - Whether to notify the listener about pages in private
+ * windows.
  * @param {number} timeStamp - The time when the listener was registered.
  */
-async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, timeStamp) {
+async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, privateWindows, timeStamp) {
     // Get the current set of open tabs
     // We have to separately get tabs in normal windows and in popup windows
     var currentTabs = await browser.tabs.query({
@@ -165,12 +170,13 @@ async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListe
     // Notify the listener
     if (currentTabs.length > 0)
         for (const currentTab of currentTabs)
-            pageVisitStartListener({
-                tabId: currentTab.id,
-                windowId: currentTab.windowId,
-                url: currentTab.url.repeat(1), // copy the URL string in case a listener modifies it
-                timeStamp: timeStamp
-            });
+            if(!currentTab.incognito || privateWindows)
+                pageVisitStartListener({
+                    tabId: currentTab.id,
+                    windowId: currentTab.windowId,
+                    url: currentTab.url.repeat(1), // copy the URL string in case a listener modifies it
+                    timeStamp: timeStamp
+                });
 }
 
 /**
@@ -199,11 +205,13 @@ const pageVisitStopListenerSet = new Set();
 /**
  * Register a listener function that will be notified about page visit stop events.
  * @param {pageVisitStopListener} pageVisitStopListener - The listener function.
+ * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
  */
-export function registerPageVisitStopListener(pageVisitStopListener) {
+export function registerPageVisitStopListener(pageVisitStopListener, privateWindows = false) {
     initialize();
     pageVisitStopListenerSet.add({
-        listener: pageVisitStopListener
+        listener: pageVisitStopListener,
+        privateWindows: privateWindows
     });
 }
 
@@ -212,15 +220,13 @@ export function registerPageVisitStopListener(pageVisitStopListener) {
  * @private
  * @param {number} tabId - The tab containing the page, unique to the browsing session.
  * @param {number} windowId - The window containing the page, unique to the browsing session.
+ * @param {boolean} privateWindow - Whether the event is in a private window.
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
-function notifyPageVisitStopListeners(tabId, windowId, timeStamp = Date.now()) {
+function notifyPageVisitStopListeners(tabId, windowId, privateWindow, timeStamp = Date.now()) {
     for (const pageVisitStopListenerDetails of pageVisitStopListenerSet)
-        pageVisitStopListenerDetails.listener({
-            tabId: tabId,
-            windowId: windowId,
-            timeStamp: timeStamp
-        });
+        if(!privateWindow || pageVisitStopListenerDetails.privateWindows)
+            pageVisitStopListenerDetails.listener({ tabId, windowId, timeStamp });
 }
 
 /**
@@ -252,16 +258,18 @@ const pageAttentionStartListenerSet = new Set();
  * @param {pageAttentionStartListener} pageAttentionStartListener - The listener function. 
  * @param {boolean} [notifyAboutCurrentPages=true] - Whether the listener should be fired
  * for the page that currently has attention (if there is one).
+ * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
  * @param {number} [timeStamp=Date.now()] - The time to use if the listener should be fired
  * for the page that currently has attention (if there is one).
  */
-export async function registerPageAttentionStartListener(pageAttentionStartListener, notifyAboutCurrentPageAttention = true, timeStamp = Date.now()) {
+export async function registerPageAttentionStartListener(pageAttentionStartListener, notifyAboutCurrentPageAttention = true, privateWindows = false, timeStamp = Date.now()) {
     initialize();
     pageAttentionStartListenerSet.add({
-        listener: pageAttentionStartListener
+        listener: pageAttentionStartListener,
+        privateWindows: privateWindows
     });
     if(notifyAboutCurrentPageAttention)
-        notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, timeStamp);
+        notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, privateWindows, timeStamp);
 }
 
 /** 
@@ -269,15 +277,13 @@ export async function registerPageAttentionStartListener(pageAttentionStartListe
  * @private
  * @param {number} tabId - The tab containing the page, unique to the browsing session.
  * @param {number} windowId - The window containing the page, unique to the browsing session.
+ * @param {boolean} privateWindow - Whether the event is in a private window.
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
-function notifyPageAttentionStartListeners(tabId, windowId, timeStamp = Date.now()) {
+function notifyPageAttentionStartListeners(tabId, windowId, privateWindow, timeStamp = Date.now()) {
     for (const pageAttentionStartListenerDetails of pageAttentionStartListenerSet)
-        pageAttentionStartListenerDetails.listener({
-            tabId: tabId,
-            windowId: windowId,
-            timeStamp: timeStamp
-        });
+        if(!privateWindow || pageAttentionStartListenerDetails.privateWindows)
+            pageAttentionStartListenerDetails.listener({ tabId, windowId, timeStamp });
     if(notifyContentScriptsAboutPageAttention)
         browser.tabs.sendMessage(tabId, { type: "WebScience.pageAttentionStart" });
 }
@@ -289,9 +295,11 @@ function notifyPageAttentionStartListeners(tabId, windowId, timeStamp = Date.now
  * just gave consent).
  * @private
  * @param {pageAttentionStartListener} pageAttentionStartListener - The listener.
+ * @param {boolean} privateWindows - Whether to notify the listener if the page with
+ attention is in a private window.
  * @param {number} timeStamp - The time when the listener was registered.
  */
-async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, timeStamp) {
+async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, privateWindows, timeStamp) {
     // If there is no active tab or no focused window, there is no notification to provide
     if((currentActiveTab < 0) || (currentFocusedWindow < 0))
         return;
@@ -300,6 +308,11 @@ async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAtt
     if(considerUserInputForAttention && !browserIsActive)
         return;
 
+    // If the listener should not receive notifications about private windows and this is a private window
+    // according to the window state cache, there is no notification to provide
+    if(!privateWindows && isPrivateWindow(currentFocusedWindow))
+        return;
+    
     // Otherwise, notify the listener
     pageAttentionStartListener({
         tabId: currentActiveTab,
@@ -336,10 +349,11 @@ const pageAttentionStopListenerSet = new Set();
  * Register a listener function that will be notified about page attention stop events.
  * @param {pageAttentionStopListener} pageAttentionStopListener - The listener function. 
  */
-export async function registerPageAttentionStopListener(pageAttentionStopListener) {
+export async function registerPageAttentionStopListener(pageAttentionStopListener, privateWindows = false) {
     initialize();
     pageAttentionStopListenerSet.add({
-        listener: pageAttentionStopListener
+        listener: pageAttentionStopListener,
+        privateWindows: privateWindows
     });
 }
 
@@ -348,15 +362,17 @@ export async function registerPageAttentionStopListener(pageAttentionStopListene
  * @private
  * @param {number} tabId - The tab containing the page, unique to the browsing session.
  * @param {number} windowId - The window containing the page, unique to the browsing session.
+ * @param {boolean} privateWindow - Whether the event is in a private window.
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
-function notifyPageAttentionStopListeners(tabId, windowId, timeStamp = Date.now()) {
+function notifyPageAttentionStopListeners(tabId, windowId, privateWindow, timeStamp = Date.now()) {
     for (const pageAttentionStopListenerDetails of pageAttentionStopListenerSet)
-        pageAttentionStopListenerDetails.listener({
-            tabId: tabId,
-            windowId: windowId,
-            timeStamp: timeStamp
-        });
+        if(!privateWindow || pageAttentionStopListenerDetails.privateWindows)
+            pageAttentionStopListenerDetails.listener({
+                tabId: tabId,
+                windowId: windowId,
+                timeStamp: timeStamp
+            });
     if(notifyContentScriptsAboutPageAttention)
         browser.tabs.sendMessage(tabId, { type: "WebScience.pageAttentionStop" });
 }
@@ -485,6 +501,23 @@ function updateWindowState(windowId, {
 }
 
 /**
+ * Look up the privacy property of a window in the cached window state.
+ * If the cached window state does not include the window or the window
+ * privacy property is unknown (neither of which should happen!), assume
+ * it's a normal window.
+ * @private
+ * @param {number} windowId - The window ID.
+ * @param {WindowDetails} [windowDetails] - The WindowDetails object
+ * for the window, if it's already been retrieved.
+ * @returns {boolean} Whether the window is a private window.
+ */
+function isPrivateWindow(windowId, windowDetails) {
+    if(windowDetails === undefined)
+        windowDetails = windowState.get(windowId);
+    return (windowDetails !== undefined) ? (windowDetails.privacy === "private") : false;
+}
+
+/**
  * Whether the browser is active or idle. Ignored if the module is configured to
  * not consider user input when determining the attention state.
  * @private
@@ -535,17 +568,17 @@ async function initialize() {
         // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
         var hasAttention = checkForAttention(tabId, tab.windowId);
         if (hasAttention)
-            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, tab.incognito, timeStamp);
 
         // End the page visit
-        notifyPageVisitStopListeners(tabId, tab.windowId, timeStamp);
+        notifyPageVisitStopListeners(tabId, tab.windowId, tab.incognito, timeStamp);
         
         // Start the page visit
         notifyPageVisitStartListeners(tabId, tab.windowId, changeInfo.url, tab.incognito, timeStamp);
 
         // If this is the active tab and focused window, and (optionally) the browser is active, start an attention span
         if (hasAttention)
-            notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+            notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, tab.incognito, timeStamp);
     });
 
     // Handle when a tab closes
@@ -559,17 +592,19 @@ async function initialize() {
         // will fire), or there is no other tab in the window so the window closes
         // (and windows.onRemoved will fire)
 
+        // Get the window privacy property from the cached window state
+        var windowPrivacy = isPrivateWindow(removeInfo.windowId);
+
         // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
-        if(checkForAttention(tabId, removeInfo.windowId)) {
-            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
-        }
+        if(checkForAttention(tabId, removeInfo.windowId))
+            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, windowPrivacy, timeStamp);
         
         // If this is the active tab, forget it
         if(currentActiveTab == tabId)
             currentActiveTab = -1;
 
         // End the page visit
-        notifyPageVisitStopListeners(tabId, removeInfo.windowId, timeStamp);
+        notifyPageVisitStopListeners(tabId, removeInfo.windowId, windowPrivacy, timeStamp);
     });
 
     // Handle when the active tab in a window changes
@@ -593,13 +628,16 @@ async function initialize() {
         if((currentFocusedWindow < 0) || (activeInfo.windowId != currentFocusedWindow))
             return;
 
+        // Get the window privacy property from the window state cache
+        var windowPrivacy = isPrivateWindow(activeInfo.windowId);    
+
         // If the browser is active or (optionally) we are not considering user input,
         // first end the attention span if there is an active tab in the focused window,
         // then start a new attention span
         if((browserIsActive || !considerUserInputForAttention)) {
             if((currentActiveTab >= 0) && (currentFocusedWindow >= 0))
-                notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
-            notifyPageAttentionStartListeners(activeInfo.tabId, currentFocusedWindow, timeStamp);
+                notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, windowPrivacy, timeStamp);
+            notifyPageAttentionStartListeners(activeInfo.tabId, currentFocusedWindow, windowPrivacy, timeStamp);
         }
         
         // Remember the new active tab
@@ -665,9 +703,8 @@ async function initialize() {
 
         // If the browser is active or (optionally) we are not considering user input, and if
         // if there is an active tab in a focused window, end the attention span
-        if((browserIsActive || !considerUserInputForAttention) && ((currentActiveTab >= 0) && (currentFocusedWindow >= 0))) {
-            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
-        }
+        if((browserIsActive || !considerUserInputForAttention) && ((currentActiveTab >= 0) && (currentFocusedWindow >= 0)))
+            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, isPrivateWindow(currentFocusedWindow), timeStamp);
 
         // If the browser has lost focus in the operating system, remember 
         // tab ID = -1 and window ID = -1, and do not start a new attention span
@@ -694,7 +731,7 @@ async function initialize() {
 
         // If the new window is not a browser window, remember tab ID = -1 and window ID = -1,
         // and do not start a new attention span
-        if(((focusedWindowDetails.type !== "normal") && (focusedWindowDetails.type !== "popup"))) {
+        if((focusedWindowDetails.type !== "normal") && (focusedWindowDetails.type !== "popup") && (focusedWindowDetails.type !== "normalorpopup")) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
             return;
@@ -705,7 +742,7 @@ async function initialize() {
         currentActiveTab = focusedWindowDetails.activeTab;
         currentFocusedWindow = windowId;
         if(browserIsActive || !considerUserInputForAttention)
-            notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, timeStamp);
+            notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, isPrivateWindow(windowId, focusedWindowDetails), timeStamp);
     });
     
     // Handle when the browser activity state changes
@@ -725,16 +762,19 @@ async function initialize() {
             // Remember the flipped browser activity state
             browserIsActive = !browserIsActive;
 
-            // If there is an active tab in a focused window, send an attention start event (if the
-            // browser is transitioning to active) or an attention stop event (if the browser is
-            // transitioning to inactive)
-            if((currentActiveTab >= 0) && (currentFocusedWindow >= 0)) {
-                if(browserIsActive)
-                    notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, timeStamp);
-                else {
-                    notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, timeStamp);
-                }
-            }
+            // If there isn't an active tab in a focused window, we don't need to send attention events
+            if((currentActiveTab < 0) || (currentFocusedWindow < 0))
+                return;
+            
+            // Get the window privacy property from the cached window state
+            var windowPrivacy = isPrivateWindow(removeInfo.windowId);
+
+            // Send an attention start event (if the browser is transitioning to active) or an
+            // attention stop event (if the browser is transitioning to inactive)
+            if(browserIsActive)
+                notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, windowPrivacy,  timeStamp);
+            else
+                notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, windowPrivacy, timeStamp);
         }, idleThreshold);
     }
 
