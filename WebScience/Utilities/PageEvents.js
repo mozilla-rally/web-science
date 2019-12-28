@@ -284,7 +284,7 @@ function notifyPageAttentionStartListeners(tabId, windowId, privateWindow, timeS
     for (const pageAttentionStartListenerDetails of pageAttentionStartListenerSet)
         if(!privateWindow || pageAttentionStartListenerDetails.privateWindows)
             pageAttentionStartListenerDetails.listener({ tabId, windowId, timeStamp });
-    if(notifyContentScriptsAboutPageAttention)
+    if(notifyContentScriptsAboutPageAttention && (!privateWindow || notifyContentScriptsInPrivateWindowsAboutPageAttention))
         browser.tabs.sendMessage(tabId, { type: "WebScience.pageAttentionStart" });
 }
 
@@ -373,17 +373,25 @@ function notifyPageAttentionStopListeners(tabId, windowId, privateWindow, timeSt
                 windowId: windowId,
                 timeStamp: timeStamp
             });
-    if(notifyContentScriptsAboutPageAttention)
+    if(notifyContentScriptsAboutPageAttention && (!privateWindow || notifyContentScriptsInPrivateWindowsAboutPageAttention))
         browser.tabs.sendMessage(tabId, { type: "WebScience.pageAttentionStop" });
 }
 
 /**
- * Whether to notify content scripts about page attention state changes.
+ * Whether to notify content scripts in non-private windows about page attention state changes.
  * @private
  * @type {boolean}
  * @default
  */
 var notifyContentScriptsAboutPageAttention = false;
+
+/**
+ * Whether to notify content scripts in private windows about page attention state changes.
+ * @private
+ * @type {boolean}
+ * @default
+ */
+var notifyContentScriptsInPrivateWindowsAboutPageAttention = false;
 
 /**
  * Set whether to notify content scripts about page attention state changes.
@@ -394,10 +402,12 @@ var notifyContentScriptsAboutPageAttention = false;
  * can observe those directly and there is a possible race condition with closing a page.
  * @param {boolean} notificationSetting - Whether to notify content scripts
  * about page attention state changes.
+ * @param {boolean} privateWindows - Whether to notify content scripts in private windows.
  */
-export async function setPageAttentionContentScriptMessages(notificationSetting) {
+export async function setPageAttentionContentScriptMessages(notificationSetting, privateWindows = false) {
     initialize();
     notifyContentScriptsAboutPageAttention = notificationSetting;
+    notifyContentScriptsInPrivateWindowsAboutPageAttention = privateWindows;
 }
 
 /**
