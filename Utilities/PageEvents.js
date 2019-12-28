@@ -50,7 +50,19 @@
  * input to another application, the browser will lose focus in the operating system; this
  * module will detect that with the windows API and fire a page attention stop (if needed).
  * 
- * Some Firefox-specific quirks to be aware of for future development on this module:
+ * Some known limitations to be aware of:
+ *   * The module does not currently filter tab-level content by protocol or content type. We
+ *     might want to revisit this. Filtering by protocol is easy—the module already tracks
+ *     whether a tab contains content loaded via HTTP or HTTPS. Filtering by content type is
+ *     more difficult. We might be able to accomplish that by using `webRequest.onHeadersReceived`
+ *     to start page visits and checking the `Content-Type` header, though we'd still have to handle
+ *     tabs that are open when the module initializes, and we'd miss pages that rely on MIME type
+ *     sniffing.
+ *   * When the module initializes, there isn't a good way to get the referrers for open
+ *     tabs without either delaying initialization or risking a race condition. The
+ *     referrers for pages open when the module initializes are currently set to `""`.
+ * 
+ * And some implementation quirks to be aware of for future development on this module:
  *   * The `tabs.onCreated` event appears to consistently fire before the `windows.onCreated`
  *     event, so this module listens to the `tabs.onCreated` event to get an earlier view of
  *     window details. The module assumes that a `tabs.onCreated` event with a positive tab
@@ -61,6 +73,13 @@
  *     assumes that if `windows.onFocusChanged` fires with an unknown window, that window
  *     is a non-browser window.
  *   * The module assumes that valid tab IDs and window IDs are always >= 0.
+ *   * The module assumes that, if there was a `webRequest.onBeforeSendHeaders` event before a
+ *     `tabs.onUpdated` event with the same tab ID and URL, the web request matches the tab
+ *     update. This assumption is needed to match referrers to new pages in tabs.
+ *   * The module listens for `tabs.onAttached` to track tab movement between windows. It does
+ *     not listen for `tabs.onDetached` so that tabs remain associated with valid windows and
+ *     because it's likely the user is just moving the tab within the tab strip in a window.
+ *     
  * @module WebScience.Utilities.PageEvents
  */
 
@@ -90,6 +109,8 @@ const considerUserInputForAttention = true;
  * @param {number} details.windowId - The window containing the page, unique to the browsing session.
  * Note that tabs can subsequently move between windows.
  * @param {string} details.url - The URL of the page loading in the tab.
+ * @param {string} details.referrer - The referrer URL for the page loading in the tab, or `""` if
+ * there is no referrer.
  * @param {number} details.timeStamp - The time when the underlying browser event fired.
  */
 
@@ -130,18 +151,21 @@ export async function registerPageVisitStartListener(pageVisitStartListener, not
  * @param {number} tabId - The tab containing the page, unique to the browsing session.
  * @param {number} windowId - The window containing the page, unique to the browsing session.
  * @param {string} url - The URL of the page loading in the tab.
+ * @param {string} referrer - The referrer URL for the page loading in the tab, or `""` if
+ * there is no referrer.
  * @param {boolean} privateWindow - Whether the event is in a private window.
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
-function notifyPageVisitStartListeners(tabId, windowId, url, privateWindow, timeStamp = Date.now()) {
+function notifyPageVisitStartListeners(tabId, windowId, url, referrer, privateWindow, timeStamp = Date.now()) {
     for (const pageVisitStartListenerDetails of pageVisitStartListenerSet)
         if(!privateWindow || pageVisitStartListenerDetails.privateWindows)
             pageVisitStartListenerDetails.listener({
-                tabId: tabId,
-                windowId: windowId,
-                url: url.repeat(1), // copy the URL string in case a listener modifies it
-                privateWindow: privateWindow,
-                timeStamp: timeStamp
+                tabId,
+                windowId,
+                url: url.repeat(1), // copy the string in case a listener modifies it
+                referrer: referrer.repeat(1),
+                privateWindow,
+                timeStamp
             });
 }
 
@@ -156,27 +180,17 @@ function notifyPageVisitStartListeners(tabId, windowId, url, privateWindow, time
  * @param {number} timeStamp - The time when the listener was registered.
  */
 async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, privateWindows, timeStamp) {
-    // Get the current set of open tabs
-    // We have to separately get tabs in normal windows and in popup windows
-    var currentTabs = await browser.tabs.query({
-        windowType: "normal",
-        url: [ "http://*/*", "https://*/*" ]
-    });
-    currentTabs = currentTabs.concat(await browser.tabs.query({
-        windowType: "popup",
-        url: [ "http://*/*", "https://*/*" ]
-    }));
-
-    // Notify the listener
-    if (currentTabs.length > 0)
-        for (const currentTab of currentTabs)
-            if(!currentTab.incognito || privateWindows)
-                pageVisitStartListener({
-                    tabId: currentTab.id,
-                    windowId: currentTab.windowId,
-                    url: currentTab.url.repeat(1), // copy the URL string in case a listener modifies it
-                    timeStamp: timeStamp
-                });
+    // Load the tabs from the tab state cache to avoid inconsistencies
+    for (const [tabId, tabDetails] of tabState)
+        if(!tabDetails.privateWindow || privateWindows)
+            pageVisitStartListener({
+                tabId: tabId,
+                windowId: tabDetails.windowId,
+                url: tabDetails.url.repeat(1), // copy the string in case a listener modifies it
+                referrer: tabDetails.referrer.repeat(1),
+                privateWindow: tabDetails.privateWindow,
+                timeStamp: timeStamp
+            });
 }
 
 /**
@@ -456,7 +470,8 @@ function checkForAttention(tabId, windowId) {
 
 /**
  * A Map that tracks the current state of browser windows. We need this cached
- * state to avoid asynchronous queries when the focused window changes.
+ * state to avoid asynchronous queries when the focused window changes. The
+ * keys are tab IDs and the values are WindowDetails objects.
  * @private
  * @const {Map<number,WindowDetails>}
  * @default
@@ -528,6 +543,73 @@ function isPrivateWindow(windowId, windowDetails) {
 }
 
 /**
+ * @typedef {Object} TabDetails
+ * @property {string} url - The URL loaded in the tab.
+ * @property {string} referrer - The referrer URL for the tab, or `""` if
+ * there is no referrer.
+ * @property {boolean} privateWindow - Whether the tab is in a private window.
+ * @property {number} windowId - The ID of the window containing the tab.
+ * @property {boolean} isWebContent - Whether the tab contains ordinary web
+ * content (i.e., a URL starting with `"http://"` or `"https://"`).
+ */
+
+/**
+ * A Map that tracks the current state of browser tabs. We need this cached
+ * state to avoid inconsistencies when registering a page visit start listener
+ * and to filter notifications for tabs that don't contain ordinary webpages.
+ * The keys are tab IDs and the values are TabDetails objects.
+ * @private
+ * @const {Map<number,TabDetails>}
+ * @default
+ */
+const tabState = new Map();
+
+/**
+ * Update the tab state cache with new information about a tab. Any
+ * existing information about the tab is replaced.
+ * @private
+ * @param {number} tabId - The tab ID.
+ * @param {string} url - The URL loaded in the tab.
+ * @param {string} referrer - The referrer URL for the tab, or `""` if
+ * there is no referrer.
+ * @param {string} privateWindow - Whether the tab is in a private
+ * window.
+ * @param {string} windowId - The ID of the window containing the tab.
+ */
+function updateTabState(tabId, url, referrer, privateWindow, windowId) {
+    // If the URL parses successfully and has an HTTP or HTTPS protocol,
+    // consider it web content
+    var isWebContent;
+    try {
+        var parsedUrl = new URL(url);
+        if((parsedUrl.protocol === "http:") || (parsedUrl.protocol === "https:"))
+            isWebContent = true;
+    }
+    catch {
+        isWebContent = false;
+    }
+
+    tabState.set(tabId, { url, referrer, privateWindow, windowId, isWebContent });
+}
+
+/**
+ * @typedef {Object} WebRequestDetails
+ * @property {string} url - The URL for the request.
+ * @property {string} referrer - The value of the `Referer` HTTP header for
+ * the request or `""` if there is no header.
+ */
+
+/**
+ * A Map that tracks tab-level web requests. We need this cached state to match
+ * referrers to page loads. The keys are tab IDs and the values are
+ * WebRequestDetails objects.
+ * @private
+ * @const {Map<number,WebRequestDetails>}
+ * @default
+ */
+const webRequestCache = new Map();
+
+/**
  * Whether the browser is active or idle. Ignored if the module is configured to
  * not consider user input when determining the attention state.
  * @private
@@ -565,6 +647,26 @@ async function initialize() {
     // Note that we have to call Idle.registerIdleStateListener before we call
     // Idle.queryState, so this comes before caching the initial state
 
+    // Handle tab-level web requests
+    browser.webRequest.onBeforeSendHeaders.addListener(details => {
+        // Ignore requests that aren't associated with browsing tabs
+        if(details.tabId < 0)
+            return;
+        // Get the referrer URL from the request headers
+        var referrer = "";
+        for(const requestHeader of details.requestHeaders)
+            if((requestHeader.name.toLowerCase() === "referer") && ("value" in requestHeader))
+                referrer = requestHeader.value;
+        webRequestCache.set(details.tabId, {
+            url: details.url,
+            referrer
+        });
+    }, {
+        urls: [ "<all_urls>" ],
+        types: [ "main_frame" ]
+    },
+    [ "requestHeaders" ]);
+
     // Handle when the webpage in a tab changes
     browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if(!initialized)
@@ -575,6 +677,19 @@ async function initialize() {
         if (!("url" in changeInfo))
             return;
 
+        // Try to get the referrer from the web request cache and consume
+        // the most recent entry in the web request cache
+        var referrer = "";
+        var webRequestDetails;
+        if((webRequestDetails = webRequestCache.get(tabId)) !== undefined) {
+            if(webRequestDetails.url === changeInfo.url)
+                referrer = webRequestDetails.referrer;
+            webRequestCache.delete(tabId);
+        }
+
+        // Update the tab state cache
+        updateTabState(tabId, changeInfo.url, referrer, tab.incognito, tab.windowId);
+
         // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
         var hasAttention = checkForAttention(tabId, tab.windowId);
         if (hasAttention)
@@ -584,7 +699,7 @@ async function initialize() {
         notifyPageVisitStopListeners(tabId, tab.windowId, tab.incognito, timeStamp);
         
         // Start the page visit
-        notifyPageVisitStartListeners(tabId, tab.windowId, changeInfo.url, tab.incognito, timeStamp);
+        notifyPageVisitStartListeners(tabId, tab.windowId, changeInfo.url, referrer, tab.incognito, timeStamp);
 
         // If this is the active tab and focused window, and (optionally) the browser is active, start an attention span
         if (hasAttention)
@@ -601,6 +716,10 @@ async function initialize() {
         // another tab in the window that will become active (and tabs.onActivated
         // will fire), or there is no other tab in the window so the window closes
         // (and windows.onRemoved will fire)
+
+        // If we have cached state for this tab, drop it
+        tabState.delete(tabId);
+        webRequestCache.delete(tabId);
 
         // Get the window privacy property from the cached window state
         var windowPrivacy = isPrivateWindow(removeInfo.windowId);
@@ -693,6 +812,19 @@ async function initialize() {
             type: "normalorpopup",
             privacy: tab.incognito ? "private" : "normal"
         });
+    });
+
+    // Handle when a tab is moved between windows
+    // We are not listening for tabs.onDetached because we want tabs
+    // to be associated with valid windows, and because it's likely
+    // the user is just moving the tab within the tab strip in a
+    // window
+    browser.tabs.onAttached.addListener((tabId, attachInfo) => {
+        // If this tab is in the tab state cache,
+        // update the cache
+        var tabDetails = tabState.get(tabId);
+        if(tabDetails !== undefined)
+            tabDetails.windowId = attachInfo.newWindowId;
     });
 
     // Handle when a window is removed
@@ -792,7 +924,7 @@ async function initialize() {
     if(considerUserInputForAttention)
         browserIsActive = (Idle.queryState(idleThreshold) === "active");
     
-    // Get and remember the browser window state
+    // Get and remember the browser window and tab state
     var openWindows = await browser.windows.getAll({
         populate: true,
         windowTypes: [ "normal", "popup", "panel", "devtools" ]
@@ -804,14 +936,15 @@ async function initialize() {
         // type
         if(!("id" in openWindow))
             continue;
-        // Iterate the tabs in the window to find the active tab
-        // (if there is one), otherwise save active tab ID = -1
-        // for the window
+        // Iterate the tabs in the window to cache tab state
+        // and find the active tab in the window
         var activeTabInOpenWindow = -1;
         if("tabs" in openWindow)
-            for(const tab of openWindow.tabs)
+            for(const tab of openWindow.tabs) {
                 if(tab.active)
                     activeTabInOpenWindow = tab.id;
+                updateTabState(tab.id, tab.url, "", openWindow.incognito, openWindow.id);
+            }
         updateWindowState(openWindow.id, {
             type: openWindow.type,
             activeTab: activeTabInOpenWindow,
