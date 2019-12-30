@@ -4,6 +4,9 @@
 import * as Debugging from "./Debugging.js"
 export { Debugging }
 
+import * as Storage from "./Storage.js"
+export { Storage }
+
 import * as Messaging from "./Messaging.js"
 export { Messaging }
 
@@ -16,9 +19,6 @@ export { Idle }
 import * as Matching from "./Matching.js"
 export { Matching }
 
-import * as Storage from "./Storage.js"
-export { Storage }
-
 import * as Scheduling from "./Scheduling.js"
 export { Scheduling }
 
@@ -30,3 +30,6 @@ export { ResponseBody }
 
 import * as LinkResolution from "./LinkResolution.js"
 export { LinkResolution }
+
+import * as Randomization from "./Randomization.js"
+export { Randomization }
