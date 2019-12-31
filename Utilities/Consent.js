@@ -1,42 +1,97 @@
 import * as WebScience from "../WebScience.js"
+/**
+ * This module is used for setting consent configuration, requesting
+ * consent, and listening for changes in consent.
+ * 
+ * @module WebScience.Utilities.Consent
+ */
+
+ /**
+  * A flag for whether this study needs individual consent, rather than
+  * just general consent for studies.
+  * @type {boolean}
+  * @private
+  */
 var studySpecificConsentRequired = true;
+ /**
+  * A flag for whether the study (in the general sense) has been started.
+  * @type {boolean}
+  * @private
+  */
 var studyCurrentlyRunning = false;
 
 /*  Consent - components related to checking for and obtaining user consent. */
 
+/**
+ * A KeyValueStore object for data associated with consent
+ * @type {Object}
+ * @private
+ */
 var storage = null;
+/**
+ * The set of functions listening for a study to start
+ * @type {Array}
+ * @private
+ */
 var studyStartedListeners = [];
+/**
+ * The set of functions listening for a study to stop
+ * @type {Array}
+ * @private
+ */
 var studyEndedListeners = [];
 
-/* Will be called in response to user/study actions, see study.js
+/**
+ * A listener function for study start events.
+ * @callback studyStartedListener
+ */
+
+/**
+ * A listener function for study stop events.
+ * @callback studyEndedListener
+ */
+
+/**
+ * Registers a listener that will be called in response to
+ * user/study actions, see study.js
+ * @param {studyStartedListener} studyStartedListener
  */
 export function registerStudyStartedListener(studyStartedListener) {
   studyStartedListeners.push(studyStartedListener);
 }
 
-/* Will be called in response to user/study actions, see study.js
+/**
+ * Registers a listener that will be called in response to
+ * user/study actions, see study.js
+ * @param {studyEndedListener} studyEndedListener
  */
 export function registerStudyEndedListener(studyEndedListener) {
   studyEndedListeners.push(studyEndedListener);
 }
 
-/* For studies that involve no intervention and only
- *  privacy-preserving data collection, we can disable the
- *  requirement for consent specific to this study.
+/**
+ * Disable the requirement for study-specific consent
+ * (For studies that involve no intervention and only
+ * privacy-preserving data collection)
  */
 export function disableStudySpecificConsent() {
   studySpecificConsentRequired = false;
 }
 
-/* For studies that have an intervention or include
- *  data collection without strong privacy guarantees,
- *  we must request study-specific consent.
- * This is enabled by default.
+/**
+ * Enable (enabled by default) the requirement for study-specific consent
+ * (For studies that have an intervention or include
+ * data collection without strong privacy guarantees)
  */
 export function enableStudySpecificConsent() {
   studySpecificConsentRequired = true;
 }
 
+/**
+ * Call all the listeners registered for studies starting, and set
+ * the flag to indicate that the study has started.
+ * @private
+ */
 function startStudy() {
   for (const listener of studyStartedListeners) {
     listener();
@@ -44,6 +99,11 @@ function startStudy() {
   studyCurrentlyRunning = true;
 }
 
+/**
+ * Call all the listeners registered for studies ending, and set the
+ * flag to indicate that the study has ended.
+ * @private
+ */
 function endStudy() {
   for (const listener of studyEndedListeners) {
     listener();
@@ -51,19 +111,22 @@ function endStudy() {
   studyCurrentlyRunning = false;
 }
 
-/* This is used to indicate to the user whether the study is enabled.
+/**
+ * Return whether the study is enabled.
  * A study is enabled if we either have consent for it, or if
- *  consent is not required, due to the specifics of the study.
+ * consent is not required, due to the specifics of the study.
+ * @returns {boolean}
  */
 export async function checkStudySpecificConsent() {
   var consent = await storage.get("studySpecificConsent");
   return consent || !studySpecificConsentRequired;
 }
 
-/* Save the new setting of the consent for this study
- *  and, if we needed this consent, call the listeners to start or stop
- *  the study, respectively.
+/**
+ * Save the new setting of the consent for this study
+ * and call the listeners to start or stop the study, if appropriate.
  * If the user is removing consent, prompt to uninstall the extension.
+ * @param {boolean} consent - the new consent setting
  */
 export async function saveStudySpecificConsent(consent) {
   await storage.set("studySpecificConsent", consent);
@@ -80,8 +143,9 @@ If you'd still like to participate in the study, you may keep the extension inst
   else if (consent && !studyCurrentlyRunning) { startStudy(); }
 }
 
-/* After calling setup functions above, this requests
- *  consent if it is necessary, and begins the study if not
+/**
+ * After calling setup functions above, this requests
+ * consent if it is necessary, and begins the study if not.
  */
 export async function requestConsentAndBegin() {
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Utilities.Consent")).initialize();
