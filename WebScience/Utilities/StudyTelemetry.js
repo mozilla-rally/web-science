@@ -1,11 +1,22 @@
+/**
+ * This module is for sending data to be reported through the Telemetry system.
+ * 
+ * @module WebScience.Utilities.StudyTelemetry
+ */
 import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 // TODO -- all of the below generation is just for testing
 
 // To test, add a call like WebScience.Utilities.StudyTelemetry.reportEvent(<whatever>); to some module
+//  and uncomment the testing lines at the bottom of reportEvent.
 const studyId = "42";
 var pioneerKeyPublic = null;
 var studyKeyPublic = null;
 var studyKeyPrivate = null; // temp
+
+/**
+ * Set up keys to encrypt outgoing data. Currently, just generates new keys
+ * every time for testing.
+ */
 export async function initialize() {
     async function getPioneerKey() {
         //TODO, probably: crypto.subtle.importKey(...);
@@ -45,14 +56,24 @@ export async function initialize() {
     await getStudyKey();
 }
 
+/**
+ * Use the subtle crypto library to encrypt some data for Telemetry.
+ * 
+ * @param {CryptoKey} key - public key to use to encrypt
+ * @param {BufferSource} payload - data to encrypt, encoded in a buffer
+ * @returns {ArrayBuffer} - encrypted payload
+ * @private
+ */
 async function telemetryEncrypt(key, payload) {
     return await crypto.subtle.encrypt({ "name": "RSA-OAEP" }, key, payload);
 }
 
-// TODO
-/* Takes in an object `content`, encodes and encrypts it and sends
- *  it out in a Telemetry custom ping.
+/**
+ * Sends an object out as an encrypted Telemetry ping.
+ * 
+ * @param {Object} content - an object to be sent
  */
+// TODO
 export async function reportEvent(content) {
     //if (!browser.telemetry.canUpload()) return;
 
@@ -70,6 +91,6 @@ export async function reportEvent(content) {
     //TODO: something like: TelemetryController.submitExternalPing("pioneer-study-update", report);
 
     // testing
-    var decryptedContent = JSON.parse(decoder.decode(await crypto.subtle.decrypt({ "name": "RSA-OAEP" }, studyKeyPrivate, report.content)));
-    console.log("testing decrypted", decryptedContent);
+    //var decryptedContent = JSON.parse(decoder.decode(await crypto.subtle.decrypt({ "name": "RSA-OAEP" }, studyKeyPrivate, report.content)));
+    //console.log("testing decrypted", decryptedContent);
 }
