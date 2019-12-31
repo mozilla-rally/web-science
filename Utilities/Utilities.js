@@ -33,3 +33,6 @@ export { LinkResolution }
 
 import * as Randomization from "./Randomization.js"
 export { Randomization }
+
+import * as StudyTelemetry from "./StudyTelemetry.js"
+export { StudyTelemetry }
