@@ -95,7 +95,7 @@ export async function runStudy({
     runAt: "document_idle"
   });
 
-  // Listen for SocialMediaAccountExposure-Youtube messages from content script
+  // Listen for SocialMediaAccountExposure.Youtube messages from content script
   WebScience.Utilities.Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure.Youtube", (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
@@ -112,7 +112,7 @@ export async function runStudy({
     channel : "string"
   });
 
-  // Listen for SocialMediaAccountExposure-Youtube messages from content script
+  // Listen for SocialMediaAccountExposure.Facebook messages from content script
   WebScience.Utilities.Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure.Facebook", (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
