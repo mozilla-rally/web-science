@@ -7,5 +7,8 @@ export { LinkExposure }
 import * as SocialMediaLinkExposure from "./SocialMediaLinkExposure.js"
 export { SocialMediaLinkExposure }
 
+import * as SocialMediaAccountExposure from "./SocialMediaAccountExposure.js"
+export { SocialMediaAccountExposure };
+
 import * as SocialMediaSharing from "./SocialMediaSharing.js"
 export { SocialMediaSharing }
