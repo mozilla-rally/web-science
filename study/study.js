@@ -52,6 +52,8 @@ function runStudies() {
         ytchannels: youtubeChannels
     });
 
+    WebScience.Studies.SocialMediaNewsExposure.runStudy();
+
     // Configure link exposure collection
     
     // Configure social media sharing collection
