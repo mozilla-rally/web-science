@@ -3,8 +3,8 @@
  * to news content on social media websites
  * @module WebScience.Studies.SocialMediaNewsExposure
  */
-import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
-import * as WebScience from "/WebScience/WebScience.js"
+import { localforage } from "/WebScience/dependencies/localforagees6.min.js";
+import * as WebScience from "/WebScience/WebScience.js";
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.SocialMediaNewsExposure");
 
 /**
