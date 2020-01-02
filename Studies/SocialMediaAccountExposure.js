@@ -3,7 +3,6 @@
  * to content from known media channels (facebook posts from official page, videos posted on channels etc)
  * @module WebScience.Studies.SocialMediaAccountExposure
  */
-import { localforage } from "/WebScience/dependencies/localforagees6.min.js";
 import * as WebScience from "/WebScience/WebScience.js";
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.SocialMediaAccountExposure");
 
