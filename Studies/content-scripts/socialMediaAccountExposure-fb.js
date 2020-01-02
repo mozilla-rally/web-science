@@ -5,7 +5,7 @@
         const fbpost = "div[id^=hyperfeed_story]";
         const linkSelector = "a[href*=__tn__]";
         const postLinkSelector = "a[href*=php]";
-        /** @constant {number} milliseconds */
+        /** @constant {number} - milliseconds to wait before checking */
         const waitMs = 2000;
         /** sleep and then check for news video */
         setTimeout(checkPosts, waitMs);
@@ -16,7 +16,6 @@
         function checkPosts() {
             let posts = Array.from(document.body.querySelectorAll(fbpost));
             let postsFromKnownMedia = posts.filter(checkPostForKnownMediaOutlet);
-            // TODO : filter for known accounts
             let mediaPosts = postsFromKnownMedia.map(x => {
                let urls = Array.from(x.querySelectorAll(postLinkSelector));
                if(urls.length > 0) {
@@ -27,8 +26,8 @@
             sendMessage(mediaPosts.filter(x => x.length > 0));
         }
         /**
-         * 
-         * @param {DIVElement} post - facebook post returned from query selector 
+         * Checks if the post is from a known media outlet
+         * @param {HTMLElement} post - facebook post returned from query selector 
          * @returns {boolean} - true if post has <a> elements, no title (i.e., post from non-users ?) and the media organization is known
          */
         function checkPostForKnownMediaOutlet(post) {
@@ -50,8 +49,8 @@
             return true;
         }
         /**
-         * 
-         * @param {Array} channels - channels exposed
+         * Sends message to background script
+         * @param {Array} posts - facebook post urls
          */
         function sendMessage(posts) {
             browser.runtime.sendMessage({
