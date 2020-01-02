@@ -56,7 +56,6 @@ export async function runStudy({
   let ytChannelMatchCode = "const ytChannelMatchRE = \"" + 
   WebScience.Utilities.Matching.createUrlRegexString(ytchannels).replace(/\\/g, "\\\\") + 
     "\"; const ytChannelMatcher = new RegExp(ytChannelMatchRE);";
-  debugLog("youtube account match code " + ytChannelMatchCode);
 
   await browser.contentScripts.register({
       matches: [ "*://*.youtube.com/*" ],
@@ -79,8 +78,6 @@ export async function runStudy({
   let fbAccountMatchCode = "const fbAccountMatchRE = \"" + 
   WebScience.Utilities.Matching.createUrlRegexString(fbaccounts).replace(/\\/g, "\\\\") + 
     "\"; const fbAccountMatcher = new RegExp(fbAccountMatchRE);";
-  
-  debugLog("fb account match code " + fbAccountMatchCode);
 
   await browser.contentScripts.register({
     matches: ["*://*.facebook.com/*"],

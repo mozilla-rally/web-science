@@ -1,7 +1,7 @@
 import { studyDomains } from "/study/domains.js"
 import { shortDomains } from "/study/shortdomains.js"
-import { youtubeChannels } from "/study/mediaYtChannels.js"
-import { facebookAccounts } from "/study/mediaFbAccounts.js"
+import { youtubeChannels } from "/study/mediaYtChannels.js";
+import { facebookAccounts } from "/study/mediaFbAccounts.js";
 import { socialMedia } from "/study/socialmedia.js"
 import * as WebScience from "../WebScience/WebScience.js"
 
