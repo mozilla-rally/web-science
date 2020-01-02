@@ -15,21 +15,6 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.SocialM
 var storage = null;
 
 /**
- * Initialize storage space
- * @returns {Void} Nothing
- */
-async function initializeStorage() {
-  await localforage.config({
-      driver: [localforage.INDEXEDDB,
-               localforage.WEBSQL,
-               localforage.LOCALSTORAGE],
-  });
-
-  storage.pages = await localforage.createInstance( { name: "socialMediaNewsExposure.pages" } );
-  storage.configuration = await localforage.createInstance( { name: "socialMediaNewsExposure.configuration" } );
-}
-
-/**
  * @name SocialMediaNewsExposure.runStudy starts the SocialMediaNewsExposure study.
  * It injects content scripts to youtube and facebook urls to track user's exposure
  * to content from known media outlets
