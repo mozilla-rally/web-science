@@ -13,6 +13,37 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExp
  */
 var storage = null;
 
+function isEmpty(obj) {
+  return !obj || Object.keys(obj).length === 0;
+}
+
+async function getCode(domains) {
+  let code = browser.storage.local.get("code");
+  let ret = null;
+  await code.then(codeExists, codeNotExists);
+  return ret;
+
+  function codeNotExists(error) {
+    debugLog("error in retrieval " + error);
+  }
+  function codeExists(value) {
+    ret = isEmpty(value) ? setRegex(domains) : value.code;
+  }
+
+  async function setRegex(domains) {
+  // create code for url and short domain matching
+  let matchcode = "const urlMatchRe = \"" +
+    WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") +
+    "\"; const urlMatcher = new RegExp(urlMatchRe);" + "const shortURLMatchRE = \"" +
+    WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains()).replace(/\\/g, "\\\\") +
+    "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);";
+    let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\");
+    let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains()).replace(/\\/g, "\\\\");
+    let storageObj = {drs: domainRegexString, sdrs : shortDomainRegexString, code : matchcode};
+    await browser.storage.local.set(storageObj);
+    return matchcode;
+  }
+}
 /**
  * @name LinkExposure.runStudy starts the LinkExposure study.
  * 
@@ -25,13 +56,7 @@ export async function runStudy({
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
-
-  // create code for url and short domain matching
-  let matchCode = "const urlMatchRE = \"" + 
-  WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") + 
-    "\"; const urlMatcher = new RegExp(urlMatchRE);" +  "const shortURLMatchRE = \"" + 
-          WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains()).replace(/\\/g, "\\\\") + 
-            "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);";
+  let matchCode = await getCode(domains);
 
   await browser.contentScripts.register({
     matches: ["*://*/*"],
