@@ -1,100 +1,190 @@
 // Function encapsulation to maintain unique variable scope for each content script
 (
   function() {
-    // Wait for 5 seconds for the dom load (after document idle)
-    setTimeout(x, 5000);
-    // setup listeners and setInterval to observe changes to the dom
-  function x() {
-  // Save the time the page initially completed loading
-  let initialLoadTime = Date.now();
-  let initialVisibility = document.visibilityState == "visible";
+    /**
+     * @const
+     * updateInterval (number of milliseconds) is the interval at which we look for new links that users
+     * are exposed to in known domains
+     */
+    const updateInterval = 2000;
+    const elementSizeCache = new Map();
+    linkExposure();
 
-  // Helper function to test if the hostname matches to a known domain
-  function testForMatch(matcher, link, element=null) {
-    // if element is not null check if its in the viewport
-    return (element == null || isElementInViewport(element)) && matcher.test(link);
-  }
+  /**
+   * @function
+   * linkExposure function looks for the presence of links from known domains
+   * in the browser viewport and sends this information to the background script.
+   */
+  function linkExposure() {
 
-  // Helper function to test if DOM element is in viewport
-  function isElementInViewport (el) {
-    var rect = el.getBoundingClientRect();
-    return (
-        rect.top > 0 && // should this be strictly greater ? With >= invisible links have 0,0,0,0 in bounding rect
-        rect.left > 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && /*or $(window).height() */
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth) /*or $(window).width() */
-    );
-  }
+    /** time when the document is loaded */
+    let initialLoadTime = Date.now();
+    /**
+     * @function
+     * Use document's visibility state to test if the document is visible
+     * @returns {boolean} true if the document is visible
+     */
+    const isDocVisible = () => document.visibilityState === "visible";
+    let initialVisibility = document.visibilityState == "visible";
+    
+    // Elements that we've checked for link exposure
+    let checkedElements = new WeakSet();
 
-    // Helper function to get size of element
-    function getElementSize(el) {
-      var rect = el.getBoundingClientRect();
-      return {
-        width: rect.right - rect.left,
-        height: rect.bottom - rect.top
-      };
-    }
-
-    function getShortLinks(aElements) {
-      return Array.filter(Array.from(aElements), (ele) => { return testForMatch(shortURLMatcher, ele.href, ele); }).map((x) => { return { href: x.href } });
-    }
-    function getDomainMatches(aElements) {
-      return Array.filter(Array.from(aElements), (ele) => { return testForMatch(urlMatcher, ele.href, ele); }).map((x) => { return { href: x.href, size: getElementSize(x) } });
-    }
-
-    function sendMessageToBg(type, data) {
+    /**
+     * Helper function to send data to background script
+     * @param {string} type - message type
+     * @param {Object} data - data to send
+     * @returns {void} Nothing
+     */
+    function sendMessageToBackground(type, data) {
       if(data.length > 0) {
         browser.runtime.sendMessage({
           type: type,
-          content: {
-            loadTime: initialLoadTime,
-            visible: initialVisibility,
-            url: document.location.href,
-            referrer: document.referrer,
-            links: data,
-          }
+          loadTime: initialLoadTime,
+          visible: initialVisibility,
+          url: document.location.href,
+          referrer: document.referrer,
+          links: data,
         });
       }
     }
 
-    function getLinkSize(newlinks) {
-      // create an object with key = init and value is resolved url
-      var assoc = {};
-      newlinks.forEach((key, i) => assoc[key.init] = key.href);
-      var query = newlinks.map(x => { return ["a[href='", x.init, "']"].join("");}).join(",");
-      var elements = document.body.querySelectorAll(query);
-      var data = Array.from(elements).map(x => {
-        return {href: assoc[x.href], size: getElementSize(x)}
-      });
-      return data;
+    /**
+     * Function takes an <a> element, test it for matches with link shorteners or domains of interest and
+     * sends it to background script for resolution/storage
+     * @param {HTMLElement} element - element to match for short links or domains of interest
+     * @returns {void} Nothing
+     */
+    function matchElement(element) {
+      let url = rel_to_abs(element.href);
+      let ret = removeShim(url);
+      if(ret.isShim) {
+        elementSizeCache.set(ret.url, getElementSize(element));
+        url = ret.url;
+      }
+      let res = resolveAmpUrl(url);
+      if(res.length > 0) {
+        url = rel_to_abs(res[1]);
+      }
+      if (shortURLMatcher.test(url)) {
+        sendMessageToBackground("WebScience.shortLinks", [{ href: url }]);
+      }
+      // check for domain matching
+      if (urlMatcher.test(url)) {
+        sendMessageToBackground("WebScience.linkExposure", [{ href: url, size: getElementSize(element) }]);
+      }
     }
 
-  function update() {
-    //var aElements = document.body.querySelectorAll("a[href]");
-    // href that doesn't have the expando attribute
-    let aElements = Array.filter(document.body.querySelectorAll("a[href]"), (x) => !x.hasAttribute("_visited") && isElementInViewport(x)).map((x) => {
-      x.setAttribute("_visited", "");
-      return x;
-    });
-    let matchingLinks = getDomainMatches(aElements);
-    let shortLinks = getShortLinks(aElements);
+    /**
+     * Function to look for new <a> elements that are in viewport
+     * @returns {int} number of new links in the viewport
+     */
+    function observeChanges() {
+      // check the visibility state of document
+      if(!isDocVisible()) {
+        return;
+      }
+      // Filter for elements that haven't been visited previously and observe them with intersection observer
+      let count = 0;
+      Array.from(document.body.querySelectorAll("a[href]")).filter(link => !checkedElements.has(link)).forEach(element => {
+        //observeElement(element, 0.0).then(matchElement);
+        let inView = isElementInViewport(element);
+        if(inView) {
+          checkedElements.add(element);
+          matchElement(element);
+          count++;
+        }
+      });
+      return count;
+    }
 
-    sendMessageToBg("WebScience.shortLinks", shortLinks);
-    sendMessageToBg("WebScience.linkExposureInitial", matchingLinks);
-  }
+    /**
+     * @classdesc
+     * UpdateHandler class to observe the document for changes in specified time
+     * intervals. It also stores the number of changes in the last ncalls.
+     * 
+     */
+    class UpdateHandler {
+      /**
+       * @constructor
+       * @param {int} updateInterval - number of milliseconds between updates
+       * @param {int} numUpdates - maximum number of updates. ** Negative number implies function doesn't stop
+       * @param {int} nrecords - maximum number of results stored
+       */
+      constructor(updateInterval, numUpdates, nrecords=10) {
+        /** @member {int} - number of milliseconds */
+        this.updateInterval = updateInterval;
+        /** @member {int} - maximum number of updates or unlimited if negative */
+        this.numUpdates = numUpdates;
+        /** @member {int} - Number of times update has run */
+        this.count = 0;
+        /** @member {Array} - Number of links discovered in each run */
+        this.nlinks = [];
+        /** @member {int} - History length to maintain */
+        this.nrecords = nrecords;
+      }
+      /**
+       * calls the run method every @see run
+       * @return {void} Nothing
+       */
+      start() {
+        this.timer = setInterval(() => this.run(), this.updateInterval);
+      }
+      /**
+       * stops the execution of @see run method
+       */
+      stop() {
+        if(this.timer) clearInterval(this.timer);
+      }
+      /**
+       * run function stops timer if it reached max number of updates
+       * Otherwise, we look for changes in the document by invoking
+       * observeChanges function
+       * @function
+       */
+      run() {
+        if(this.numUpdates > 0 && this.count >= this.numUpdates) {
+          this.stop();
+        }
+        let nchanges = observeChanges();
+        if (this.nlinks.length >= this.nrecords) {
+          this.nlinks.shift();
+        }
+        this.nlinks.push(nchanges);
+        this.count++;
+      }
+    }
+    
+    let handler = new UpdateHandler(updateInterval, -1);
+    handler.start();
 
-  // call update every 2 seconds
-  setInterval(update, 2000);
+    /**
+     * @function
+     * callback function for link resolution response messages from background script
+     * Each message is an object containing source and dest is the url after resolution
+     * @param {Object} message - object containing source and dest fields
+     * @param {*} sender - sender of the message
+     * @returns {void} Nothing
+     */
+    function listenerForLinkResolutionResponse(message, sender) {
+      let source = message.source;
+      let dest = message.dest;
+      if (urlMatcher.test(dest)) {
+        // get source size
+        let sz = getLinkSize(source);
+        if(sz == null) {
+          // check in cache
+          sz = elementSizeCache.has(source) ? elementSizeCache.get(source) : null;
+          // remove the url from cache
+          elementSizeCache.delete(source);
+        }
+        let data = [{ href: dest, size: sz }];
+        sendMessageToBackground("WebScience.linkExposure", data);
+      }
+      return Promise.resolve({ response: "cs received messages" });
+    }
 
-    browser.runtime.onMessage.addListener((data, sender) => {
-      console.log("Message from the background script:");
-      console.log(data.links);
-      // get domain matching links from texpanded links
-      let newlinks = Array.from(data.links).map(x => { return { href: x.v[x.v.length - 1], init: x.v[0] } }).filter(link => testForMatch(urlMatcher, link.href));
-      // send the new filtered links to background script for storage
-      sendMessageToBg("WebScience.linkExposureInitial", getLinkSize(newlinks));
-      return Promise.resolve({ response: "received messages" });
-    });
-  }
-}
-)();
+    browser.runtime.onMessage.addListener(listenerForLinkResolutionResponse);
+  } // End of link exposure function
+} // end of anon function
+)(); // encapsulate and invoke
