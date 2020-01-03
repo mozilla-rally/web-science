@@ -1,5 +1,4 @@
 import { studyDomains } from "/study/domains.js"
-import { shortDomains } from "/study/shortdomains.js"
 import { youtubeChannels } from "/study/mediaYtChannels.js";
 import { facebookAccounts } from "/study/mediaFbAccounts.js";
 import { socialMedia } from "/study/socialmedia.js"
@@ -42,9 +41,9 @@ function runStudies() {
       });
 
     // Configure link exposure collection
+    WebScience.Utilities.LinkResolution.initialize();
     WebScience.Studies.LinkExposure.runStudy({
-        domains: studyDomains,
-        shortdomains: shortDomains
+        domains: studyDomains
     });
 
     WebScience.Studies.SocialMediaAccountExposure.runStudy({
