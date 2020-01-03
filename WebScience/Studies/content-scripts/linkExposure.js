@@ -19,20 +19,18 @@
    */
   function linkExposure() {
 
-    /*let shortURLMatcher = null;
+    let shortURLMatcher = null;
     let urlMatcher = null;
     async function init() {
-      let sdrs = await browser.storage.local.get("sdrs");
-      let drs = await browser.storage.local.get("drs");
-      let r1 = new RegExp(sdrs);
-      let r2 = new RegExp(drs);
-      return { shortURLMatcher : r1, urlMatcher : r2};
+      let sdrs = await browser.storage.local.get("shortDomainRegexString");
+      let drs = await browser.storage.local.get("domainRegexString");
+      return { shortURLMatcher : new RegExp(sdrs.shortDomainRegexString), urlMatcher : new RegExp(drs.domainRegexString)};
     }
 
     init().then(regex => {
       shortURLMatcher = regex.shortURLMatcher;
       urlMatcher = regex.urlMatcher;
-    });*/
+    });
 
 
     /** time when the document is loaded */

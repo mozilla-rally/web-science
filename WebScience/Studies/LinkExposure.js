@@ -39,7 +39,7 @@ async function getCode(domains) {
     "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);";
     let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
     let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains());
-    let storageObj = {drs: domainRegexString, sdrs : shortDomainRegexString, code : matchcode};
+    let storageObj = {domainRegexString: domainRegexString, shortDomainRegexString: shortDomainRegexString, code : matchcode};
     await browser.storage.local.set(storageObj);
     return matchcode;
   }
@@ -58,13 +58,13 @@ export async function runStudy({
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
   let matchCode = await getCode(domains);
 
-  await browser.contentScripts.register({
-    matches: ["*://*/*"],
-    js: [{
-      code: matchCode
-    }],
-    runAt: "document_start"
-  });
+  //await browser.contentScripts.register({
+    //matches: ["*://*/*"],
+    //js: [{
+      //code: matchCode
+    //}],
+    //runAt: "document_start"
+  //});
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
