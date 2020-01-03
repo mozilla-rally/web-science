@@ -37,8 +37,8 @@ async function getCode(domains) {
     "\"; const urlMatcher = new RegExp(urlMatchRe);" + "const shortURLMatchRE = \"" +
     WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains()).replace(/\\/g, "\\\\") +
     "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);";
-    let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\");
-    let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains()).replace(/\\/g, "\\\\");
+    let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
+    let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains());
     let storageObj = {drs: domainRegexString, sdrs : shortDomainRegexString, code : matchcode};
     await browser.storage.local.set(storageObj);
     return matchcode;

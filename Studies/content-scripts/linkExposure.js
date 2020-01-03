@@ -8,6 +8,8 @@
      */
     const updateInterval = 2000;
     const elementSizeCache = new Map();
+    //let shortURLMatcher2 = null;
+    //let urlMatcher2 = null;
     linkExposure();
 
   /**
@@ -16,6 +18,22 @@
    * in the browser viewport and sends this information to the background script.
    */
   function linkExposure() {
+
+    /*let shortURLMatcher = null;
+    let urlMatcher = null;
+    async function init() {
+      let sdrs = await browser.storage.local.get("sdrs");
+      let drs = await browser.storage.local.get("drs");
+      let r1 = new RegExp(sdrs);
+      let r2 = new RegExp(drs);
+      return { shortURLMatcher : r1, urlMatcher : r2};
+    }
+
+    init().then(regex => {
+      shortURLMatcher = regex.shortURLMatcher;
+      urlMatcher = regex.urlMatcher;
+    });*/
+
 
     /** time when the document is loaded */
     let initialLoadTime = Date.now();
