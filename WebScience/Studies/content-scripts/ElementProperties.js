@@ -2,40 +2,6 @@ const isThresholdValid = threshold =>
     Number(threshold) === threshold && threshold >= 0 && threshold <= 1;
 
 /**
- * Function to observe intersection of dom elements with viewport
- * @param {HTMLElement} targetElement - element to observe for intersection with viewport
- * @param {number} threshold - intersection ratio
- * 
- * @returns promise that resolves to element when it intersects with viewport
- */
-function observeElement(targetElement, threshold) {
-    new Promise((resolve, reject) => {
-        const observerOptions = {
-            root: null, // Document viewport
-            rootMargin: "0px",
-            threshold // Visible amount of item shown in relation to root. 1.0 dictates that every pixel of element is visible.
-        };
-        const observer = new IntersectionObserver((entries, observer) => {
-            /**
-             * When the IntersectionObserver is instantiated the callback is ran once
-             * as a detection for whether the element is in view or not
-             * and if its intersection ratio exceeds the given threshold.
-             */
-            targetElement.isObserved = true;
-            if (
-                !entries[0].isIntersecting ||
-                entries[0].intersectionRatio < threshold
-            ) {
-                return;
-            }
-            observer.disconnect();
-            return resolve(entries[0]);
-        }, observerOptions);
-        observer.observe(targetElement);
-    });
-}
-
-/**
  * @function
  * @param {Element} elem DOM element
  * @returns {Number[]} properties of element
