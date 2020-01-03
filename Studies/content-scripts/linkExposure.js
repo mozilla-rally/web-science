@@ -87,17 +87,24 @@
       // Filter for elements that haven't been visited previously and observe them with intersection observer
       let count = 0;
       Array.from(document.body.querySelectorAll("a[href]")).filter(link => !checkedElements.has(link)).forEach(element => {
-        //observeElement(element, 0.0).then(matchElement);
-        let inView = isElementInViewport(element);
-        if(inView) {
-          checkedElements.add(element);
-          matchElement(element);
-          count++;
-        }
+        observer.observe(element);
       });
       return count;
     }
 
+  function handleIntersection(entries, observer) {
+      entries.forEach(entry => {
+        const {isIntersecting, target} = entry;
+        if (isIntersecting && elemIsVisible(target)) {
+          checkedElements.add(target);
+          matchElement(target);
+          observer.unobserve(target);
+        }
+      });
+    }
+    
+    const options = { threshold: 1 };
+    const observer = new IntersectionObserver(handleIntersection, options);
     /**
      * @classdesc
      * UpdateHandler class to observe the document for changes in specified time
