@@ -1,5 +1,6 @@
 import { studyDomains } from "/study/domains.js"
-import { shortDomains } from "/study/shortdomains.js"
+import { youtubeChannels } from "/study/mediaYtChannels.js";
+import { facebookAccounts } from "/study/mediaFbAccounts.js";
 import { socialMedia } from "/study/socialmedia.js"
 import * as WebScience from "../WebScience/WebScience.js"
 
@@ -39,10 +40,17 @@ function runStudies() {
       });
 
     // Configure link exposure collection
+    WebScience.Utilities.LinkResolution.initialize();
     WebScience.Studies.LinkExposure.runStudy({
-        domains: studyDomains,
-        shortdomains: shortDomains
+        domains: studyDomains
     });
+
+    WebScience.Studies.SocialMediaAccountExposure.runStudy({
+        fbaccounts: facebookAccounts,
+        ytchannels: youtubeChannels
+    });
+
+    WebScience.Studies.SocialMediaNewsExposure.runStudy();
 
     // Configure link exposure collection
     
@@ -53,17 +61,6 @@ function runStudies() {
         facebook: true,
         twitter: true,
         reddit: true
-    });
-    */
-    
-    // TODO configure social media account exposure collection
-    // Something like...
-    
-    /*
-    WebScience.Studies.SocialMediaAccountExposure.runStudy({
-        facebookAccounts: [ ],
-        twitterAccounts: [ ],
-        youtubeAccounts: [ ]
     });
     */
     

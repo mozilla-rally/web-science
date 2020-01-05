@@ -4,8 +4,11 @@ export { Navigation }
 import * as LinkExposure from "./LinkExposure.js"
 export { LinkExposure }
 
-import * as SocialMediaLinkExposure from "./SocialMediaLinkExposure.js"
-export { SocialMediaLinkExposure }
+import * as SocialMediaNewsExposure from "./SocialMediaNewsExposure.js"
+export { SocialMediaNewsExposure }
+
+import * as SocialMediaAccountExposure from "./SocialMediaAccountExposure.js"
+export { SocialMediaAccountExposure };
 
 import * as SocialMediaSharing from "./SocialMediaSharing.js"
 export { SocialMediaSharing }
