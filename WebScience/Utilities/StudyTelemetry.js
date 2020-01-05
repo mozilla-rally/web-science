@@ -1,4 +1,3 @@
-import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 // TODO -- all of the below generation is just for testing
 
 // To test, add a call like WebScience.Utilities.StudyTelemetry.reportEvent(<whatever>); to some module
