@@ -5,7 +5,11 @@ const studyId = "42";
 var pioneerKeyPublic = null;
 var studyKeyPublic = null;
 var studyKeyPrivate = null; // temp
-export async function initialize() {
+
+var initialized = false;
+async function initialize() {
+    if (initialized) return;
+    initialized = true;
     async function getPioneerKey() {
         //TODO, probably: crypto.subtle.importKey(...);
         // temp:
@@ -45,6 +49,7 @@ export async function initialize() {
 }
 
 async function telemetryEncrypt(key, payload) {
+    await initialize();
     return await crypto.subtle.encrypt({ "name": "RSA-OAEP" }, key, payload);
 }
 
@@ -53,6 +58,7 @@ async function telemetryEncrypt(key, payload) {
  *  it out in a Telemetry custom ping.
  */
 export async function reportEvent(content) {
+    await initialize();
     //if (!browser.telemetry.canUpload()) return;
 
     var encoder = new TextEncoder("utf-8");
