@@ -3,7 +3,6 @@
  * 
  * @module WebScience.Utilities.StudyTelemetry
  */
-import { localforage } from "/WebScience/dependencies/localforagees6.min.js"
 // TODO -- all of the below generation is just for testing
 
 // To test, add a call like WebScience.Utilities.StudyTelemetry.reportEvent(<whatever>); to some module
@@ -14,10 +13,18 @@ var studyKeyPublic = null;
 var studyKeyPrivate = null; // temp
 
 /**
+ * Whether initialization (acquiring keys, etc) has occurred
+ * @type {Boolean}
+ * @private
+ */
+var initialized = false;
+/**
  * Set up keys to encrypt outgoing data. Currently, just generates new keys
  * every time for testing.
  */
-export async function initialize() {
+async function initialize() {
+    if (initialized) return;
+    initialized = true;
     async function getPioneerKey() {
         //TODO, probably: crypto.subtle.importKey(...);
         // temp:
@@ -65,6 +72,7 @@ export async function initialize() {
  * @private
  */
 async function telemetryEncrypt(key, payload) {
+    await initialize();
     return await crypto.subtle.encrypt({ "name": "RSA-OAEP" }, key, payload);
 }
 
@@ -75,6 +83,7 @@ async function telemetryEncrypt(key, payload) {
  */
 // TODO
 export async function reportEvent(content) {
+    await initialize();
     //if (!browser.telemetry.canUpload()) return;
 
     var encoder = new TextEncoder("utf-8");
