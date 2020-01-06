@@ -57,16 +57,3 @@ function getElementSize(el) {
         height: rect.height
     };
 }
-
-
-/**
- * Get link size
- * @param {string} link url on the page
- * @returns {(size|null)} size of the element
- */
-function getLinkSize(link) {
-    // create an object with key = init and value is resolved url
-    let query = "a[href='" + link + "']";
-    let elements = document.body.querySelectorAll(query);
-    return (elements.length > 0 ? getElementSize(elements[0]) : null);
-}
