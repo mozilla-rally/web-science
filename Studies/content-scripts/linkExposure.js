@@ -106,7 +106,7 @@
         }
         // Filter for elements that haven't been visited previously and observe them with intersection observer
         let count = 0;
-        Array.from(document.body.querySelectorAll("a[href]")).filter(link => !checkedElements.has(link)).forEach(element => {
+        Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href") && !checkedElements.has(link)).forEach(element => {
           observer.observe(element);
         });
         return count;
