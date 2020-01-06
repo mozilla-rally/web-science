@@ -13,6 +13,15 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExp
  */
 var storage = null;
 
+function createRegex(domains, shortDomains) {
+  let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
+  let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
+  let regexes = {
+    domainRegexString: domainRegexString,
+    shortDomainRegexString: shortDomainRegexString
+  };
+  return regexes;
+}
 /**
  * setRegex function stores the regular expression strings corresponding to 
  * domains and link shortening domains in the local storage.
@@ -24,12 +33,7 @@ var storage = null;
  * @param {Array} shortDomains - link shortening domains
  */
 async function setRegex(domains, shortDomains) {
-  let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
-  let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
-  let storageObj = {
-    domainRegexString: domainRegexString,
-    shortDomainRegexString: shortDomainRegexString
-  };
+  let storageObj = createRegex(domains, shortDomains);
   await browser.storage.local.set(storageObj);
 }
 
@@ -59,7 +63,11 @@ export async function runStudy({
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
-  await setCode(domains, WebScience.Utilities.LinkResolution.getShortDomains());
+  let shortDomains = WebScience.Utilities.LinkResolution.getShortDomains();
+  await setCode(domains, shortDomains);
+  const {domainRegexString, shortDomainRegexString} = createRegex(domains, shortDomains);
+  const shortDomainMatcher = new RegExp(shortDomainRegexString);
+  const urlMatcher = new RegExp(domainRegexString);
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
@@ -80,47 +88,28 @@ export async function runStudy({
     runAt: "document_idle"
   });
 
-  // Listen for debug messages
-  browser.runtime.onMessage.addListener((message, sender) => {
-    if ((message == null) ||
-      !("type" in message) ||
-      message.type != "WebScience.debug")
-      return;
-    // If the link exposure message isn't from a tab, ignore the message
-    // (this shouldn't happen)
-    if (!("tab" in sender))
-      return;
-    debugLog("debug messages" + JSON.stringify(message));
-  });
-
-  // Listen for request to expand short urls
-  WebScience.Utilities.Messaging.registerListener("WebScience.shortLinks", (message, sender, sendResponse) => {
-    if (!("tab" in sender)) {
-      debugLog("Warning: unexpected page content update");
-      return;
-    }
-    let id = sender.tab.id;
-    for (var link of message.links) {
-      WebScience.Utilities.LinkResolution.resolveURL(link.href).then(x => browser.tabs.sendMessage(id, x)).catch(error => debugLog("error in resolution " + error));
-    }
-  }, {
-    referrer: "string",
-    url: "string",
-    links: "object"
-  });
-
   // Listen for LinkExposure messages
   WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (message, sender, sendResponse) => {
     if (!("tab" in sender)) {
       debugLog("Warning: unexpected page content update");
       return;
     }
-    debugLog("storing " + JSON.stringify(message));
-    storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+    if (shortDomainMatcher.test(message.link.href)) {
+      WebScience.Utilities.LinkResolution.resolveURL(message.link.href).then(resolvedURL => {
+        if (urlMatcher.test(resolvedURL.dest)) {
+          message.link.dest = resolvedURL.dest;
+          debugLog("storing " + JSON.stringify(message));
+          storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+        }
+      });
+    } else {
+      debugLog("storing " + JSON.stringify(message));
+      storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+    }
   }, {
     referrer: "string",
     url: "string",
-    links: "object"
+    link: "object"
   });
 
 }

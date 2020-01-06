@@ -32,6 +32,46 @@ function rel_to_abs(url) {
     return url;
 }
 
+class ElementStatus {
+    constructor(url) {
+        this.url = url;
+        this.matched = false;
+        this.visibility = null;
+        this.visibleDuration = 0;
+        this.ignore = false;
+    }
+
+    isIgnored() {
+        return this.ignore;
+    }
+
+    setIgnore() {
+        this.ignore = true;
+    }
+
+    isMatched() {
+        return this.matched;
+    }
+
+    setMatched() {
+        this.matched = true;
+    }
+    isVisibleAboveThreshold(threshold) {
+        return this.visibility != null && (Date.now() >= this.visibility + threshold);
+    }
+    setVisibility() {
+        this.visibility = Date.now();
+    }
+
+    getDuration() {
+        return Date.now() - this.visibility;
+    }
+    setDuration() {
+        if (this.visibility != null) {
+            this.visibleDuration = Date.now() - this.visibility;
+        }
+    }
+}
 // helper function for parsing fb urls
 function fbShim(url) {
     var u = new URL(url);
