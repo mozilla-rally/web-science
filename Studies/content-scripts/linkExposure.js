@@ -7,6 +7,7 @@
      * are exposed to in known domains
      */
     const updateInterval = 2000;
+    const visibilityThreshold = 10000;
     const elementSizeCache = new Map();
     linkExposure();
 
@@ -43,7 +44,7 @@
       let initialVisibility = document.visibilityState == "visible";
 
       // Elements that we've checked for link exposure
-      let checkedElements = new WeakSet();
+      let checkedElements = new WeakMap();
 
       /**
        * Helper function to send data to background script
@@ -65,12 +66,11 @@
       }
 
       /**
-       * Function takes an <a> element, test it for matches with link shorteners or domains of interest and
-       * sends it to background script for resolution/storage
-       * @param {HTMLElement} element - element to match for short links or domains of interest
-       * @returns {void} Nothing
+       * Function takes an element, tests it for matches with link shorteners or domains of interest and
+       * @param {Element} element - href to match for short links or domains of interest
+       * @returns {boolean} - true if the url matches domains
        */
-      function matchElement(element) {
+      function matchUrl(element) {
         let url = rel_to_abs(element.href);
         let ret = removeShim(url);
         if (ret.isShim) {
@@ -81,18 +81,7 @@
         if (res.length > 0) {
           url = rel_to_abs(res[1]);
         }
-        if (shortURLMatcher.test(url)) {
-          sendMessageToBackground("WebScience.shortLinks", [{
-            href: url
-          }]);
-        }
-        // check for domain matching
-        if (urlMatcher.test(url)) {
-          sendMessageToBackground("WebScience.linkExposure", [{
-            href: url,
-            size: getElementSize(element)
-          }]);
-        }
+        return { url: url, isMatched : shortURLMatcher.test(url) || urlMatcher.test(url)};
       }
 
       /**
@@ -106,10 +95,78 @@
         }
         // Filter for elements that haven't been visited previously and observe them with intersection observer
         let count = 0;
-        Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href") && !checkedElements.has(link)).forEach(element => {
-          observer.observe(element);
+        Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href")).forEach(element => {
+          if (!checkedElements.has(element)) {
+            processElement(element);
+          } else {
+            // element is present
+            let status = checkedElements.get(element);
+            if (status.isVisibleAboveThreshold(visibilityThreshold) && !status.isIgnored()) {
+              // send this to background script
+              sendMessageToBackground("WebScience.linkExposure", [{
+                href: status.url,
+                size: getElementSize(element),
+                firstSeen: status.visibility,
+                duration: status.getDuration()
+              }]);
+              observer.unobserve(element);
+              status.setIgnore();
+            }
+          }
         });
         return count;
+        }
+
+      function processElement(element) {
+        const {url, isMatched} = matchUrl(element);
+        if(!isMatched) {
+          return;
+        }
+        let status = new ElementStatus(url);
+        status.setMatched();
+        checkedElements.set(element, status);
+        observer.observe(element);
+      }
+
+      class ElementStatus {
+        constructor(url) {
+          this.url = url;
+          this.matched = false;
+          this.visibility = null;
+          this.visibleDuration = 0;
+          this.ignore = false;
+        }
+
+        isIgnored() {
+          return this.ignore;
+        }
+
+        setIgnore() {
+          this.ignore = true;
+        }
+
+        isMatched() {
+          return this.matched;
+        }
+
+        setMatched() {
+          this.matched = true;
+        }
+        isVisibleAboveThreshold(threshold) {
+          return this.visibility != null && (Date.now() >= this.visibility + threshold);
+        }
+        setVisibility() {
+          this.visibility = Date.now();
+        }
+
+        getDuration() {
+          return Date.now() - this.visibility;
+        }
+        setDuration() {
+          if(this.visibility != null) {
+            this.visibleDuration = Date.now() - this.visibility;
+          }
+        }
       }
 
       function handleIntersection(entries, observer) {
@@ -118,9 +175,12 @@
             isIntersecting,
             target
           } = entry;
+          let status = checkedElements.get(target);
           if (isIntersecting && elemIsVisible(target)) {
-            checkedElements.add(target);
-            matchElement(target);
+            status.setVisibility();
+          } else if(!isIntersecting && checkedElements.has(target) && checkedElements.get(target).visibility !== null) {
+            status.setIgnore();
+            status.setDuration();
             observer.unobserve(target);
           }
         });
