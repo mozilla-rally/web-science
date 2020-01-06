@@ -17,13 +17,19 @@ var storage = null;
  * setRegex function stores the regular expression strings corresponding to 
  * domains and link shortening domains in the local storage.
  * These storage items are accessible from content scripts during the matching phase.
+ * Note : It's not possible to store RegExp 
+ * (https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/StorageArea/set)
+ * 
  * @param {Array} domains - domains of interest
  * @param {Array} shortDomains - link shortening domains
  */
 async function setRegex(domains, shortDomains) {
   let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
   let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
-  let storageObj = {domainRegexString: domainRegexString, shortDomainRegexString: shortDomainRegexString};
+  let storageObj = {
+    domainRegexString: domainRegexString,
+    shortDomainRegexString: shortDomainRegexString
+  };
   await browser.storage.local.set(storageObj);
 }
 
@@ -36,7 +42,7 @@ async function setRegex(domains, shortDomains) {
 async function setCode(domains, shortDomains) {
   let dregex = await browser.storage.local.get("domainRegexString");
   let sdregex = await browser.storage.local.get("shortDomainRegexString");
-  if(isEmpty(dregex) || isEmpty(sdregex)) {
+  if (isEmpty(dregex) || isEmpty(sdregex)) {
     setRegex(domains, shortDomains);
   }
 }
@@ -76,20 +82,20 @@ export async function runStudy({
 
   // Listen for debug messages
   browser.runtime.onMessage.addListener((message, sender) => {
-    if((message == null) ||
-        !("type" in message) ||
-        message.type != "WebScience.debug")
+    if ((message == null) ||
+      !("type" in message) ||
+      message.type != "WebScience.debug")
       return;
     // If the link exposure message isn't from a tab, ignore the message
     // (this shouldn't happen)
-    if(!("tab" in sender))
+    if (!("tab" in sender))
       return;
     debugLog("debug messages" + JSON.stringify(message));
   });
 
   // Listen for request to expand short urls
   WebScience.Utilities.Messaging.registerListener("WebScience.shortLinks", (message, sender, sendResponse) => {
-    if (!("tab" in sender)){
+    if (!("tab" in sender)) {
       debugLog("Warning: unexpected page content update");
       return;
     }
@@ -105,7 +111,7 @@ export async function runStudy({
 
   // Listen for LinkExposure messages
   WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (message, sender, sendResponse) => {
-    if (!("tab" in sender)){
+    if (!("tab" in sender)) {
       debugLog("Warning: unexpected page content update");
       return;
     }
@@ -124,8 +130,8 @@ export async function runStudy({
 // Helper function that dumps the navigation study data as an object
 export async function getStudyDataAsObject() {
   var output = {
-    "LinkExposure.pages": { },
-    "LinkExposure.configuration": { }
+    "LinkExposure.pages": {},
+    "LinkExposure.configuration": {}
   };
   await storage.pages.iterate((value, key, iterationNumber) => {
     output["LinkExposure.pages"][key] = value;
