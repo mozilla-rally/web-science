@@ -157,32 +157,6 @@ export async function runStudy({
     // Store whether the Navigation study is running in private windows in extension
     // local storage, so that it is available to content scripts
     await browser.storage.local.set({ "WebScience.Studies.Navigation.privateWindows": privateWindows });
-
-    // If the study should save page content...
-    if(savePageContent) {
-        // Listen for update messages from the page content content script
-        WebScience.Utilities.Messaging.registerListener("WebScience.Studies.Navigation.pageContentUpdate", (message, sender) => {
-            // If the page content message is not from a tab, or if we are not tracking
-            // the tab, ignore the message
-            // Neither of these things should happen!
-            if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
-                debugLog("Warning: unexpected page content update");
-                return;
-            }
-
-            // Remember the page content for this page
-            currentTabInfo[sender.tab.id].pageContent = message.pageContent;
-            debugLog("pageContentUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
-        },
-        { pageContent: "string" });
-
-        // Register the content script for sharing the content of a page with a matching domain
-        await browser.contentScripts.register({
-            matches: contentScriptMatches,
-            js: [ { file: "/WebScience/Studies/content-scripts/pageContent.js" } ],
-            runAt: "document_idle"
-        });
-    }
 }
 
 /* Utilities */
