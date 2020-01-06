@@ -13,37 +13,34 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExp
  */
 var storage = null;
 
-function isEmpty(obj) {
-  return !obj || Object.keys(obj).length === 0;
+/**
+ * setRegex function stores the regular expression strings corresponding to 
+ * domains and link shortening domains in the local storage.
+ * These storage items are accessible from content scripts during the matching phase.
+ * @param {Array} domains - domains of interest
+ * @param {Array} shortDomains - link shortening domains
+ */
+async function setRegex(domains, shortDomains) {
+  let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
+  let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
+  let storageObj = {domainRegexString: domainRegexString, shortDomainRegexString: shortDomainRegexString};
+  await browser.storage.local.set(storageObj);
 }
 
-async function getCode(domains) {
-  let code = browser.storage.local.get("code");
-  let ret = null;
-  await code.then(codeExists, codeNotExists);
-  return ret;
-
-  function codeNotExists(error) {
-    debugLog("error in retrieval " + error);
-  }
-  function codeExists(value) {
-    ret = isEmpty(value) ? setRegex(domains) : value.code;
-  }
-
-  async function setRegex(domains) {
-  // create code for url and short domain matching
-  let matchcode = "const urlMatchRe = \"" +
-    WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") +
-    "\"; const urlMatcher = new RegExp(urlMatchRe);" + "const shortURLMatchRE = \"" +
-    WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains()).replace(/\\/g, "\\\\") +
-    "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);";
-    let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
-    let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(WebScience.Utilities.LinkResolution.getShortDomains());
-    let storageObj = {domainRegexString: domainRegexString, shortDomainRegexString: shortDomainRegexString, code : matchcode};
-    await browser.storage.local.set(storageObj);
-    return matchcode;
+/**
+ * Function checks and sets (if not set already) regular expressions
+ * for domain matching in the storage.
+ * @param {Array} domains - domains of interest
+ * @param {Array} shortDomains - link shortening domains
+ */
+async function setCode(domains, shortDomains) {
+  let dregex = await browser.storage.local.get("domainRegexString");
+  let sdregex = await browser.storage.local.get("shortDomainRegexString");
+  if(isEmpty(dregex) || isEmpty(sdregex)) {
+    setRegex(domains, shortDomains);
   }
 }
+
 /**
  * @name LinkExposure.runStudy starts the LinkExposure study.
  * 
@@ -56,15 +53,7 @@ export async function runStudy({
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
-  let matchCode = await getCode(domains);
-
-  //await browser.contentScripts.register({
-    //matches: ["*://*/*"],
-    //js: [{
-      //code: matchCode
-    //}],
-    //runAt: "document_start"
-  //});
+  await setCode(domains, WebScience.Utilities.LinkResolution.getShortDomains());
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
@@ -145,4 +134,13 @@ export async function getStudyDataAsObject() {
     output["LinkExposure.configuration"][key] = value;
   });
   return output;
+}
+
+/**
+ * Function tests whether a given object is empty
+ * @param {Object} obj - Object to test
+ * @returns {boolean} - true if the object is empty
+ */
+function isEmpty(obj) {
+  return !obj || Object.keys(obj).length === 0;
 }
