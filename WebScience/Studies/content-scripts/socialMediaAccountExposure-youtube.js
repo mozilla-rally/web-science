@@ -1,3 +1,7 @@
+/**
+ * Content script for measuring exposure to videos from known channels on youtube
+ * @module WebScience.Studies.content-scripts.socialMediaAccountExposure
+ */
 (
     function () {
 
