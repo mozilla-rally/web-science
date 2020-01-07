@@ -252,10 +252,38 @@ export async function runStudy({
 
     // Facebook
     if (facebook) {
-        // TODO implement post support
-        // Looks like the relevant API endpoint is https://www.facebook.com/webgraphql/mutation/?doc_id=...
-        // Will have to check the form body's variables.input.message.text (for post
-        // text) and variables.input.attachments (for attached URLs)
+        // TODO: deduplicate (links in body can become attachments)
+        browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
+            if (requestDetails.method != "POST")
+                return;
+            
+            var postTime = Date.now();
+            for (var variable of requestDetails.requestBody.formData.variables) {
+                variable = JSON.parse(variable);
+
+                var postText = variable.input.message.text;
+                var postTokens = postText.split(/\s+/);
+                for (var postToken of postTokens) {
+                    if (urlMatcher.testUrl(postToken)) {
+                        var shareRecord = createShareRecord(postTime, "facebook", postToken, "post");
+                        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                        debugLog("Facebook (post text): " + JSON.stringify(shareRecord));
+                    }
+                }
+
+                for (var attachment of variable.input.attachments) {
+                    if (urlMatcher.testUrl(JSON.parse(attachment.link.share_scrape_data).share_params.urlInfo.canonical)) {
+                        var shareRecord = createShareRecord(postTime, "facebook", postToken, "post");
+                        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                        debugLog("Facebook (attachment): " + JSON.stringify(shareRecord));
+                    }
+                }
+            }
+
+        },
+            // Using a wildcard at the end of the URL because Facebook adds parameters
+            { urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*"] },
+            ["requestBody"]);
 
         // TODO implement reshare support
     }
