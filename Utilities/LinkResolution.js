@@ -40,7 +40,7 @@ export function resolveURL(url) {
  * This function finds such an object
  * 
  * @param {Array} headers array containing response headers
- * @returns {name : "location", value: <url>} object containing location value or null
+ * @returns {(Object|null)} HTTP response header object for the `Location` header (see `webRequest.HttpHeaders`) or `null`
  */
 function getLocationFromResponseHeader(headers) {
   return headers.find(obj => {return obj.name.toUpperCase() === "LOCATION"; });
