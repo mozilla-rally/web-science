@@ -1,3 +1,7 @@
+/**
+ * Content script for link exposure study
+ * @module WebScience.Studies.content-scripts.linkExposure
+ */
 // Function encapsulation to maintain unique variable scope for each content script
 (
   function () {

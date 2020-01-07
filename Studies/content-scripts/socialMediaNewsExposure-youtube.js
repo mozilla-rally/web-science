@@ -1,3 +1,7 @@
+/**
+ * Content script for measuring news exposure on youtube
+ * @module WebScience.Studies.content-scripts.socialMediaNewsExposure
+ */
 (
     function () {
 
