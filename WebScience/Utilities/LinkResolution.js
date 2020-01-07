@@ -1,3 +1,7 @@
+/**
+ * Module for resolving a short url
+ * @module WebScience.Utilities.LinkResolution
+ */
 import { getDebuggingLog } from './Debugging.js';
 import { shortDomains } from '/WebScience/dependencies/shortdomains.js';
 const debugLog = getDebuggingLog("Studies.LinkResolution");

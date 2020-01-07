@@ -1,3 +1,8 @@
+/**
+ * Functions defined over HTMLElement nodes
+ * @module WebScience.Studies.content-scripts.misc
+ */
+
 const isThresholdValid = threshold =>
     Number(threshold) === threshold && threshold >= 0 && threshold <= 1;
 

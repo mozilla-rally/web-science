@@ -1,7 +1,11 @@
 /**
+ * Misc set of functions used in content scripts
+ * @module WebScience.Studies.content-scripts.misc
+ */
+
+/**
  * Convert relative url to abs url
  * @param {string} url 
- * 
  * @returns {string} absolute url
  */
 function rel_to_abs(url) {
