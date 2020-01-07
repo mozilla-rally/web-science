@@ -21,10 +21,19 @@
  * satisfies the heuristic. The idle weekly event fires just after an idle
  * daily event when it has been at least 7 days since the last idle weekly
  * event.
- *  
- * This module does not subscribe to the `idle-daily` event from the
- * `nsIdleService` to minimize privileged extension code and so that it runs
- * on a different schedule from Firefox daily tasks (e.g., Telemetry).
+ * 
+ * Some implementation quirks to be aware of for use and future development:
+ * 
+ *   * This module does not subscribe to the `idle-daily` event from the
+ *     `nsIdleService` to minimize privileged extension code and so that it
+ *     runs on a different schedule from Firefox daily tasks (e.g., Telemetry).
+ * 
+ *   * This module uses `setTimeout` to handle corner cases where the browser
+ *     goes idle before the idle daily event should fire and remains idle
+ *     through when the idle daily event should fire. The timeouts are
+ *     configured on startup (and periodically) based on timestamps in
+ *     persistent storage, so it is not a problem that timeouts do not
+ *     persist between browser sessions.
  * 
  * @module WebScience.Utilities.Scheduling
  */
