@@ -1,4 +1,5 @@
-/* A library for receiving the body of responses to a request.
+/**
+ * This module is a library for receiving the body of responses to a request.
  * Note that:
  *  1. You need the webRequestBlocking permission
  *  2. You have to pass in the responseHeaders so that we can detect the
@@ -9,11 +10,16 @@
  *      string containing the type.
  *  3. Assuming you're calling this from the listener for onResponseStarted, it needs to
  *      have the "blocking" option passed in its extraInfoSpec
+ * @module WebScience.Utilities.ResponseBody
  */
 
-/* Given the ID of a request and the response headers, detect the type of the encoding,
- *  collect together the pieces of the body of the response and resolve the promise
- *  with that data. If we fail to detect the type of the encoding, reject the promise.
+/**
+ * Given the ID of a request and the response headers, detects the type of the encoding,
+ *  collects together the pieces of the body of the response and resolves the promise
+ *  with that data. If it fails to detect the type of the encoding, rejects the promise.
+ * @param {string} requestId - ID of the request whose response body should be tracked
+ * @param {[]} responseHeaders - headers on the response body, used for detecting charset. If null, optional `charset` param is used instead
+ * @param {string} [charset=null] - optional, used instead of the responseHeaders if that param is null
  */
 export function processResponseBody(requestId, responseHeaders, charset = null) {
     return new Promise((resolve, reject) => {
