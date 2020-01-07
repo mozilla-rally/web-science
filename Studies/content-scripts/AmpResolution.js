@@ -1,4 +1,8 @@
-// Utility to resolve amp urls
+/**
+ * Module contains functions for extracting the original url from amp url.
+ * @module WebScience.Studies.content-scripts.misc
+ */
+
 // Caches : https://github.com/ampproject/amphtml/blob/master/build-system/global-configs/caches.json
 const cacheDomains = ["cdn.ampproject.org", "amp.cloudflare.com", "bing-amp.com"];
 const domRegex = /.*?\/{1,2}(.*?)(\.).*/gm;

@@ -1,3 +1,7 @@
+/**
+ * Content script for measuring exposure to content from known media accounts on Facebook
+ * @module WebScience.Studies.content-scripts.socialMediaAccountExposure
+ */
 (
     function () {
 
