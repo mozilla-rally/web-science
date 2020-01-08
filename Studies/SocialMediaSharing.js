@@ -108,14 +108,14 @@ export async function runStudy({
             }
 
         },
-        // Using a wildcard for the API version in case that changes
-        {
-            urls: [
-                "https://api.twitter.com/*/statuses/update.json", /* catches tweets made from twitter.com */
-                "https://twitter.com/intent/tweet" /* catches tweets made via share links on websites */
-            ]
-        },
-        [ "requestBody", "blocking" ]);
+            // Using a wildcard for the API version in case that changes
+            {
+                urls: [
+                    "https://api.twitter.com/*/statuses/update.json", /* catches tweets made from twitter.com */
+                    "https://twitter.com/intent/tweet" /* catches tweets made via share links on websites */
+                ]
+            },
+            ["requestBody", "blocking"]);
 
         /* For quote tweets, retweets, and likes, the response body contains details about the tweet.
          * Here, we get those details, look through them for links, filter the links to the
@@ -197,12 +197,12 @@ export async function runStudy({
                 }
             });
         },
-        {
-            urls: [
-                "https://api.twitter.com/*/statuses/retweet.json" /* catches retweets made from twitter.com */
-            ]
-        },
-        [ "responseHeaders", "blocking" ]);
+            {
+                urls: [
+                    "https://api.twitter.com/*/statuses/retweet.json" /* catches retweets made from twitter.com */
+                ]
+            },
+            ["responseHeaders", "blocking"]);
 
         // Handle favorites
         browser.webRequest.onHeadersReceived.addListener((details) => {
@@ -218,13 +218,13 @@ export async function runStudy({
                 }
             });
         },
-        // Using a wildcard for the API version in case that changes
-        {
-            urls: [
-                "https://api.twitter.com/*/favorites/create.json" /* catches likes made from twitter.com */
-            ]
-        },
-        [ "responseHeaders", "blocking" ]);
+            // Using a wildcard for the API version in case that changes
+            {
+                urls: [
+                    "https://api.twitter.com/*/favorites/create.json" /* catches likes made from twitter.com */
+                ]
+            },
+            ["responseHeaders", "blocking"]);
 
         // Handle quote tweets
         browser.webRequest.onHeadersReceived.addListener((details) => {
@@ -240,13 +240,13 @@ export async function runStudy({
                 }
             });
         },
-        // Using a wildcard for the API version in case that changes
-        {
-            urls: [
-                "https://api.twitter.com/*/statuses/update.json" /* catches quote tweets made from twitter.com */
-            ]
-        },
-        [ "responseHeaders", "blocking" ]);
+            // Using a wildcard for the API version in case that changes
+            {
+                urls: [
+                    "https://api.twitter.com/*/statuses/update.json" /* catches quote tweets made from twitter.com */
+                ]
+            },
+            ["responseHeaders", "blocking"]);
 
     }
 
@@ -256,7 +256,7 @@ export async function runStudy({
         browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
             if (requestDetails.method != "POST")
                 return;
-            
+
             var postTime = Date.now();
             for (var variable of requestDetails.requestBody.formData.variables) {
                 variable = JSON.parse(variable);
@@ -286,6 +286,23 @@ export async function runStudy({
             ["requestBody"]);
 
         // TODO implement reshare support
+        await browser.contentScripts.register({
+            matches: ["https://www.facebook.com/*"],
+            js: [{
+                file: "/WebScience/Studies/content-scripts/ElementProperties.js"
+            },
+            {
+                file: "/WebScience/Studies/content-scripts/Utils.js"
+            },
+            {
+                file: "/WebScience/Studies/content-scripts/AmpResolution.js"
+            },
+            {
+                file: "/WebScience/Studies/content-scripts/socialMediaSharing.js"
+            }
+            ],
+            runAt: "document_idle"
+        });
     }
 
     // Reddit
@@ -345,13 +362,13 @@ export async function runStudy({
             }
 
         },
-        // Using a wildcard at the end of the URL because Reddit adds parameters
-        {
-            urls: [
-                "https://oauth.reddit.com/api/submit*"
-            ]
-        },
-        [ "requestBody" ]);
+            // Using a wildcard at the end of the URL because Reddit adds parameters
+            {
+                urls: [
+                    "https://oauth.reddit.com/api/submit*"
+                ]
+            },
+            ["requestBody"]);
     }
 
 }
