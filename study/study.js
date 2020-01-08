@@ -55,14 +55,12 @@ function runStudies() {
     // Configure link exposure collection
     
     // Configure social media sharing collection
-    /*
     WebScience.Studies.SocialMediaSharing.runStudy({
         domains: studyDomains,
         facebook: true,
         twitter: true,
         reddit: true
     });
-    */
     
     // TODO configure social media news exposure collection (i.e., content
     // recognized by platforms as news regardless of whether we recognize the domain
