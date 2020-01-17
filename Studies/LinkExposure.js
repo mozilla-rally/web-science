@@ -101,6 +101,10 @@ export async function runStudy({
           debugLog("storing " + JSON.stringify(message));
           storage.set("" + nextPageIdCounter.incrementAndGet(), message);
         }
+      }).catch(error => {
+        message.link.error = error.message;
+          debugLog("storing " + JSON.stringify(message));
+          storage.set("" + nextPageIdCounter.incrementAndGet(), message);
       });
     } else {
       debugLog("storing " + JSON.stringify(message));
