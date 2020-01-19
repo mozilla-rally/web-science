@@ -33,6 +33,8 @@ export async function runStudy({
     storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaSharing")).initialize();
 
     const urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
+    const shortDomainRegexString = await browser.storage.local.get("shortDomainRegexString");
+    const shortUrlMatcher = new RegExp(shortDomainRegexString.shortDomainRegexString);
 
     // Use a unique identifier for each URL the user shares
     var shareIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaSharing.nextShareId")).initialize();
@@ -248,6 +250,16 @@ export async function runStudy({
             },
             ["responseHeaders", "blocking"]);
 
+        browser.webRequest.onBeforeRequest.addListener((details) => {
+            console.log(details.requestBody);
+            console.log(details.requestBody.formData.tweet_id);
+        }, {
+            urls : [
+                "https://twitter.com/intent/like"
+            ]
+        },
+        ["requestBody"]
+        )
     }
 
     // Facebook
@@ -285,9 +297,94 @@ export async function runStudy({
             { urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*"] },
             ["requestBody"]);
 
-        // TODO implement reshare support
+        // stolen from https://stackoverflow.com/questions/8486099/how-do-i-parse-a-url-query-parameters-in-javascript
+        function getJsonFromUrl(url) {
+            if (!url) url = location.href;
+            var question = url.indexOf("?");
+            var hash = url.indexOf("#");
+            if (hash == -1 && question == -1) return {};
+            if (hash == -1) hash = url.length;
+            var query = question == -1 || hash == question + 1 ? url.substring(hash) :
+                url.substring(question + 1, hash);
+            var result = {};
+            query.split("&").forEach(function (part) {
+                if (!part) return;
+                part = part.split("+").join(" "); // replace every + with space, regexp-free version
+                var eq = part.indexOf("=");
+                var key = eq > -1 ? part.substr(0, eq) : part;
+                var val = eq > -1 ? decodeURIComponent(part.substr(eq + 1)) : "";
+                var from = key.indexOf("[");
+                if (from == -1) result[decodeURIComponent(key)] = val;
+                else {
+                    var to = key.indexOf("]", from);
+                    var index = decodeURIComponent(key.substring(from + 1, to));
+                    key = decodeURIComponent(key.substring(0, from));
+                    if (!result[key]) result[key] = [];
+                    if (!index) result[key].push(val);
+                    else result[key][index] = val;
+                }
+            });
+            return result;
+        }
+        
+        browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
+            if (requestDetails.method != "POST")
+                return;
+
+            var shareTime = Date.now();
+
+            var sharedFromPostId; // the ID of the original post that's being shared
+            var ownerId; // we need this if the main method of getting the contents doesn't work
+            var newPostMessage = ""; // any content the user adds when sharing
+            // If the user chooses "share now", the post id is in the formData.
+            // If they choose "share" or "share on a friend's timeline", it's in the url parameters instead.
+            if ("shared_from_post_id" in requestDetails.requestBody.formData) {
+                sharedFromPostId = requestDetails.requestBody.formData.shared_from_post_id[0];
+                ownerId = requestDetails.requestBody.formData.sharer_id[0];
+            }
+            else {
+                var parsedParams = getJsonFromUrl(requestDetails.url);
+                sharedFromPostId = parsedParams.shared_from_post_id;
+                ownerId = parsedParams.owner_id;
+                newPostMessage = parsedParams.message;
+            }
+
+            // ask the content script to find the psot contents
+            // TODO deduplicate, with all the other deduplication
+            browser.tabs.sendMessage(requestDetails.tabId,
+                {"sharedFromPostId": sharedFromPostId, "ownerId": ownerId }).then(async (response) => {
+                    for (var url of response.urlsInMediaBox) {
+                        if (urlMatcher.testUrl(url) || shortUrlMatcher.test(url)) {
+                            var shareRecord = createShareRecord(shareTime, "facebook", url, "share");
+                            storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                            debugLog("Facebook (shared post): " + JSON.stringify(shareRecord));
+                        }
+                    }
+                    for (var url of response.urlsInPostBody) {
+                        if (urlMatcher.testUrl(url) || shortUrlMatcher.test(url)) {
+                            var shareRecord = createShareRecord(shareTime, "facebook", url, "share");
+                            storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                            debugLog("Facebook (shared post): " + JSON.stringify(shareRecord));
+                        }
+                    }
+                });
+
+            // if the user added text to the post when sharing, check that text for links
+            var postTokens = newPostMessage.split(/\s+/);
+            for (var postToken of postTokens) {
+                if (urlMatcher.testUrl(postToken)) {
+                    var shareRecord = createShareRecord(shareTime, "facebook", postToken, "share");
+                    storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+                    debugLog("Facebook (added to shared post): " + JSON.stringify(shareRecord));
+                }
+            }
+        },
+            // Using a wildcard at the end of the URL because Facebook sometimes adds parameters
+            { urls: ["https://www.facebook.com/share/dialog/submit/*"] },
+            ["requestBody"]);
+
         await browser.contentScripts.register({
-            matches: ["https://www.facebook.com/*"],
+            matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
             js: [{
                 file: "/WebScience/Studies/content-scripts/ElementProperties.js"
             },
@@ -303,6 +400,7 @@ export async function runStudy({
             ],
             runAt: "document_idle"
         });
+        console.log("content script should be registered");
     }
 
     // Reddit
