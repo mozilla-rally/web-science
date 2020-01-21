@@ -28,11 +28,19 @@ export function resolveURL(url) {
   var p = new Promise(function (resolve, reject) {
     // store this resolve object in promiseStore
     let resolves = promiseStore[url] || [];
-    resolves.push({ resolve : resolve, reject : reject});
+    resolves.push({
+      resolve: resolve,
+      reject: reject
+    });
     promiseStore.set(url, resolves);
     trackLinks.add(url);
     // fetch this url
-    fetch(url, { redirect: 'manual', headers: { 'User-Agent': '' } });
+    fetch(url, {
+      redirect: 'manual',
+      headers: {
+        'User-Agent': url.includes("news.google.com") ? 'curl/7.10.6 (i386-redhat-linux-gnu) libcurl/7.10.6 OpenSSL/0.9.7a ipv6 zlib/1.1.4' : ''
+      }
+    });
   });
   return p;
 }

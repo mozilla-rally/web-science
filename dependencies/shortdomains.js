@@ -1,4 +1,6 @@
 export const shortDomains = [
+// Google news
+"news.google.com/articles",
 "goo.gl",
 "t.co",
 "0rz.tw",
