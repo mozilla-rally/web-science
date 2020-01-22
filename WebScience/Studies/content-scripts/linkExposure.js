@@ -26,20 +26,31 @@
      */
     async function linkExposure() {
 
+      async function checkPrivateWindowSupport() {
+        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.LinkExposure.privateWindows");
+        return ("WebScience.Studies.LinkExposure.privateWindows" in privateWindowResults) &&
+          !privateWindowResults["WebScience.Studies.LinkExposure.privateWindows"] &&
+          browser.extension.inIncognitoContext;
+      }
+
       async function init() {
         let sdrs = await browser.storage.local.get("shortDomainRegexString");
         let drs = await browser.storage.local.get("domainRegexString");
         return {
           shortURLMatcher: new RegExp(sdrs.shortDomainRegexString),
-          urlMatcher: new RegExp(drs.domainRegexString)
+          urlMatcher: new RegExp(drs.domainRegexString),
         };
+      }
+
+      let isExit = await checkPrivateWindowSupport();
+      if(isExit) {
+        return;
       }
 
       const {
         shortURLMatcher,
-        urlMatcher
+        urlMatcher,
       } = await init();
-
 
       /** time when the document is loaded */
       let initialLoadTime = Date.now();

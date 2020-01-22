@@ -42,7 +42,8 @@ function runStudies() {
     // Configure link exposure collection
     WebScience.Utilities.LinkResolution.initialize();
     WebScience.Studies.LinkExposure.runStudy({
-        domains: studyDomains
+        domains: studyDomains,
+        privateWindows : false,
     });
 
     WebScience.Studies.SocialMediaAccountExposure.runStudy({
