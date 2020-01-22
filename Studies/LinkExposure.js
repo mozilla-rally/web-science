@@ -58,8 +58,11 @@ async function setCode(domains, shortDomains) {
  */
 export async function runStudy({
   domains = [],
+  privateWindows = false,
 }) {
 
+  // store private windows preference in the storage
+  await browser.storage.local.set({ "WebScience.Studies.LinkExposure.privateWindows": privateWindows }); 
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
