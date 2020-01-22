@@ -3,8 +3,19 @@
  * @module WebScience.Studies.content-scripts.socialMediaAccountExposure
  */
 (
-    function () {
+    async function () {
 
+        async function checkPrivateWindowSupport() {
+            let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
+            return ("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
+            !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
+            browser.extension.inIncognitoContext;
+        }
+
+        let isExit = await checkPrivateWindowSupport();
+        if (isExit) {
+            return;
+        }
         // Save the time the page initially completed loading
         let initialLoadTime = Date.now();
         /** @constant {RegExp} regex for youtube video url */

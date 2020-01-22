@@ -3,8 +3,19 @@
  * @module WebScience.Studies.content-scripts.socialMediaAccountExposure
  */
 (
-    function () {
+    async function () {
 
+      async function checkPrivateWindowSupport() {
+        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
+        return ("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
+          !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
+          browser.extension.inIncognitoContext;
+      }
+
+      let isExit = await checkPrivateWindowSupport();
+      if (isExit) {
+          return;
+      }
         /** @constant {string} - facebook post selector */
         const fbpost = "div[id^=hyperfeed_story]";
         const linkSelector = "a[href*=__tn__]";
