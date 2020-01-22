@@ -18,8 +18,12 @@ var storage = null;
  * It injects content scripts to youtube and facebook urls to track user's exposure
  * to content from known media outlets
  */
-export async function runStudy() {
+export async function runStudy({
+  privateWindows = false
+}) {
 
+  // store private windows preference in the storage
+  await browser.storage.local.set({ "WebScience.Studies.SocialMediaNewsExposure.privateWindows": privateWindows }); 
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaNewsExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaNewsExposure.nextPageId")).initialize();

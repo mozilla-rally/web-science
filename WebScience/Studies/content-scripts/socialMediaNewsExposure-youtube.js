@@ -3,8 +3,19 @@
  * @module WebScience.Studies.content-scripts.socialMediaNewsExposure
  */
 (
-    function () {
+    async function () {
 
+        async function checkPrivateWindowSupport() {
+            let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaNewsExposure.privateWindows");
+            return ("WebScience.Studies.SocialMediaNewsExposure.privateWindows" in privateWindowResults) &&
+            !privateWindowResults["WebScience.Studies.SocialMediaNewsExposure.privateWindows"] &&
+            browser.extension.inIncognitoContext;
+        }
+
+        let isExit = await checkPrivateWindowSupport();
+        if (isExit) {
+            return;
+        }
         // Save the time the page initially completed loading
         let initialLoadTime = Date.now();
 

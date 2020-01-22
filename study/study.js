@@ -48,10 +48,13 @@ function runStudies() {
 
     WebScience.Studies.SocialMediaAccountExposure.runStudy({
         fbaccounts: facebookAccounts,
-        ytchannels: youtubeChannels
+        ytchannels: youtubeChannels,
+        privateWindows : false,
     });
 
-    WebScience.Studies.SocialMediaNewsExposure.runStudy();
+    WebScience.Studies.SocialMediaNewsExposure.runStudy({
+        privateWindows : false,
+    });
 
     // Configure link exposure collection
     
