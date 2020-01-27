@@ -46,18 +46,18 @@ function runStudies() {
         privateWindows : false,
     });
 
+    // Configure social media account exposure study
     WebScience.Studies.SocialMediaAccountExposure.runStudy({
         fbaccounts: facebookAccounts,
         ytchannels: youtubeChannels,
         privateWindows : false,
     });
 
+    // Configure social media news exposure study
     WebScience.Studies.SocialMediaNewsExposure.runStudy({
         privateWindows : false,
     });
 
-    // Configure link exposure collection
-    
     // Configure social media sharing collection
     /*
     WebScience.Studies.SocialMediaSharing.runStudy({
@@ -68,18 +68,6 @@ function runStudies() {
     });
     */
     
-    // TODO configure social media news exposure collection (i.e., content
-    // recognized by platforms as news regardless of whether we recognize the domain
-    // Something like...
-    
-    /*
-    WebScience.Studies.SocialMediaNewsExposure.runStudy({
-        facebook: true,
-        twitter: true,
-        youtube: true
-    });
-    */
-
     // Configure surveys
     // TODO something like...
 

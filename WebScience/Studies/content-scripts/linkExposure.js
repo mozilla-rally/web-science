@@ -26,6 +26,10 @@
      */
     async function linkExposure() {
 
+      /**
+       * Checks if the script should exit because private windows are not supported for LinkExposure
+       * @returns {boolean} - true if private windows are not supported
+       */
       async function checkPrivateWindowSupport() {
         let privateWindowResults = await browser.storage.local.get("WebScience.Studies.LinkExposure.privateWindows");
         return ("WebScience.Studies.LinkExposure.privateWindows" in privateWindowResults) &&
@@ -33,6 +37,10 @@
           browser.extension.inIncognitoContext;
       }
 
+      /**
+       * Initializes the script by constructing regular expressions for matching domains and short domains
+       * @returns {Object} regular expressions for matching domains and short domains
+       */
       async function init() {
         let sdrs = await browser.storage.local.get("shortDomainRegexString");
         let drs = await browser.storage.local.get("domainRegexString");
@@ -42,11 +50,13 @@
         };
       }
 
+      // First check private windows support
       let isExit = await checkPrivateWindowSupport();
-      if(isExit) {
+      if (isExit) {
         return;
       }
 
+      // Initialize the script
       const {
         shortURLMatcher,
         urlMatcher,
@@ -62,7 +72,7 @@
       const isDocVisible = () => document.visibilityState === "visible";
       let initialVisibility = document.visibilityState == "visible";
 
-      // Elements that we've checked for link exposure
+      // Elements that we checked for link exposure
       let checkedElements = new WeakMap();
 
       /**
@@ -104,7 +114,10 @@
         if (res.length > 0) {
           url = rel_to_abs(res[1]);
         }
-        return { url: url, isMatched : shortURLMatcher.test(url) || urlMatcher.test(url)};
+        return {
+          url: url,
+          isMatched: shortURLMatcher.test(url) || urlMatcher.test(url)
+        };
       }
 
       /**
@@ -145,8 +158,11 @@
        * @returns {void} Nothing
        */
       function processElement(element) {
-        const {url, isMatched} = matchUrl(element);
-        if(!isMatched) {
+        const {
+          url,
+          isMatched
+        } = matchUrl(element);
+        if (!isMatched) {
           return;
         }
         let status = new ElementStatus(url);
@@ -164,9 +180,9 @@
             target
           } = entry;
           let status = checkedElements.get(target);
-          if (isIntersecting && elemIsVisible(target)) {
+          if (isIntersecting && isElementVisible(target)) {
             status.setVisibility();
-          } else if(!isIntersecting && checkedElements.has(target) && checkedElements.get(target).visibility !== null) {
+          } else if (!isIntersecting && checkedElements.has(target) && checkedElements.get(target).visibility !== null) {
             status.setIgnore();
             status.setDuration();
             observer.unobserve(target);
@@ -174,6 +190,7 @@
         });
       }
 
+      // Options for intersection observer
       const options = {
         threshold: 1
       };
@@ -224,6 +241,67 @@
           }
           observeChanges();
           this.count++;
+        }
+      }
+
+      /**
+       * @classdesc
+       * Keeps track of various properties of Elements
+       */
+      class ElementStatus {
+        constructor(url) {
+          this.url = url;
+          this.matched = false;
+          this.visibility = null;
+          this.visibleDuration = 0;
+          this.ignore = false;
+        }
+
+        /**
+         * @returns {boolean} true if element is ignored
+         */
+        isIgnored() {
+          return this.ignore;
+        }
+
+        setIgnore() {
+          this.ignore = true;
+        }
+
+        /**
+         * @returns {boolean} true if element is matched
+         */
+        isMatched() {
+          return this.matched;
+        }
+
+        setMatched() {
+          this.matched = true;
+        }
+        /**
+         * Checks if the element time since exceeds certain threshold
+         * @param {number} threshold number of milliseconds
+         */
+        isVisibleAboveThreshold(threshold) {
+          return this.visibility != null && (Date.now() >= this.visibility + threshold);
+        }
+        /**
+         * Sets visibility to the current
+         */
+        setVisibility() {
+          this.visibility = Date.now();
+        }
+
+        /**
+         * @returns {number} number of milliseconds since visibility was set
+         */
+        getDuration() {
+          return Date.now() - this.visibility;
+        }
+        setDuration() {
+          if (this.visibility != null) {
+            this.visibleDuration = Date.now() - this.visibility;
+          }
         }
       }
 

@@ -5,6 +5,10 @@
 (
     async function () {
 
+        /**
+         * Checks if the script should exit because private windows are not supported for SocialMediaAccountExposure
+         * @returns {boolean} - true if private windows are not supported
+         */
         async function checkPrivateWindowSupport() {
             let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
             return ("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&

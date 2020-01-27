@@ -5,17 +5,21 @@
 (
     async function () {
 
-      async function checkPrivateWindowSupport() {
-        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
-        return ("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
-          !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
-          browser.extension.inIncognitoContext;
-      }
+        /**
+         * Checks if the script should exit because private windows are not supported for SocialMediaAccountExposure
+         * @returns {boolean} - true if private windows are not supported
+         */
+        async function checkPrivateWindowSupport() {
+            let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
+            return ("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
+                !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
+                browser.extension.inIncognitoContext;
+        }
 
-      let isExit = await checkPrivateWindowSupport();
-      if (isExit) {
-          return;
-      }
+        let isExit = await checkPrivateWindowSupport();
+        if (isExit) {
+            return;
+        }
         /** @constant {string} - facebook post selector */
         const fbpost = "div[id^=hyperfeed_story]";
         const linkSelector = "a[href*=__tn__]";
@@ -32,11 +36,11 @@
             let posts = Array.from(document.body.querySelectorAll(fbpost));
             let postsFromKnownMedia = posts.filter(checkPostForKnownMediaOutlet);
             let mediaPosts = postsFromKnownMedia.map(x => {
-               let urls = Array.from(x.querySelectorAll(postLinkSelector));
-               if(urls.length > 0) {
-                   return urls[0].href;
-               }
-               return "";
+                let urls = Array.from(x.querySelectorAll(postLinkSelector));
+                if (urls.length > 0) {
+                    return urls[0].href;
+                }
+                return "";
             });
             sendMessage(mediaPosts.filter(x => x.length > 0));
         }
@@ -47,7 +51,7 @@
          */
         function checkPostForKnownMediaOutlet(post) {
             let links = Array.from(post.querySelectorAll(linkSelector));
-            if(links.length == 0) {
+            if (links.length == 0) {
                 return false;
             }
             // check if post has title in any of the links
@@ -58,7 +62,7 @@
             let knownMedia = links.some(x => {
                 return fbAccountMatcher.test(x.href);
             });
-            if(hasTitle || !knownMedia) {
+            if (hasTitle || !knownMedia) {
                 return false;
             }
             return true;

@@ -13,6 +13,12 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExp
  */
 var storage = null;
 
+/**
+ * Creates regex strings for domains of interest and short domains
+ * @param {String[]} domains - domains of interest
+ * @param {String[]} shortDomains - short domains
+ * @param {Object} - Regular expression strings
+ */
 function createRegex(domains, shortDomains) {
   let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
   let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
@@ -22,15 +28,16 @@ function createRegex(domains, shortDomains) {
   };
   return regexes;
 }
+
 /**
  * setRegex function stores the regular expression strings corresponding to 
- * domains and link shortening domains in the local storage.
+ * domains and link shortening domains in local storage.
  * These storage items are accessible from content scripts during the matching phase.
  * Note : It's not possible to store RegExp 
  * (https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/StorageArea/set)
  * 
- * @param {Array} domains - domains of interest
- * @param {Array} shortDomains - link shortening domains
+ * @param {String[]} domains - domains of interest
+ * @param {String[]} shortDomains - short domains
  */
 async function setRegex(domains, shortDomains) {
   let storageObj = createRegex(domains, shortDomains);
@@ -38,10 +45,10 @@ async function setRegex(domains, shortDomains) {
 }
 
 /**
- * Function checks and sets (if not set already) regular expressions
+ * Function checks and sets (if not set already) regular expression strings
  * for domain matching in the storage.
- * @param {Array} domains - domains of interest
- * @param {Array} shortDomains - link shortening domains
+ * @param {String[]} domains - domains of interest
+ * @param {String[]} shortDomains - short domains
  */
 async function setCode(domains, shortDomains) {
   let dregex = await browser.storage.local.get("domainRegexString");
@@ -53,8 +60,8 @@ async function setCode(domains, shortDomains) {
 
 /**
  * @name LinkExposure.runStudy starts the LinkExposure study.
- * 
- * @param {Array} domains - Array of domains to track 
+ * @param {String[]} domains - Array of domains to track 
+ * @param {boolean} privateWindows - If true then the study works in private windows
  */
 export async function runStudy({
   domains = [],
@@ -76,13 +83,10 @@ export async function runStudy({
   await browser.contentScripts.register({
     matches: ["*://*/*"],
     js: [{
-        file: "/WebScience/Studies/content-scripts/ElementProperties.js"
+        file: "/WebScience/Studies/content-scripts/utils.js"
       },
       {
-        file: "/WebScience/Studies/content-scripts/Utils.js"
-      },
-      {
-        file: "/WebScience/Studies/content-scripts/AmpResolution.js"
+        file: "/WebScience/Studies/content-scripts/ampResolution.js"
       },
       {
         file: "/WebScience/Studies/content-scripts/linkExposure.js"
@@ -91,20 +95,23 @@ export async function runStudy({
     runAt: "document_idle"
   });
 
-  // Listen for LinkExposure messages
+  // Listen for LinkExposure messages from content script
   WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (message, sender, sendResponse) => {
     if (!("tab" in sender)) {
       debugLog("Warning: unexpected page content update");
       return;
     }
+    // Resolve links from known short domains
     if (shortDomainMatcher.test(message.link.href)) {
       WebScience.Utilities.LinkResolution.resolveURL(message.link.href).then(resolvedURL => {
+        // If resolved link belongs to the domains of interest
         if (urlMatcher.test(resolvedURL.dest)) {
           message.link.dest = resolvedURL.dest;
           debugLog("storing " + JSON.stringify(message));
           storage.set("" + nextPageIdCounter.incrementAndGet(), message);
         }
       }).catch(error => {
+        // For failed resolutions save exposure information along with error message
         message.link.error = error.message;
           debugLog("storing " + JSON.stringify(message));
           storage.set("" + nextPageIdCounter.incrementAndGet(), message);
@@ -142,6 +149,7 @@ export async function getStudyDataAsObject() {
  * Function tests whether a given object is empty
  * @param {Object} obj - Object to test
  * @returns {boolean} - true if the object is empty
+ * @private
  */
 function isEmpty(obj) {
   return !obj || Object.keys(obj).length === 0;
