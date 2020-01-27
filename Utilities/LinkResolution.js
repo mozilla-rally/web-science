@@ -18,8 +18,8 @@ let links = new Map();
 
 /**
  * Function to resolve a given url to the final url that it points to
- * @param {string} url to resolve
- * @returns promise
+ * @param {string} url - URL to resolve
+ * @returns {Promise.Object} - An object containing the destination url
  */
 export function resolveURL(url) {
   if(!initialized) {
@@ -60,7 +60,7 @@ function getLocationFromResponseHeader(headers) {
 
 /**
  * Listener for https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onHeadersReceived
- * @param {JSON} details contains objects from headers
+ * @param {Object} details contains details of the request
  */
 function responseHeaderListener(details) {
   // Continue only if this url is relevant for link resolution
@@ -102,6 +102,10 @@ function responseHeaderListener(details) {
   }
 }
 
+/**
+ * Listener for https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onErrorOccurred
+ * @param {Object} responseDetails - Contains details of the error
+ */
 function trackError(responseDetails) {
   let url = responseDetails.url;
   if(promiseStore.has(url)) {
@@ -114,12 +118,20 @@ function trackError(responseDetails) {
   }
 }
 
+/**
+ * Initializes the link resolution module by setting up listeners for onHeadersReceived event
+ * @returns {void} Nothing
+ */
 export function initialize() {
   initialized = true;
   let headerListener = browser.webRequest.onHeadersReceived.addListener(responseHeaderListener, {urls : ["<all_urls>"]}, ["responseHeaders"]);
   let errorListener = browser.webRequest.onErrorOccurred.addListener(trackError, {urls : ["<all_urls>"]});
 }
 
+/**
+ * Returns a list of short domains that the link resolution module can resolve
+ * @returns {String[]} Array of domains
+ */
 export function getShortDomains() {
   return shortDomains;
 }

@@ -36,46 +36,6 @@ function rel_to_abs(url) {
     return url;
 }
 
-class ElementStatus {
-    constructor(url) {
-        this.url = url;
-        this.matched = false;
-        this.visibility = null;
-        this.visibleDuration = 0;
-        this.ignore = false;
-    }
-
-    isIgnored() {
-        return this.ignore;
-    }
-
-    setIgnore() {
-        this.ignore = true;
-    }
-
-    isMatched() {
-        return this.matched;
-    }
-
-    setMatched() {
-        this.matched = true;
-    }
-    isVisibleAboveThreshold(threshold) {
-        return this.visibility != null && (Date.now() >= this.visibility + threshold);
-    }
-    setVisibility() {
-        this.visibility = Date.now();
-    }
-
-    getDuration() {
-        return Date.now() - this.visibility;
-    }
-    setDuration() {
-        if (this.visibility != null) {
-            this.visibleDuration = Date.now() - this.visibility;
-        }
-    }
-}
 // helper function for parsing fb urls
 function fbShim(url) {
     var u = new URL(url);
@@ -91,6 +51,7 @@ const fbRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/gm;
 const isFb = url => {
     return fbRegex.test(url);
 };
+
 function removeShim(url) {
     // check if the url matches shim
     if(isFb(url)) {
@@ -98,3 +59,33 @@ function removeShim(url) {
     }
     return { url : url, isShim : false};
 }
+
+/**
+ * Helper function to get size of element
+ * @param {Element} el element
+ * @returns Object with width and height of element
+ */
+function getElementSize(el) {
+    let rect = el.getBoundingClientRect();
+    return {
+        width: rect.width,
+        height: rect.height
+    };
+}
+
+const isElementVisible = elem => {
+    const rect = elem.getBoundingClientRect();
+    const st = window.getComputedStyle(elem);
+    let ret = (
+        elem &&
+        elem.offsetHeight > 0 &&
+        elem.offsetWidth > 0 &&
+        rect &&
+        rect.height > 0 &&
+        rect.width > 0 &&
+        st &&
+        st.display && st.display !== "none" &&
+        st.opacity && st.opacity !== "0"
+    );
+    return ret;
+};
