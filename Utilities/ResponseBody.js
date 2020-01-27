@@ -18,7 +18,7 @@
  *  collects together the pieces of the body of the response and resolves the promise
  *  with that data. If it fails to detect the type of the encoding, rejects the promise.
  * @param {string} requestId - ID of the request whose response body should be tracked
- * @param {[]} responseHeaders - headers on the response body, used for detecting charset. If null, optional `charset` param is used instead
+ * @param {Object[]} responseHeaders - headers on the response body, used for detecting charset. If null, optional `charset` param is used instead
  * @param {string} [charset=null] - optional, used instead of the responseHeaders if that param is null
  */
 export function processResponseBody(requestId, responseHeaders, charset = null) {
