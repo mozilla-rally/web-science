@@ -1,6 +1,5 @@
 /**
  * Content script for link exposure study
- * @module WebScience.Studies.content-scripts.socialMediaSharing
  */
 
  /**
