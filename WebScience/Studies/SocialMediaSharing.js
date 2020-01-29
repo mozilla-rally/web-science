@@ -133,7 +133,7 @@ function twitterSharing() {
 
         var urlsToReport = deduplicateUrls(urlsToSave);
         for (var urlToReport of urlsToReport) {
-            var shareRecord = createShareRecord(shareTime, "twitter", urlToReport, "tweet");
+            var shareRecord = await createShareRecord(shareTime, "twitter", urlToReport, "tweet");
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
             debugLog("Twitter: " + JSON.stringify(shareRecord));
         }
@@ -159,7 +159,7 @@ function twitterSharing() {
 
         processTwitterResponse(details).then(async urlsToReport => {
             for (var urlToReport of urlsToReport) {
-                var shareRecord = createShareRecord(retweetTime, "twitter", urlToReport, "retweet");
+                var shareRecord = await createShareRecord(retweetTime, "twitter", urlToReport, "retweet");
                 storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
                 debugLog("Twitter retweet: " + JSON.stringify(shareRecord));
             }
@@ -176,7 +176,7 @@ function twitterSharing() {
 
         processTwitterResponse(details).then(async urlsToReport => {
             for (var urlToReport of urlsToReport) {
-                var shareRecord = createShareRecord(favoriteTime, "twitter", urlToReport, "favorite");
+                var shareRecord = await createShareRecord(favoriteTime, "twitter", urlToReport, "favorite");
                 storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
                 debugLog("Twitter favorite: " + JSON.stringify(shareRecord));
             }
@@ -194,7 +194,7 @@ function twitterSharing() {
 
         processTwitterResponse(details).then(async urlsToReport => {
             for (var urlToReport of urlsToReport) {
-                var shareRecord = createShareRecord(quoteTweetTime, "twitter", urlToReport, "quoteTweet");
+                var shareRecord = await createShareRecord(quoteTweetTime, "twitter", urlToReport, "quoteTweet");
                 storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
                 debugLog("Twitter quote tweet: " + JSON.stringify(shareRecord));
             }
@@ -259,7 +259,7 @@ async function facebookSharing() {
         // Deduplicate (urls in post text can be attachments as well) and log all urls
         var urlsToReport = deduplicateUrls(urlsToSave);
         for (var urlToReport of urlsToReport) {
-            var shareRecord = createShareRecord(postTime, "facebook", urlToReport, "post");
+            var shareRecord = await createShareRecord(postTime, "facebook", urlToReport, "post");
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
             debugLog("Facebook post: " + JSON.stringify(shareRecord));
         }
@@ -334,7 +334,7 @@ async function facebookSharing() {
                 }
                 var urlsToReport = deduplicateUrls(urlsToSave);
                 for (var urlToReport of urlsToReport) {
-                    var shareRecord = createShareRecord(shareTime, "facebook", urlToReport, "share");
+                    var shareRecord = await createShareRecord(shareTime, "facebook", urlToReport, "share");
                     storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
                     debugLog("Facebook share: " + JSON.stringify(shareRecord));
                 }
@@ -352,7 +352,7 @@ async function facebookSharing() {
         // Deduplicate and log the urls added to the post by the user
         var urlsToReport = deduplicateUrls(addedUrlsToSave);
         for (var urlToReport of urlsToReport) {
-            var shareRecord = createShareRecord(shareTime, "facebook", urlToReport, "share add");
+            var shareRecord = await createShareRecord(shareTime, "facebook", urlToReport, "share add");
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
             debugLog("Facebook share (added to post): " + JSON.stringify(shareRecord));
         }
@@ -416,7 +416,7 @@ function redditSharing() {
 
         var urlsToReport = deduplicateUrls(urlsToSave);
         for (var urlToReport of urlsToReport) {
-            var shareRecord = createShareRecord(shareTime, "reddit", urlToReport, "post");
+            var shareRecord = await createShareRecord(shareTime, "reddit", urlToReport, "post");
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
             debugLog("Reddit post: " + JSON.stringify(shareRecord));
         }
@@ -438,10 +438,13 @@ function redditSharing() {
  * @param {string} url - The URL that the user shared.
  * @param {string} event - The type of sharing event.
  * @returns {Object} - An object containing the `shareTime`, `platform`,
- * `url`, and `event` as properties.
+ * `url`, and `event` as properties, as well as the Navigation and browser
+ * history data for the given url.
  */
-function createShareRecord(shareTime, platform, url, event) {
-    return { shareTime, platform, url, event };
+async function createShareRecord(shareTime, platform, url, event) {
+    var pageVisits = await WebScience.Studies.Navigation.findUrlVisit(url);
+    var historyVisits = await browser.history.search({text: WebScience.Utilities.Matching.stripUrl(url)});
+    return { shareTime, platform, url, event, pageVisits, historyVisits };
 }
 
 /**
@@ -474,12 +477,10 @@ function processTwitterResponse(details) {
                 var expanded_urls = [];
                 var responseContents = JSON.parse(rawResponseContents);
                 // grab all urls mentioned in the tweet this response mentions
-                console.log(responseContents);
                 if (("entities" in responseContents &&
                     "urls" in responseContents.entities)) {
                     for (var urlObject of responseContents.entities.urls) {
                         if ("expanded_url" in urlObject) {
-                            console.log(urlObject.expanded_url);
                             expanded_urls.push(urlObject.expanded_url);
                         }
                     }
@@ -491,7 +492,6 @@ function processTwitterResponse(details) {
                     "urls" in responseContents.retweeted_status.entities)) {
                     for (var urlObject of responseContents.retweeted_status.entities.urls) {
                         if ("expanded_url" in urlObject) {
-                            console.log(urlObject.expanded_url);
                             expanded_urls.push(urlObject.expanded_url)
                         }
                     }
@@ -503,7 +503,6 @@ function processTwitterResponse(details) {
                     "urls" in responseContents.quoted_status.entities)) {
                     for (var urlObject of responseContents.quoted_status.entities.urls) {
                         if ("expanded_url" in urlObject) {
-                            console.log(urlObject.expanded_url);
                             expanded_urls.push(urlObject.expanded_url)
                         }
                     }
@@ -521,18 +520,6 @@ function processTwitterResponse(details) {
 }
 
 /**
- * Reduce a url to a normalized form for comparisons.
- * @param {string} url - the url to normalize
- * @returns {string} - url with parameters stripped
- */
-function normalizeUrl(url) {
-    if (url.includes("?")) {
-        return url.substring(0, url.indexOf("?"));
-    }
-    return url;
-}
-
-/**
  * Normalize urls by stripping url parameters and then remove duplicates
  * @param {string[]} urls - the urls to normalize and deduplicate
  * @returns {Set} - unique normalized urls
@@ -540,7 +527,7 @@ function normalizeUrl(url) {
 function deduplicateUrls(urls) {
     var uniqueUrls = new Set();
     for (var url of urls) {
-        uniqueUrls.add(normalizeUrl(url));
+        uniqueUrls.add(WebScience.Utilities.Matching.removeUrlParams(url));
     }
     return uniqueUrls;
 }

@@ -31,7 +31,8 @@
         "tabs",
         "unlimitedStorage",
         "webRequest",
-        "webRequestBlocking"
+        "webRequestBlocking",
+        "history"
     ],
 
     "incognito": "spanning",
