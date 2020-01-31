@@ -35,13 +35,16 @@ export function processResponseBody(requestId, responseHeaders, charset = null) 
                     contentType = header.value;
                     var headerTokens = contentType.split(";");
                     for (var headerToken of headerTokens) {
-                        if (headerToken.startsWith("charset=")) charset = headerToken.substring(8);
+                        var charsetLocation = headerToken.indexOf("charset=");
+                        if (charsetLocation >= 0) charset = headerToken.substring(charsetLocation+8);
                     }
                     break;
                 }
             }
         }
         try {
+            // trim crud from charset
+            charset = charset.replace(/"/g, "").replace(/'/g, "").trim();
             var decoder = new TextDecoder(charset);
         } catch (error) {
             reject(error);

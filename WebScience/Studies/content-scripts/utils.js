@@ -47,7 +47,7 @@ function fbShim(url) {
     return "";
 }
 
-const fbRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/gm;
+const fbRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/;
 const isFb = url => {
     return fbRegex.test(url);
 };

@@ -59,14 +59,12 @@ function runStudies() {
     });
 
     // Configure social media sharing collection
-    /*
     WebScience.Studies.SocialMediaSharing.runStudy({
         domains: studyDomains,
         facebook: true,
         twitter: true,
         reddit: true
     });
-    */
     
     // Configure surveys
     // TODO something like...
