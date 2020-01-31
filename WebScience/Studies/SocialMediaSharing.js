@@ -206,9 +206,27 @@ function twitterSharing() {
         ["responseHeaders", "blocking"]);
 
     // TODO
-    browser.webRequest.onBeforeRequest.addListener((details) => {
+    browser.webRequest.onBeforeRequest.addListener(async (details) => {
         console.log(details.requestBody);
         console.log(details.requestBody.formData.tweet_id);
+        var likeTime = Date.now();
+        var tweet_id = details.requestBody.formData.tweet_id[0];
+
+        // can't use the twitter API without proper authentication (logged in user isn't enough)
+        // The other options are using the regular (twitter.com/<user>/status/<tweet_id>) or embed (see below)
+        // urls. Using the 'embed' link gets us the tweet content a lot more simply.
+        // To use the regular or embed url, you need the username of the account that tweeted it
+        // (you can't just put the tweet id without a username)
+        // and we don't get the username in the request that gets sent.
+        // However, if you put the *wrong* username with a tweet id, twitter will find the right user
+        // and return the tweet anyway. Handy! Thanks Jack!
+        var urlsToReport = getLinksFromTweet(tweet_id);
+        for (var urlToReport of urlsToReport) {
+            var shareRecord = await createShareRecord(likeTime, "twitter", urlToReport, "like");
+            storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+            debugLog("Twitter like: " + JSON.stringify(shareRecord));
+        }
+
     }, { urls : [ "https://twitter.com/intent/like"
         ] },
     ["requestBody"]
@@ -531,3 +549,31 @@ function deduplicateUrls(urls) {
     }
     return uniqueUrls;
 }
+
+function getLinksFromTweet(tweet_id) {
+    return fetch(`https://publish.twitter.com/oembed?url=https://twitter.com/jack/status/${tweet_id}`).then((responseFromFetch) => {
+        console.log(responseFromFetch);
+        return responseFromFetch.json().then((resp) => {
+            console.log(resp);
+            var content = resp.html;
+            var doc = (new DOMParser()).parseFromString(content, "text/html");
+            console.log(doc);
+            var links = doc.querySelectorAll("a[href]")
+            console.log(links);
+            var urlsToSave = [];
+            for (var link of links) {
+                var url = link.getAttribute("href");
+                if (urlMatcher.testUrl(url) || shortUrlMatcher.test(url)) {
+                    urlsToSave.push(url);
+                }
+            }
+            console.log(urlsToSave);
+            return deduplicateUrls(urlsToSave);
+        });
+    });
+}
+/*
+setTimeout(async () => {
+    console.log(await getLinksFromTweet("1223029921729187841"));
+}, 3000);
+*/
