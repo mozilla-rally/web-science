@@ -234,7 +234,7 @@ async function facebookSharing() {
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
         js: [
-            { file: "/WebScience/Studies/content-scripts/Utils.js" },
+            { file: "/WebScience/Studies/content-scripts/utils.js" },
             { file: "/WebScience/Studies/content-scripts/socialMediaSharing.js" }
         ],
         runAt: "document_idle"
