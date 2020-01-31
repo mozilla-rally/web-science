@@ -90,19 +90,13 @@ export async function runStudy({
  *    (eg "This www.example.com is a link")
  *    the link itself is displayed *and* a news box is shown.
  * - Still TODO with twitter:
- *  - I don't know how retweets/likes/quote-tweets made from sites other
- *     than twitter.com itself work -- I think some don't send the nice replies
- *     we're using for everything else, though, so we'll probably have to pull
- *     tweet ids out of the request and resolve them.
- *    I still think it makes sense to use the response bodies when they're available,
- *     though, since they're getting sent to the user anyway, and we get to avoid
- *     having to make our own network request to resolve the tweet contents.
  *  - We don't currently store anything if the user replies (? the little speech bubble)
  *     to a tweet with a link. Here, twitter also doesn't seem to send the nice
  *     response body, but I need to explore that more.
  *   DONE:
  *   - tweets made from twitter.com or from share buttons
  *   - likes, retweets, and quote tweets made from twitter.com
+ *   - likes made from other sites
  */
 function twitterSharing() {
     // If the user POSTS a status update, parse it for matching URLs
@@ -205,32 +199,22 @@ function twitterSharing() {
             ] },
         ["responseHeaders", "blocking"]);
 
-    // TODO
+    // Handle likes made from sites other than twitter.com
     browser.webRequest.onBeforeRequest.addListener(async (details) => {
-        console.log(details.requestBody);
-        console.log(details.requestBody.formData.tweet_id);
+        if (!(details && details.requestBody && details.requestBody.formData &&
+              details.requestBody.formData.tweet_id)) { return; }
+
         var likeTime = Date.now();
         var tweet_id = details.requestBody.formData.tweet_id[0];
 
-        // can't use the twitter API without proper authentication (logged in user isn't enough)
-        // The other options are using the regular (twitter.com/<user>/status/<tweet_id>) or embed (see below)
-        // urls. Using the 'embed' link gets us the tweet content a lot more simply.
-        // To use the regular or embed url, you need the username of the account that tweeted it
-        // (you can't just put the tweet id without a username)
-        // and we don't get the username in the request that gets sent.
-        // However, if you put the *wrong* username with a tweet id, twitter will find the right user
-        // and return the tweet anyway. Handy! Thanks Jack!
         var urlsToReport = getLinksFromTweet(tweet_id);
         for (var urlToReport of urlsToReport) {
             var shareRecord = await createShareRecord(likeTime, "twitter", urlToReport, "like");
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
             debugLog("Twitter like: " + JSON.stringify(shareRecord));
         }
-
-    }, { urls : [ "https://twitter.com/intent/like"
-        ] },
-    ["requestBody"]
-    )
+    }, { urls : [ "https://twitter.com/intent/like" ] },
+    ["requestBody"])
 }
 
 /**
@@ -549,17 +533,25 @@ function deduplicateUrls(urls) {
     }
     return uniqueUrls;
 }
-
+/**
+ * Request the content of a tweet, then filter the urls and return the relevant ones.
+ * @param {String} tweet_id - the numerical ID of the tweet to retrieve
+ * @returns {Set} - matching urls
+ */
 function getLinksFromTweet(tweet_id) {
+// Can't use the twitter API without proper authentication (logged in user isn't enough)
+// The other options are using the regular (twitter.com/<user>/status/<tweet_id>) or embed (see below)
+// urls. Using the 'embed' link gets us the tweet content a lot more simply.
+// To use the regular or embed url, you need the username of the account that tweeted it
+// (you can't just put the tweet id without a username)
+// and we don't get the username in the request that gets sent.
+// However, if you put the *wrong* username with a tweet id, twitter will find the right user
+// and return the tweet anyway. Handy! Thanks Jack!
     return fetch(`https://publish.twitter.com/oembed?url=https://twitter.com/jack/status/${tweet_id}`).then((responseFromFetch) => {
-        console.log(responseFromFetch);
         return responseFromFetch.json().then((resp) => {
-            console.log(resp);
             var content = resp.html;
             var doc = (new DOMParser()).parseFromString(content, "text/html");
-            console.log(doc);
             var links = doc.querySelectorAll("a[href]")
-            console.log(links);
             var urlsToSave = [];
             for (var link of links) {
                 var url = link.getAttribute("href");
@@ -567,13 +559,7 @@ function getLinksFromTweet(tweet_id) {
                     urlsToSave.push(url);
                 }
             }
-            console.log(urlsToSave);
             return deduplicateUrls(urlsToSave);
         });
     });
 }
-/*
-setTimeout(async () => {
-    console.log(await getLinksFromTweet("1223029921729187841"));
-}, 3000);
-*/
