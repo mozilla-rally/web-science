@@ -58,15 +58,6 @@ export async function runStudy({
     // Use a unique identifier for each URL the user shares
     shareIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaSharing.nextShareId")).initialize();
 
-    // TODO when saving a sharing event, check in the browser history for whether
-    // the user has visited the URL
-    // Probably the best way to do this is parse the URL, strip out HTTP/HTTPS and
-    // parameters, and then use browser.history.search to get whether the page
-    // was visited, how many times it was visited, and when it was most recently
-    // visited
-    // We might also want to check the WebScience.Navigation database to look up
-    // how long the user spent on the page
-
     if (twitter) { twitterSharing(); }
     if (facebook) { await facebookSharing(); }
     if (reddit) { redditSharing(); }
@@ -89,14 +80,11 @@ export async function runStudy({
  *    box is still shown. When there is text after the link,
  *    (eg "This www.example.com is a link")
  *    the link itself is displayed *and* a news box is shown.
- * - Still TODO with twitter:
- *  - We don't currently store anything if the user replies (? the little speech bubble)
- *     to a tweet with a link. Here, twitter also doesn't seem to send the nice
- *     response body, but I need to explore that more.
- *   DONE:
- *   - tweets made from twitter.com or from share buttons
- *   - likes, retweets, and quote tweets made from twitter.com
+ * - Twitter events we handle:
+ *   - tweets made from twitter.com or from share buttons on websites
+ *   - likes, retweets, and replies made from twitter.com
  *   - likes made from other sites
+ *   - (it seems like embedded tweets don't have retweet or reply buttons)
  */
 function twitterSharing() {
     // If the user POSTS a status update, parse it for matching URLs
@@ -117,13 +105,7 @@ function twitterSharing() {
         // Tokenize the tweet on whitespace and check each token for a URL match
         var tweetText = requestDetails.requestBody.formData["status"][0];
         var tweetTokens = tweetText.split(/\s+/);
-
-        // If there's a URL match, record the sharing event
-        for (var tweetToken of tweetTokens) {
-            if (urlMatcher.testUrl(tweetToken) || shortUrlMatcher.test(tweetToken)) {
-                urlsToSave.push(tweetToken);
-            }
-        }
+        await filterTokensToUrls(tweetTokens, urlsToSave);
 
         var urlsToReport = deduplicateUrls(urlsToSave);
         for (var urlToReport of urlsToReport) {
@@ -131,34 +113,22 @@ function twitterSharing() {
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
             debugLog("Twitter: " + JSON.stringify(shareRecord));
         }
-    },
-        // Using a wildcard for the API version in case that changes
-        { urls: [
-                "https://api.twitter.com/*/statuses/update.json", /* catches tweets made from twitter.com */
-                "https://twitter.com/intent/tweet" /* catches tweets made via share links on websites */
+    }, { urls: [ "https://twitter.com/intent/tweet" /* catches tweets made via share links on websites */
             ] },
         ["requestBody", "blocking"]);
 
 
+    // Note: As far as I can tell, Twitter only uses these urls for what they're stated to be. E.g.,
+    //  "unliking" a tweet is sent to favorites/destroy.json, instead of favorites/create.json
+
     // Handle retweets
-    /* Note: for all of these, we're not doing much validation on the response to make
-        *  sure the original request really was a retweet (or like, or quote-tweet). As far as
-        *  I can tell, Twitter only uses these urls for what they're stated to be. E.g.,
-        *  "unliking" a tweet is sent to favorites/destroy.json, instead of favorites/create.json
-        * So, it seems like basing it on the url and the fact that it was a POST is safe enough.
-        */
     browser.webRequest.onHeadersReceived.addListener((details) => {
         var retweetTime = Date.now();
         if (!(details && details.method == "POST")) { return; }
-
-        processTwitterResponse(details).then(async urlsToReport => {
-            for (var urlToReport of urlsToReport) {
-                var shareRecord = await createShareRecord(retweetTime, "twitter", urlToReport, "retweet");
-                storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
-                debugLog("Twitter retweet: " + JSON.stringify(shareRecord));
-            }
+        processTwitterResponse(details).then(urlsToReport => {
+            recordTwitterUrls(urlsToReport, "retweet", retweetTime);
         });
-    },
+    }, // Using a wildcard for the API version in case that changes
         { urls: [ "https://api.twitter.com/*/statuses/retweet.json" /* catches retweets made from twitter.com */
             ] },
         ["responseHeaders", "blocking"]);
@@ -167,35 +137,23 @@ function twitterSharing() {
     browser.webRequest.onHeadersReceived.addListener((details) => {
         var favoriteTime = Date.now();
         if (!(details && details.method == "POST")) { return; }
-
-        processTwitterResponse(details).then(async urlsToReport => {
-            for (var urlToReport of urlsToReport) {
-                var shareRecord = await createShareRecord(favoriteTime, "twitter", urlToReport, "favorite");
-                storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
-                debugLog("Twitter favorite: " + JSON.stringify(shareRecord));
-            }
+        processTwitterResponse(details).then(urlsToReport => {
+            recordTwitterUrls(urlsToReport, "favorite", favoriteTime);
         });
-    },
-        // Using a wildcard for the API version in case that changes
+    }, // Using a wildcard for the API version in case that changes
         { urls: [ "https://api.twitter.com/*/favorites/create.json" /* catches likes made from twitter.com */
             ] },
         ["responseHeaders", "blocking"]);
 
     // Handle quote tweets
     browser.webRequest.onHeadersReceived.addListener((details) => {
-        var quoteTweetTime = Date.now();
+        var tweetTime = Date.now();
         if (!(details && details.method == "POST")) { return; }
-
-        processTwitterResponse(details).then(async urlsToReport => {
-            for (var urlToReport of urlsToReport) {
-                var shareRecord = await createShareRecord(quoteTweetTime, "twitter", urlToReport, "quoteTweet");
-                storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
-                debugLog("Twitter quote tweet: " + JSON.stringify(shareRecord));
-            }
+        processTwitterResponse(details).then(urlsToReport => {
+            recordTwitterUrls(urlsToReport, "tweet", tweetTime);
         });
-    },
-        // Using a wildcard for the API version in case that changes
-        { urls: [ "https://api.twitter.com/*/statuses/update.json" /* catches quote tweets made from twitter.com */
+    }, // Using a wildcard for the API version in case that changes
+        { urls: [ "https://api.twitter.com/*/statuses/update.json" /* catches tweets & replies made from twitter.com */
             ] },
         ["responseHeaders", "blocking"]);
 
@@ -209,9 +167,9 @@ function twitterSharing() {
 
         var urlsToReport = getLinksFromTweet(tweet_id);
         for (var urlToReport of urlsToReport) {
-            var shareRecord = await createShareRecord(likeTime, "twitter", urlToReport, "like");
+            var shareRecord = await createShareRecord(likeTime, "twitter", urlToReport, "external like");
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
-            debugLog("Twitter like: " + JSON.stringify(shareRecord));
+            debugLog("Twitter like (external): " + JSON.stringify(shareRecord));
         }
     }, { urls : [ "https://twitter.com/intent/like" ] },
     ["requestBody"])
@@ -219,6 +177,11 @@ function twitterSharing() {
 
 /**
  * Register listeners to detect and save links from Facebook posts and reshares.
+ * Facebook events we handle:
+ *  - Posts, shares of posts
+ * To get the post contents, a content script sits on facebook.com domains.
+ * We pass post IDs to the content script and it tries to find them on the page.
+ * If it fails, it sends a request to Facebook and parses the reply to find the content.
  */
 async function facebookSharing() {
     // Listens for Facebook posts (status updates)
@@ -232,6 +195,7 @@ async function facebookSharing() {
             }
 
         var postTime = Date.now();
+        var unfilteredUrls = [];
         var urlsToSave = [];
         for (var variable of requestDetails.requestBody.formData.variables) {
             variable = JSON.parse(variable);
@@ -240,21 +204,16 @@ async function facebookSharing() {
             if (variable && variable.input && variable.input.message && variable.input.message.text) {
                 var postText = variable.input.message.text;
                 var postTokens = postText.split(/\s+/);
-                for (var postToken of postTokens) {
-                    if (urlMatcher.testUrl(postToken) || shortUrlMatcher.test(postToken)) {
-                        urlsToSave.push(postToken);
-                    }
-                }
+                await filterTokensToUrls(postTokens, urlsToSave);
             }
 
             // Check for urls that are attachments instead of post text
             if (variable && variable.input && variable.input.attachments) {
                 for (var attachment of variable.input.attachments) {
                     var url = JSON.parse(attachment.link.share_scrape_data).share_params.urlInfo.canonical;
-                    if (urlMatcher.testUrl(url) || shortUrlMatcher.test(postToken)) {
-                        urlsToSave.push(url);
-                    }
+                    unfilteredUrls.push(url);
                 }
+                await filterTokensToUrls(unfilteredUrls, urlsToSave);
             }
         }
 
@@ -324,16 +283,9 @@ async function facebookSharing() {
         browser.tabs.sendMessage(requestDetails.tabId,
             { "sharedFromPostId": sharedFromPostId, "ownerId": ownerId }).then(async (response) => {
                 var urlsToSave = [];
-                for (var url of response.urlsInMediaBox) {
-                    if (urlMatcher.testUrl(url) || shortUrlMatcher.test(url)) {
-                        urlsToSave.push(url);
-                    }
-                }
-                for (var url of response.urlsInPostBody) {
-                    if (urlMatcher.testUrl(url) || shortUrlMatcher.test(url)) {
-                        urlsToSave.push(url);
-                    }
-                }
+                await filterTokensToUrls(response.urlsInMediaBox, urlsToSave);
+                await filterTokensToUrls(response.urlsInPostBody, urlsToSave);
+
                 var urlsToReport = deduplicateUrls(urlsToSave);
                 for (var urlToReport of urlsToReport) {
                     var shareRecord = await createShareRecord(shareTime, "facebook", urlToReport, "share");
@@ -345,11 +297,7 @@ async function facebookSharing() {
         // if the user added text to the post when sharing, check that text for links
         var addedUrlsToSave = [];
         var postTokens = newPostMessage.split(/\s+/);
-        for (var postToken of postTokens) {
-            if (urlMatcher.testUrl(postToken) || shortUrlMatcher.test(postToken)) {
-                addedUrlsToSave.push(postToken);
-            }
-        }
+        await filterTokensToUrls(postTokens, addedUrlsToSave);
 
         // Deduplicate and log the urls added to the post by the user
         var urlsToReport = deduplicateUrls(addedUrlsToSave);
@@ -377,14 +325,13 @@ function redditSharing() {
 
         var shareTime = Date.now();
         var urlsToSave = [];
+        var unfilteredUrls = [];
 
         // Handle if there's a URL attached to the post
         if (("url" in requestDetails.requestBody.formData) &&
             (requestDetails.requestBody.formData["url"].length == 1)) {
             var postUrl = requestDetails.requestBody.formData["url"][0];
-            if (urlMatcher.testUrl(postUrl) || shortUrlMatcher.test(postUrl)) {
-                urlsToSave.push(postUrl);
-            }
+            unfilteredUrls.push(postUrl);
         }
 
         /* check that this is a post whose body we can read */
@@ -409,13 +356,13 @@ function redditSharing() {
                 // Handle when there's a url in the post body
                 var postBody = postObject.document[0].c;
                 for (var element of postBody) {
-                    if (element.e == "link" && (urlMatcher.testUrl(element.t) || shortUrlMatcher.test(element.t))) {
-                        urlsToSave.push(element.t);
+                    if (element.e == "link"){
+                        unfilteredUrls.push(element.t);
                     }
                 }
             }
         }
-
+        await filterTokensToUrls(unfilteredUrls, urlsToSave);
         var urlsToReport = deduplicateUrls(urlsToSave);
         for (var urlToReport of urlsToReport) {
             var shareRecord = await createShareRecord(shareTime, "reddit", urlToReport, "post");
@@ -475,48 +422,60 @@ function processTwitterResponse(details) {
         */
     return new Promise((resolve, reject) => {
         WebScience.Utilities.ResponseBody.processResponseBody(details.requestId, details.responseHeaders)
-            .then((rawResponseContents) => {
-                var expanded_urls = [];
+            .then(async (rawResponseContents) => {
+                var expanded_urls = {body: [], retweeted: [], quoted: [], replied: []}
                 var responseContents = JSON.parse(rawResponseContents);
                 // grab all urls mentioned in the tweet this response mentions
-                if (("entities" in responseContents &&
-                    "urls" in responseContents.entities)) {
+                if ("entities" in responseContents &&
+                    "urls" in responseContents.entities) {
                     for (var urlObject of responseContents.entities.urls) {
                         if ("expanded_url" in urlObject) {
-                            expanded_urls.push(urlObject.expanded_url);
+                            expanded_urls.body.push(urlObject.expanded_url);
                         }
                     }
                 }
 
                 // if this is a retweet (or a like of a retweet), grab all the urls in the original tweet
-                if (("retweeted_status" in responseContents &&
+                if ("retweeted_status" in responseContents &&
                     "entities" in responseContents.retweeted_status &&
-                    "urls" in responseContents.retweeted_status.entities)) {
+                    "urls" in responseContents.retweeted_status.entities) {
                     for (var urlObject of responseContents.retweeted_status.entities.urls) {
                         if ("expanded_url" in urlObject) {
-                            expanded_urls.push(urlObject.expanded_url)
+                            expanded_urls.retweeted.push(urlObject.expanded_url)
                         }
                     }
                 }
 
                 // if this is a quote-tweet (or a like of a quote-tweet), grab all the urls in the original tweet
-                if (("quoted_status" in responseContents &&
+                if ("quoted_status" in responseContents &&
                     "entities" in responseContents.quoted_status &&
-                    "urls" in responseContents.quoted_status.entities)) {
+                    "urls" in responseContents.quoted_status.entities) {
                     for (var urlObject of responseContents.quoted_status.entities.urls) {
                         if ("expanded_url" in urlObject) {
-                            expanded_urls.push(urlObject.expanded_url)
+                            expanded_urls.quoted.push(urlObject.expanded_url)
                         }
                     }
                 }
-                var urlsToSave = [];
-                // check whether the found urls are ones we care about and report if so
-                for (var expanded_url of expanded_urls) {
-                    if (urlMatcher.testUrl(expanded_url) || shortUrlMatcher.test(expanded_url)) {
-                        urlsToSave.push(expanded_url);
+
+                var urlsToSave = {body : [], retweeted: [], quoted: [], replied: []};
+
+                if ("in_reply_to_screen_name" in responseContents &&
+                    responseContents.in_reply_to_screen_name &&
+                    "in_reply_to_status_id_str" in responseContents &&
+                    responseContents.in_reply_to_status_id_str) {
+                        var screen_name = responseContents.in_reply_to_screen_name;
+                        var status_id = responseContents.in_reply_to_status_id_str;
+                        urlsToSave.replied = await getLinksFromTweet(status_id, screen_name);
                     }
-                }
-                resolve(deduplicateUrls(urlsToSave));
+                        
+                await filterTokensToUrls(expanded_urls.body, urlsToSave.body);
+                await filterTokensToUrls(expanded_urls.retweeted, urlsToSave.retweeted);
+                await filterTokensToUrls(expanded_urls.quoted, urlsToSave.quoted);
+
+                resolve({body: deduplicateUrls(urlsToSave.body),
+                         retweeted: deduplicateUrls(urlsToSave.retweeted),
+                         quoted: deduplicateUrls(urlsToSave.quoted),
+                         replied: urlsToSave.replied});
             }, (error) => { reject(error); });
     });
 }
@@ -534,11 +493,12 @@ function deduplicateUrls(urls) {
     return uniqueUrls;
 }
 /**
- * Request the content of a tweet, then filter the urls and return the relevant ones.
- * @param {String} tweet_id - the numerical ID of the tweet to retrieve
- * @returns {Set} - matching urls
+ * Request the content of a tweet, then filter and deduplicate the urls and return the relevant ones.
+ * @param {string} tweet_id - the numerical ID of the tweet to retrieve
+ * @param {string} [screen_name=jack] - screen name of the user who made the tweet. Defaults to jack, see below
+ * @returns {Promise} - matching urls
  */
-function getLinksFromTweet(tweet_id) {
+function getLinksFromTweet(tweet_id, screen_name = "jack") {
 // Can't use the twitter API without proper authentication (logged in user isn't enough)
 // The other options are using the regular (twitter.com/<user>/status/<tweet_id>) or embed (see below)
 // urls. Using the 'embed' link gets us the tweet content a lot more simply.
@@ -547,19 +507,87 @@ function getLinksFromTweet(tweet_id) {
 // and we don't get the username in the request that gets sent.
 // However, if you put the *wrong* username with a tweet id, twitter will find the right user
 // and return the tweet anyway. Handy! Thanks Jack!
-    return fetch(`https://publish.twitter.com/oembed?url=https://twitter.com/jack/status/${tweet_id}`).then((responseFromFetch) => {
-        return responseFromFetch.json().then((resp) => {
-            var content = resp.html;
-            var doc = (new DOMParser()).parseFromString(content, "text/html");
-            var links = doc.querySelectorAll("a[href]")
-            var urlsToSave = [];
-            for (var link of links) {
-                var url = link.getAttribute("href");
-                if (urlMatcher.testUrl(url) || shortUrlMatcher.test(url)) {
-                    urlsToSave.push(url);
+    return new Promise((resolve, reject) => {
+        fetch(`https://publish.twitter.com/oembed?url=https://twitter.com/${screen_name}/status/${tweet_id}`).then(async (responseFromFetch) => {
+            responseFromFetch.json().then(async (response) => {
+                var content = response.html;
+                var doc = (new DOMParser()).parseFromString(content, "text/html");
+                var links = doc.querySelectorAll("a[href]")
+                var unfilteredUrls = [];
+                for (var link of links) {
+                    unfilteredUrls.push(link.getAttribute("href"));
                 }
-            }
-            return deduplicateUrls(urlsToSave);
+                var urlsToSave = [];
+                await filterTokensToUrls(unfilteredUrls, urlsToSave);
+                resolve(deduplicateUrls(urlsToSave));
+            });
         });
     });
+}
+
+/**
+ * Check whether a given token is a known short url, and resolve if so.
+ * @param {string} url - a token that might be a short url
+ * @return {Object} - {`result`: whether `url` was a resolveable short url, `resolvedUrl`: the full url, if available}
+ */
+async function checkShortUrl(url) {
+    if (shortUrlMatcher.test(url)) {
+        var resolvedUrlObj = await WebScience.Utilities.LinkResolution.resolveURL(url);
+        if (urlMatcher.testUrl(resolvedUrlObj.dest)) {
+            return {result: true, resolvedUrl: resolvedUrlObj.dest}
+        }
+    }
+    return {result:false};
+}
+
+/**
+ * Filter an array of tokens into relevant urls, including resolving short urls.
+ * @param {String[]} unfilteredTokens - array of tokens
+ * @param {String[]} urlsToSave - an array to add the relevant urls to
+ */
+async function filterTokensToUrls(unfilteredTokens, urlsToSave) {
+    for (var unfilteredToken of unfilteredTokens) {
+        if (urlMatcher.testUrl(unfilteredToken)) {
+            urlsToSave.push(unfilteredToken);
+        }
+        else {
+            var resolved = await checkShortUrl(unfilteredToken);
+            if (resolved.result) {
+                urlsToSave.push(resolved.resolvedUrl);
+            }
+        }
+    }
+}
+
+/**
+ * Create and save sharing events for a given type of twitter event.
+ * @param {Object} urlsToReport - a collection of urls associated with this tweet
+ * @param {Set} urlsToReport.body - the urls in the top-most tweet of an event
+ * @param {Set} urlsToReport.retweeted - the urls inside of a tweet that was retweeted by this tweet
+ * @param {Set} urlsToReport.quoted - the urls in a quoted tweet inside this tweet
+ * @param {Set} urlsToReport.replied - the urls inside a tweet that this tweet is replying to
+ * @param {string} type - the kind of twitter event being reported
+ * @param {number} time - the timestamp for when the event happened
+ */
+async function recordTwitterUrls(urlsToReport, type, time) {
+    for (var bodyUrlToReport of urlsToReport.body) {
+        var shareRecord = await createShareRecord(time, "twitter", bodyUrlToReport, `${type} body`);
+        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+        debugLog(`Twitter ${type}: ` + JSON.stringify(shareRecord));
+    }
+    for (var retweetedUrlToReport of urlsToReport.retweeted) {
+        var shareRecord = await createShareRecord(time, "twitter", retweetedUrlToReport, `${type} retweeted`);
+        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+        debugLog(`Twitter ${type}: ` + JSON.stringify(shareRecord));
+    }
+    for (var quotedUrlToReport of urlsToReport.quoted) {
+        var shareRecord = await createShareRecord(time, "twitter", quotedUrlToReport, `${type} quoted`);
+        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+        debugLog(`Twitter ${type}: ` + JSON.stringify(shareRecord));
+    }
+    for (var repliedUrlToReport of urlsToReport.replied) {
+        var shareRecord = await createShareRecord(time, "twitter", repliedUrlToReport, `${type} replied`);
+        storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
+        debugLog(`Twitter ${type}: ` + JSON.stringify(shareRecord));
+    }
 }
