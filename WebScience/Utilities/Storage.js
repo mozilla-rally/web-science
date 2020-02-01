@@ -81,6 +81,26 @@ export class KeyValueStorage {
         });
         return output;
     }
+
+    /**
+     * @callback iterator
+     * @param {(Array|ArrayBuffer|Blob|Float32Array|Float64Array|Int8Array|Int16Array|Int32Array|
+     * Number|Object|Uint8Array|Uint8ClampedArray|Uint16Array|Uint32Array|string)} value
+     * @param {string} key
+     * @param {number} iterationNumber
+     */
+    /**
+     * Iterate over all the entries in the storage area. Note that iteration
+     * will stop if `callback` returns anything non-`undefined`.
+     * 
+     * As long as we're using LocalForage, this is easy and presumably not
+     * memory-intensive, as long as the callback isn't storing all of the entires.
+     * @param {iterator} callback - function called on each key-value pair
+     * @returns {Promise}
+     */
+    iterate(callback) {
+        return this.storageInstance.iterate(callback);
+    }
 }
 
 KeyValueStorage.localForageInitialized = false; // workaround for static class variable
