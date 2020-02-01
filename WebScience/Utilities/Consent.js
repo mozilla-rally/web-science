@@ -160,6 +160,9 @@ export async function requestConsentAndBegin() {
     return checkStudySpecificConsent();
   });
 
-  if (studySpecificConsentRequired) { browser.runtime.openOptionsPage(); }
+  // temp, pending choices about how we implement consent
+  // Note that a dev build of Firefox is required to use the experimental API
+  // To see the popup, comment out the call to disableStudySpecificConsent in study.js (and run dev FF)
+  if (studySpecificConsentRequired) { browser.privileged.createConsentPopup(); }
   else { startStudy(); }
 }

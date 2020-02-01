@@ -67,14 +67,11 @@ function runStudies() {
         privateWindows: false
     });
     
-    // Configure surveys
-    // TODO something like...
-
+    // Configure surveys (pending choices)
     /*
-    WebScience.Studies.UserSurvey.runStudy({
-        surveyPromptText: "foo",
-        surveyUrl: "bar",
-        surveyTimeAfterInitialRun: 12345
+    WebScience.Utilities.UserSurvey.runStudy({
+        surveyUrl: "https://www.mozilla.org/en-US/",
+        surveyTimeAfterInitialRun: 5000
     });
     */
 }
