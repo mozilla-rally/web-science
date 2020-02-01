@@ -63,7 +63,8 @@ function runStudies() {
         domains: studyDomains,
         facebook: true,
         twitter: true,
-        reddit: true
+        reddit: true,
+        privateWindows: false
     });
     
     // Configure surveys

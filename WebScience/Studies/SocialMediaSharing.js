@@ -43,24 +43,28 @@ var shareIdCounter = null;
  * @param {boolean} [options.facebook=false] - Whether to track URL shares on Facebook.
  * @param {boolean} [options.twitter=false] - Whether to track URL shares on Twitter.
  * @param {boolean} [options.reddit=false] - Whether to track URL shares on Reddit.
+ * @param {boolean} [options.privateWindows=false] - Whether to track URL shares made in private windows.
  */
 export async function runStudy({
     domains = [],
     facebook = false,
     twitter = false,
-    reddit = false
+    reddit = false,
+    privateWindows = false
 }) {
     storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaSharing")).initialize();
     urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
     var sdrs = await browser.storage.local.get("shortDomainRegexString");
     shortUrlMatcher = new RegExp(sdrs.shortDomainRegexString),
 
+    // Make this available to content scripts
+    await browser.storage.local.set({ "WebScience.Studies.SocialMediaSharing.privateWindows": privateWindows });
     // Use a unique identifier for each URL the user shares
     shareIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaSharing.nextShareId")).initialize();
 
-    if (twitter) { twitterSharing(); }
-    if (facebook) { await facebookSharing(); }
-    if (reddit) { redditSharing(); }
+    if (twitter) { twitterSharing(privateWindows); }
+    if (facebook) { await facebookSharing(privateWindows); }
+    if (reddit) { redditSharing(privateWindows); }
 }
 
 /**
@@ -86,7 +90,7 @@ export async function runStudy({
  *   - likes made from other sites
  *   - (it seems like embedded tweets don't have retweet or reply buttons)
  */
-function twitterSharing() {
+function twitterSharing(privateWindows) {
     // If the user POSTS a status update, parse it for matching URLs
     browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
         if (!(requestDetails && requestDetails.method == "POST")) { return; }
@@ -114,7 +118,8 @@ function twitterSharing() {
             debugLog("Twitter: " + JSON.stringify(shareRecord));
         }
     }, { urls: [ "https://twitter.com/intent/tweet" /* catches tweets made via share links on websites */
-            ] },
+            ], incognito: (privateWindows ? null : false)
+        },
         ["requestBody", "blocking"]);
 
 
@@ -130,7 +135,8 @@ function twitterSharing() {
         });
     }, // Using a wildcard for the API version in case that changes
         { urls: [ "https://api.twitter.com/*/statuses/retweet.json" /* catches retweets made from twitter.com */
-            ] },
+            ], incognito: (privateWindows ? null : false)
+        },
         ["responseHeaders", "blocking"]);
 
     // Handle favorites
@@ -142,7 +148,8 @@ function twitterSharing() {
         });
     }, // Using a wildcard for the API version in case that changes
         { urls: [ "https://api.twitter.com/*/favorites/create.json" /* catches likes made from twitter.com */
-            ] },
+            ], incognito: (privateWindows ? null : false),
+        },
         ["responseHeaders", "blocking"]);
 
     // Handle quote tweets
@@ -154,7 +161,8 @@ function twitterSharing() {
         });
     }, // Using a wildcard for the API version in case that changes
         { urls: [ "https://api.twitter.com/*/statuses/update.json" /* catches tweets & replies made from twitter.com */
-            ] },
+            ], incognito: (privateWindows ? null : false)
+        },
         ["responseHeaders", "blocking"]);
 
     // Handle likes made from sites other than twitter.com
@@ -171,7 +179,8 @@ function twitterSharing() {
             storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
             debugLog("Twitter like (external): " + JSON.stringify(shareRecord));
         }
-    }, { urls : [ "https://twitter.com/intent/like" ] },
+    }, { urls : [ "https://twitter.com/intent/like" ], incognito: (privateWindows ? null : false)
+},
     ["requestBody"])
 }
 
@@ -183,7 +192,7 @@ function twitterSharing() {
  * We pass post IDs to the content script and it tries to find them on the page.
  * If it fails, it sends a request to Facebook and parses the reply to find the content.
  */
-async function facebookSharing() {
+async function facebookSharing(privateWindows) {
     // Listens for Facebook posts (status updates)
     browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
         // Check that this is a recognizable status update
@@ -226,8 +235,9 @@ async function facebookSharing() {
         }
     },
         // Using a wildcard at the end of the URL because Facebook adds parameters
-        { urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*"] },
-        ["requestBody"]
+        { urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*"],
+          incognito: (privateWindows ? null : false)    
+        }, ["requestBody"]
     );
 
     // Register the content script that will find posts inside the page when reshares happen
@@ -237,7 +247,8 @@ async function facebookSharing() {
             { file: "/WebScience/Studies/content-scripts/utils.js" },
             { file: "/WebScience/Studies/content-scripts/socialMediaSharing.js" }
         ],
-        runAt: "document_idle"
+        //runAt: "document_idle"
+        runAt: "document_start"
     });
     
     // Listen for requests that look like post reshares
@@ -308,14 +319,16 @@ async function facebookSharing() {
         }
     },
         // Using a wildcard at the end of the URL because Facebook sometimes adds parameters
-        { urls: ["https://www.facebook.com/share/dialog/submit/*"] },
+        { urls: ["https://www.facebook.com/share/dialog/submit/*"],
+          incognito: (privateWindows ? null : false)
+        },
         ["requestBody"]);
 }
 
 /**
  * Register listeners to log urls shared in Reddit posts.
  */
-function redditSharing() {
+function redditSharing(privateWindows) {
     // If the user POSTs a new post, parse it for matching URLs
     browser.webRequest.onBeforeRequest.addListener(async (requestDetails) => {
         if (!(requestDetails && requestDetails.method == "POST")) { return; }
@@ -372,8 +385,8 @@ function redditSharing() {
 
     },
         // Using a wildcard at the end of the URL because Reddit adds parameters
-        { urls: [ "https://oauth.reddit.com/api/submit*"
-            ] },
+        { urls: [ "https://oauth.reddit.com/api/submit*" ],
+          incognito: (privateWindows ? null : false) },
         ["requestBody"]);
 }
 
