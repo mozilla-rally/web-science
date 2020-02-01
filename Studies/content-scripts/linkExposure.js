@@ -15,7 +15,7 @@
      * @const
      * visibilityThreshold (number of milliseconds) is minimum number of milliseconds for link exposure
      */
-    const visibilityThreshold = 10000;
+    const visibilityThreshold = 10000; // TODO : Make this a configurable option which can be set during the setup
     const elementSizeCache = new Map();
     linkExposure();
 
