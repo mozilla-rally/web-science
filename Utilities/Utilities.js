@@ -36,3 +36,6 @@ export { Randomization }
 
 import * as StudyTelemetry from "./StudyTelemetry.js"
 export { StudyTelemetry }
+
+import * as UserSurvey from "./UserSurvey.js"
+export { UserSurvey }
