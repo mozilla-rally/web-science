@@ -31,7 +31,9 @@
         "tabs",
         "unlimitedStorage",
         "webRequest",
-        "webRequestBlocking"
+        "webRequestBlocking",
+        "alarms",
+        "history"
     ],
 
     "incognito": "spanning",
@@ -40,6 +42,17 @@
         "gecko": {
             "id": "news.study@princeton.edu",
             "strict_min_version": "60.0"
+        }
+    },
+
+    "experiment_apis": {
+        "privileged": {
+            "schema": "./privileged.json",
+            "parent": {
+                "scopes": [ "addon_parent" ],
+                "script": "./privileged.js",
+                "paths": [[ "privileged" ]]
+            }
         }
     }
 

@@ -14,6 +14,8 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.Navigat
  * @private
  */
 var storage = null;
+var currentTabInfo = null;
+var urlMatcher = null;
 
 /**
  * Start a navigation study. Note that only one study is supported per extension.
@@ -35,7 +37,7 @@ export async function runStudy({
 
     storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.Navigation")).initialize();
 
-    const urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
+    urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
     var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.Navigation.nextPageId")).initialize();
@@ -43,7 +45,7 @@ export async function runStudy({
     // Keep track of information about pages with matching domains that are currently loaded into a tab
     // If a tab ID is in this object, the page currently contained in that tab has a matching domain
     // Note that this is currently implemented with an object, we might want to switch it to a Map
-    var currentTabInfo = { }
+    currentTabInfo = { }
 
     // Handle when a page visit starts
     async function pageVisitStartListener({url, referrer, tabId, timeStamp}) {
@@ -157,32 +159,6 @@ export async function runStudy({
     // Store whether the Navigation study is running in private windows in extension
     // local storage, so that it is available to content scripts
     await browser.storage.local.set({ "WebScience.Studies.Navigation.privateWindows": privateWindows });
-
-    // If the study should save page content...
-    if(savePageContent) {
-        // Listen for update messages from the page content content script
-        WebScience.Utilities.Messaging.registerListener("WebScience.Studies.Navigation.pageContentUpdate", (message, sender) => {
-            // If the page content message is not from a tab, or if we are not tracking
-            // the tab, ignore the message
-            // Neither of these things should happen!
-            if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
-                debugLog("Warning: unexpected page content update");
-                return;
-            }
-
-            // Remember the page content for this page
-            currentTabInfo[sender.tab.id].pageContent = message.pageContent;
-            debugLog("pageContentUpdate: " + JSON.stringify(currentTabInfo[sender.tab.id]));
-        },
-        { pageContent: "string" });
-
-        // Register the content script for sharing the content of a page with a matching domain
-        await browser.contentScripts.register({
-            matches: contentScriptMatches,
-            js: [ { file: "/WebScience/Studies/content-scripts/pageContent.js" } ],
-            runAt: "document_idle"
-        });
-    }
 }
 
 /* Utilities */
@@ -197,4 +173,32 @@ export async function getStudyDataAsObject() {
     if(storage != null)
         return await storage.getContentsAsObject();
     return null;
+}
+
+/**
+ * Search the current page visits being tracked as well as the stored database for
+ * a visit to a particular page.
+ * @param {string} url - the page to search for, ignoring everything except host and path
+ * @returns {Object} - object mapping pageIds to all page visits for `url`, if any exist
+ */
+export async function findUrlVisit(url) {
+    if (!urlMatcher.testUrl(url)) { return; } // if it's not a tracked url, it definitely isn't in our database
+
+    var matchingVisits = { };
+
+    // Search in-memory pages
+    for (let pageId in currentTabInfo){
+        var pageVisit = currentTabInfo[pageId];
+        if (WebScience.Utilities.Matching.approxMatchUrl(url, pageVisit.url)) {
+            matchingVisits[pageId] = pageVisit;
+        }
+    }
+
+    // Search previously-stored pages
+    storage.iterate((pageVisit, pageId, iterationNumber) => {
+        if (WebScience.Utilities.Matching.approxMatchUrl(url, pageVisit.url)) {
+            matchingVisits[pageId] = pageVisit;
+        }
+    });
+    return matchingVisits;
 }

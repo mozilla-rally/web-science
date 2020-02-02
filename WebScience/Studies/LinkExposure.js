@@ -1,117 +1,156 @@
-import * as WebScience from "../WebScience.js"
+/**
+ * LinkExposure module is used to run studies that track user's exposure
+ * to content from known news domains
+ * @module WebScience.Studies.LinkExposure
+ */
+import * as WebScience from "/WebScience/WebScience.js";
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExposure");
 
-/*  LinkExposure - This module is used to run studies that track the user's
-    exposure to links. */
-
+/**
+ * A KeyValueStorage object for data associated with the study.
+ * @type {Object}
+ * @private
+ */
 var storage = null;
 
-// helper function to get results of promises
-function reflect(promise){
-  return promise.then(function(v){ return {v:v, status: "fulfilled" }},
-                      function(e){ return {e:e, status: "rejected" }});
+/**
+ * Creates regex strings for domains of interest and short domains
+ * @param {String[]} domains - domains of interest
+ * @param {String[]} shortDomains - short domains
+ * @param {Object} - Regular expression strings
+ */
+function createRegex(domains, shortDomains) {
+  let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
+  let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
+  let regexes = {
+    domainRegexString: domainRegexString,
+    shortDomainRegexString: shortDomainRegexString
+  };
+  return regexes;
 }
 
-/* runStudy - Starts a LinkExposure study. Note that only one study is supported
-   per extension. runStudy requires an options object with the following
-   property.
+/**
+ * setRegex function stores the regular expression strings corresponding to 
+ * domains and link shortening domains in local storage.
+ * These storage items are accessible from content scripts during the matching phase.
+ * Note : It's not possible to store RegExp 
+ * (https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/StorageArea/set)
+ * 
+ * @param {String[]} domains - domains of interest
+ * @param {String[]} shortDomains - short domains
+ */
+async function setRegex(domains, shortDomains) {
+  let storageObj = createRegex(domains, shortDomains);
+  await browser.storage.local.set(storageObj);
+}
 
-        * domains - array of domains for tracking link exposure events */
+/**
+ * Function checks and sets (if not set already) regular expression strings
+ * for domain matching in the storage.
+ * @param {String[]} domains - domains of interest
+ * @param {String[]} shortDomains - short domains
+ */
+async function setCode(domains, shortDomains) {
+  let dregex = await browser.storage.local.get("domainRegexString");
+  let sdregex = await browser.storage.local.get("shortDomainRegexString");
+  if (isEmpty(dregex) || isEmpty(sdregex)) {
+    setRegex(domains, shortDomains);
+  }
+}
 
+/**
+ * @name LinkExposure.runStudy starts the LinkExposure study.
+ * @param {String[]} domains - Array of domains to track 
+ * @param {boolean} privateWindows - If true then the study works in private windows
+ */
 export async function runStudy({
-  domains = [ ],
-  shortdomains = []
+  domains = [],
+  privateWindows = false,
 }) {
 
+  // store private windows preference in the storage
+  await browser.storage.local.set({ "WebScience.Studies.LinkExposure.privateWindows": privateWindows }); 
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
-
-  // Use a unique identifier for each webpage the user visits
+  // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
-
-  // Listen for requests to expand short urls
-  browser.runtime.onMessage.addListener((message, sender) => {
-    if((message == null) ||
-        !("type" in message) ||
-        message.type != "WebScience.shortLinks")
-      return;
-    // If the link exposure message isn't from a tab, ignore the message
-    // (this shouldn't happen)
-    if(!("tab" in sender))
-      return;
-      debugLog("incoming requests " + message.content.links);
-    var promises = [];
-    for (var link of message.content.links) {
-        var p = WebScience.Utilities.LinkResolution.resolveURL(link.href);
-        promises.push(p);
-    }
-    Promise.all(promises.map(reflect)).then(function (results) {
-      var success = results.filter(x => x.status === "fulfilled");
-      var errors = results.filter(x => x.status === "rejected");
-      debugLog("success " + success);
-      success.map(x => debugLog(x.v));
-      browser.tabs.sendMessage(sender.tab.id, {'links': success}).then(resp => debugLog(resp)).catch(err => debugLog("error in sending " + err));
-    });
-  });
-
-  // Listen for initial link exposure messages and save them to the database
-  browser.runtime.onMessage.addListener((message, sender) => {
-    if((message == null) ||
-        !("type" in message) ||
-        message.type != "WebScience.linkExposureInitial")
-      return;
-    // If the link exposure message isn't from a tab, ignore the message
-    // (this shouldn't happen)
-    if(!("tab" in sender))
-      return;
-    // TODO check whether the tab's window is the current browser window, since
-    // the content script can only tell whether its tab is active within its window
-    // One option: use browser.windows.getCurrent (asynchronous)
-    // Another option: set a listener for browser.windows.onFocusChanged to keep track of
-    //  the current window (synchronous in this context)
-    // Another option: reuse the window and tab tracking from WebScience.Navigation (synchronous)
-
-    nextPageIdCounter.getAndIncrement().then(pageId => {
-      storage.set(pageId.toString(), message.content).then(() => {
-        debugLog("linkExposureInitial: " + JSON.stringify(message.content));
-      })
-    });
-  });
-
-  // create code for url and short domain matching
-  var injectcode = "const urlMatchRE = \"" + 
-  WebScience.Utilities.Matching.createUrlRegexString(domains).replace(/\\/g, "\\\\") + 
-    "\"; const urlMatcher = new RegExp(urlMatchRE);" +  "const shortURLMatchRE = \"" + 
-          WebScience.Utilities.Matching.createUrlRegexString(shortdomains).replace(/\\/g, "\\\\") + 
-            "\"; const shortURLMatcher = new RegExp(shortURLMatchRE);"
-  console.log("code is "+injectcode);
-
-  // Add a dynamically generated content script to every HTTP/HTTPS page that
-  // supports checking for whether a link's domain matches the set for the study
-  // Note that we have to carefully escape the domain matching regular expression
-  await browser.contentScripts.register({
-      matches: [ "*://*/*" ],
-      js: [
-        {
-          code: injectcode
-        }
-      ],
-      runAt: "document_start"
-  });
+  let shortDomains = WebScience.Utilities.LinkResolution.getShortDomains();
+  await setCode(domains, shortDomains);
+  const {domainRegexString, shortDomainRegexString} = createRegex(domains, shortDomains);
+  const shortDomainMatcher = new RegExp(shortDomainRegexString);
+  const urlMatcher = new RegExp(domainRegexString);
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
-      matches: [ "*://*/*" ],
-      js: [ { file: "/WebScience/Studies/content-scripts/linkExposure.js" } ],
-      runAt: "document_idle"
+    matches: ["*://*/*"],
+    js: [{
+        file: "/WebScience/Studies/content-scripts/utils.js"
+      },
+      {
+        file: "/WebScience/Studies/content-scripts/ampResolution.js"
+      },
+      {
+        file: "/WebScience/Studies/content-scripts/linkExposure.js"
+      }
+    ],
+    runAt: "document_idle"
+  });
+
+  // Listen for LinkExposure messages from content script
+  WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (message, sender, sendResponse) => {
+    if (!("tab" in sender)) {
+      debugLog("Warning: unexpected page content update");
+      return;
+    }
+    // Resolve links from known short domains
+    if (shortDomainMatcher.test(message.link.href)) {
+      WebScience.Utilities.LinkResolution.resolveURL(message.link.href).then(resolvedURL => {
+        // If resolved link belongs to the domains of interest
+        if (urlMatcher.test(resolvedURL.dest)) {
+          message.link.dest = resolvedURL.dest;
+          debugLog("storing " + JSON.stringify(message));
+          storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+        }
+      }).catch(error => {
+        // For failed resolutions save exposure information along with error message
+        message.link.error = error.message;
+          debugLog("storing " + JSON.stringify(message));
+          storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+      });
+    } else {
+      debugLog("storing " + JSON.stringify(message));
+      storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+    }
+  }, {
+    referrer: "string",
+    url: "string",
+    link: "object"
   });
 
 }
 
 /* Utilities */
 
-// Helper function that dumps the link exposure study data as an object
+// Helper function that dumps the navigation study data as an object
 export async function getStudyDataAsObject() {
-    if(storage != null)
-        return await storage.getContentsAsObject();
-    return null;
+  var output = {
+    "LinkExposure.pages": {},
+    "LinkExposure.configuration": {}
+  };
+  await storage.pages.iterate((value, key, iterationNumber) => {
+    output["LinkExposure.pages"][key] = value;
+  });
+  await storage.configuration.iterate((value, key, iterationNumber) => {
+    output["LinkExposure.configuration"][key] = value;
+  });
+  return output;
+}
+
+/**
+ * Function tests whether a given object is empty
+ * @param {Object} obj - Object to test
+ * @returns {boolean} - true if the object is empty
+ * @private
+ */
+function isEmpty(obj) {
+  return !obj || Object.keys(obj).length === 0;
 }

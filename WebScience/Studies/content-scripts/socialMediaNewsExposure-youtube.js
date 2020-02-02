@@ -1,10 +1,27 @@
+/**
+ * Content script for measuring news exposure on youtube
+ * @module WebScience.Studies.content-scripts.socialMediaNewsExposure
+ */
 (
-    function () {
+    async function () {
 
-        // Save the time the page initially completed loading
-        let initialLoadTime = Date.now();
+        /**
+         * Checks if the script should exit because private windows are not supported for SocialMediaNewsExposure
+         * @returns {boolean} - true if private windows are not supported
+         */
+        async function checkPrivateWindowSupport() {
+            let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaNewsExposure.privateWindows");
+            return ("WebScience.Studies.SocialMediaNewsExposure.privateWindows" in privateWindowResults) &&
+            !privateWindowResults["WebScience.Studies.SocialMediaNewsExposure.privateWindows"] &&
+            browser.extension.inIncognitoContext;
+        }
 
-        let initialVisibility = document.visibilityState == "visible";
+        // First check if we are allowed to run in private windows
+        let isExit = await checkPrivateWindowSupport();
+        if (isExit) {
+            return;
+        }
+
         // ytcategory is the news category string for youtube videos
         const ytcategory = "CategoryNews&Politics";
         /** @constant {RegExp} regex for youtube video url */
@@ -47,7 +64,10 @@
                 sendMessage();
             }
         }
-        /** @name isYoutube returns true if the current location is youtube watch url */
+        /**
+         * Check if the location matches youtube
+         * @private
+         */
         function isYoutube() {
             return ytmatcher.exec(location.href) != null;
         }
@@ -56,7 +76,11 @@
             let arr = [...document.documentElement.innerHTML.matchAll("News \\\\u0026 Politics")];
             return arr.length > 0;
         }
-        /** check for category from DOM */
+        /**
+         * Checks news category after the show more button is clicked
+         * @returns {boolean} - true if the video category is News & Politics
+         * @private
+         */
         function checkForNewsCategoryFromClick() {
             elements = document.getElementsByClassName("style-scope ytd-metadata-row-container-renderer");
             for (i = 0; i < elements.length; i++) {
@@ -69,7 +93,9 @@
             }
             return false;
         }
-        /** @name sendMessage function sends video title to background script */
+        /**
+         * Sends video title, url of news related videos on Youtube to background script
+         */
         function sendMessage() {
             let videoTitle = document.querySelector("h1.title.style-scope.ytd-video-primary-info-renderer").textContent;
             browser.runtime.sendMessage({

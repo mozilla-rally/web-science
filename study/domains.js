@@ -1,12 +1,4 @@
 export const studyDomains = [
-  // Temporary: popular shorteners until the shim resolution functionality is done
-  "nyti.ms",
-  "reut.rs",
-  "wapo.st",
-  "cnb.cx",
-  "apne.ws",
-  "bloom.bg",
-  "cnn.it",
   // Temporary: additional popular news domains
   "nytimes.com",
   "cnn.com",

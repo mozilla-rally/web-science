@@ -1,5 +1,4 @@
 import { studyDomains } from "/study/domains.js"
-import { shortDomains } from "/study/shortdomains.js"
 import { youtubeChannels } from "/study/mediaYtChannels.js";
 import { facebookAccounts } from "/study/mediaFbAccounts.js";
 import { socialMedia } from "/study/socialmedia.js"
@@ -7,7 +6,6 @@ import * as WebScience from "../WebScience/WebScience.js"
 
 WebScience.Utilities.Debugging.enableDebugging();
 const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("study");
-WebScience.Utilities.StudyTelemetry.initialize();
 
 /* These will be called depending on the consent setting for this study,
  *  in response to study events (e.g. stating the necessity of consent)
@@ -42,50 +40,38 @@ function runStudies() {
       });
 
     // Configure link exposure collection
+    WebScience.Utilities.LinkResolution.initialize();
     WebScience.Studies.LinkExposure.runStudy({
         domains: studyDomains,
-        shortdomains: shortDomains
+        privateWindows : false,
     });
 
+    // Configure social media account exposure study
     WebScience.Studies.SocialMediaAccountExposure.runStudy({
         fbaccounts: facebookAccounts,
-        ytchannels: youtubeChannels
+        ytchannels: youtubeChannels,
+        privateWindows : false,
     });
 
-    WebScience.Studies.SocialMediaNewsExposure.runStudy();
+    // Configure social media news exposure study
+    WebScience.Studies.SocialMediaNewsExposure.runStudy({
+        privateWindows : false,
+    });
 
-    // Configure link exposure collection
-    
     // Configure social media sharing collection
-    /*
     WebScience.Studies.SocialMediaSharing.runStudy({
         domains: studyDomains,
         facebook: true,
         twitter: true,
-        reddit: true
+        reddit: true,
+        privateWindows: false
     });
-    */
     
-    // TODO configure social media news exposure collection (i.e., content
-    // recognized by platforms as news regardless of whether we recognize the domain
-    // Something like...
-    
+    // Configure surveys (pending choices)
     /*
-    WebScience.Studies.SocialMediaNewsExposure.runStudy({
-        facebook: true,
-        twitter: true,
-        youtube: true
-    });
-    */
-
-    // Configure surveys
-    // TODO something like...
-
-    /*
-    WebScience.Studies.UserSurvey.runStudy({
-        surveyPromptText: "foo",
-        surveyUrl: "bar",
-        surveyTimeAfterInitialRun: 12345
+    WebScience.Utilities.UserSurvey.runStudy({
+        surveyUrl: "https://www.mozilla.org/en-US/",
+        surveyTimeAfterInitialRun: 5000
     });
     */
 }

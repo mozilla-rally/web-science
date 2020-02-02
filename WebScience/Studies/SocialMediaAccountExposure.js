@@ -24,8 +24,11 @@ var storage = null;
 export async function runStudy({
   fbaccounts = [ ],
   ytchannels = [ ],
+  privateWindows = false,
 }) {
 
+  // store private windows preference in the storage
+  await browser.storage.local.set({ "WebScience.Studies.SocialMediaAccountExposure.privateWindows": privateWindows }); 
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaAccountExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaAccountExposure.nextPageId")).initialize();
@@ -69,7 +72,11 @@ export async function runStudy({
 
   await browser.contentScripts.register({
     matches: ["*://*.facebook.com/*"],
-    js: [ { file: "/WebScience/Studies/content-scripts/socialMediaAccountExposure-fb.js" }],
+    js: [
+      {
+        file: "/WebScience/Studies/content-scripts/socialMediaAccountExposure-fb.js"
+      }
+    ],
     runAt: "document_idle"
   });
 
