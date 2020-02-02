@@ -1,5 +1,17 @@
 {
 	"sources": [{
+		"label": "MBFC",
+		"name": "Media Bias/Fact Check: Least Biased Sources",
+		"url": "https://mediabiasfactcheck.com/center/",
+		"date_scraped": "01142020",
+		"notes": "From the site: These sources have minimal bias and use very few loaded words (wording that attempts to influence an audience by using appeal to emotion or stereotypes).  The reporting is factual and usually sourced.  These are the most credible media sources."
+	},{
+		"label": "MediaRank",
+		"name": "MediaRank: Computational Ranking of Online News Sources",
+		"url": "http://media-rank.com/",
+		"date_scraped": "01132020",
+		"notes": ""
+	},{
 		"label": "Wikipedia",
 		"name": "Wikipedia: American news websites",
 		"url": "https://en.wikipedia.org/wiki/Category:American_news_websites",
