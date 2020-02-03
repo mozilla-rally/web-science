@@ -132,7 +132,17 @@
         Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href")).forEach(element => {
           // if we haven't seen this <a> element
           if (!checkedElements.has(element)) {
-            processElement(element);
+            const {
+              url,
+              isMatched
+            } = matchUrl(element);
+            if (!isMatched) {
+              return;
+            }
+            let status = new ElementStatus(url);
+            status.setMatched();
+            checkedElements.set(element, status);
+            observer.observe(element);
           } else {
             let status = checkedElements.get(element);
             // if we have seen and the element is visible for atleast threshold milliseconds
@@ -150,27 +160,6 @@
           }
         });
       }
-
-      /**
-       * i) Checks if the normalized url matches domain/short domains
-       * ii) Observe matching elements with the intersection observer
-       * @param {HTMLElement} element 
-       * @returns {void} Nothing
-       */
-      function processElement(element) {
-        const {
-          url,
-          isMatched
-        } = matchUrl(element);
-        if (!isMatched) {
-          return;
-        }
-        let status = new ElementStatus(url);
-        status.setMatched();
-        checkedElements.set(element, status);
-        observer.observe(element);
-      }
-
 
       /** callback for IntersectionObserver */
       function handleIntersection(entries, observer) {
