@@ -1,7 +1,6 @@
 import { studyDomains } from "/study/domains.js"
 import { youtubeChannels } from "/study/mediaYtChannels.js";
 import { facebookAccounts } from "/study/mediaFbAccounts.js";
-import { socialMedia } from "/study/socialmedia.js"
 import * as WebScience from "../WebScience/WebScience.js"
 
 WebScience.Utilities.Debugging.enableDebugging();
