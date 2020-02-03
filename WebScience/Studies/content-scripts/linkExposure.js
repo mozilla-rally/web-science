@@ -27,17 +27,6 @@
     async function linkExposure() {
 
       /**
-       * Checks if the script should exit because private windows are not supported for LinkExposure
-       * @returns {boolean} - true if private windows are not supported
-       */
-      async function checkPrivateWindowSupport() {
-        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.LinkExposure.privateWindows");
-        return ("WebScience.Studies.LinkExposure.privateWindows" in privateWindowResults) &&
-          !privateWindowResults["WebScience.Studies.LinkExposure.privateWindows"] &&
-          browser.extension.inIncognitoContext;
-      }
-
-      /**
        * Initializes the script by constructing regular expressions for matching domains and short domains
        * @returns {Object} regular expressions for matching domains and short domains
        */
@@ -51,10 +40,12 @@
       }
 
       // First check private windows support
-      let isExit = await checkPrivateWindowSupport();
-      if (isExit) {
-        return;
-      }
+        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.LinkExposure.privateWindows");
+        if (("WebScience.Studies.LinkExposure.privateWindows" in privateWindowResults) &&
+          !privateWindowResults["WebScience.Studies.LinkExposure.privateWindows"] &&
+          browser.extension.inIncognitoContext) {
+          return;
+        }
 
       // Initialize the script
       const {
