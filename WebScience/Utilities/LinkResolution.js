@@ -21,7 +21,7 @@ let links = new Map();
  * @param {string} url - URL to resolve
  * @returns {Promise.Object} - An object containing the destination url
  */
-export function resolveURL(url) {
+export function resolveUrl(url) {
   if(!initialized) {
     return Promise.reject("module not initialized" + url);
   }
