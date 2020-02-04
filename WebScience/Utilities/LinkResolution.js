@@ -46,19 +46,6 @@ export function resolveUrl(url) {
 }
 
 /**
- * Function to extract location value from response header.
- * The response header from onHeadersReceived is an array of objects, one of which possibly
- * contains a field with name location (case insensitive).
- * This function finds such an object
- * 
- * @param {Array} headers array containing response headers
- * @returns {(Object|null)} HTTP response header object for the `Location` header (see `webRequest.HttpHeaders`) or `null`
- */
-function getLocationFromResponseHeader(headers) {
-  return headers.find(obj => {return obj.name.toUpperCase() === "LOCATION"; });
-}
-
-/**
  * Listener for https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onHeadersReceived
  * @param {Object} details contains details of the request
  */
@@ -67,11 +54,17 @@ function responseHeaderListener(details) {
   if(!trackLinks.has(details.url)) {
     return;
   }
-  // get response header
-  let loc = getLocationFromResponseHeader(details.responseHeaders);
-  // if the response header contains a new url
-  if (loc != null && (loc.value != details.url)) {
-    let nexturl = loc.value;
+
+  // The location field in response header indicates the redirected URL
+  // The response header from onHeadersReceived is an array of objects, one of which possibly
+  // contains a field with name location (case insensitive).
+  let redirectedURLLocation = details.responseHeader.find(obj => {
+    return obj.name.toUpperCase() === "LOCATION";
+  });
+
+  // if the location field in response header contains a new url
+  if (redirectedURLLocation != null && (redirectedURLLocation.value != details.url)) {
+    let nexturl = redirectedURLLocation.value;
     // Create a link between the next url and the initial url
     links.set(nexturl, details.url);
     // Add the next url so that we process it during the next onHeadersReceived
