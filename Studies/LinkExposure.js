@@ -103,7 +103,7 @@ export async function runStudy({
     }
     // Resolve links from known short domains
     if (shortDomainMatcher.test(message.link.href)) {
-      WebScience.Utilities.LinkResolution.resolveURL(message.link.href).then(resolvedURL => {
+      WebScience.Utilities.LinkResolution.resolveUrl(message.link.href).then(resolvedURL => {
         // If resolved link belongs to the domains of interest
         if (urlMatcher.test(resolvedURL.dest)) {
           message.link.dest = resolvedURL.dest;

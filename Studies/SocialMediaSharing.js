@@ -545,7 +545,7 @@ function getLinksFromTweet(tweet_id, screen_name = "jack") {
  */
 async function checkShortUrl(url) {
     if (shortUrlMatcher.test(url)) {
-        var resolvedUrlObj = await WebScience.Utilities.LinkResolution.resolveURL(url);
+        var resolvedUrlObj = await WebScience.Utilities.LinkResolution.resolveUrl(url);
         if (urlMatcher.testUrl(resolvedUrlObj.dest)) {
             return {result: true, resolvedUrl: resolvedUrlObj.dest}
         }
