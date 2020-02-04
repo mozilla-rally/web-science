@@ -23,7 +23,7 @@ let links = new Map();
  */
 export function resolveUrl(url) {
   if(!initialized) {
-    return Promise.reject("module not initialized" + url);
+    return Promise.reject("module not initialized");
   }
   var p = new Promise(function (resolve, reject) {
     // store this resolve object in promiseStore
