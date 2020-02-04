@@ -1,4 +1,4 @@
-import { studyDomains } from "/study/domains.js"
+import { studyDomains } from "/study/newsDomains.js"
 import { youtubeChannels } from "/study/mediaYtChannels.js";
 import { facebookAccounts } from "/study/mediaFbAccounts.js";
 import * as WebScience from "../WebScience/WebScience.js"
