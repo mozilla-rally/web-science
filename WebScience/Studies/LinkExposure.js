@@ -14,51 +14,6 @@ const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExp
 var storage = null;
 
 /**
- * Creates regex strings for domains of interest and short domains
- * @param {String[]} domains - domains of interest
- * @param {String[]} shortDomains - short domains
- * @param {Object} - Regular expression strings
- */
-function createRegex(domains, shortDomains) {
-  let domainRegexString = WebScience.Utilities.Matching.createUrlRegexString(domains);
-  let shortDomainRegexString = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
-  let regexes = {
-    domainRegexString: domainRegexString,
-    shortDomainRegexString: shortDomainRegexString
-  };
-  return regexes;
-}
-
-/**
- * setRegex function stores the regular expression strings corresponding to 
- * domains and link shortening domains in local storage.
- * These storage items are accessible from content scripts during the matching phase.
- * Note : It's not possible to store RegExp 
- * (https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/StorageArea/set)
- * 
- * @param {String[]} domains - domains of interest
- * @param {String[]} shortDomains - short domains
- */
-async function setRegex(domains, shortDomains) {
-  let storageObj = createRegex(domains, shortDomains);
-  await browser.storage.local.set(storageObj);
-}
-
-/**
- * Function checks and sets (if not set already) regular expression strings
- * for domain matching in the storage.
- * @param {String[]} domains - domains of interest
- * @param {String[]} shortDomains - short domains
- */
-async function setCode(domains, shortDomains) {
-  let dregex = await browser.storage.local.get("domainRegexString");
-  let sdregex = await browser.storage.local.get("shortDomainRegexString");
-  if (isEmpty(dregex) || isEmpty(sdregex)) {
-    setRegex(domains, shortDomains);
-  }
-}
-
-/**
  * @name LinkExposure.runStudy starts the LinkExposure study.
  * @param {String[]} domains - Array of domains to track 
  * @param {boolean} privateWindows - If true then the study works in private windows
@@ -72,21 +27,19 @@ export async function runStudy({
   await browser.storage.local.set({ "WebScience.Studies.LinkExposure.privateWindows": privateWindows }); 
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
+  var nextLinkExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
   let shortDomains = WebScience.Utilities.LinkResolution.getShortDomains();
-  await setCode(domains, shortDomains);
-  const {domainRegexString, shortDomainRegexString} = createRegex(domains, shortDomains);
-  const shortDomainMatcher = new RegExp(shortDomainRegexString);
-  const urlMatcher = new RegExp(domainRegexString);
+  let domainPattern = WebScience.Utilities.Matching.createUrlRegexString(domains);
+  let shortDomainPattern = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
+  await browser.storage.local.set({domainRegexString: domainPattern, shortDomainRegexString: shortDomainPattern});
+  const shortDomainMatcher = new RegExp(shortDomainPattern);
+  const urlMatcher = new RegExp(domainPattern);
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
     matches: ["*://*/*"],
     js: [{
         file: "/WebScience/Studies/content-scripts/utils.js"
-      },
-      {
-        file: "/WebScience/Studies/content-scripts/ampResolution.js"
       },
       {
         file: "/WebScience/Studies/content-scripts/linkExposure.js"
@@ -98,51 +51,49 @@ export async function runStudy({
   // Listen for LinkExposure messages from content script
   WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (message, sender, sendResponse) => {
     if (!("tab" in sender)) {
-      debugLog("Warning: unexpected page content update");
+      debugLog("Warning: unexpected link exposure update");
       return;
     }
-    // Resolve links from known short domains
-    if (shortDomainMatcher.test(message.link.href)) {
-      WebScience.Utilities.LinkResolution.resolveUrl(message.link.href).then(resolvedURL => {
-        // If resolved link belongs to the domains of interest
-        if (urlMatcher.test(resolvedURL.dest)) {
-          message.link.dest = resolvedURL.dest;
-          debugLog("storing " + JSON.stringify(message));
-          storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+    message.isShortenedUrl = shortDomainMatcher.test(message.originalUrl);
+    message.resolutionSucceded = true;
+    // resolvedUrl is valid only for urls from short domains
+    message.resolvedUrl = undefined;
+    if (message.isShortenedUrl) {
+      let promise = WebScience.Utilities.LinkResolution.resolveUrl(message.originalUrl);
+      promise.then(function (result) {
+        if (urlMatcher.test(result.dest)) {
+          message.resolvedUrl = result.dest;
         }
-      }).catch(error => {
-        // For failed resolutions save exposure information along with error message
-        message.link.error = error.message;
-          debugLog("storing " + JSON.stringify(message));
-          storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+      }, function (error) {
+        message.error = error.message;
+        message.resolutionSucceded = false;
+      }).finally(function () {
+        if(!message.resolutionSucceded || message.resolvedUrl !== undefined)
+        createLinkExposureRecord(message, nextLinkExposureIdCounter);
       });
     } else {
-      debugLog("storing " + JSON.stringify(message));
-      storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+        createLinkExposureRecord(message, nextLinkExposureIdCounter);
     }
-  }, {
-    referrer: "string",
-    url: "string",
-    link: "object"
-  });
+
+    }, {
+      referrer: "string",
+      originalUrl: "string",
+    });
 
 }
 
 /* Utilities */
 
-// Helper function that dumps the navigation study data as an object
+/**
+ * Retrieve the study data as an object. Note that this could be very
+ * slow if there is a large volume of study data.
+ * @returns {(Object|null)} - The study data, or `null` if no data
+ * could be retrieved.
+ */
 export async function getStudyDataAsObject() {
-  var output = {
-    "LinkExposure.pages": {},
-    "LinkExposure.configuration": {}
-  };
-  await storage.pages.iterate((value, key, iterationNumber) => {
-    output["LinkExposure.pages"][key] = value;
-  });
-  await storage.configuration.iterate((value, key, iterationNumber) => {
-    output["LinkExposure.configuration"][key] = value;
-  });
-  return output;
+  if(storage != null)
+      return await storage.getContentsAsObject();
+  return null;
 }
 
 /**
@@ -153,4 +104,9 @@ export async function getStudyDataAsObject() {
  */
 function isEmpty(obj) {
   return !obj || Object.keys(obj).length === 0;
+}
+
+function createLinkExposureRecord(message, nextLinkExposureIdCounter) {
+  debugLog("storing " + JSON.stringify(message));
+  storage.set("" + nextLinkExposureIdCounter.incrementAndGet(), message);
 }

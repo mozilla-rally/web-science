@@ -4,7 +4,7 @@
  */
 // Function encapsulation to maintain unique variable scope for each content script
 (
-  function () {
+  async function () {
     /**
      * @const
      * updateInterval (number of milliseconds) is the interval at which we look for new links that users
@@ -17,277 +17,261 @@
      */
     const visibilityThreshold = 10000; // TODO : Make this a configurable option which can be set during the setup
     const elementSizeCache = new Map();
-    linkExposure();
 
+    // First check private windows support
+    let privateWindowResults = await browser.storage.local.get("WebScience.Studies.LinkExposure.privateWindows");
+    if (("WebScience.Studies.LinkExposure.privateWindows" in privateWindowResults) &&
+      !privateWindowResults["WebScience.Studies.LinkExposure.privateWindows"] &&
+      browser.extension.inIncognitoContext) {
+      return;
+    }
+
+    let shortDomainRegexString = await browser.storage.local.get("shortDomainRegexString");
+    let domainRegexString = await browser.storage.local.get("domainRegexString");
+    const shortURLMatcher = new RegExp(shortDomainRegexString.shortDomainRegexString);
+    const urlMatcher = new RegExp(domainRegexString.domainRegexString);
+
+    /** time when the document is loaded */
+    let initialLoadTime = Date.now();
     /**
      * @function
-     * linkExposure function looks for the presence of links from known domains
-     * in the browser viewport and sends this information to the background script.
+     * Use document's visibility state to test if the document is visible
+     * @returns {boolean} true if the document is visible
      */
-    async function linkExposure() {
+    function isDocVisible() {
+      return document.visibilityState === "visible";
+    }
 
-      /**
-       * Initializes the script by constructing regular expressions for matching domains and short domains
-       * @returns {Object} regular expressions for matching domains and short domains
-       */
-      async function init() {
-        let sdrs = await browser.storage.local.get("shortDomainRegexString");
-        let drs = await browser.storage.local.get("domainRegexString");
-        return {
-          shortURLMatcher: new RegExp(sdrs.shortDomainRegexString),
-          urlMatcher: new RegExp(drs.domainRegexString),
-        };
+    // Elements that we checked for link exposure
+    let checkedElements = new WeakMap();
+
+    /**
+     * Helper function to send data to background script
+     * @param {string} type - message type
+     * @param {Object} data - data to send
+     * @returns {void} Nothing
+     */
+    function sendMessageToBackground(type, data) {
+      if (data) {
+        let exposureObject = Object.assign({
+          type: type,
+          location: document.location.href,
+          loadTime: initialLoadTime,
+          visible: isDocVisible(),
+          referrer: document.referrer
+        }, data);
+        browser.runtime.sendMessage(exposureObject);
       }
+    }
 
-      // First check private windows support
-        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.LinkExposure.privateWindows");
-        if (("WebScience.Studies.LinkExposure.privateWindows" in privateWindowResults) &&
-          !privateWindowResults["WebScience.Studies.LinkExposure.privateWindows"] &&
-          browser.extension.inIncognitoContext) {
-          return;
-        }
+    // Caches : https://github.com/ampproject/amphtml/blob/master/build-system/global-configs/caches.json
+    const cacheDomains = ["cdn.ampproject.org", "amp.cloudflare.com", "bing-amp.com"];
+    const domRegex = /.*?\/{1,2}(.*?)(\.).*/gm;
 
-      // Initialize the script
-      const {
-        shortURLMatcher,
-        urlMatcher,
-      } = await init();
-
-      /** time when the document is loaded */
-      let initialLoadTime = Date.now();
-      /**
-       * @function
-       * Use document's visibility state to test if the document is visible
-       * @returns {boolean} true if the document is visible
-       */
-      const isDocVisible = () => document.visibilityState === "visible";
-      let initialVisibility = document.visibilityState == "visible";
-
-      // Elements that we checked for link exposure
-      let checkedElements = new WeakMap();
-
-      /**
-       * Helper function to send data to background script
-       * @param {string} type - message type
-       * @param {Object} data - data to send
-       * @returns {void} Nothing
-       */
-      function sendMessageToBackground(type, data) {
-        if (data) {
-          browser.runtime.sendMessage({
-            type: type,
-            loadTime: initialLoadTime,
-            visible: initialVisibility,
-            url: document.location.href,
-            referrer: document.referrer,
-            link: data,
-          });
-        }
-      }
-
-      /**
-       * @typedef {Object} Match
-       * @property {string} url - normalized url
-       * @property {Boolean} isMatched - domain matches 
-       * 
-       * Function takes an element, tests it for matches with link shorteners or domains of interest and
-       * @param {Element} element - href to match for short links or domains of interest
-       * @returns {Match} match true if the url matches domains
-       */
-      function matchUrl(element) {
-        let url = rel_to_abs(element.href);
-        let ret = removeShim(url);
-        if (ret.isShim) {
-          elementSizeCache.set(ret.url, getElementSize(element));
-          url = ret.url;
-        }
-        let res = resolveAmpUrl(url);
-        if (res.length > 0) {
-          url = rel_to_abs(res[1]);
-        }
-        return {
-          url: url,
-          isMatched: shortURLMatcher.test(url) || urlMatcher.test(url)
-        };
-      }
-
-      /**
-       * Function to look for new <a> elements that are in viewport
-       */
-      function observeChanges() {
-        // check the visibility state of document
-        if (!isDocVisible()) {
-          return;
-        }
-        // Get <a> elements and either observe (for new elements) or send them to background script if visible for > threshold
-        Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href")).forEach(element => {
-          // if we haven't seen this <a> element
-          if (!checkedElements.has(element)) {
-            const {
-              url,
-              isMatched
-            } = matchUrl(element);
-            if (!isMatched) {
-              return;
-            }
-            let status = new ElementStatus(url);
-            status.setMatched();
-            checkedElements.set(element, status);
-            observer.observe(element);
-          } else {
-            let status = checkedElements.get(element);
-            // if we have seen and the element is visible for atleast threshold milliseconds
-            if (status.isVisibleAboveThreshold(visibilityThreshold) && !status.isIgnored()) {
-              // send <a> element this to background script
-              sendMessageToBackground("WebScience.linkExposure", {
-                href: status.url,
-                size: getElementSize(element),
-                firstSeen: status.visibility,
-                duration: status.getDuration()
-              });
-              observer.unobserve(element);
-              status.setIgnore();
-            }
+    /**
+     * Function to get publisher domain and actual url from a amp link
+     * @param {string} url - the {@link url} to be resolved
+     */
+    function resolveAmpUrl(url) {
+      // 1. check if url contains any of the cacheDomains
+      for (let i = 0; i < cacheDomains.length; i++) {
+        let domain = cacheDomains[i];
+        // Does the url contain domain
+        if (url.includes(domain)) {
+          // extract the domain prefix by removing protocol and cache domain suffix
+          //let domainPrefix = getDomainPrefix(url);
+          let match = domRegex.exec(url);
+          if (match != null) {
+            let domainPrefix = match[1];
+            //Punycode Decode the publisher domain. See RFC 3492
+            //Replace any ‘-’ (hyphen) character in the output of step 1 with ‘--’ (two hyphens).
+            //Replace any ‘.’ (dot) character in the output of step 2 with ‘-’ (hyphen).
+            //Punycode Encode the output of step 3. See RFC 3492
+            // Code below reverses the encoding
+            // 1. replace - with . and -- with a -
+            let domain = domainPrefix.replace("-", ".");
+            // 2. replace two . with --
+            domains = domain.replace("..", "--");
+            domain = domain.replace("--", "-");
+            // 3. get the actual url
+            let split = url.split(domain);
+            let sourceUrl = domain + split[1];
+            let arr = url.split("/");
+            return [domain, arr[0] + "//" + sourceUrl];
           }
-        });
+        }
       }
+      return [];
+    }
+    /**
+     * @typedef {Object} Match
+     * @property {string} url - normalized url
+     * @property {Boolean} isMatched - domain matches 
+     */
 
-      /** callback for IntersectionObserver */
-      function handleIntersection(entries, observer) {
-        entries.forEach(entry => {
-          const {
-            isIntersecting,
-            target
-          } = entry;
-          let status = checkedElements.get(target);
-          if (isIntersecting && isElementVisible(target)) {
-            status.setVisibility();
-          } else if (!isIntersecting && checkedElements.has(target) && checkedElements.get(target).visibility !== null) {
-            status.setIgnore();
-            status.setDuration();
-            observer.unobserve(target);
-          }
-        });
+    /** 
+     * Function takes an element, tests it for matches with link shorteners or domains of interest and
+     * returns a Match object @see Match
+     * @function
+     * @param {Element} element - href to match for short links or domains of interest
+     * @returns {Match} match true if the url matches domains
+     */
+    function matchUrl(element) {
+      let url = relativeToAbsoluteUrl(element.href);
+      let ret = removeShim(url);
+      if (ret.isShim) {
+        elementSizeCache.set(ret.url, getElementSize(element));
+        url = ret.url;
       }
-
-      // Options for intersection observer
-      const options = {
-        threshold: 1
+      let res = resolveAmpUrl(url);
+      if (res.length > 0) {
+        url = relativeToAbsoluteUrl(res[1]);
+      }
+      return {
+        url: url,
+        isMatched: shortURLMatcher.test(url) || urlMatcher.test(url)
       };
-      const observer = new IntersectionObserver(handleIntersection, options);
-      /**
-       * @classdesc
-       * UpdateHandler class to observe the document for changes in specified time
-       * intervals. It also stores the number of changes in the last ncalls.
-       * 
-       */
-      class UpdateHandler {
-        /**
-         * @constructor
-         * @param {int} updateInterval - number of milliseconds between updates
-         * @param {int} numUpdates - maximum number of updates. ** Negative number implies function doesn't stop
-         * @param {int} nrecords - maximum number of results stored
-         */
-        constructor(updateInterval, numUpdates) {
-          /** @member {int} - number of milliseconds */
-          this.updateInterval = updateInterval;
-          /** @member {int} - maximum number of updates or unlimited if negative */
-          this.numUpdates = numUpdates;
-          /** @member {int} - Number of times update has run */
-          this.count = 0;
-        }
-        /**
-         * calls the run method every @see run
-         * @return {void} Nothing
-         */
-        start() {
-          this.timer = setInterval(() => this.run(), this.updateInterval);
-        }
-        /**
-         * stops the execution of @see run method
-         */
-        stop() {
-          if (this.timer) clearInterval(this.timer);
-        }
-        /**
-         * run function stops timer if it reached max number of updates
-         * Otherwise, we look for changes in the document by invoking
-         * observeChanges function
-         * @function
-         */
-        run() {
-          if (this.numUpdates > 0 && this.count >= this.numUpdates) {
-            this.stop();
+    }
+
+    /**
+     * Function to look for new <a> elements that are in viewport
+     */
+    function checkLinksInDom() {
+      // check the visibility state of document
+      if (!isDocVisible()) {
+        return;
+      }
+      // Get <a> elements and either observe (for new elements) or send them to background script if visible for > threshold
+      Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href")).forEach(element => {
+        // if we haven't seen this <a> element
+        if (!checkedElements.has(element)) {
+          const {
+            url,
+            isMatched
+          } = matchUrl(element);
+          if (!isMatched) {
+            // add this unmatched url to the map of checked urls
+            checkedElements.set(element, false);
+            return;
           }
-          observeChanges();
-          this.count++;
+          let status = new ElementStatus(url);
+          status.setMatched();
+          checkedElements.set(element, status);
+          observer.observe(element);
+        } else {
+          let status = checkedElements.get(element);
+          // if we have seen and the element is visible for atleast threshold milliseconds
+          if (status && status.isVisibleAboveThreshold(visibilityThreshold) && !status.isIgnored()) {
+            // send <a> element this to background script
+            sendMessageToBackground("WebScience.linkExposure", {
+              originalUrl: status.url,
+              size: getElementSize(element),
+              firstSeen: status.visibility,
+              duration: status.getDuration()
+            });
+            observer.unobserve(element);
+            status.setIgnore();
+          }
         }
+      });
+    }
+
+    /** callback for IntersectionObserver */
+    function handleIntersection(entries, observer) {
+      entries.forEach(entry => {
+        const {
+          isIntersecting,
+          target
+        } = entry;
+        let status = checkedElements.get(target);
+        if (isIntersecting && isElementVisible(target)) {
+          status.setVisibility();
+        } else if (!isIntersecting && checkedElements.has(target) && checkedElements.get(target).visibility !== null) {
+          status.setIgnore();
+          status.setDuration();
+          observer.unobserve(target);
+        }
+      });
+    }
+
+    // Options for intersection observer
+    const options = {
+      threshold: 1
+    };
+    const observer = new IntersectionObserver(handleIntersection, options);
+
+    /**
+     * @classdesc
+     * Keeps track of various properties of Elements
+     */
+    class ElementStatus {
+      constructor(url) {
+        this.url = url;
+        this.matched = false;
+        this.visibility = null;
+        this.visibleDuration = 0;
+        this.ignore = false;
       }
 
       /**
-       * @classdesc
-       * Keeps track of various properties of Elements
+       * @returns {boolean} true if element is ignored
        */
-      class ElementStatus {
-        constructor(url) {
-          this.url = url;
-          this.matched = false;
-          this.visibility = null;
-          this.visibleDuration = 0;
-          this.ignore = false;
-        }
-
-        /**
-         * @returns {boolean} true if element is ignored
-         */
-        isIgnored() {
-          return this.ignore;
-        }
-
-        setIgnore() {
-          this.ignore = true;
-        }
-
-        /**
-         * @returns {boolean} true if element is matched
-         */
-        isMatched() {
-          return this.matched;
-        }
-
-        setMatched() {
-          this.matched = true;
-        }
-        /**
-         * Checks if the element time since exceeds certain threshold
-         * @param {number} threshold number of milliseconds
-         */
-        isVisibleAboveThreshold(threshold) {
-          return this.visibility != null && (Date.now() >= this.visibility + threshold);
-        }
-        /**
-         * Sets visibility to the current
-         */
-        setVisibility() {
-          this.visibility = Date.now();
-        }
-
-        /**
-         * @returns {number} number of milliseconds since visibility was set
-         */
-        getDuration() {
-          return Date.now() - this.visibility;
-        }
-        setDuration() {
-          if (this.visibility != null) {
-            this.visibleDuration = Date.now() - this.visibility;
-          }
-        }
+      isIgnored() {
+        return this.ignore;
       }
 
-      let handler = new UpdateHandler(updateInterval, -1);
-      handler.start();
+      setIgnore() {
+        this.ignore = true;
+      }
 
-    } // End of link exposure function
+      /**
+       * @returns {boolean} true if element is matched
+       */
+      isMatched() {
+        return this.matched;
+      }
+
+      setMatched() {
+        this.matched = true;
+      }
+      /**
+       * Checks if the element time since exceeds certain threshold
+       * @param {number} threshold number of milliseconds
+       */
+      isVisibleAboveThreshold(threshold) {
+        return this.visibility != null && (Date.now() >= this.visibility + threshold);
+      }
+      /**
+       * Sets visibility to the current
+       */
+      setVisibility() {
+        this.visibility = Date.now();
+      }
+
+      /**
+       * @returns {number} number of milliseconds since visibility was set
+       */
+      getDuration() {
+        return Date.now() - this.visibility;
+      }
+      setDuration() {
+        if (this.visibility != null) {
+          this.visibleDuration = Date.now() - this.visibility;
+        }
+      }
+    }
+
+    let timer = setInterval(() => run(), updateInterval);
+    let maxUpdates = -1;
+    let numUpdates = 0;
+
+    function run() {
+      if (maxUpdates >= 0 && numUpdates >= maxUpdates) {
+        clearInterval(timer);
+      }
+      checkLinksInDom();
+      numUpdates++;
+    }
+
   } // end of anon function
 )(); // encapsulate and invoke

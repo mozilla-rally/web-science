@@ -31,22 +31,11 @@ export async function runStudy({
   await browser.storage.local.set({ "WebScience.Studies.SocialMediaAccountExposure.privateWindows": privateWindows }); 
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaAccountExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaAccountExposure.nextPageId")).initialize();
+  var nextSocialMediaAccountExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaAccountExposure.nextPageId")).initialize();
 
-  // create code for url and short domain matching
-  let ytChannelMatchCode = "const ytChannelMatchRE = \"" + 
-  WebScience.Utilities.Matching.createUrlRegexString(ytchannels).replace(/\\/g, "\\\\") + 
-    "\"; const ytChannelMatcher = new RegExp(ytChannelMatchRE);";
-
-  await browser.contentScripts.register({
-      matches: [ "*://*.youtube.com/*" ],
-      js: [
-        {
-          code: ytChannelMatchCode
-        }
-      ],
-      runAt: "document_start"
-  });
+  // create regex strings for media channels
+  let mediaYoutubeChannels = WebScience.Utilities.Matching.createUrlRegexString(ytchannels);
+  await browser.storage.local.set({mediaYoutubeChannelsRegexString : mediaYoutubeChannels});
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
@@ -55,20 +44,9 @@ export async function runStudy({
       runAt: "document_idle"
   });
 
-  // create code for url and short domain matching
-  let fbAccountMatchCode = "const fbAccountMatchRE = \"" + 
-  WebScience.Utilities.Matching.createUrlRegexString(fbaccounts).replace(/\\/g, "\\\\") + 
-    "\"; const fbAccountMatcher = new RegExp(fbAccountMatchRE);";
-
-  await browser.contentScripts.register({
-    matches: ["*://*.facebook.com/*"],
-      js: [
-        {
-          code: fbAccountMatchCode
-        }
-      ],
-      runAt: "document_start"
-  });
+  // create regex strings for media accounts
+  let mediaFacebookAccounts = WebScience.Utilities.Matching.createUrlRegexString(fbaccounts);
+  await browser.storage.local.set({mediaFacebookAccountsRegexString : mediaFacebookAccounts});
 
   await browser.contentScripts.register({
     matches: ["*://*.facebook.com/*"],
@@ -80,53 +58,34 @@ export async function runStudy({
     runAt: "document_idle"
   });
 
-  // Listen for SocialMediaAccountExposure.Youtube messages from content script
-  WebScience.Utilities.Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure.Youtube", (message, sender, sendResponse) => {
-      // If the page content message is not from a tab, or if we are not tracking
-      // the tab, ignore the message
-      // Neither of these things should happen!
-    debugLog("socialMediaAccountExposure.Youtube: " + JSON.stringify(message));
-      if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
-          debugLog("Warning: unexpected page content update");
-          return;
-      }
-    storage.set("" + nextPageIdCounter.incrementAndGet(), message);
-  }, {
-    title : "string",
-    url : "string",
-    channel : "string"
-  });
-
-  // Listen for SocialMediaAccountExposure.Facebook messages from content script
-  WebScience.Utilities.Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure.Facebook", (message, sender, sendResponse) => {
+  // Listen for SocialMediaAccountExposure messages from content scripts
+  WebScience.Utilities.Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure", (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!
     debugLog("socialMediaAccountExposure.Facebook: " + JSON.stringify(message));
       if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
-          debugLog("Warning: unexpected page content update");
+          debugLog("Warning: unexpected social media account exposure update");
           return;
       }
-    storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+    storage.set("" + nextSocialMediaAccountExposureIdCounter.incrementAndGet(), message);
   }, {
-    posts : "string"
+    posts : "object",
+    platform: "string"
   });
 
 }
 
 /* Utilities */
 
-// Helper function that dumps the navigation study data as an object
+/**
+ * Retrieve the study data as an object. Note that this could be very
+ * slow if there is a large volume of study data.
+ * @returns {(Object|null)} - The study data, or `null` if no data
+ * could be retrieved.
+ */
 export async function getStudyDataAsObject() {
-  var output = {
-    "socialMediaAccountExposure.pages": { },
-    "socialMediaAccountExposure.configuration": { }
-  };
-  await storage.pages.iterate((value, key, iterationNumber) => {
-    output["socialMediaAccountExposure.pages"][key] = value;
-  });
-  await storage.configuration.iterate((value, key, iterationNumber) => {
-    output["socialMediaAccountExposure.configuration"][key] = value;
-  });
-  return output;
+  if(storage != null)
+      return await storage.getContentsAsObject();
+  return null;
 }

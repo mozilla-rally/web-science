@@ -5,20 +5,12 @@
 (
     async function () {
 
-        /**
-         * Checks if the script should exit because private windows are not supported for SocialMediaNewsExposure
-         * @returns {boolean} - true if private windows are not supported
-         */
-        async function checkPrivateWindowSupport() {
-            let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaNewsExposure.privateWindows");
-            return ("WebScience.Studies.SocialMediaNewsExposure.privateWindows" in privateWindowResults) &&
-            !privateWindowResults["WebScience.Studies.SocialMediaNewsExposure.privateWindows"] &&
-            browser.extension.inIncognitoContext;
-        }
 
-        // First check if we are allowed to run in private windows
-        let isExit = await checkPrivateWindowSupport();
-        if (isExit) {
+        // Checks if the script should exit because private windows are not supported for SocialMediaNewsExposure
+        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaNewsExposure.privateWindows");
+        if (("WebScience.Studies.SocialMediaNewsExposure.privateWindows" in privateWindowResults) &&
+            !privateWindowResults["WebScience.Studies.SocialMediaNewsExposure.privateWindows"] &&
+            browser.extension.inIncognitoContext) {
             return;
         }
 
@@ -34,7 +26,7 @@
         /** @constant click when set to true clicks Show More to retrieve video category */
         const click = false;
         /** listener for new videos loaded; youtube doesn't reload page. It uses history api. */
-        document.body.addEventListener("yt-navigate-finish", function(event) {
+        document.body.addEventListener("yt-navigate-finish", function (event) {
             setTimeout(checkNews, waitMs);
         });
 
@@ -49,18 +41,18 @@
          */
         function checkNews() {
             let isNewsVideo = false;
-            if(!isYoutube()) {
+            if (!isYoutube()) {
                 return;
             }
             isNewsVideo = checkForNewsCategoryFromText();
-            if(!isNewsVideo && click) {
+            if (!isNewsVideo && click) {
                 //alert(document.querySelector(".more-button"));
                 document.querySelector(".more-button").click();
-                setTimeout(function() {
+                setTimeout(function () {
                     isNewsVideo = checkForNewsCategoryFromClick();
                 }, waitMs);
             }
-            if(isNewsVideo) {
+            if (isNewsVideo) {
                 sendMessage();
             }
         }
