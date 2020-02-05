@@ -1,25 +1,20 @@
 /**
  * Content script for measuring exposure to content from known media accounts on Facebook
- * @module WebScience.Studies.content-scripts.socialMediaAccountExposure
+ * @module WebScience.Studies.SocialMediaAccountExposure
  */
 (
     async function () {
 
-        /**
-         * Checks if the script should exit because private windows are not supported for SocialMediaAccountExposure
-         * @returns {boolean} - true if private windows are not supported
-         */
-        async function checkPrivateWindowSupport() {
-            let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
-            return ("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
-                !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
-                browser.extension.inIncognitoContext;
-        }
-
-        let isExit = await checkPrivateWindowSupport();
-        if (isExit) {
+        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
+        if (("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
+            !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
+            browser.extension.inIncognitoContext) {
             return;
         }
+
+        let accountsRegexString = await browser.storage.local.get("mediaFacebookAccountsRegexString");
+        const knownMediaAccountMatcher = new RegExp(accountsRegexString.mediaFacebookAccountsRegexString);
+
         /** @constant {string} - facebook post selector */
         const fbpost = "div[id^=hyperfeed_story]";
         const linkSelector = "a[href*=__tn__]";
@@ -33,39 +28,46 @@
          * @name checkPosts checks facebook posts for posts from known media outlets
          */
         function checkPosts() {
+            // retrieve posts from dom
             let posts = Array.from(document.body.querySelectorAll(fbpost));
-            let postsFromKnownMedia = posts.filter(checkPostForKnownMediaOutlet);
-            let mediaPosts = postsFromKnownMedia.map(x => {
-                let urls = Array.from(x.querySelectorAll(postLinkSelector));
-                if (urls.length > 0) {
-                    return urls[0].href;
+            let postsFromKnownMedia = [];
+            for (i = 0; i < posts.length; i++) {
+                // check if the post from a known media outlet
+                let checkResult = checkPostForKnownMediaOutlet(posts[i]);
+                if (checkResult.isFromKnownMedia) {
+                    // get link to the post (not the link to media outlets page)
+                    let urls = Array.from(posts[i].querySelectorAll(postLinkSelector));
+                    if (urls.length > 0) {
+                        postsFromKnownMedia.push({post: urls[0].href, account : checkResult.account});
+                    }
                 }
-                return "";
-            });
-            sendMessage(mediaPosts.filter(x => x.length > 0));
+            }
+            if(postsFromKnownMedia.length > 0)
+            sendMessage(postsFromKnownMedia);
         }
         /**
          * Checks if the post is from a known media outlet
          * @param {HTMLElement} post - facebook post returned from query selector 
-         * @returns {boolean} - true if post has <a> elements, no title (i.e., post from non-users ?) and the media organization is known
+         * @returns {Object} - true if post has <a> elements, no title (i.e., post from non-users ?) and the media organization is known
          */
         function checkPostForKnownMediaOutlet(post) {
-            let links = Array.from(post.querySelectorAll(linkSelector));
-            if (links.length == 0) {
-                return false;
+            let postLinks = Array.from(post.querySelectorAll(linkSelector));
+            if (postLinks.length == 0) {
+                return { isFromKnownMedia : false, account : undefined};
             }
-            // check if post has title in any of the links
-            let hasTitle = links.some(x => {
-                return x.attributes.getNamedItem("title") != null;
+            // check if any of links has title attribute
+            let hasTitle = postLinks.some(link => {
+                return link.attributes.getNamedItem("title") != null;
             });
-            // check if the post is from known media
-            let knownMedia = links.some(x => {
-                return fbAccountMatcher.test(x.href);
-            });
-            if (hasTitle || !knownMedia) {
-                return false;
+            if(hasTitle) {
+                // Observation : Posts from user account have title attribute. Therefore, this post cannot be from media outlet.
+                return { isFromKnownMedia : false, account : undefined};
             }
-            return true;
+            // now check if the post is from known media
+            let knownMedia = postLinks.find(link => {
+                return knownMediaAccountMatcher.test(link.href);
+            });
+            return { isFromKnownMedia : knownMedia !== undefined, account : (knownMedia === undefined ? undefined : knownMedia.href.split('?')[0])};
         }
         /**
          * Sends message to background script
@@ -73,8 +75,9 @@
          */
         function sendMessage(posts) {
             browser.runtime.sendMessage({
-                type: "WebScience.Studies.SocialMediaAccountExposure.Facebook",
-                posts: posts.join(",")
+                type: "WebScience.Studies.SocialMediaAccountExposure",
+                posts: posts,
+                platform: "facebook"
             });
         }
     }

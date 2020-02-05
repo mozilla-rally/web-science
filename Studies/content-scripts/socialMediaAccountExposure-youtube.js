@@ -1,25 +1,20 @@
 /**
  * Content script for measuring exposure to videos from known channels on youtube
- * @module WebScience.Studies.content-scripts.socialMediaAccountExposure
+ * @module WebScience.Studies.SocialMediaAccountExposure
  */
 (
     async function () {
 
-        /**
-         * Checks if the script should exit because private windows are not supported for SocialMediaAccountExposure
-         * @returns {boolean} - true if private windows are not supported
-         */
-        async function checkPrivateWindowSupport() {
-            let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
-            return ("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
+        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
+        if (("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
             !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
-            browser.extension.inIncognitoContext;
-        }
-
-        let isExit = await checkPrivateWindowSupport();
-        if (isExit) {
+            browser.extension.inIncognitoContext) {
             return;
         }
+
+        let channelsRegexString = await browser.storage.local.get("mediaYoutubeChannelsRegexString");
+        const knownMediaChannelMatcher = new RegExp(channelsRegexString.mediaYoutubeChannelsRegexString);
+
         // Save the time the page initially completed loading
         let initialLoadTime = Date.now();
         /** @constant {RegExp} regex for youtube video url */
@@ -29,7 +24,7 @@
         /** @constant {number} milliseconds */
         const waitMs = 2000;
         /** listener for new videos loaded; youtube doesn't reload page. It uses history api. */
-        document.body.addEventListener("yt-navigate-finish", function(event) {
+        document.body.addEventListener("yt-navigate-finish", function (event) {
             setTimeout(checkChannel, waitMs);
         });
 
@@ -43,17 +38,12 @@
          * clicks on Show More and then checks DOM for video category
          */
         function checkChannel() {
-            if(!isYoutube()) {
-                return;
-            }
             let channels = checkForSocialMediaChannels();
-            if(channels.length > 0) {
-                sendMessage([...new Set(channels.filter(x => ytChannelMatcher.test(x.href)).map(x => {return x.href;}))]);
+            if (channels.length > 0) {
+                sendMessage([...new Set(channels.filter(channelElement => knownMediaChannelMatcher.test(channelElement.href)).map(channelElement => {
+                    return channelElement.href;
+                }))]);
             }
-        }
-        /** @name isYoutube returns true if the current location is youtube watch url */
-        function isYoutube() {
-            return ytmatcher.exec(location.href) != null;
         }
         /**
          * @name checkForSocialMediaChannels
@@ -70,12 +60,13 @@
          * @param {Array} channels - channels exposed
          */
         function sendMessage(channels) {
-            let videoTitle = document.querySelector("h1.title.style-scope.ytd-video-primary-info-renderer").textContent;
             browser.runtime.sendMessage({
-                type: "WebScience.Studies.SocialMediaAccountExposure.Youtube",
-                title: videoTitle,
-                url: document.location.href,
-                channel: channels[0]
+                type: "WebScience.Studies.SocialMediaAccountExposure",
+                posts: [{
+                    post: document.location.href,
+                    account: channels[0]
+                }],
+                platform: "YouTube"
             });
         }
     }

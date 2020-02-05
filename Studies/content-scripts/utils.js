@@ -8,7 +8,7 @@
  * @param {string} url 
  * @returns {string} absolute url
  */
-function rel_to_abs(url) {
+function relativeToAbsoluteUrl(url) {
     /* Only accept commonly trusted protocols:
      * Only data-image URLs are accepted, Exotic flavours (escaped slash,
      * html-entitied characters) are not supported to keep the function fast */
@@ -36,50 +36,70 @@ function rel_to_abs(url) {
     return url;
 }
 
-// helper function for parsing fb urls
-function fbShim(url) {
-    var u = new URL(url);
+/**
+ * Regular expression for matching urls shimmed by facebook
+ * @constant
+ * @type {RegExp}
+ * @default
+ */
+const facebookUrlRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/;
+
+/**
+ * Function to retrieve original url from a url shimmed by facebook
+ * @see facebookUrlRegex
+ * The shimmed url contains key-value pairs. Original url is stored under
+ * key 'u'
+ * @param {string} url - inner url if the format follows the above description empty otherwise
+ */
+function removeFacebookShim(url) {
+    let urlObject = new URL(url);
     // this is for facebook posts
-    hasU = u.searchParams.get('u') != null;
-    if (hasU) {
-        return u.searchParams.get("u").split('?')[0];
+    let searchParamValue = urlObject.searchParams.get('u');
+    if (searchParamValue != null) {
+        return searchParamValue.split('?')[0];
     }
     return "";
 }
 
-const fbRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/;
-const isFb = url => {
-    return fbRegex.test(url);
-};
-
+/**
+ * Removes url shim. Currently supports only facebook urls
+ * @param {string} url 
+ * @returns {Object} url property whose value is same as input or deshimmed url depending on whether the input is
+ * matches facebook shim format. A boolean isShim property that is true if the format matches
+ */
 function removeShim(url) {
     // check if the url matches shim
-    if(isFb(url)) {
-        return { url : fbShim(url), isShim : true};
+    if(facebookUrlRegex.test(url)) {
+        return { url : removeFacebookShim(url), isShim : true};
     }
     return { url : url, isShim : false};
 }
 
 /**
  * Helper function to get size of element
- * @param {Element} el element
+ * @param {Element} element element
  * @returns Object with width and height of element
  */
-function getElementSize(el) {
-    let rect = el.getBoundingClientRect();
+function getElementSize(element) {
+    let rect = element.getBoundingClientRect();
     return {
         width: rect.width,
         height: rect.height
     };
 }
 
-const isElementVisible = elem => {
-    const rect = elem.getBoundingClientRect();
-    const st = window.getComputedStyle(elem);
+/**
+ * Helper function to check if Element is visible based on style and bounding rectangle
+ * @param {Element} element element
+ * @returns {boolean} true if the element is visible
+ */
+function isElementVisible(element) {
+    const rect = element.getBoundingClientRect();
+    const st = window.getComputedStyle(element);
     let ret = (
-        elem &&
-        elem.offsetHeight > 0 &&
-        elem.offsetWidth > 0 &&
+        element &&
+        element.offsetHeight > 0 &&
+        element.offsetWidth > 0 &&
         rect &&
         rect.height > 0 &&
         rect.width > 0 &&
@@ -88,4 +108,4 @@ const isElementVisible = elem => {
         st.opacity && st.opacity !== "0"
     );
     return ret;
-};
+}

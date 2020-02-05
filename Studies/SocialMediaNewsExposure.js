@@ -26,7 +26,7 @@ export async function runStudy({
   await browser.storage.local.set({ "WebScience.Studies.SocialMediaNewsExposure.privateWindows": privateWindows }); 
   storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaNewsExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaNewsExposure.nextPageId")).initialize();
+  var nextSocialMediaNewsExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaNewsExposure.nextPageId")).initialize();
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
@@ -45,7 +45,7 @@ export async function runStudy({
           debugLog("Warning: unexpected page content update");
           return;
       }
-    storage.set("" + nextPageIdCounter.incrementAndGet(), message);
+    storage.set("" + nextSocialMediaNewsExposureIdCounter.incrementAndGet(), message);
   }, {
     title : "string",
     url : "string"
@@ -55,17 +55,14 @@ export async function runStudy({
 
 /* Utilities */
 
-// Helper function that dumps the navigation study data as an object
+/**
+ * Retrieve the study data as an object. Note that this could be very
+ * slow if there is a large volume of study data.
+ * @returns {(Object|null)} - The study data, or `null` if no data
+ * could be retrieved.
+ */
 export async function getStudyDataAsObject() {
-  var output = {
-    "socialMediaNewsExposure.pages": { },
-    "socialMediaNewsExposure.configuration": { }
-  };
-  await storage.pages.iterate((value, key, iterationNumber) => {
-    output["socialMediaNewsExposure.pages"][key] = value;
-  });
-  await storage.configuration.iterate((value, key, iterationNumber) => {
-    output["socialMediaNewsExposure.configuration"][key] = value;
-  });
-  return output;
+  if(storage != null)
+      return await storage.getContentsAsObject();
+  return null;
 }
