@@ -25,14 +25,11 @@ var urlMatcher = null;
  * attention during the study.
  * @param {boolean} [options.privateWindows=false] - Whether to measure pages in
  * private windows.
- * @param {boolean} [options.savePageContent=false] - Whether to save webpage HTML
- * content during the study.
  */
 export async function runStudy({
     domains = [ ],
     trackUserAttention = false,
-    privateWindows = false,
-    savePageContent = false
+    privateWindows = false
 }) {
 
     storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.Navigation")).initialize();
@@ -71,8 +68,7 @@ export async function runStudy({
             attentionDuration: 0,
             attentionSpanCount: 0,
             attentionSpanStarts: [ ],
-            attentionSpanEnds: [ ],
-            pageContent: ""
+            attentionSpanEnds: [ ]
         };
         debugLog("pageVisitStartListener: " + JSON.stringify(currentTabInfo[tabId]));
         await nextPageIdCounter.increment();

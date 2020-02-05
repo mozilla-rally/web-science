@@ -35,8 +35,7 @@ function runStudies() {
     // Configure navigation collection
     WebScience.Studies.Navigation.runStudy({
         domains: studyDomains,
-        trackUserAttention: true,
-        savePageContent: false
+        trackUserAttention: true
       });
 
     // Configure link exposure collection
