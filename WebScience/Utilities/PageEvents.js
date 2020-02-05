@@ -909,7 +909,7 @@ async function initialize() {
                 return;
             
             // Get the window privacy property from the cached window state
-            var windowPrivacy = isPrivateWindow(removeInfo.windowId);
+            var windowPrivacy = isPrivateWindow(currentFocusedWindow);
 
             // Send an attention start event (if the browser is transitioning to active) or an
             // attention stop event (if the browser is transitioning to inactive)
