@@ -12,15 +12,9 @@
             return;
         }
 
-        let channelsRegexString = await browser.storage.local.get("mediaYoutubeChannelsRegexString");
-        const knownMediaChannelMatcher = new RegExp(channelsRegexString.mediaYoutubeChannelsRegexString);
+        let channelsRegex = await browser.storage.local.get("knownMediaChannelMatcher");
+        const knownMediaChannelMatcher = channelsRegex.knownMediaChannelMatcher;
 
-        // Save the time the page initially completed loading
-        let initialLoadTime = Date.now();
-        /** @constant {RegExp} regex for youtube video url */
-        const ytmatcher = /(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w-_]+)/gmi;
-        /** @constant {string} - youtube channel selector */
-        const ytchannel = "a[href*=channel]";
         /** @constant {number} milliseconds */
         const waitMs = 2000;
         /** listener for new videos loaded; youtube doesn't reload page. It uses history api. */
@@ -38,28 +32,18 @@
          * clicks on Show More and then checks DOM for video category
          */
         function checkChannel() {
-            let channels = checkForSocialMediaChannels();
-            if (channels.length > 0) {
-                sendMessage([...new Set(channels.filter(channelElement => knownMediaChannelMatcher.test(channelElement.href)).map(channelElement => {
-                    return channelElement.href;
+            let domLinkElements = Array.from(document.body.querySelectorAll("a[href]"));
+            if (domLinkElements.length > 0) {
+                sendYoutubeChannelExposureEvent([...new Set(domLinkElements.filter(domLinkElement => knownMediaChannelMatcher.test(domLinkElement.href)).map(domLinkElement => {
+                    return domLinkElement.href;
                 }))]);
             }
-        }
-        /**
-         * @name checkForSocialMediaChannels
-         * @function
-         * retrieves <a> elements that includes "channel"
-         * @returns {Array} - channels on the page
-         */
-        function checkForSocialMediaChannels() {
-            let matches = document.body.querySelectorAll(ytchannel);
-            return Array.from(matches);
         }
         /**
          * 
          * @param {Array} channels - channels exposed
          */
-        function sendMessage(channels) {
+        function sendYoutubeChannelExposureEvent(channels) {
             browser.runtime.sendMessage({
                 type: "WebScience.Studies.SocialMediaAccountExposure",
                 posts: [{

@@ -34,8 +34,9 @@ export async function runStudy({
   var nextSocialMediaAccountExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaAccountExposure.nextPageId")).initialize();
 
   // create regex strings for media channels
-  let mediaYoutubeChannels = WebScience.Utilities.Matching.createUrlRegexString(ytchannels);
-  await browser.storage.local.set({mediaYoutubeChannelsRegexString : mediaYoutubeChannels});
+  let mediaYoutubeChannelsPattern = WebScience.Utilities.Matching.createUrlRegexString(ytchannels);
+  const knownMediaChannelMatcher = new RegExp(mediaYoutubeChannelsPattern);
+  await browser.storage.local.set({knownMediaChannelMatcher : knownMediaChannelMatcher});
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
