@@ -26,10 +26,10 @@
       return;
     }
 
-    let shortDomainRegexString = await browser.storage.local.get("shortDomainRegexString");
-    let domainRegexString = await browser.storage.local.get("domainRegexString");
-    const shortURLMatcher = new RegExp(shortDomainRegexString.shortDomainRegexString);
-    const urlMatcher = new RegExp(domainRegexString.domainRegexString);
+    let shortDomainRegex = await browser.storage.local.get("shortDomainRegex");
+    let domainRegex = await browser.storage.local.get("domainRegex");
+    const shortURLMatcher = shortDomainRegex.shortDomainRegex;
+    const urlMatcher = domainRegex.domainRegex;
 
     /** time when the document is loaded */
     let initialLoadTime = Date.now();
