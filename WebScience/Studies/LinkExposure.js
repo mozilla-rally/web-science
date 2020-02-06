@@ -54,26 +54,26 @@ export async function runStudy({
       debugLog("Warning: unexpected link exposure update");
       return;
     }
-      exposureInfo.exposureEvents.forEach(message => {
-      message.isShortenedUrl = shortDomainMatcher.test(message.originalUrl);
-      message.resolutionSucceded = true;
+      exposureInfo.exposureEvents.forEach(exposureEvent => {
+      exposureEvent.isShortenedUrl = shortDomainMatcher.test(exposureEvent.originalUrl);
+      exposureEvent.resolutionSucceded = true;
       // resolvedUrl is valid only for urls from short domains
-      message.resolvedUrl = undefined;
-      if (message.isShortenedUrl) {
-        let promise = WebScience.Utilities.LinkResolution.resolveUrl(message.originalUrl);
+      exposureEvent.resolvedUrl = undefined;
+      if (exposureEvent.isShortenedUrl) {
+        let promise = WebScience.Utilities.LinkResolution.resolveUrl(exposureEvent.originalUrl);
         promise.then(function (result) {
           if (urlMatcher.test(result.dest)) {
-            message.resolvedUrl = result.dest;
+            exposureEvent.resolvedUrl = result.dest;
           }
         }, function (error) {
-          message.error = error.message;
-          message.resolutionSucceded = false;
+          exposureEvent.error = error.message;
+          exposureEvent.resolutionSucceded = false;
         }).finally(function () {
-          if (!message.resolutionSucceded || message.resolvedUrl !== undefined)
-            createLinkExposureRecord(message, nextLinkExposureIdCounter);
+          if (!exposureEvent.resolutionSucceded || exposureEvent.resolvedUrl !== undefined)
+            createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
         });
       } else {
-        createLinkExposureRecord(message, nextLinkExposureIdCounter);
+        createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
       }
     });
 
@@ -108,7 +108,19 @@ function isEmpty(obj) {
   return !obj || Object.keys(obj).length === 0;
 }
 
-function createLinkExposureRecord(message, nextLinkExposureIdCounter) {
-  debugLog("storing " + JSON.stringify(message));
-  storage.set("" + nextLinkExposureIdCounter.incrementAndGet(), message);
+/**
+ * 
+ * @param {LinkExposureEvent} exposureEvent link exposure event to store
+ * @param {string} LinkExposureEvent.originalUrl - link exposed to
+ * @param {string} LinkExposureEvent.resolvedUrl - optional field which is set if the isShortenedUrl and resolutionSucceeded are true
+ * @param {boolean} LinkExposureEvent.resolutionSucceded - true if link resolution succeeded
+ * @param {boolean} LinkExposureEvent.isShortenedUrl - true if link matches short domains
+ * @param {number} LinkExposureEvent.firstSeen - timestamp when the link is first seen
+ * @param {number} LinkExposureEvent.duration - milliseconds of link exposure
+ * @param {Object} LinkExposureEvent.size - width and height of links
+ * @param {Counter} nextLinkExposureIdCounter counter object
+ */
+function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter) {
+  debugLog("storing " + JSON.stringify(exposureEvent));
+  storage.set("" + nextLinkExposureIdCounter.incrementAndGet(), exposureEvent);
 }
