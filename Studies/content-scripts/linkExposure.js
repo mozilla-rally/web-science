@@ -6,16 +6,26 @@
 (
   async function () {
     /**
-     * @const
+     * @constant
      * updateInterval (number of milliseconds) is the interval at which we look for new links that users
      * are exposed to in known domains
      */
     const updateInterval = 2000;
     /**
-     * @const
+     * @constant
      * visibilityThreshold (number of milliseconds) is minimum number of milliseconds for link exposure
      */
     const visibilityThreshold = 10000; // TODO : Make this a configurable option which can be set during the setup
+    /**
+     * @constant
+     * minimum link width for link exposure
+     */
+    const linkWidthThreshold = 25;
+    /**
+     * @constant
+     * minimum link height for link exposure
+     */
+    const linkHeightThreshold = 25;
     const elementSizeCache = new Map();
 
     // First check private windows support
@@ -67,44 +77,51 @@
       }
     }
 
-    // Caches : https://github.com/ampproject/amphtml/blob/master/build-system/global-configs/caches.json
-    const cacheDomains = ["cdn.ampproject.org", "amp.cloudflare.com", "bing-amp.com"];
-    const domRegex = /.*?\/{1,2}(.*?)(\.).*/gm;
+    let ampDomainRegex = await browser.storage.local.get("ampDomainRegex");
+    const ampDomainMatcher = ampDomainRegex.ampDomainRegex;
+    /**
+     * @const
+     * Regular expression for extracting the amp domain and url
+     */
+    const ampDomainPrefixRegex = /.*?\/{1,2}(.*?)(\.).*/;
 
     /**
      * Function to get publisher domain and actual url from a amp link
+     * https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/
+     * 
      * @param {string} url - the {@link url} to be resolved
+     * @param {ampResolutionResult} - result of amp resolution
+     * @param {string} ampResolutionResult.domain - cache domain
+     * @param {url} ampResolutionResult.url - deampd url
      */
     function resolveAmpUrl(url) {
-      // 1. check if url contains any of the cacheDomains
-      for (let i = 0; i < cacheDomains.length; i++) {
-        let domain = cacheDomains[i];
-        // Does the url contain domain
-        if (url.includes(domain)) {
-          // extract the domain prefix by removing protocol and cache domain suffix
-          //let domainPrefix = getDomainPrefix(url);
-          let match = domRegex.exec(url);
-          if (match != null) {
-            let domainPrefix = match[1];
-            //Punycode Decode the publisher domain. See RFC 3492
-            //Replace any ‘-’ (hyphen) character in the output of step 1 with ‘--’ (two hyphens).
-            //Replace any ‘.’ (dot) character in the output of step 2 with ‘-’ (hyphen).
-            //Punycode Encode the output of step 3. See RFC 3492
-            // Code below reverses the encoding
-            // 1. replace - with . and -- with a -
-            let domain = domainPrefix.replace("-", ".");
-            // 2. replace two . with --
-            domains = domain.replace("..", "--");
-            domain = domain.replace("--", "-");
-            // 3. get the actual url
-            let split = url.split(domain);
-            let sourceUrl = domain + split[1];
-            let arr = url.split("/");
-            return [domain, arr[0] + "//" + sourceUrl];
-          }
+      // Does the url contain ampdomain
+      if (ampDomainMatcher.test(url)) {
+        // extract the domain prefix by removing protocol and cache domain suffix
+        let match = ampDomainPrefixRegex.exec(url);
+        if (match != null) {
+          let domainPrefix = match[1];
+          //Punycode Decode the publisher domain. See RFC 3492
+          //Replace any ‘-’ (hyphen) character in the output of step 1 with ‘--’ (two hyphens).
+          //Replace any ‘.’ (dot) character in the output of step 2 with ‘-’ (hyphen).
+          //Punycode Encode the output of step 3. See RFC 3492
+          // Code below reverses the encoding
+          // 1. replace - with . and -- with a -
+          let domain = domainPrefix.replace("-", ".");
+          // 2. replace two . with --
+          domains = domain.replace("..", "--");
+          domain = domain.replace("--", "-");
+          // 3. get the actual url
+          let split = url.split(domain);
+          let sourceUrl = domain + split[1];
+          let arr = url.split("/");
+          return {
+            domain: domain,
+            url: arr[0] + "//" + sourceUrl
+          };
         }
       }
-      return [];
+      return undefined;
     }
 
     /**
@@ -118,6 +135,15 @@
         width: rect.width,
         height: rect.height
       };
+    }
+
+    /**
+     * Helper function to see if the size object meets width and height thresholds
+     * @param {Object} size of element
+     * @returns {boolean} true if the size is greater in width and height
+     */
+    function checkElementSizeThreshold(size) {
+      return size.width >= linkWidthThreshold && size.height >= linkHeightThreshold;
     }
 
     /**
@@ -194,9 +220,9 @@
         elementSizeCache.set(ret.url, getElementSize(element));
         url = ret.url;
       }
-      let res = resolveAmpUrl(url);
-      if (res.length > 0) {
-        url = relativeToAbsoluteUrl(res[1]);
+      let ampResolvedUrl = resolveAmpUrl(url);
+      if (ampResolvedUrl !== undefined) {
+        url = relativeToAbsoluteUrl(ampResolvedUrl.url);
       }
       return {
         url: url,
@@ -221,8 +247,9 @@
             url,
             isMatched
           } = matchUrl(element);
-          if (!isMatched) {
-            // add this unmatched url to the map of checked urls
+          const elementSize = getElementSize(element);
+          if (!isMatched || checkElementSizeThreshold(elementSize)) {
+            // add this element to the map of checked urls
             checkedElements.set(element, false);
             return;
           }

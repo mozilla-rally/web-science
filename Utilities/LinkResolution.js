@@ -8,6 +8,9 @@ import {
 import {
   shortDomains
 } from '/WebScience/dependencies/shortdomains.js';
+import {
+  ampCacheDomains
+} from '/WebScience/dependencies/ampcachedomains.js';
 const debugLog = getDebuggingLog("Studies.LinkResolution");
 
 
@@ -149,6 +152,14 @@ export function initialize() {
  */
 export function getShortDomains() {
   return shortDomains;
+}
+
+/**
+ * Returns a list of amp cache domains
+ * @returns {String[]} Array of domains
+ */
+export function getAmpCacheDomains() {
+  return ampCacheDomains;
 }
 
 /**
