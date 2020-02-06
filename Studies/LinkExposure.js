@@ -31,9 +31,9 @@ export async function runStudy({
   let shortDomains = WebScience.Utilities.LinkResolution.getShortDomains();
   let domainPattern = WebScience.Utilities.Matching.createUrlRegexString(domains);
   let shortDomainPattern = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
-  await browser.storage.local.set({domainRegexString: domainPattern, shortDomainRegexString: shortDomainPattern});
   const shortDomainMatcher = new RegExp(shortDomainPattern);
   const urlMatcher = new RegExp(domainPattern);
+  await browser.storage.local.set({domainRegex: urlMatcher, shortDomainRegex: shortDomainMatcher});
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
