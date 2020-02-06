@@ -51,7 +51,7 @@
      * @param {Object} data - data to send
      * @returns {void} Nothing
      */
-    function sendMessageToBackground(type, data) {
+    function sendExposureEventsToBackground(type, data) {
       if (data.length > 0) {
         let metadata = {
           location: document.location.href,
@@ -59,7 +59,11 @@
           visible: isDocVisible(),
           referrer: document.referrer
         };
-        browser.runtime.sendMessage({type: type, metadata: metadata, exposureEvents: data});
+        browser.runtime.sendMessage({
+          type: type,
+          metadata: metadata,
+          exposureEvents: data
+        });
       }
     }
 
@@ -101,6 +105,74 @@
         }
       }
       return [];
+    }
+
+    /**
+     * Helper function to get size of element
+     * @param {Element} element element
+     * @returns Object with width and height of element
+     */
+    function getElementSize(element) {
+      let rect = element.getBoundingClientRect();
+      return {
+        width: rect.width,
+        height: rect.height
+      };
+    }
+
+    /**
+     * Helper function to check if Element is visible based on style and bounding rectangle
+     * @param {Element} element element
+     * @returns {boolean} true if the element is visible
+     */
+    function isElementVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const st = window.getComputedStyle(element);
+      let ret = (
+        element &&
+        element.offsetHeight > 0 &&
+        element.offsetWidth > 0 &&
+        rect &&
+        rect.height > 0 &&
+        rect.width > 0 &&
+        st &&
+        st.display && st.display !== "none" &&
+        st.opacity && st.opacity !== "0"
+      );
+      return ret;
+    }
+
+    /**
+     * Convert relative url to abs url
+     * @param {string} url 
+     * @returns {string} absolute url
+     */
+    function relativeToAbsoluteUrl(url) {
+      /* Only accept commonly trusted protocols:
+       * Only data-image URLs are accepted, Exotic flavours (escaped slash,
+       * html-entitied characters) are not supported to keep the function fast */
+      if (/^(https?|file|ftps?|mailto|javascript|data:image\/[^;]{2,9};):/i.test(url))
+        return url; //Url is already absolute
+
+      var base_url = location.href.match(/^(.+)\/?(?:#.+)?$/)[0] + "/";
+      if (url.substring(0, 2) == "//")
+        return location.protocol + url;
+      else if (url.charAt(0) == "/")
+        return location.protocol + "//" + location.host + url;
+      else if (url.substring(0, 2) == "./")
+        url = "." + url;
+      else if (/^\s*$/.test(url))
+        return ""; //Empty = Return nothing
+      else url = "../" + url;
+
+      url = base_url + url;
+      var i = 0;
+      while (/\/\.\.\//.test(url = url.replace(/[^\/]+\/+\.\.\//g, "")));
+
+      /* Escape certain characters to prevent XSS */
+      url = url.replace(/\.$/, "").replace(/\/\./g, "").replace(/"/g, "%22")
+        .replace(/'/g, "%27").replace(/</g, "%3C").replace(/>/g, "%3E");
+      return url;
     }
     /**
      * @typedef {Object} Match
@@ -174,7 +246,7 @@
           }
         }
       });
-      sendMessageToBackground("WebScience.linkExposure", exposureEvents);
+      sendExposureEventsToBackground("WebScience.linkExposure", exposureEvents);
     }
 
     /** callback for IntersectionObserver */
