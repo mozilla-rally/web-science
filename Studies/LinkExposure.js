@@ -49,35 +49,37 @@ export async function runStudy({
   });
 
   // Listen for LinkExposure messages from content script
-  WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (message, sender, sendResponse) => {
+  WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender, sendResponse) => {
     if (!("tab" in sender)) {
       debugLog("Warning: unexpected link exposure update");
       return;
     }
-    message.isShortenedUrl = shortDomainMatcher.test(message.originalUrl);
-    message.resolutionSucceded = true;
-    // resolvedUrl is valid only for urls from short domains
-    message.resolvedUrl = undefined;
-    if (message.isShortenedUrl) {
-      let promise = WebScience.Utilities.LinkResolution.resolveUrl(message.originalUrl);
-      promise.then(function (result) {
-        if (urlMatcher.test(result.dest)) {
-          message.resolvedUrl = result.dest;
-        }
-      }, function (error) {
-        message.error = error.message;
-        message.resolutionSucceded = false;
-      }).finally(function () {
-        if(!message.resolutionSucceded || message.resolvedUrl !== undefined)
+      exposureInfo.exposureEvents.forEach(message => {
+      message.isShortenedUrl = shortDomainMatcher.test(message.originalUrl);
+      message.resolutionSucceded = true;
+      // resolvedUrl is valid only for urls from short domains
+      message.resolvedUrl = undefined;
+      if (message.isShortenedUrl) {
+        let promise = WebScience.Utilities.LinkResolution.resolveUrl(message.originalUrl);
+        promise.then(function (result) {
+          if (urlMatcher.test(result.dest)) {
+            message.resolvedUrl = result.dest;
+          }
+        }, function (error) {
+          message.error = error.message;
+          message.resolutionSucceded = false;
+        }).finally(function () {
+          if (!message.resolutionSucceded || message.resolvedUrl !== undefined)
+            createLinkExposureRecord(message, nextLinkExposureIdCounter);
+        });
+      } else {
         createLinkExposureRecord(message, nextLinkExposureIdCounter);
-      });
-    } else {
-        createLinkExposureRecord(message, nextLinkExposureIdCounter);
-    }
+      }
+    });
 
     }, {
-      referrer: "string",
-      originalUrl: "string",
+      type: "string",
+      metadata: "object"
     });
 
 }

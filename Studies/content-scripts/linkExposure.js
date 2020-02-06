@@ -52,15 +52,14 @@
      * @returns {void} Nothing
      */
     function sendMessageToBackground(type, data) {
-      if (data) {
-        let exposureObject = Object.assign({
-          type: type,
+      if (data.length > 0) {
+        let metadata = {
           location: document.location.href,
           loadTime: initialLoadTime,
           visible: isDocVisible(),
           referrer: document.referrer
-        }, data);
-        browser.runtime.sendMessage(exposureObject);
+        };
+        browser.runtime.sendMessage({type: type, metadata: metadata, exposureEvents: data});
       }
     }
 
@@ -141,6 +140,7 @@
       if (!isDocVisible()) {
         return;
       }
+      let exposureEvents = [];
       // Get <a> elements and either observe (for new elements) or send them to background script if visible for > threshold
       Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href")).forEach(element => {
         // if we haven't seen this <a> element
@@ -163,7 +163,7 @@
           // if we have seen and the element is visible for atleast threshold milliseconds
           if (status && status.isVisibleAboveThreshold(visibilityThreshold) && !status.isIgnored()) {
             // send <a> element this to background script
-            sendMessageToBackground("WebScience.linkExposure", {
+            exposureEvents.push({
               originalUrl: status.url,
               size: getElementSize(element),
               firstSeen: status.visibility,
@@ -174,6 +174,7 @@
           }
         }
       });
+      sendMessageToBackground("WebScience.linkExposure", exposureEvents);
     }
 
     /** callback for IntersectionObserver */
