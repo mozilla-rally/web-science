@@ -29,11 +29,14 @@ export async function runStudy({
   // Use a unique identifier for each webpage the user visits that has a matching domain
   var nextLinkExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
   let shortDomains = WebScience.Utilities.LinkResolution.getShortDomains();
+  let ampCacheDomains = WebScience.Utilities.LinkResolution.getAmpCacheDomains();
   let domainPattern = WebScience.Utilities.Matching.createUrlRegexString(domains);
   let shortDomainPattern = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
+  let ampCacheDomainPattern = WebScience.Utilities.Matching.createUrlRegexString(ampCacheDomains);
+  const ampCacheMatcher = new RegExp(ampCacheDomainPattern);
   const shortDomainMatcher = new RegExp(shortDomainPattern);
   const urlMatcher = new RegExp(domainPattern);
-  await browser.storage.local.set({domainRegex: urlMatcher, shortDomainRegex: shortDomainMatcher});
+  await browser.storage.local.set({domainRegex: urlMatcher, shortDomainRegex: shortDomainMatcher, ampDomainRegex : ampCacheMatcher});
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
