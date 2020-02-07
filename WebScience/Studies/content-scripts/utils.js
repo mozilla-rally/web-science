@@ -35,8 +35,14 @@ function removeFacebookShim(url) {
  */
 function removeShim(url) {
     // check if the url matches shim
-    if(facebookUrlRegex.test(url)) {
-        return { url : removeFacebookShim(url), isShim : true};
+    if (facebookUrlRegex.test(url)) {
+        return {
+            url: removeFacebookShim(url),
+            isShim: true
+        };
     }
-    return { url : url, isShim : false};
+    return {
+        url: url,
+        isShim: false
+    };
 }

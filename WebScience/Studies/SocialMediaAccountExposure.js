@@ -24,6 +24,7 @@ var storage = null;
 export async function runStudy({
   fbaccounts = [ ],
   ytchannels = [ ],
+  twitterHandles = [ ],
   privateWindows = false,
 }) {
 
@@ -45,7 +46,7 @@ export async function runStudy({
       runAt: "document_idle"
   });
 
-  // create regex strings for media accounts
+  // create regex strings for media facebook accounts
   let mediaFacebookAccounts = WebScience.Utilities.Matching.createUrlRegexString(fbaccounts);
   await browser.storage.local.set({mediaFacebookAccountsRegexString : mediaFacebookAccounts});
 
@@ -54,6 +55,21 @@ export async function runStudy({
     js: [
       {
         file: "/WebScience/Studies/content-scripts/socialMediaAccountExposure-fb.js"
+      }
+    ],
+    runAt: "document_idle"
+  });
+
+  // create regex strings for media twitter handles
+  let mediaTwitterHandlesPattern = WebScience.Utilities.Matching.createUrlRegexString(twitterHandles);
+  const knownTwitterHandleMatcher = new RegExp(mediaTwitterHandlesPattern);
+  await browser.storage.local.set({knownTwitterHandleMatcher : knownTwitterHandleMatcher});
+
+  await browser.contentScripts.register({
+    matches: ["*://*.twitter.com/*"],
+    js: [
+      {
+        file: "/WebScience/Studies/content-scripts/socialMediaAccountExposure-twitter.js"
       }
     ],
     runAt: "document_idle"

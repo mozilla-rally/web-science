@@ -1,6 +1,7 @@
 import { studyDomains } from "/study/newsDomains.js"
 import { youtubeChannels } from "/study/newsYouTubeChannels.js";
 import { facebookAccounts } from "/study/newsFacebookAccounts.js";
+import { twitterHandles } from "/study/newsTwitterHandles.js";
 import * as WebScience from "../WebScience/WebScience.js"
 
 WebScience.Utilities.Debugging.enableDebugging();
@@ -48,6 +49,7 @@ function runStudies() {
     WebScience.Studies.SocialMediaAccountExposure.runStudy({
         fbaccounts: facebookAccounts,
         ytchannels: youtubeChannels,
+        twitterHandles : twitterHandles,
         privateWindows : false,
     });
 

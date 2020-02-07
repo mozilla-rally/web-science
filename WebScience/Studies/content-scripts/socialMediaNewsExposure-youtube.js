@@ -17,8 +17,6 @@
         // ytcategory is the news category string for youtube videos
         const ytcategory = "CategoryNews&Politics";
         // raw category string
-        /** @constant {string} news and politics category */
-        const ytrawstring = "News \\\\u0026 Politics";
         /** @constant {number} milliseconds */
         const waitMs = 2000;
         /** @constant click when set to true clicks Show More to retrieve video category */
@@ -62,9 +60,12 @@
          * @private
          */
         function checkForNewsCategoryFromClick() {
+            // get Category element using the class name
             elements = document.getElementsByClassName("style-scope ytd-metadata-row-container-renderer");
             for (i = 0; i < elements.length; i++) {
+                // if the element has text content
                 if (elements[i].textContent.length > 0) {
+                    // check if the text content after stripping whitespace matches News&Politics string
                     str = elements[i].textContent.replace(/^\s+|\s+$/g, '').replace(/\n/g, "").replace(/\s{1,}/g, "");
                     if (str == ytcategory) {
                         return true;
