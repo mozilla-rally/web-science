@@ -38,7 +38,7 @@ export function resolveUrl(url) {
     // url is resolved
     let resolves = promisesByUrl.get(url) || [];
     if (!resolves || !resolves.length) {
-      promisesByUrl.set(url, []);
+      promisesByUrl.set(url, resolves);
     }
     resolves.push({
       resolve: resolve,
