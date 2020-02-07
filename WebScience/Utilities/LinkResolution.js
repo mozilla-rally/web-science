@@ -34,7 +34,8 @@ export function resolveUrl(url) {
     return Promise.reject("module not initialized");
   }
   let urlResolutionPromise = new Promise(function (resolve, reject) {
-    // store this resolve object in promisesByUrl
+    // store the resolve function in promisesByUrl. This function will be invoked when the 
+    // url is resolved
     let resolves = promisesByUrl.get(url) || [];
     if (!resolves || !resolves.length) {
       promisesByUrl.set(url, []);
