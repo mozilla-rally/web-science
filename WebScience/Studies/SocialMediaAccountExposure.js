@@ -47,8 +47,9 @@ export async function runStudy({
   });
 
   // create regex strings for media facebook accounts
-  let mediaFacebookAccounts = WebScience.Utilities.Matching.createUrlRegexString(fbaccounts);
-  await browser.storage.local.set({mediaFacebookAccountsRegexString : mediaFacebookAccounts});
+  let mediaFacebookAccountsPattern = WebScience.Utilities.Matching.createUrlRegexString(fbaccounts);
+  const knownFacebookAccountsMatcher = new RegExp(mediaFacebookAccountsPattern);
+  await browser.storage.local.set({knownFacebookAccountsMatcher : knownFacebookAccountsMatcher});
 
   await browser.contentScripts.register({
     matches: ["*://*.facebook.com/*"],
@@ -80,7 +81,7 @@ export async function runStudy({
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!
-    debugLog("socialMediaAccountExposure.Facebook: " + JSON.stringify(message));
+    debugLog("socialMediaAccountExposure: " + JSON.stringify(message));
       if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
           debugLog("Warning: unexpected social media account exposure update");
           return;

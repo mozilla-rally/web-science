@@ -12,8 +12,8 @@
             return;
         }
 
-        let accountsRegexString = await browser.storage.local.get("mediaFacebookAccountsRegexString");
-        const knownMediaAccountMatcher = new RegExp(accountsRegexString.mediaFacebookAccountsRegexString);
+        let accountsRegex = await browser.storage.local.get("knownFacebookAccountsMatcher");
+        const knownMediaAccountMatcher = accountsRegex.knownFacebookAccountsMatcher;
 
         /** @constant {string} - facebook post selector */
         const fbpost = "div[id^=hyperfeed_story]";
