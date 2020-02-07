@@ -248,7 +248,7 @@
             isMatched
           } = matchUrl(element);
           const elementSize = getElementSize(element);
-          if (!isMatched || checkElementSizeThreshold(elementSize)) {
+          if (!isMatched || !checkElementSizeThreshold(elementSize)) {
             // add this element to the map of checked urls
             checkedElements.set(element, false);
             return;
