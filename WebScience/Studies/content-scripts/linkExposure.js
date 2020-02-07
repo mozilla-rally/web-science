@@ -240,7 +240,7 @@
       }
       let exposureEvents = [];
       // Get <a> elements and either observe (for new elements) or send them to background script if visible for > threshold
-      Array.from(document.body.getElementsByTagName("a")).filter(link => link.hasAttribute("href")).forEach(element => {
+      Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
         // if we haven't seen this <a> element
         if (!checkedElements.has(element)) {
           const {
