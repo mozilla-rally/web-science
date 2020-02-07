@@ -16,8 +16,6 @@
 
         // ytcategory is the news category string for youtube videos
         const ytcategory = "CategoryNews&Politics";
-        /** @constant {RegExp} regex for youtube video url */
-        const ytmatcher = /(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w-_]+)/gmi;
         // raw category string
         /** @constant {string} news and politics category */
         const ytrawstring = "News \\\\u0026 Politics";
@@ -41,9 +39,6 @@
          */
         function checkNews() {
             let isNewsVideo = false;
-            if (!isYoutube()) {
-                return;
-            }
             isNewsVideo = checkForNewsCategoryFromText();
             if (!isNewsVideo && click) {
                 //alert(document.querySelector(".more-button"));
@@ -53,15 +48,8 @@
                 }, waitMs);
             }
             if (isNewsVideo) {
-                sendMessage();
+                sendMediaNewsExposureEvent();
             }
-        }
-        /**
-         * Check if the location matches youtube
-         * @private
-         */
-        function isYoutube() {
-            return ytmatcher.exec(location.href) != null;
         }
         /** @name checkForNewsCategoryFromText checks if inner html has News & Politics string */
         function checkForNewsCategoryFromText() {
@@ -88,7 +76,7 @@
         /**
          * Sends video title, url of news related videos on Youtube to background script
          */
-        function sendMessage() {
+        function sendMediaNewsExposureEvent() {
             let videoTitle = document.querySelector("h1.title.style-scope.ytd-video-primary-info-renderer").textContent;
             browser.runtime.sendMessage({
                 type: "WebScience.Studies.SocialMediaNewsExposure.Youtube",
