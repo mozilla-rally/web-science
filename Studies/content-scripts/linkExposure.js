@@ -250,26 +250,24 @@
           const elementSize = getElementSize(element);
           if (!isMatched || !checkElementSizeThreshold(elementSize)) {
             // add this element to the map of checked urls
-            checkedElements.set(element, false);
+            checkedElements.set(element, {track : false});
             return;
           }
-          let status = new ElementStatus(url);
-          status.setMatched();
-          checkedElements.set(element, status);
+          checkedElements.set(element, {track : true, url: url, matched: true, ignored:false});
           observer.observe(element);
         } else {
           let status = checkedElements.get(element);
           // if we have seen and the element is visible for atleast threshold milliseconds
-          if (status && status.isVisibleAboveThreshold(visibilityThreshold) && !status.isIgnored()) {
+          if (status.track && status.hasOwnProperty('firstVisible') && ( (Date.now() - status.firstVisible) >= visibilityThreshold) && !status.ignored) {
             // send <a> element this to background script
             exposureEvents.push({
               originalUrl: status.url,
               size: getElementSize(element),
-              firstSeen: status.visibility,
-              duration: status.getDuration()
+              firstSeen: status.firstVisible,
+              duration: Date.now() - status.firstVisible
             });
             observer.unobserve(element);
-            status.setIgnore();
+            status.ignored = true;
           }
         }
       });
@@ -280,16 +278,11 @@
     function handleIntersection(entries, observer) {
       entries.forEach(entry => {
         const {
-          isIntersecting,
           target
         } = entry;
         let status = checkedElements.get(target);
-        if (isIntersecting && isElementVisible(target)) {
-          status.setVisibility();
-        } else if (!isIntersecting && checkedElements.has(target) && checkedElements.get(target).visibility !== null) {
-          status.setIgnore();
-          status.setDuration();
-          observer.unobserve(target);
+        if(status.track && isElementVisible(target)) {
+          status.firstVisible = Date.now();
         }
       });
     }
@@ -299,67 +292,6 @@
       threshold: 1
     };
     const observer = new IntersectionObserver(handleIntersection, options);
-
-    /**
-     * @classdesc
-     * Keeps track of various properties of Elements
-     */
-    class ElementStatus {
-      constructor(url) {
-        this.url = url;
-        this.matched = false;
-        this.visibility = null;
-        this.visibleDuration = 0;
-        this.ignore = false;
-      }
-
-      /**
-       * @returns {boolean} true if element is ignored
-       */
-      isIgnored() {
-        return this.ignore;
-      }
-
-      setIgnore() {
-        this.ignore = true;
-      }
-
-      /**
-       * @returns {boolean} true if element is matched
-       */
-      isMatched() {
-        return this.matched;
-      }
-
-      setMatched() {
-        this.matched = true;
-      }
-      /**
-       * Checks if the element time since exceeds certain threshold
-       * @param {number} threshold number of milliseconds
-       */
-      isVisibleAboveThreshold(threshold) {
-        return this.visibility != null && (Date.now() >= this.visibility + threshold);
-      }
-      /**
-       * Sets visibility to the current
-       */
-      setVisibility() {
-        this.visibility = Date.now();
-      }
-
-      /**
-       * @returns {number} number of milliseconds since visibility was set
-       */
-      getDuration() {
-        return Date.now() - this.visibility;
-      }
-      setDuration() {
-        if (this.visibility != null) {
-          this.visibleDuration = Date.now() - this.visibility;
-        }
-      }
-    }
 
     let timer = setInterval(() => run(), updateInterval);
     let maxUpdates = -1;
