@@ -39,3 +39,6 @@ export { StudyTelemetry }
 
 import * as UserSurvey from "./UserSurvey.js"
 export { UserSurvey }
+
+import * as SocialMediaActivity from "./SocialMediaActivity.js"
+export { SocialMediaActivity }
