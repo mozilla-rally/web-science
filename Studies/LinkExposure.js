@@ -3,8 +3,14 @@
  * to content from known news domains
  * @module WebScience.Studies.LinkExposure
  */
-import * as WebScience from "/WebScience/WebScience.js";
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.LinkExposure");
+
+import * as Debugging from "../Utilities/Debugging.js"
+import * as Storage from "../Utilities/Storage.js"
+import * as LinkResolution from "../Utilities/LinkResolution.js"
+import * as Matching from "../Utilities/Matching.js"
+import * as Messaging from "../Utilities/Messaging.js"
+
+const debugLog = Debugging.getDebuggingLog("Studies.LinkExposure");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -25,14 +31,14 @@ export async function runStudy({
 
   // store private windows preference in the storage
   await browser.storage.local.set({ "WebScience.Studies.LinkExposure.privateWindows": privateWindows }); 
-  storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
+  storage = await (new Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextLinkExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
-  let shortDomains = WebScience.Utilities.LinkResolution.getShortDomains();
-  let ampCacheDomains = WebScience.Utilities.LinkResolution.getAmpCacheDomains();
-  let domainPattern = WebScience.Utilities.Matching.createUrlRegexString(domains);
-  let shortDomainPattern = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
-  let ampCacheDomainPattern = WebScience.Utilities.Matching.createUrlRegexString(ampCacheDomains);
+  var nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
+  let shortDomains = LinkResolution.getShortDomains();
+  let ampCacheDomains = LinkResolution.getAmpCacheDomains();
+  let domainPattern = Matching.createUrlRegexString(domains);
+  let shortDomainPattern = Matching.createUrlRegexString(shortDomains);
+  let ampCacheDomainPattern = Matching.createUrlRegexString(ampCacheDomains);
   const ampCacheMatcher = new RegExp(ampCacheDomainPattern);
   const shortDomainMatcher = new RegExp(shortDomainPattern);
   const urlMatcher = new RegExp(domainPattern);
@@ -52,7 +58,7 @@ export async function runStudy({
   });
 
   // Listen for LinkExposure messages from content script
-  WebScience.Utilities.Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender, sendResponse) => {
+  Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender, sendResponse) => {
     if (!("tab" in sender)) {
       debugLog("Warning: unexpected link exposure update");
       return;
@@ -63,7 +69,7 @@ export async function runStudy({
       // resolvedUrl is valid only for urls from short domains
       exposureEvent.resolvedUrl = undefined;
       if (exposureEvent.isShortenedUrl) {
-        let promise = WebScience.Utilities.LinkResolution.resolveUrl(exposureEvent.originalUrl);
+        let promise = LinkResolution.resolveUrl(exposureEvent.originalUrl);
         promise.then(function (result) {
           if (urlMatcher.test(result.dest)) {
             exposureEvent.resolvedUrl = result.dest;

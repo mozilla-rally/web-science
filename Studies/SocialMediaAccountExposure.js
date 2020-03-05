@@ -3,8 +3,13 @@
  * to content from known media channels (facebook posts from official page, videos posted on channels etc)
  * @module WebScience.Studies.SocialMediaAccountExposure
  */
-import * as WebScience from "/WebScience/WebScience.js";
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.SocialMediaAccountExposure");
+
+import * as Debugging from "../Utilities/Debugging.js"
+import * as Storage from "../Utilities/Storage.js"
+import * as Matching from "../Utilities/Matching.js"
+import * as Messaging from "../Utilities/Messaging.js"
+
+ const debugLog = Debugging.getDebuggingLog("Studies.SocialMediaAccountExposure");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -30,12 +35,12 @@ export async function runStudy({
 
   // store private windows preference in the storage
   await browser.storage.local.set({ "WebScience.Studies.SocialMediaAccountExposure.privateWindows": privateWindows }); 
-  storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaAccountExposure")).initialize();
+  storage = await (new Storage.KeyValueStorage("WebScience.Studies.SocialMediaAccountExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextSocialMediaAccountExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaAccountExposure.nextPageId")).initialize();
+  var nextSocialMediaAccountExposureIdCounter = await (new Storage.Counter("WebScience.Studies.SocialMediaAccountExposure.nextPageId")).initialize();
 
   // create regex strings for media channels
-  let mediaYoutubeChannelsPattern = WebScience.Utilities.Matching.createUrlRegexString(ytchannels);
+  let mediaYoutubeChannelsPattern = Matching.createUrlRegexString(ytchannels);
   const knownMediaChannelMatcher = new RegExp(mediaYoutubeChannelsPattern);
   await browser.storage.local.set({knownMediaChannelMatcher : knownMediaChannelMatcher});
 
@@ -47,7 +52,7 @@ export async function runStudy({
   });
 
   // create regex strings for media facebook accounts
-  let mediaFacebookAccountsPattern = WebScience.Utilities.Matching.createUrlRegexString(fbaccounts);
+  let mediaFacebookAccountsPattern = Matching.createUrlRegexString(fbaccounts);
   const knownFacebookAccountsMatcher = new RegExp(mediaFacebookAccountsPattern);
   await browser.storage.local.set({knownFacebookAccountsMatcher : knownFacebookAccountsMatcher});
 
@@ -62,7 +67,7 @@ export async function runStudy({
   });
 
   // create regex strings for media twitter handles
-  let mediaTwitterHandlesPattern = WebScience.Utilities.Matching.createUrlRegexString(twitterHandles);
+  let mediaTwitterHandlesPattern = Matching.createUrlRegexString(twitterHandles);
   const knownTwitterHandleMatcher = new RegExp(mediaTwitterHandlesPattern);
   await browser.storage.local.set({knownTwitterHandleMatcher : knownTwitterHandleMatcher});
 
@@ -77,7 +82,7 @@ export async function runStudy({
   });
 
   // Listen for SocialMediaAccountExposure messages from content scripts
-  WebScience.Utilities.Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure", (message, sender, sendResponse) => {
+  Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure", (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!

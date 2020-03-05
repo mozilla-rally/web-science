@@ -5,8 +5,12 @@
  * @module WebScience.Studies.Navigation
  */
 
-import * as WebScience from "../WebScience.js"
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.Navigation");
+import * as Debugging from "../Utilities/Debugging.js"
+import * as Storage from "../Utilities/Storage.js"
+import * as Matching from "../Utilities/Matching.js"
+import * as PageEvents from "../Utilities/PageEvents.js"
+
+const debugLog = Debugging.getDebuggingLog("Studies.Navigation");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -32,12 +36,12 @@ export async function runStudy({
     privateWindows = false
 }) {
 
-    storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.Navigation")).initialize();
+    storage = await (new Storage.KeyValueStorage("WebScience.Studies.Navigation")).initialize();
 
-    urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
+    urlMatcher = new Matching.UrlMatcher(domains);
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
-    var nextPageIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.Navigation.nextPageId")).initialize();
+    var nextPageIdCounter = await (new Storage.Counter("WebScience.Studies.Navigation.nextPageId")).initialize();
 
     // Keep track of information about pages with matching domains that are currently loaded into a tab
     // If a tab ID is in this object, the page currently contained in that tab has a matching domain
@@ -142,15 +146,15 @@ export async function runStudy({
     // Use a timestamp to synchronize initial page visit and page attention times
 
     var timeStamp = Date.now();
-    WebScience.Utilities.PageEvents.registerPageVisitStartListener(pageVisitStartListener, true, privateWindows, timeStamp);
-    WebScience.Utilities.PageEvents.registerPageVisitStopListener(pageVisitStopListener, privateWindows);
+    PageEvents.registerPageVisitStartListener(pageVisitStartListener, true, privateWindows, timeStamp);
+    PageEvents.registerPageVisitStopListener(pageVisitStopListener, privateWindows);
     if(trackUserAttention) {
-        WebScience.Utilities.PageEvents.registerPageAttentionStartListener(pageAttentionStartListener, true, privateWindows, timeStamp);
-        WebScience.Utilities.PageEvents.registerPageAttentionStopListener(pageAttentionStopListener, privateWindows);
+        PageEvents.registerPageAttentionStartListener(pageAttentionStartListener, true, privateWindows, timeStamp);
+        PageEvents.registerPageAttentionStopListener(pageAttentionStopListener, privateWindows);
     }
 
     // Build the URL matching set for content scripts
-    var contentScriptMatches = WebScience.Utilities.Matching.createUrlMatchPatternArray(domains, true);
+    var contentScriptMatches = Matching.createUrlMatchPatternArray(domains, true);
 
     // Store whether the Navigation study is running in private windows in extension
     // local storage, so that it is available to content scripts
@@ -185,14 +189,14 @@ export async function findUrlVisit(url) {
     // Search in-memory pages
     for (let pageId in currentTabInfo){
         var pageVisit = currentTabInfo[pageId];
-        if (WebScience.Utilities.Matching.approxMatchUrl(url, pageVisit.url)) {
+        if (Matching.approxMatchUrl(url, pageVisit.url)) {
             matchingVisits[pageId] = pageVisit;
         }
     }
 
     // Search previously-stored pages
     storage.iterate((pageVisit, pageId, iterationNumber) => {
-        if (WebScience.Utilities.Matching.approxMatchUrl(url, pageVisit.url)) {
+        if (Matching.approxMatchUrl(url, pageVisit.url)) {
             matchingVisits[pageId] = pageVisit;
         }
     });
