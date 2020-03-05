@@ -1,7 +1,7 @@
 /**
  * LinkExposure module is used to run studies that track user's exposure
  * to content from known news domains
- * @module WebScience.Studies.LinkExposure
+ * @module WebScience.Measurements.LinkExposure
  */
 
 import * as Debugging from "../Utilities/Debugging.js"
@@ -10,7 +10,7 @@ import * as LinkResolution from "../Utilities/LinkResolution.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as Messaging from "../Utilities/Messaging.js"
 
-const debugLog = Debugging.getDebuggingLog("Studies.LinkExposure");
+const debugLog = Debugging.getDebuggingLog("Measurements.LinkExposure");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -30,10 +30,10 @@ export async function runStudy({
 }) {
 
   // store private windows preference in the storage
-  await browser.storage.local.set({ "WebScience.Studies.LinkExposure.privateWindows": privateWindows }); 
-  storage = await (new Storage.KeyValueStorage("WebScience.Studies.LinkExposure")).initialize();
+  await browser.storage.local.set({ "WebScience.Measurements.LinkExposure.privateWindows": privateWindows }); 
+  storage = await (new Storage.KeyValueStorage("WebScience.Measurements.LinkExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Studies.LinkExposure.nextPageId")).initialize();
+  var nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.LinkExposure.nextPageId")).initialize();
   let shortDomains = LinkResolution.getShortDomains();
   let ampCacheDomains = LinkResolution.getAmpCacheDomains();
   let domainPattern = Matching.createUrlRegexString(domains);
@@ -48,10 +48,10 @@ export async function runStudy({
   await browser.contentScripts.register({
     matches: ["*://*/*"],
     js: [{
-        file: "/WebScience/Studies/content-scripts/utils.js"
+        file: "/WebScience/Measurements/content-scripts/utils.js"
       },
       {
-        file: "/WebScience/Studies/content-scripts/linkExposure.js"
+        file: "/WebScience/Measurements/content-scripts/linkExposure.js"
       }
     ],
     runAt: "document_idle"

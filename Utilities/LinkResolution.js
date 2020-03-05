@@ -11,7 +11,7 @@ import {
 import {
   ampCacheDomains
 } from '/WebScience/dependencies/ampcachedomains.js';
-const debugLog = getDebuggingLog("Studies.LinkResolution");
+const debugLog = getDebuggingLog("Measurements.LinkResolution");
 
 
 const fetchTimeoutMs = 5000;

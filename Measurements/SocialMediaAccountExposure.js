@@ -1,7 +1,6 @@
 /**
- * SocialMediaAccountExposure module is used to run studies that track user's exposure
- * to content from known media channels (facebook posts from official page, videos posted on channels etc)
- * @module WebScience.Studies.SocialMediaAccountExposure
+ * This module measures exposure to content from specific social media accounts.
+ * @module WebScience.Measurements.SocialMediaAccountExposure
  */
 
 import * as Debugging from "../Utilities/Debugging.js"
@@ -9,7 +8,7 @@ import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as Messaging from "../Utilities/Messaging.js"
 
- const debugLog = Debugging.getDebuggingLog("Studies.SocialMediaAccountExposure");
+ const debugLog = Debugging.getDebuggingLog("Measurements.SocialMediaAccountExposure");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -34,10 +33,10 @@ export async function runStudy({
 }) {
 
   // store private windows preference in the storage
-  await browser.storage.local.set({ "WebScience.Studies.SocialMediaAccountExposure.privateWindows": privateWindows }); 
-  storage = await (new Storage.KeyValueStorage("WebScience.Studies.SocialMediaAccountExposure")).initialize();
+  await browser.storage.local.set({ "WebScience.Measurements.SocialMediaAccountExposure.privateWindows": privateWindows }); 
+  storage = await (new Storage.KeyValueStorage("WebScience.Measurements.SocialMediaAccountExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextSocialMediaAccountExposureIdCounter = await (new Storage.Counter("WebScience.Studies.SocialMediaAccountExposure.nextPageId")).initialize();
+  var nextSocialMediaAccountExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.SocialMediaAccountExposure.nextPageId")).initialize();
 
   // create regex strings for media channels
   let mediaYoutubeChannelsPattern = Matching.createUrlRegexString(ytchannels);
@@ -47,7 +46,7 @@ export async function runStudy({
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
       matches: [ "*://*.youtube.com/*" ],
-      js: [ { file: "/WebScience/Studies/content-scripts/socialMediaAccountExposure-youtube.js" } ],
+      js: [ { file: "/WebScience/Measurements/content-scripts/socialMediaAccountExposure-youtube.js" } ],
       runAt: "document_idle"
   });
 
@@ -60,7 +59,7 @@ export async function runStudy({
     matches: ["*://*.facebook.com/*"],
     js: [
       {
-        file: "/WebScience/Studies/content-scripts/socialMediaAccountExposure-fb.js"
+        file: "/WebScience/Measurements/content-scripts/socialMediaAccountExposure-fb.js"
       }
     ],
     runAt: "document_idle"
@@ -75,14 +74,14 @@ export async function runStudy({
     matches: ["*://*.twitter.com/*"],
     js: [
       {
-        file: "/WebScience/Studies/content-scripts/socialMediaAccountExposure-twitter.js"
+        file: "/WebScience/Measurements/content-scripts/socialMediaAccountExposure-twitter.js"
       }
     ],
     runAt: "document_idle"
   });
 
   // Listen for SocialMediaAccountExposure messages from content scripts
-  Messaging.registerListener("WebScience.Studies.SocialMediaAccountExposure", (message, sender, sendResponse) => {
+  Messaging.registerListener("WebScience.Measurements.SocialMediaAccountExposure", (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!

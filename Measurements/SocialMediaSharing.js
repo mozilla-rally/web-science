@@ -1,8 +1,7 @@
 /**
- * This module is used to run studies that track the user's
- * social media sharing of links.
+ * This module measures link sharing on social media.
  * 
- * @module WebScience.Studies.SocialMediaSharing
+ * @module WebScience.Measurements.SocialMediaSharing
  */
 
 import * as Debugging from "../Utilities/Debugging.js"
@@ -68,15 +67,15 @@ export async function runStudy({
         SocialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet"]);
     }
 
-    storage = await (new Storage.KeyValueStorage("WebScience.Studies.SocialMediaSharing")).initialize();
+    storage = await (new Storage.KeyValueStorage("WebScience.Measurements.SocialMediaSharing")).initialize();
     urlMatcher = new Matching.UrlMatcher(domains);
     var sdrs = await browser.storage.local.get("shortDomainRegexString");
     shortUrlMatcher = new RegExp(sdrs.shortDomainRegexString),
 
     // Make this available to content scripts
-    // await browser.storage.local.set({ "WebScience.Studies.SocialMediaSharing.privateWindows": privateWindows });
+    // await browser.storage.local.set({ "WebScience.Measurements.SocialMediaSharing.privateWindows": privateWindows });
     // Use a unique identifier for each URL the user shares
-    shareIdCounter = await (new Storage.Counter("WebScience.Studies.SocialMediaSharing.nextShareId")).initialize();
+    shareIdCounter = await (new Storage.Counter("WebScience.Measurements.SocialMediaSharing.nextShareId")).initialize();
 }
 
 /**
@@ -171,7 +170,7 @@ async function redditLinks(details) {
  * history data for the given url.
  */
 async function createShareRecord(shareTime, platform, url, event) {
-    var pageVisits = await WebScience.Studies.Navigation.findUrlVisit(url);
+    var pageVisits = await WebScience.Measurements.Navigation.findUrlVisit(url);
     var historyVisits = await browser.history.search({text: Matching.stripUrl(url)});
     return { shareTime, platform, url, event, pageVisits, historyVisits };
 }
