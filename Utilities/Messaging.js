@@ -6,8 +6,9 @@
  * @module WebScience.Utilities.Messaging
  */
 
-import * as WebScience from "../WebScience.js"
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Utilities.Messaging");
+import * as Debugging from "./Debugging.js"
+
+const debugLog = Debugging.getDebuggingLog("Utilities.Messaging");
 
 /**
  * A Map that stores message listeners. The keys are message types and the values
