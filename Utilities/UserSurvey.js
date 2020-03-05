@@ -16,7 +16,7 @@ export async function runStudy({
     surveyUrl,
     surveyTimeAfterInitialRun
 }) {
-    storage = await(new Storage.KeyValueStorage("WebScience.Studies.UserSurvey")).initialize();
+    storage = await(new Storage.KeyValueStorage("WebScience.Measurements.UserSurvey")).initialize();
     var surveyTime = await storage.get("surveyTime");
     if (surveyTime) {
         if (surveyTime < Date.now()) {

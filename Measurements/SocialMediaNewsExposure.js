@@ -1,14 +1,13 @@
 /**
- * SocialMediaNewsExposure module is used to run studies that track user's exposure
- * to news content on social media websites
- * @module WebScience.Studies.SocialMediaNewsExposure
+ * This module measures exposure to content labeled as news on social media platforms.
+ * @module WebScience.Measurements.SocialMediaNewsExposure
  */
 
 import * as Debugging from "../Utilities/Debugging.js"
 import * as Storage from "../Utilities/Storage.js"
 import * as Messaging from "../Utilities/Messaging.js"
 
-const debugLog = Debugging.getDebuggingLog("Studies.SocialMediaNewsExposure");
+const debugLog = Debugging.getDebuggingLog("Measurements.SocialMediaNewsExposure");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -27,20 +26,20 @@ export async function runStudy({
 }) {
 
   // store private windows preference in the storage
-  await browser.storage.local.set({ "WebScience.Studies.SocialMediaNewsExposure.privateWindows": privateWindows }); 
-  storage = await (new Storage.KeyValueStorage("WebScience.Studies.SocialMediaNewsExposure")).initialize();
+  await browser.storage.local.set({ "WebScience.Measurements.SocialMediaNewsExposure.privateWindows": privateWindows }); 
+  storage = await (new Storage.KeyValueStorage("WebScience.Measurements.SocialMediaNewsExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextSocialMediaNewsExposureIdCounter = await (new Storage.Counter("WebScience.Studies.SocialMediaNewsExposure.nextPageId")).initialize();
+  var nextSocialMediaNewsExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.SocialMediaNewsExposure.nextPageId")).initialize();
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
       matches: [ "*://*.youtube.com/*" ],
-      js: [ { file: "/WebScience/Studies/content-scripts/socialMediaNewsExposure-youtube.js" } ],
+      js: [ { file: "/WebScience/Measurements/content-scripts/socialMediaNewsExposure-youtube.js" } ],
       runAt: "document_idle"
   });
 
   // Listen for SocialMediaNewsExposure.Youtube messages from content script
-  Messaging.registerListener("WebScience.Studies.SocialMediaNewsExposure.Youtube", (message, sender, sendResponse) => {
+  Messaging.registerListener("WebScience.Measurements.SocialMediaNewsExposure.Youtube", (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!

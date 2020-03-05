@@ -1,8 +1,7 @@
 /**
- * This module is used to run studies that track the user's navigation of
- * and attention to webpages on domains of interest.
+ * This module measures navigation to and attention to webpages on specific domains.
  * 
- * @module WebScience.Studies.Navigation
+ * @module WebScience.Measurements.PageNavigation
  */
 
 import * as Debugging from "../Utilities/Debugging.js"
@@ -10,7 +9,7 @@ import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as PageEvents from "../Utilities/PageEvents.js"
 
-const debugLog = Debugging.getDebuggingLog("Studies.Navigation");
+const debugLog = Debugging.getDebuggingLog("Measurements.PageNavigation");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -36,12 +35,12 @@ export async function runStudy({
     privateWindows = false
 }) {
 
-    storage = await (new Storage.KeyValueStorage("WebScience.Studies.Navigation")).initialize();
+    storage = await (new Storage.KeyValueStorage("WebScience.Measurements.PageNavigation")).initialize();
 
     urlMatcher = new Matching.UrlMatcher(domains);
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
-    var nextPageIdCounter = await (new Storage.Counter("WebScience.Studies.Navigation.nextPageId")).initialize();
+    var nextPageIdCounter = await (new Storage.Counter("WebScience.Measurements.PageNavigation.nextPageId")).initialize();
 
     // Keep track of information about pages with matching domains that are currently loaded into a tab
     // If a tab ID is in this object, the page currently contained in that tab has a matching domain
@@ -158,7 +157,7 @@ export async function runStudy({
 
     // Store whether the Navigation study is running in private windows in extension
     // local storage, so that it is available to content scripts
-    await browser.storage.local.set({ "WebScience.Studies.Navigation.privateWindows": privateWindows });
+    await browser.storage.local.set({ "WebScience.Measurements.PageNavigation.privateWindows": privateWindows });
 }
 
 /* Utilities */

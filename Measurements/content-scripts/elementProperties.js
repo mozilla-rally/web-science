@@ -1,6 +1,6 @@
 /**
  * Functions defined over HTMLElement nodes
- * @module WebScience.Studies.content-scripts.misc
+ * @module WebScience.Measurements.content-scripts.misc
  */
 
 const isThresholdValid = threshold =>

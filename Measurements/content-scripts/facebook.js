@@ -1,6 +1,6 @@
 /**
  * Content script for getting Facebook post contents
- * @module WebScience.Studies.content-scripts.socialMediaSharing
+ * @module WebScience.Measurements.content-scripts.socialMediaSharing
  */
 (async function() {
     // Let the background page know that the script is loaded and which tab it's in
@@ -8,9 +8,9 @@
                                  platform: "facebook"});
 
     // stop running if this is an incognito window and we're not supposed to run there
-    var privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaSharing.privateWindows");
-    if (("WebScience.Studies.SocialMediaSharing.privateWindows" in privateWindowResults)
-        && !privateWindowResults["WebScience.Studies.SocialMediaSharing.privateWindows"]
+    var privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaSharing.privateWindows");
+    if (("WebScience.Measurements.SocialMediaSharing.privateWindows" in privateWindowResults)
+        && !privateWindowResults["WebScience.Measurements.SocialMediaSharing.privateWindows"]
         && browser.extension.inIncognitoContext) { return; }
 
     /**
