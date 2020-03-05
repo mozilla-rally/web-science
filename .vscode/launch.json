@@ -1,0 +1,65 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": true,
+            "name": "Launch add-on",
+            "addonPath": "${workspaceFolder}",
+            "log": {
+                "fileName": "${workspaceFolder}/log.txt",
+                "fileLevel": {
+                    "default": "Debug"
+                }
+            }
+        },
+        // Note: automatic extension reloading is not reliable... after the first reload, the debugger appears
+        // to remain connected, but the Visual Studio debug console disconnects and the Firefox debug console
+        // shows errors
+        {
+            "name": "Launch WebExtension (With Automatic Extension Reloading)",
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": false,
+            "reloadOnChange": {
+                "watch": [ "${workspaceFolder}/**/*.js", "${workspaceFolder}/**/*.json", "${workspaceFolder}/**/*.html" ],
+                "ignore": [ ],
+                "debounce": false
+            },
+            "popupAutohideButton": false,
+            "addonPath": "${workspaceFolder}",
+            "firefoxArgs": [ "-jsconsole", "-foreground" ],
+            "preferences": {
+                "devtools.browserconsole.contentMessages": true,
+                "devtools.browserconsole.filter.debug": true,
+                "devtools.browserconsole.filter.error": false,
+                "devtools.browserconsole.filter.info": false,
+                "devtools.browserconsole.filter.log": false,
+                "devtools.browserconsole.filter.warn": false,
+                "app.normandy.enabled": false,
+                "extensions.allowPrivateBrowsingByDefault": true
+            }
+        },
+        // Note: it's possible to manually reload the extension inside Firefox from about:debugging
+        {
+            "name": "Launch WebExtension (Without Automatic Extension Reloading)",
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": false,
+            "popupAutohideButton": false,
+            "addonPath": "${workspaceFolder}",
+            "firefoxArgs": [  "-jsconsole", "-foreground", "-new-window", "about:blank", "-url", "about:debugging#/runtime/this-firefox" ],
+            "preferences": {
+                "devtools.browserconsole.contentMessages": true,
+                "devtools.browserconsole.filter.debug": true,
+                "devtools.browserconsole.filter.error": false,
+                "devtools.browserconsole.filter.info": false,
+                "devtools.browserconsole.filter.log": false,
+                "devtools.browserconsole.filter.warn": false,
+                "app.normandy.enabled": false,
+                "extensions.allowPrivateBrowsingByDefault": true
+            }
+        }
+    ]
+}
