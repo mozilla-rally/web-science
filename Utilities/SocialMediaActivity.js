@@ -4,9 +4,10 @@
  * @module WebScience.Utilities.SocialMediaActivity
  */
 
-import * as WebScience from "../WebScience.js"
+import * as Debugging from "./Debugging.js"
+import * as Messaging from "./Messaging.js"
 
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("SocialMediaSharing");
+const debugLog = Debugging.getDebuggingLog("SocialMediaSharing");
 
 var privateWindows = false; // TODO make this configurable
 
@@ -502,7 +503,7 @@ function tweetContentInit() {
 async function fbPostContentInit() {
     if (fbPostContentSetUp) { return; }
     fbPostContentSetUp = true;
-    WebScience.Utilities.Messaging.registerListener("WebScience.Utilities.SocialMediaActivity",
+    Messaging.registerListener("WebScience.Utilities.SocialMediaActivity",
         (message, sender) => {
             if (message.platform == "facebook") {
                 facebookTabId = sender.tab.id;
