@@ -2,7 +2,8 @@
  * Present surveys to the user.
  * @module WebScience.Utilities.userSurvey
  */
-import * as WebScience from "../WebScience.js"
+
+import * as Storage from "./Storage.js"
 
 var storage = null;
 
@@ -15,7 +16,7 @@ export async function runStudy({
     surveyUrl,
     surveyTimeAfterInitialRun
 }) {
-    storage = await(new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.UserSurvey")).initialize();
+    storage = await(new Storage.KeyValueStorage("WebScience.Studies.UserSurvey")).initialize();
     var surveyTime = await storage.get("surveyTime");
     if (surveyTime) {
         if (surveyTime < Date.now()) {

@@ -3,8 +3,12 @@
  * to news content on social media websites
  * @module WebScience.Studies.SocialMediaNewsExposure
  */
-import * as WebScience from "/WebScience/WebScience.js";
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("Studies.SocialMediaNewsExposure");
+
+import * as Debugging from "../Utilities/Debugging.js"
+import * as Storage from "../Utilities/Storage.js"
+import * as Messaging from "../Utilities/Messaging.js"
+
+const debugLog = Debugging.getDebuggingLog("Studies.SocialMediaNewsExposure");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -24,9 +28,9 @@ export async function runStudy({
 
   // store private windows preference in the storage
   await browser.storage.local.set({ "WebScience.Studies.SocialMediaNewsExposure.privateWindows": privateWindows }); 
-  storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaNewsExposure")).initialize();
+  storage = await (new Storage.KeyValueStorage("WebScience.Studies.SocialMediaNewsExposure")).initialize();
   // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextSocialMediaNewsExposureIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaNewsExposure.nextPageId")).initialize();
+  var nextSocialMediaNewsExposureIdCounter = await (new Storage.Counter("WebScience.Studies.SocialMediaNewsExposure.nextPageId")).initialize();
 
   // Add the content script for checking links on pages
   await browser.contentScripts.register({
@@ -36,7 +40,7 @@ export async function runStudy({
   });
 
   // Listen for SocialMediaNewsExposure.Youtube messages from content script
-  WebScience.Utilities.Messaging.registerListener("WebScience.Studies.SocialMediaNewsExposure.Youtube", (message, sender, sendResponse) => {
+  Messaging.registerListener("WebScience.Studies.SocialMediaNewsExposure.Youtube", (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!

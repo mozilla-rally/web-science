@@ -1,10 +1,12 @@
-import * as WebScience from "../WebScience.js"
 /**
  * This module is used for setting consent configuration, requesting
  * consent, and listening for changes in consent.
  * 
  * @module WebScience.Utilities.Consent
  */
+
+import * as Storage from "./Storage.js"
+import * as Messaging from "./Messaging.js"
 
  /**
   * A flag for whether this study needs individual consent, rather than
@@ -148,15 +150,15 @@ If you'd still like to participate in the study, you may keep the extension inst
  * consent if it is necessary, and begins the study if not.
  */
 export async function requestConsentAndBegin() {
-  storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Utilities.Consent")).initialize();
+  storage = await (new Storage.KeyValueStorage("WebScience.Utilities.Consent")).initialize();
   await storage.set("studySpecificConsent", false);
 
-  WebScience.Utilities.Messaging.registerListener("WebScience.Options.saveStudySpecificConsent", (message) => {
+  Messaging.registerListener("WebScience.Options.saveStudySpecificConsent", (message) => {
     saveStudySpecificConsent(message.content.studySpecificConsent);
   },
   { studySpecificConsent: "boolean" });
 
-  WebScience.Utilities.Messaging.registerListener("WebScience.Options.checkStudySpecificConsent", (message) => {
+  Messaging.registerListener("WebScience.Options.checkStudySpecificConsent", (message) => {
     return checkStudySpecificConsent();
   });
 

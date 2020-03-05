@@ -5,8 +5,13 @@
  * @module WebScience.Studies.SocialMediaSharing
  */
 
-import * as WebScience from "../WebScience.js"
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("SocialMediaSharing");
+import * as Debugging from "../Utilities/Debugging.js"
+import * as Storage from "../Utilities/Storage.js"
+import * as Matching from "../Utilities/Matching.js"
+import * as LinkResolution from "../Utilities/LinkResolution.js"
+import * as SocialMediaActivity from "../Utilities/SocialMediaActivity.js"
+
+const debugLog = Debugging.getDebuggingLog("SocialMediaSharing");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -52,26 +57,26 @@ export async function runStudy({
     reddit = false,
     privateWindows = false
 }) {
-    if (privateWindows) WebScience.Utilities.SocialMediaActivity.enablePrivateWindows();
+    if (privateWindows) SocialMediaActivity.enablePrivateWindows();
     if (facebook) {
-        WebScience.Utilities.SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare"]);
+        SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare"]);
     }
     if (reddit) {
-        WebScience.Utilities.SocialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
+        SocialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
     }
     if (twitter) {
-        WebScience.Utilities.SocialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet"]);
+        SocialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet"]);
     }
 
-    storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaSharing")).initialize();
-    urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
+    storage = await (new Storage.KeyValueStorage("WebScience.Studies.SocialMediaSharing")).initialize();
+    urlMatcher = new Matching.UrlMatcher(domains);
     var sdrs = await browser.storage.local.get("shortDomainRegexString");
     shortUrlMatcher = new RegExp(sdrs.shortDomainRegexString),
 
     // Make this available to content scripts
     // await browser.storage.local.set({ "WebScience.Studies.SocialMediaSharing.privateWindows": privateWindows });
     // Use a unique identifier for each URL the user shares
-    shareIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaSharing.nextShareId")).initialize();
+    shareIdCounter = await (new Storage.Counter("WebScience.Studies.SocialMediaSharing.nextShareId")).initialize();
 }
 
 /**
@@ -86,7 +91,7 @@ async function twitterLinks(details) {
         await filterTokensToUrls(details.postText.split(/\s+/), urlsToSave);
         await filterTokensToUrls([details.attachmentUrl], urlsToSave);
     } else if (details.eventType == "retweet") {
-        var retweetedTweets = await WebScience.Utilities.SocialMediaActivity.getTweetContent(details.retweetedId);
+        var retweetedTweets = await SocialMediaActivity.getTweetContent(details.retweetedId);
         var retweetedTweet = retweetedTweets[details.retweetedId];
         await filterTokensToUrls(retweetedTweet.full_text.split(/\s+/), urlsToSave);
         for (var url of retweetedTweet.entities.urls) {
@@ -108,7 +113,7 @@ async function twitterLinks(details) {
 async function facebookLinks(details) {
     var urlsToSave = [];
     if (details.eventType == "post") {
-        var post = await WebScience.Utilities.SocialMediaActivity.getFacebookPostContents(details.postId,
+        var post = await SocialMediaActivity.getFacebookPostContents(details.postId,
             details.ownerId ? details.ownerId : details.groupId);
         for (var contentItem of post.content) {
             var postTokens = contentItem.split(/\s+/);
@@ -116,7 +121,7 @@ async function facebookLinks(details) {
         }
         await filterTokensToUrls(post.urlsInMediaBox, urlsToSave);
     } else if (details.eventType == "reshare") {
-        var post = await WebScience.Utilities.SocialMediaActivity.getFacebookPostContents(details.postId,
+        var post = await SocialMediaActivity.getFacebookPostContents(details.postId,
             details.ownerId);
         for (var contentItem of post.content) {
             var postTokens = contentItem.split(/\s+/);
@@ -167,7 +172,7 @@ async function redditLinks(details) {
  */
 async function createShareRecord(shareTime, platform, url, event) {
     var pageVisits = await WebScience.Studies.Navigation.findUrlVisit(url);
-    var historyVisits = await browser.history.search({text: WebScience.Utilities.Matching.stripUrl(url)});
+    var historyVisits = await browser.history.search({text: Matching.stripUrl(url)});
     return { shareTime, platform, url, event, pageVisits, historyVisits };
 }
 
@@ -191,7 +196,7 @@ export async function getStudyDataAsObject() {
 function deduplicateUrls(urls) {
     var uniqueUrls = new Set();
     for (var url of urls) {
-        uniqueUrls.add(WebScience.Utilities.Matching.removeUrlParams(url));
+        uniqueUrls.add(Matching.removeUrlParams(url));
     }
     return uniqueUrls;
 }
@@ -203,7 +208,7 @@ function deduplicateUrls(urls) {
  */
 async function checkShortUrl(url) {
     if (shortUrlMatcher.test(url)) {
-        var resolvedUrlObj = await WebScience.Utilities.LinkResolution.resolveUrl(url);
+        var resolvedUrlObj = await LinkResolution.resolveUrl(url);
         if (urlMatcher.testUrl(resolvedUrlObj.dest)) {
             return {result: true, resolvedUrl: resolvedUrlObj.dest}
         }
