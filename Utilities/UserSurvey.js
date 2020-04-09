@@ -4,9 +4,20 @@
  */
 
 import * as Storage from "./Storage.js"
+import * as Debugging from "./Debugging.js"
 
 var storage = null;
 
+const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
+function manageConsent(url) {
+    debugLog(url);
+}
+debugLog("user survey");
+browser.privileged.onSurveyConsentAccept.addListener(
+    async() => {
+        debugLog("callback invoked");
+    }
+);
 function scheduleSurvey(surveyUrl, surveyTime) {
     browser.alarms.onAlarm.addListener(function () {
         browser.privileged.createSurveyPopup(surveyUrl);
@@ -27,6 +38,7 @@ export async function runStudy({
 }) {
     storage = await(new Storage.KeyValueStorage("WebScience.Measurements.UserSurvey")).initialize();
     var surveyTime = await storage.get("surveyTime");
+    // create listeners
     if (surveyTime) {
         if (surveyTime < Date.now()) {
             scheduleSurvey(surveyUrl, surveyTime);
