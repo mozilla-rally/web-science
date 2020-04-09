@@ -7,6 +7,15 @@ import * as Storage from "./Storage.js"
 
 var storage = null;
 
+function scheduleSurvey(surveyUrl, surveyTime) {
+    browser.alarms.onAlarm.addListener(function () {
+        browser.privileged.createSurveyPopup(surveyUrl);
+    });
+    browser.alarms.create(
+        "surveyAlarm",
+        { when: surveyTime["surveyTime"] }
+    );
+}
 /**
  * Schedule a survey.
  * @param {string} surveyUrl - the website to send the user to
@@ -20,26 +29,13 @@ export async function runStudy({
     var surveyTime = await storage.get("surveyTime");
     if (surveyTime) {
         if (surveyTime < Date.now()) {
-            browser.alarms.onAlarm.addListener(function () {
-                browser.privileged.createSurveyPopup(surveyUrl);
-            });
-            browser.alarms.create(
-                "surveyAlarm",
-                { when: surveyTime["surveyTime"] }
-            );
+            scheduleSurvey(surveyUrl, surveyTime);
         } else {
-            browser.privileged.createSurveyPopup(surveyUrl);
+            browser.privileged.createSurveyPopup(surveyUrl, browser.windows);
         }
     } else {
-        var now = Date.now();
-        surveyTime = surveyTimeAfterInitialRun + now;
+        surveyTime = surveyTimeAfterInitialRun + Date.now();
         await storage.set("surveyTime", surveyTime);
-        browser.alarms.onAlarm.addListener(function () {
-            browser.privileged.createSurveyPopup(surveyUrl);
-        });
-        browser.alarms.create(
-            "surveyAlarm",
-            { when: surveyTime }
-        );
+        scheduleSurvey(surveyUrl, surveyTime);
     }
 }
