@@ -10,8 +10,15 @@ var storage = null;
 
 const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
 
-browser.privileged.onSurveyPopup.addListener((url) => {
-    debugLog(url);
+browser.privileged.onSurveyPopup.addListener(async(url) => {
+    debugLog("survey created for user" + url);
+    let surveys = await storage.get("surveyUrls");
+    if(!surveys) {
+        surveys = new Array();
+    }
+    surveys.push(url);
+    await storage.set("surveyUrls", surveys);
+    debugLog("survey urls " + surveys);
     browser.tabs.create({
         url: url
     });
@@ -38,7 +45,7 @@ export async function runStudy({
     storage = await(new Storage.KeyValueStorage("WebScience.Measurements.UserSurvey")).initialize();
     var surveyTime = await storage.get("surveyTime");
     // create listeners
-    if (0) {
+    if (surveyTime) {
         if (surveyTime < Date.now()) {
             scheduleSurvey(surveyUrl, surveyTime);
         } else {
