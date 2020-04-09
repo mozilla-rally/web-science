@@ -9,15 +9,7 @@ import * as Debugging from "./Debugging.js"
 var storage = null;
 
 const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
-function manageConsent(url) {
-    debugLog(url);
-}
-debugLog("user survey");
-browser.privileged.onSurveyConsentAccept.addListener(
-    async() => {
-        debugLog("callback invoked");
-    }
-);
+
 function scheduleSurvey(surveyUrl, surveyTime) {
     browser.alarms.onAlarm.addListener(function () {
         browser.privileged.createSurveyPopup(surveyUrl);
