@@ -10,13 +10,20 @@ var storage = null;
 
 const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
 
+browser.privileged.onSurveyPopup.addListener((url) => {
+    debugLog(url);
+    browser.tabs.create({
+        url: url
+    });
+});
+
 function scheduleSurvey(surveyUrl, surveyTime) {
     browser.alarms.onAlarm.addListener(function () {
-        browser.privileged.createSurveyPopup(surveyUrl);
+        browser.privileged.createSurveyPopup(surveyUrl, surveyTime);
     });
     browser.alarms.create(
         "surveyAlarm",
-        { when: surveyTime["surveyTime"] }
+        { when: surveyTime }
     );
 }
 /**
@@ -31,7 +38,7 @@ export async function runStudy({
     storage = await(new Storage.KeyValueStorage("WebScience.Measurements.UserSurvey")).initialize();
     var surveyTime = await storage.get("surveyTime");
     // create listeners
-    if (surveyTime) {
+    if (0) {
         if (surveyTime < Date.now()) {
             scheduleSurvey(surveyUrl, surveyTime);
         } else {
