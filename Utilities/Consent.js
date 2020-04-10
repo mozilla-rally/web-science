@@ -154,6 +154,9 @@ If you'd still like to participate in the study, you may keep the extension inst
 
 /**
  * Listen for user actions on consent popup
+ * If user clicks on Learn more then creates a new tab
+ * If user clicks on agree then starts study
+ * If user clicks on disagree then end study
  * @callback
  */
 browser.privileged.onConsentPopup.addListener((value) => {
