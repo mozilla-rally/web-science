@@ -9,6 +9,7 @@ import * as Debugging from "./Debugging.js"
 var storage = null;
 
 const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
+export const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.png");
 
 browser.privileged.onSurveyPopup.addListener(async(url) => {
     debugLog("survey created for user" + url);
@@ -26,7 +27,7 @@ browser.privileged.onSurveyPopup.addListener(async(url) => {
 
 function scheduleSurvey(surveyUrl, surveyTime) {
     browser.alarms.onAlarm.addListener(function () {
-        browser.privileged.createSurveyPopup(surveyUrl, surveyTime);
+        browser.privileged.createSurveyPopup(surveyUrl, surveyTime, SHIELD_URL);
     });
     browser.alarms.create(
         "surveyAlarm",
@@ -49,7 +50,7 @@ export async function runStudy({
         if (surveyTime < Date.now()) {
             scheduleSurvey(surveyUrl, surveyTime);
         } else {
-            browser.privileged.createSurveyPopup(surveyUrl, browser.windows);
+            browser.privileged.createSurveyPopup(surveyUrl, Date.now(), SHIELD_URL);
         }
     } else {
         surveyTime = surveyTimeAfterInitialRun + Date.now();
