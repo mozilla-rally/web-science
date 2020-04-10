@@ -152,6 +152,10 @@ If you'd still like to participate in the study, you may keep the extension inst
   else if (consent && !studyCurrentlyRunning) { startStudy(); }
 }
 
+/**
+ * Listen for user actions on consent popup
+ * @callback
+ */
 browser.privileged.onConsentPopup.addListener((value) => {
     debugLog("consent value ( 0 Learn more, 1 : Agree, -1 : Disagree) = "+ value);
     switch(value) {
