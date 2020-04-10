@@ -17,19 +17,23 @@ let db;
  */
 onmessage = event => {
     let data = event.data;
-    switch(data) {
+    switch (data) {
         case "run":
             sendMessageToCaller("status", "started");
             setTimeout(function () {
                 let req = indexedDB.open("analytics", 1);
                 req.onsuccess = function (event) {
                     db = event.target.result;
-                    sendMessageToCaller("result", "db opened measurements");
+                    sendMessageToCaller("result", {
+                        status: "ok",
+                        message: "measurements database opened",
+                        time: 5000
+                    });
                 };
             }, 5000)
             break;
     }
-  }
+}
 
   /**
    * Error handler

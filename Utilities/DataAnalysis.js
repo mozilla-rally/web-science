@@ -42,6 +42,7 @@ async function initialize() {
         return;
     initialized = true;
     // TODO : replace the interval with secondsPerDay in production
+    debugLog("registering idle state listener for data analysis");
     Idle.registerIdleStateListener(idleStateListener, 1);
 }
 
@@ -53,6 +54,7 @@ async function initialize() {
 async function idleStateListener(newState) {
     // If the browser has entered an idle state, fire the
     // analysis scripts
+    debugLog("data analysis idle state listener triggered with state " + newState);
     if(newState === "idle")
         await triggerAnalysisScripts();
 }
@@ -76,7 +78,7 @@ function workerError(err) {
 function createMessageReceiver(listeners) {
     function messageReceiver(result) {
         let data = result.data;
-        debugLog("received message from worker script"+ data.data);
+        debugLog("received message from worker script {"+ JSON.stringify(data) + "}. Now passing it to listeners");
         for(let listener of listeners) {
             listener(data.data);
         }
@@ -114,4 +116,11 @@ export async function registerAnalysisResultListener(workerScriptPath, listener)
         resultRouter.set(workerScriptPath, resultListeners);
     }
     resultListeners.add(listener);
+}
+
+export async function runStudy(scripts) {
+    for (let [scriptName, scriptParameters] of Object.entries(scripts)) {
+        await registerAnalysisResultListener(scriptParameters.path, scriptParameters.resultListener);
+    }
+    await triggerAnalysisScripts();
 }
