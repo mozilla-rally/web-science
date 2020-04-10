@@ -11,6 +11,8 @@ import {
 
 import * as Storage from "./Storage.js"
 import * as Messaging from "./Messaging.js"
+import {SHIELD_URL} from "./UserSurvey.js"
+
 const debugLog = getDebuggingLog("Utilities.Consent");
 
  /**
@@ -188,6 +190,6 @@ export async function requestConsentAndBegin() {
   // Note that a dev build of Firefox is required to use the experimental API
   // To see the popup, comment out the call to disableStudySpecificConsent in
   // study.js (and run dev FF)
-  if (studySpecificConsentRequired) { browser.privileged.createConsentPopup(); }
+  if (studySpecificConsentRequired) { browser.privileged.createConsentPopup(SHIELD_URL); }
   else { startStudy(); }
 }
