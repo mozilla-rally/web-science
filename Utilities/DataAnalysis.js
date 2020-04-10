@@ -48,6 +48,8 @@ async function initialize() {
 
 /**
  * A listener for idle state events from the Idle module
+ * Triggers all analysis scripts that are registered to run
+ * during idle state
  * @param {string} newState - The new browser idle state.
  * @private
  */
@@ -108,7 +110,7 @@ export async function triggerAnalysisScripts() {
  * @param {string} workerScriptPath - location of the worker script
  * @param {function} listener - The listener function.
  */
-export async function registerAnalysisResultListener(workerScriptPath, listener) {
+async function registerAnalysisResultListener(workerScriptPath, listener) {
     await initialize();
     var resultListeners = resultRouter.get(workerScriptPath);
     if (resultListeners === undefined) {
@@ -118,6 +120,18 @@ export async function registerAnalysisResultListener(workerScriptPath, listener)
     resultListeners.add(listener);
 }
 
+/**
+ * Registers analysis scripts and associated listener functions.
+ * For each analysis name (identified by object keys), the function expects a
+ * script and listener for the result. The analysis script is scheduled to
+ * execute in a worker thread during browser idle time. The results from
+ * analysis script are forwarded to the listener function.
+ * 
+ * @param {Object} scripts 
+ * @param {Object.any.path} path - path for analysis script
+ * @param {Object.any.resultListener} path - Listener function for processing
+ * the result from analysis script
+ */
 export async function runStudy(scripts) {
     for (let [scriptName, scriptParameters] of Object.entries(scripts)) {
         await registerAnalysisResultListener(scriptParameters.path, scriptParameters.resultListener);

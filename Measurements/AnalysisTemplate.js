@@ -1,5 +1,6 @@
 /**
- * @file Sample worker script
+ * @file Sample analysis script
+ * @module WebScience.Measurements.AnalysisTemplate
  */
 
 /**
@@ -11,6 +12,10 @@ let db;
 
 /**
  * Event handler for messages from the main thread
+ * On receiving "run" trigger, it waits for 5 seconds and tries to open an
+ * indexed database. The wait is used to simulate intense computation. It shows
+ * that the main thread is not blocked. At the end of timeout, a result object
+ * is created and communicated back to the main thread.
  * 
  * @param {MessageEvent} event - message object
  * @listens MessageEvent
