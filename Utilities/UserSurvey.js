@@ -26,13 +26,13 @@ export const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.pn
 
 browser.privileged.onSurveyPopup.addListener(async(url) => {
     debugLog("survey created for user" + url);
-    let surveys = await storage.get("surveyUrls");
+    let surveys = await storage.get("surveyList");
     if(!surveys) {
         surveys = new Array();
     }
     surveys.push(url);
-    await storage.set("surveyUrls", surveys);
-    debugLog("survey urls " + surveys);
+    await storage.set("surveyList", surveys);
+    debugLog("survey list " + surveys);
     browser.tabs.create({
         url: url
     });
