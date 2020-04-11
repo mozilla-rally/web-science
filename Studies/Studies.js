@@ -10,5 +10,5 @@ export { SocialMediaNewsExposure }
 import * as SocialMediaAccountExposure from "./SocialMediaAccountExposure.js"
 export { SocialMediaAccountExposure };
 
-import * as SocialMediaSharing from "./SocialMediaSharing.js"
-export { SocialMediaSharing }
+import * as SocialMediaLinkSharing from "./SocialMediaLinkSharing.js"
+export { SocialMediaLinkSharing }

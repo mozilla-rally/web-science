@@ -4,11 +4,10 @@
  * @module WebScience.Utilities.SocialMediaActivity
  */
 
-import * as WebScience from "../WebScience.js"
+//import * as WebScience from "../WebScience.js"
+import * as Messaging from "../Utilities/Messaging.js"
 
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("SocialMediaSharing");
-
-var privateWindows = false; // TODO make this configurable
+var privateWindows = false;
 
 var tweetContentSetUp = false;
 var twitter_x_csrf_token = "";
@@ -163,6 +162,7 @@ async function handleGenericEvent({requestDetails = null,
                 return;
             }
         }
+        if (platform == "facebook") facebookTabId = requestDetails.tabId;
         var details = {};
         for (var extractor of handler.extractors) {
             details = await extractor({requestDetails: requestDetails, details: details,
@@ -281,7 +281,9 @@ platformHandlers.twitter.favorite = {
 
 platformHandlers.facebook.post = {
     stage: "onBeforeRequest",
-    urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*"],
+    urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*", // Old FB
+           "https://www.facebook.com/api/graphql/" // New FB
+          ],
     verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookPost],
     extractors: [extractFacebookPost],
     completers: [],
@@ -308,7 +310,9 @@ platformHandlers.facebook.comment = {
 };
 platformHandlers.facebook.reshare = {
     stage: "onBeforeRequest",
-    urls: ["https://www.facebook.com/share/dialog/submit/*"],
+    urls: ["https://www.facebook.com/share/dialog/submit/*", // Old FB
+           "https://www.facebook.com/api/graphql/" // New FB
+          ],
     verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookReshare],
     extractors: [extractFacebookReshare],
     completers: [],
@@ -502,7 +506,7 @@ function tweetContentInit() {
 async function fbPostContentInit() {
     if (fbPostContentSetUp) { return; }
     fbPostContentSetUp = true;
-    WebScience.Utilities.Messaging.registerListener("WebScience.Utilities.SocialMediaActivity",
+    Messaging.registerListener("WebScience.Utilities.SocialMediaActivity",
         (message, sender) => {
             if (message.platform == "facebook") {
                 facebookTabId = sender.tab.id;
@@ -525,38 +529,45 @@ async function fbPostContentInit() {
  * @param requestDetails - the raw request
  * @returns - the parsed event
  */
-function extractFacebookReact({requestDetails = null, eventTime = null}) {
-    var reactionRequest = JSON.parse(requestDetails.requestBody.formData.variables[0]);
-    var tracking = JSON.parse(reactionRequest.input.tracking[0]);
+function extractFacebookReact({requestDetails = null, eventTime = null, verified = null}) {
+    var reactionRequest = verified.reactionRequest;
     var postId = "";
     var groupId = "";
     var ownerId = "";
-    postId = tracking["top_level_post_id"];
-    if ("group_id" in tracking) {
-        groupId = tracking["group_id"];
-    } else {
-        ownerId = tracking["content_owner_id_new"];
+    try {
+        var tracking = JSON.parse(reactionRequest.input.tracking[0]);
+        postId = tracking["top_level_post_id"];
+        if ("group_id" in tracking) {
+            groupId = tracking["group_id"];
+        } else {
+            ownerId = tracking["content_owner_id_new"];
+        }
+    } catch(error) {
+        var feedbackId = atob(reactionRequest.input.feedback_id);
+        if (feedbackId.startsWith("feedback:")) {
+            postId = feedbackId.substring(9);
+        }
     }
     var reaction = reactionRequest.input.feedback_reaction;
-    var reaction_type = "";
+    var reactionType = "";
     if (reaction == 0) { // removing reaction
-        reaction_type = "remove";
+        reactionType = "remove";
     } else if (reaction == 1) { // don't ask me why the numbers go like this, I just work here
-        reaction_type = "like";
+        reactionType = "like";
     } else if (reaction == 2) {
-        reaction_type = "love";
+        reactionType = "love";
     } else if (reaction == 4) {
-        reaction_type = "haha";
+        reactionType = "haha";
     } else if (reaction == 3) {
-        reaction_type = "wow";
+        reactionType = "wow";
     } else if (reaction == 7) {
-        reaction_type = "sad";
+        reactionType = "sad";
     } else if (reaction == 8) {
-        reaction_type = "angry";
+        reactionType = "angry";
     }
     var details = {eventType: "react", eventTime: eventTime,
         postId: postId, groupId: groupId,
-        ownerId: ownerId, reaction_type: reaction_type};
+        ownerId: ownerId, reactionType: reactionType};
     return details;
 }
 
@@ -570,7 +581,11 @@ function verifyFacebookReact({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "UFI2FeedbackReactMutation")) {
         return null;
     }
-    return {};
+    var reactionRequest = JSON.parse(requestDetails.requestBody.formData.variables[0]);
+    if (reactionRequest.client_mutation_id) {
+        if (!(reactionRequest.client_mutation_id == 1)) { return null; }
+    }
+    return {reactionRequest};
 }
 
 /**
@@ -580,6 +595,9 @@ function verifyFacebookReact({requestDetails = null}) {
  */
 function verifyFacebookPost({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.variables)) { return null; }
+    if (requestDetails.url.includes("api/graphql")) {
+        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "ComposerStoryCreateMutation")) { return null; }
+    }
     return {};
 }
 
@@ -607,7 +625,7 @@ function extractFacebookPost({requestDetails = null, eventTime = null}) {
             }
         }
     }
-    var details = {postTime: postTime, postText: postText,
+    var details = {postTime: eventTime, postText: postText,
         postUrls: postUrls, eventType: "post", eventTime: eventTime};
     return details;
 }
@@ -659,6 +677,20 @@ function verifyFacebookComment({requestDetails = null}) {
  * @returns - the parsed event
  */
 function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
+    // New FB
+    if (requestDetails.url.includes("api/graphql")) {
+        var details = {};
+        var variables = JSON.parse(requestDetails.requestBody.formData.variables[0]);
+        details.newPostMessage = variables.input.message.text;
+        details.attachedUrls = [];
+        for (var attachment of variables.input.attachments) {
+            var linkData = JSON.parse(attachment.share_scrape_data);
+            details.attachedUrls.push(linkData.canonical);
+        }
+        return details;
+    }
+
+    // Old FB
     // If the user chooses "share now", the post id is in the formData and there is no message.
     // If they choose "share" or "share on a friend's timeline", it's in the url parameters instead.
     var details = {
@@ -676,6 +708,11 @@ function extractFacebookReshare({requestDetails = null, verified = null, eventTi
  * @returns - null if the request is not a valid reshare, empty object otherwise
  */
 function verifyFacebookReshare({requestDetails = null }) {
+    if (requestDetails.url.includes("api/graphql")) {
+        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
+        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "useCometFeedToFeedReshare_FeedToFeedMutation")) { return null; }
+        return {}
+    }
     var sharedFromPostId = null // the ID of the original post that's being shared
     var ownerId = null; // we need this if the main method of getting the contents doesn't work
     var newPostMessage = null // any content the user adds when sharing
@@ -707,50 +744,19 @@ function verifyFacebookReshare({requestDetails = null }) {
     return null;
 }
 
-// TODO -- These aren't currently working. Not sure if this was an issue between
-// my developer test account and real one, or something else. The method of finding
-// posts in the page has worked consistently throughout my testing, so I'll come
-// back to this method later.
-function parseFacebookPost(node, response) {
-    response.post = node;
-    return response;
-}
-/**
- * Send a fetch request for the post we're looking for, and parse links from the result
- * @param request -- the request post's ID and the ID of the person who shared it
- * @param response -- an object set up with arrays for the links to return
- */
-function requestPostContents(request, response) {
-    return new Promise((resolve, reject) => {
-        var reqString = `https://www.facebook.com/permalink.php?story_fbid=${request.postId}&id=${request.ownerId}`;
-        fetch(reqString).then((responseFromFetch) => {
-            responseFromFetch.text().then((text) => {
-                text = text.replace(/<!-- </g, "<");
-                text = text.replace(/> -->/g, ">");
-                var doc = (new DOMParser()).parseFromString(text, "text/html");
-                response = parseFacebookPost(doc, response);
-                resolve(response);
-            });
-        });
-    });
-}
-
 /**
  * Get the contents and attachments of a Facebook post.
  * @param postId - the unique ID of the post
  * @param ownerId - the unique ID of the owner, or of the group, if the post is in a group
  */
-export function getFacebookPostContents(postId, ownerId) {
+export function getFacebookPostContents(postId) {
     return new Promise((resolve, reject) => {
         if (facebookTabId >= 0) {
-            browser.tabs.sendMessage(facebookTabId,
-                { "postId": postId, "ownerId": ownerId }).then((response) => {
-                    resolve(response);
-                    return;
-                });
-        }
-
-        //return requestPostContents({postId: postId, ownerId: ownerId}, {});
+            browser.tabs.sendMessage(facebookTabId, {"postId": postId}).then((response) => {
+                resolve(response);
+                return;
+            });
+        } else reject();
     });
 }
 

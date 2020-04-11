@@ -11,7 +11,6 @@ function getTweetContent(tweetId, x_csrf_token, authorization) {
         fetch(reqString,
             {headers: headers, credentials: 'include'}).then(async (responseFromFetch) => {
                 responseFromFetch.json().then(async (response) => {
-                    console.log("omfgggg", response);
                     resolve(response);
                 });
             });
