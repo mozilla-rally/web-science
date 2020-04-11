@@ -1,15 +1,15 @@
 /**
  * Content script for measuring news exposure on youtube
- * @module WebScience.Studies.content-scripts.socialMediaNewsExposure
+ * @module WebScience.Measurements.content-scripts.socialMediaNewsExposure
  */
 (
     async function () {
 
 
         // Checks if the script should exit because private windows are not supported for SocialMediaNewsExposure
-        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaNewsExposure.privateWindows");
-        if (("WebScience.Studies.SocialMediaNewsExposure.privateWindows" in privateWindowResults) &&
-            !privateWindowResults["WebScience.Studies.SocialMediaNewsExposure.privateWindows"] &&
+        let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaNewsExposure.privateWindows");
+        if (("WebScience.Measurements.SocialMediaNewsExposure.privateWindows" in privateWindowResults) &&
+            !privateWindowResults["WebScience.Measurements.SocialMediaNewsExposure.privateWindows"] &&
             browser.extension.inIncognitoContext) {
             return;
         }
@@ -80,7 +80,7 @@
         function sendMediaNewsExposureEvent() {
             let videoTitle = document.querySelector("h1.title.style-scope.ytd-video-primary-info-renderer").textContent;
             browser.runtime.sendMessage({
-                type: "WebScience.Studies.SocialMediaNewsExposure.Youtube",
+                type: "WebScience.Measurements.SocialMediaNewsExposure.Youtube",
                 url: document.location.href,
                 title: videoTitle
             });

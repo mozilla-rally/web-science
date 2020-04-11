@@ -1,13 +1,13 @@
 /**
  * Content script for measuring exposure to videos from known channels on youtube
- * @module WebScience.Studies.SocialMediaAccountExposure
+ * @module WebScience.Measurements.SocialMediaAccountExposure
  */
 (
     async function () {
 
-        let privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaAccountExposure.privateWindows");
-        if (("WebScience.Studies.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
-            !privateWindowResults["WebScience.Studies.SocialMediaAccountExposure.privateWindows"] &&
+        let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaAccountExposure.privateWindows");
+        if (("WebScience.Measurements.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
+            !privateWindowResults["WebScience.Measurements.SocialMediaAccountExposure.privateWindows"] &&
             browser.extension.inIncognitoContext) {
             return;
         }
@@ -45,7 +45,7 @@
          */
         function sendMessage(channels) {
             browser.runtime.sendMessage({
-                type: "WebScience.Studies.SocialMediaAccountExposure",
+                type: "WebScience.Measurements.SocialMediaAccountExposure",
                 posts: [{
                     post: document.location.href,
                     account: channels[0]

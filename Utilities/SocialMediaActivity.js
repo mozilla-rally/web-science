@@ -4,7 +4,6 @@
  * @module WebScience.Utilities.SocialMediaActivity
  */
 
-//import * as WebScience from "../WebScience.js"
 import * as Messaging from "../Utilities/Messaging.js"
 
 var privateWindows = false;
@@ -479,7 +478,7 @@ function tweetContentInit() {
     browser.contentScripts.register({
         matches: ["https://twitter.com/*", "https://twitter.com/"],
         js: [
-            { file: "/WebScience/Studies/content-scripts/twitter.js" }
+            { file: "/WebScience/Measurements/content-scripts/twitter.js" }
         ],
         runAt: "document_idle"
     });
@@ -517,7 +516,7 @@ async function fbPostContentInit() {
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
         js: [
             //{ file: "/WebScience/Studies/content-scripts/utils.js" },
-            { file: "/WebScience/Studies/content-scripts/facebook.js" }
+            { file: "/WebScience/Measurements/content-scripts/facebook.js" }
         ],
         //runAt: "document_idle"
         runAt: "document_start"

@@ -1,12 +1,16 @@
 /**
- * This module is used to run studies that track the user's
- * social media sharing of links.
+ * This module measures link sharing on social media.
  * 
- * @module WebScience.Studies.SocialMediaLinkSharing
+ * @module WebScience.Measurements.SocialMediaSharing
  */
 
-import * as WebScience from "../WebScience.js"
-const debugLog = WebScience.Utilities.Debugging.getDebuggingLog("SocialMediaLinkSharing");
+import * as Debugging from "../Utilities/Debugging.js"
+import * as Storage from "../Utilities/Storage.js"
+import * as Matching from "../Utilities/Matching.js"
+import * as LinkResolution from "../Utilities/LinkResolution.js"
+import * as SocialMediaActivity from "../Utilities/SocialMediaActivity.js"
+
+const debugLog = Debugging.getDebuggingLog("SocialMediaSharing");
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -27,7 +31,7 @@ var urlMatcher = null;
  * @type {RegExp}
  * @private
  */
-var shortDomainMatcher = null;
+var shortUrlMatcher = null;
 
 /**
  * A counter to give each record a unique ID
@@ -52,29 +56,26 @@ export async function runStudy({
     reddit = false,
     privateWindows = false
 }) {
-    if (privateWindows) WebScience.Utilities.SocialMediaActivity.enablePrivateWindows();
+    if (privateWindows) SocialMediaActivity.enablePrivateWindows();
     if (facebook) {
-        WebScience.Utilities.SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare", "react"]);
+        SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare"]);
     }
     if (reddit) {
-        WebScience.Utilities.SocialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
+        SocialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
     }
     if (twitter) {
-        //WebScience.Utilities.SocialMediaActivity.registerTwitterActivityTracker(twitterFaves, ["favorite"]);
-        WebScience.Utilities.SocialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet", "favorite"]);
+        SocialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet"]);
     }
 
-    storage = await (new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.SocialMediaLinkSharing")).initialize();
-    urlMatcher = new WebScience.Utilities.Matching.UrlMatcher(domains);
-    //var sdrs = await browser.storage.local.get("shortDomainRegexString");
-    var shortDomains = WebScience.Utilities.LinkResolution.getShortDomains();
-    var shortDomainPattern = WebScience.Utilities.Matching.createUrlRegexString(shortDomains);
-    shortDomainMatcher = new RegExp(shortDomainPattern);
+    storage = await (new Storage.KeyValueStorage("WebScience.Measurements.SocialMediaSharing")).initialize();
+    urlMatcher = new Matching.UrlMatcher(domains);
+    var sdrs = await browser.storage.local.get("shortDomainRegexString");
+    shortUrlMatcher = new RegExp(sdrs.shortDomainRegexString),
 
     // Make this available to content scripts
-    await browser.storage.local.set({ "WebScience.Studies.SocialMediaLinkSharing.privateWindows": privateWindows });
+    // await browser.storage.local.set({ "WebScience.Measurements.SocialMediaSharing.privateWindows": privateWindows });
     // Use a unique identifier for each URL the user shares
-    shareIdCounter = await (new WebScience.Utilities.Storage.Counter("WebScience.Studies.SocialMediaLinkSharing.nextShareId")).initialize();
+    shareIdCounter = await (new Storage.Counter("WebScience.Measurements.SocialMediaSharing.nextShareId")).initialize();
 }
 
 /**
@@ -84,46 +85,24 @@ export async function runStudy({
  * @param details - the description of the event
  */
 async function twitterLinks(details) {
-    // This is the callback for any kind of tracked Twitter event
-    // If it's a tweet (includes quote tweets and retweet-with-comment), we want to parse the user's
-    //  content and log matching urls as "tweet"s.
-    // For retweets, we parse the retweeted content and log matching urls as "retweet"s.
     var urlsToSave = [];
     if (details.eventType == "tweet") {
-        await extractRelevantUrlsFromTokens(details.postText.split(/\s+/), urlsToSave);
-        await extractRelevantUrlsFromTokens([details.attachmentUrl], urlsToSave);
+        await filterTokensToUrls(details.postText.split(/\s+/), urlsToSave);
+        await filterTokensToUrls([details.attachmentUrl], urlsToSave);
     } else if (details.eventType == "retweet") {
-        var retweetedTweets = await WebScience.Utilities.SocialMediaActivity.getTweetContent(details.retweetedId);
+        var retweetedTweets = await SocialMediaActivity.getTweetContent(details.retweetedId);
         var retweetedTweet = retweetedTweets[details.retweetedId];
-        await extractRelevantUrlsFromTokens(retweetedTweet.full_text.split(/\s+/), urlsToSave);
+        await filterTokensToUrls(retweetedTweet.full_text.split(/\s+/), urlsToSave);
         for (var url of retweetedTweet.entities.urls) {
-            await extractRelevantUrlsFromTokens([url], urlsToSave);
-        }
-    } else if (details.eventType == "favorite") {
-        var favoritedTweets = await WebScience.Utilities.SocialMediaActivity.getTweetContent(details.favoritedId);
-        var favoritedTweet = favoritedTweets[details.favoritedId];
-        await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/), urlsToSave);
-        for (var url of favoritedTweet.entities.urls) {
-            await extractRelevantUrlsFromTokens([url], urlsToSave);
+            await filterTokensToUrls([url], urlsToSave);
         }
     }
     for (var urlToSave of urlsToSave) {
-        var shareRecord = await createShareRecord(details.eventType, "twitter", urlToSave, details.eventType);
+        var shareRecord = await createShareRecord(details.eventTime, "twitter", urlToSave, details.eventTime);
         storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
         debugLog("Twitter: " + JSON.stringify(shareRecord));
     }
 }
-
-async function twitterFaves(details) {
-    var urlsToSave = [];
-    var favoritedTweets = await WebScience.Utilities.SocialMediaActivity.getTweetContent(details.favoritedId);
-    var favoritedTweet = favoritedTweets[details.favoritedId];
-    await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/), urlsToSave);
-    for (var url of favoritedTweet.entities.urls) {
-        await extractRelevantUrlsFromTokens([url], urlsToSave);
-    }
-}
-
 
 /**
  * The callback for Facebook events.
@@ -133,35 +112,24 @@ async function twitterFaves(details) {
 async function facebookLinks(details) {
     var urlsToSave = [];
     if (details.eventType == "post") {
-        for (var contentItem of details.postText) {
-            var postTokens = contentItem.split(/\s+/);
-            await extractRelevantUrlsFromTokens(postTokens, urlsToSave);
-        }
-        await extractRelevantUrlsFromTokens(details.postUrls, urlsToSave);
-    } else if (details.eventType == "reshare") {
-        if (details.postId) {
-            // in old facebook, we get the postid and need to go look it up
-            var post = await WebScience.Utilities.SocialMediaActivity.getFacebookPostContents(details.postId);
-            for (var contentItem of post.content) {
-                var postTokens = contentItem.split(/\s+/);
-                await extractRelevantUrlsFromTokens(postTokens, urlsToSave);
-            }
-            await extractRelevantUrlsFromTokens(post.attachedUrls, urlsToSave);
-        } else {
-            // in new facebook, we get the post contents and no ID
-            await extractRelevantUrlsFromTokens(details.attachedUrls, urlsToSave);
-        }
-    } else if (details.eventType == "react") {
-        var post = await WebScience.Utilities.SocialMediaActivity.getFacebookPostContents(details.postId);
+        var post = await SocialMediaActivity.getFacebookPostContents(details.postId,
+            details.ownerId ? details.ownerId : details.groupId);
         for (var contentItem of post.content) {
             var postTokens = contentItem.split(/\s+/);
-            await extractRelevantUrlsFromTokens(postTokens, urlsToSave);
+            await filterTokensToUrls(postTokens, urlsToSave);
         }
-        await extractRelevantUrlsFromTokens(post.attachedUrls, urlsToSave);
-        details.eventType = details.eventType + " " + details.reactionType;
+        await filterTokensToUrls(post.urlsInMediaBox, urlsToSave);
+    } else if (details.eventType == "reshare") {
+        var post = await SocialMediaActivity.getFacebookPostContents(details.postId,
+            details.ownerId);
+        for (var contentItem of post.content) {
+            var postTokens = contentItem.split(/\s+/);
+            await filterTokensToUrls(postTokens, urlsToSave);
+        }
+        await filterTokensToUrls(post.urlsInMediaBox, urlsToSave);
     }
     for (var urlToSave of urlsToSave) {
-        var shareRecord = await createShareRecord(details.eventTime, "facebook", urlToSave, details.eventType);
+        var shareRecord = await createShareRecord(details.eventTime, "facebook", urlToSave, details.eventTime);
         storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
         debugLog("Facebook: " + JSON.stringify(shareRecord));
     }
@@ -175,14 +143,14 @@ async function facebookLinks(details) {
 async function redditLinks(details) {
     var urlsToSave = [];
     if (details.eventType == "post") {
-        await extractRelevantUrlsFromTokens([details.attachment], urlsToSave);
+        await filterTokensToUrls([details.attachment], urlsToSave);
         for (var content of details.postBody) {
-            if (content.e == "text") await extractRelevantUrlsFromTokens(content.t.split(/\s+/), urlsToSave);
-            if (content.e == "link") await extractRelevantUrlsFromTokens([content.t], urlsToSave);
+            if (content.e == "text") await filterTokensToUrls(content.t.split(/\s+/), urlsToSave);
+            if (content.e == "link") await filterTokensToUrls([content.t], urlsToSave);
         }
     }
     for (var urlToSave of urlsToSave) {
-        var shareRecord = await createShareRecord(details.eventTime, "reddit", urlToSave, details.eventType);
+        var shareRecord = await createShareRecord(details.eventTime, "reddit", urlToSave, details.eventTime);
         storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
         debugLog("Reddit: " + JSON.stringify(shareRecord));
     }
@@ -202,8 +170,8 @@ async function redditLinks(details) {
  * history data for the given url.
  */
 async function createShareRecord(shareTime, platform, url, event) {
-    var pageVisits = await WebScience.Studies.Navigation.findUrlVisit(url);
-    var historyVisits = await browser.history.search({text: WebScience.Utilities.Matching.stripUrl(url)});
+    var pageVisits = await WebScience.Measurements.Navigation.findUrlVisit(url);
+    var historyVisits = await browser.history.search({text: Matching.stripUrl(url)});
     return { shareTime, platform, url, event, pageVisits, historyVisits };
 }
 
@@ -227,7 +195,7 @@ export async function getStudyDataAsObject() {
 function deduplicateUrls(urls) {
     var uniqueUrls = new Set();
     for (var url of urls) {
-        uniqueUrls.add(WebScience.Utilities.Matching.removeUrlParams(url));
+        uniqueUrls.add(Matching.removeUrlParams(url));
     }
     return uniqueUrls;
 }
@@ -238,8 +206,8 @@ function deduplicateUrls(urls) {
  * @return {Object} - {`result`: whether `url` was a resolveable short url, `resolvedUrl`: the full url, if available}
  */
 async function checkShortUrl(url) {
-    if (shortDomainMatcher.test(url)) {
-        var resolvedUrlObj = await WebScience.Utilities.LinkResolution.resolveUrl(url);
+    if (shortUrlMatcher.test(url)) {
+        var resolvedUrlObj = await LinkResolution.resolveUrl(url);
         if (urlMatcher.testUrl(resolvedUrlObj.dest)) {
             return {result: true, resolvedUrl: resolvedUrlObj.dest}
         }
@@ -252,7 +220,7 @@ async function checkShortUrl(url) {
  * @param {String[]} unfilteredTokens - array of tokens
  * @param {String[]} urlsToSave - an array to add the relevant urls to
  */
-async function extractRelevantUrlsFromTokens(unfilteredTokens, urlsToSave) {
+async function filterTokensToUrls(unfilteredTokens, urlsToSave) {
     for (var unfilteredToken of unfilteredTokens) {
         if (urlMatcher.testUrl(unfilteredToken)) {
             urlsToSave.push(unfilteredToken);

@@ -2,43 +2,80 @@
  * Present surveys to the user.
  * @module WebScience.Utilities.userSurvey
  */
-import * as WebScience from "../WebScience.js"
+
+import * as Storage from "./Storage.js"
+import * as Debugging from "./Debugging.js"
 
 var storage = null;
 
 /**
- * Schedule a survey.
- * @param {string} surveyUrl - the website to send the user to
+ * Logger object
+ * 
+ * @constant
+ * @private
+ * @type {function(string)}
+ */
+const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
+
+/**
+ * The fully-qualified URL to Princeton shield image
+ * @constant
+ * @type {string}
+ */
+export const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.png");
+
+browser.privileged.onSurveyPopup.addListener(async(url) => {
+    debugLog("survey created for user" + url);
+    let surveys = await storage.get("surveyList");
+    if(!surveys) {
+        surveys = new Array();
+    }
+    surveys.push(url);
+    await storage.set("surveyList", surveys);
+    debugLog("survey list " + surveys);
+    browser.tabs.create({
+        url: url
+    });
+});
+
+/**
+ * Schedule a survey popup using privileged API
+ * @param {string} surveyURLBase - Base URL for survey
+ * @param {number} surveyTime - When to create survey popup
+ */
+function scheduleSurvey(surveyURLBase, surveyTime) {
+    browser.alarms.onAlarm.addListener(function () {
+        browser.privileged.createSurveyPopup(surveyURLBase, surveyTime, SHIELD_URL);
+    });
+    browser.alarms.create(
+        "surveyAlarm",
+        { when: surveyTime }
+    );
+}
+
+/**
+ * Run a survey at scheduled survey time if it exists otherwise 
+ * current time + delta
+ * 
+ * @param {string} surveyURLBase - survey URL
  * @param {number} surveyTimeAfterInitialRun - amount of time to wait before presenting survey
  */
 export async function runStudy({
-    surveyUrl,
+    surveyURLBase,
     surveyTimeAfterInitialRun
 }) {
-    storage = await(new WebScience.Utilities.Storage.KeyValueStorage("WebScience.Studies.UserSurvey")).initialize();
+    storage = await(new Storage.KeyValueStorage("WebScience.Measurements.UserSurvey")).initialize();
     var surveyTime = await storage.get("surveyTime");
+    // create listeners
     if (surveyTime) {
         if (surveyTime < Date.now()) {
-            browser.alarms.onAlarm.addListener(function () {
-                browser.privileged.createSurveyPopup(surveyUrl);
-            });
-            browser.alarms.create(
-                "surveyAlarm",
-                { when: surveyTime["surveyTime"] }
-            );
+            scheduleSurvey(surveyURLBase, surveyTime);
         } else {
-            browser.privileged.createSurveyPopup(surveyUrl);
+            browser.privileged.createSurveyPopup(surveyURLBase, Date.now(), SHIELD_URL);
         }
     } else {
-        var now = Date.now();
-        surveyTime = surveyTimeAfterInitialRun + now;
+        surveyTime = surveyTimeAfterInitialRun + Date.now();
         await storage.set("surveyTime", surveyTime);
-        browser.alarms.onAlarm.addListener(function () {
-            browser.privileged.createSurveyPopup(surveyUrl);
-        });
-        browser.alarms.create(
-            "surveyAlarm",
-            { when: surveyTime }
-        );
+        scheduleSurvey(surveyURLBase, surveyTime);
     }
 }
