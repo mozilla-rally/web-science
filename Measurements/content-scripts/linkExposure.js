@@ -1,6 +1,6 @@
 /**
  * Content script for link exposure study
- * @module WebScience.Studies.content-scripts.linkExposure
+ * @module WebScience.Measurements.content-scripts.linkExposure
  */
 // Function encapsulation to maintain unique variable scope for each content script
 (
@@ -29,9 +29,9 @@
     const elementSizeCache = new Map();
 
     // First check private windows support
-    let privateWindowResults = await browser.storage.local.get("WebScience.Studies.LinkExposure.privateWindows");
-    if (("WebScience.Studies.LinkExposure.privateWindows" in privateWindowResults) &&
-      !privateWindowResults["WebScience.Studies.LinkExposure.privateWindows"] &&
+    let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.LinkExposure.privateWindows");
+    if (("WebScience.Measurements.LinkExposure.privateWindows" in privateWindowResults) &&
+      !privateWindowResults["WebScience.Measurements.LinkExposure.privateWindows"] &&
       browser.extension.inIncognitoContext) {
       return;
     }
