@@ -11,6 +11,7 @@
 // Currently implemented with localforage
 import { localforage } from "../dependencies/localforagees6.min.js"
 
+export var storageInstances = [];
 /** 
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types.
@@ -42,6 +43,7 @@ export class KeyValueStorage {
             KeyValueStorage.localForageInitialized = true;
         }
         this.storageInstance = localforage.createInstance( { name: this.storageAreaName } );
+        storageInstances.push(this);
         return this;
     }
 

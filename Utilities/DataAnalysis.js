@@ -8,6 +8,7 @@ import {
   getDebuggingLog
 } from './Debugging.js';
 import * as Idle from "./Idle.js"
+import {storageInstances} from "./Storage.js"
 
 const debugLog = getDebuggingLog("Utilities.DataAnalysis");
 /**
@@ -57,8 +58,10 @@ async function idleStateListener(newState) {
     // If the browser has entered an idle state, fire the
     // analysis scripts
     debugLog("data analysis idle state listener triggered with state " + newState);
-    if(newState === "idle")
-        await triggerAnalysisScripts();
+    await triggerAnalysisScripts();
+    //if(newState === "idle")
+        //await triggerAnalysisScripts();
+    
 }
 
 /**
@@ -95,6 +98,7 @@ function createMessageReceiver(listeners) {
  * @private
  */
 export async function triggerAnalysisScripts() {
+    debugLog("Number of storage instances " + storageInstances.length);
     for(let [scriptPath, listeners] of resultRouter) {
         debugLog("creating a worker with script "+ scriptPath);
         let worker = new Worker(scriptPath);
