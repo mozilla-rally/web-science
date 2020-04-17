@@ -81,16 +81,21 @@ export async function runStudy({
   });
 
   // Listen for SocialMediaAccountExposure messages from content scripts
-  Messaging.registerListener("WebScience.Measurements.SocialMediaAccountExposure", (message, sender, sendResponse) => {
+  Messaging.registerListener("WebScience.Measurements.SocialMediaAccountExposure", async (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!
     debugLog("socialMediaAccountExposure: " + JSON.stringify(message));
-      if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
+    debugLog("socialMediaAccountExposure sender: " + JSON.stringify(sender));
+      if(!("tab" in sender)){
           debugLog("Warning: unexpected social media account exposure update");
           return;
       }
-    storage.set("" + nextSocialMediaAccountExposureIdCounter.incrementAndGet(), message);
+    //storage.set("" + nextSocialMediaAccountExposureIdCounter.incrementAndGet(), message);
+    var currentId = nextSocialMediaAccountExposureIdCounter.get();
+    storage.set("" + currentId, message);
+    debugLog("current id :" + currentId);
+    await nextSocialMediaAccountExposureIdCounter.increment();
   }, {
     posts : "object",
     platform: "string"
