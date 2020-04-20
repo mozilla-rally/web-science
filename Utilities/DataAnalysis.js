@@ -7,6 +7,9 @@
 import {
   getDebuggingLog
 } from './Debugging.js';
+import {
+    statsFromStorageInstances
+} from './stats.js';
 import * as Idle from "./Idle.js"
 import {storageInstances} from "./Storage.js"
 
@@ -99,6 +102,8 @@ function createMessageReceiver(listeners) {
  */
 export async function triggerAnalysisScripts() {
     debugLog("Number of storage instances " + storageInstances.length);
+    let stats = await statsFromStorageInstances(storageInstances);
+    debugLog("json stats are "+JSON.stringify(stats));
     for(let [scriptPath, listeners] of resultRouter) {
         debugLog("creating a worker with script "+ scriptPath);
         let worker = new Worker(scriptPath);
