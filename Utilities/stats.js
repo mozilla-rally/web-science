@@ -5,6 +5,7 @@ const _MAX_DATE = 8640000000000000;
 
 const functionMapping = {
     "WebScience.Measurements.SocialMediaAccountExposure": socialMediaAccountExposureStats,
+    "WebScience.Measurements.SocialMediaNewsExposure": socialMediaNewsExposureStats,
     "WebScience.Measurements.PageNaivgation": pageNavigationStats,
     "WebScience.Measurements.LinkExposure": linkExposureStats
 }
@@ -133,6 +134,15 @@ function socialMediaAccountExposureStats(obj) {
             }
         })
     });
+    return gatherStats(stats);
+}
+function socialMediaNewsExposureStats(obj) {
+    let stats = {};
+    stats.source_counts = defaultDict();
+    Object.entries(obj).forEach(entry => {
+        let val = entry[1];
+        stats.source_counts[val.type] += 1;
+    })
     return gatherStats(stats);
 }
 
