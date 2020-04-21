@@ -7,9 +7,6 @@
 import {
   getDebuggingLog
 } from './Debugging.js';
-import {
-    statsFromStorageInstances
-} from './stats.js';
 import * as Idle from "./Idle.js"
 import {storageInstances} from "./Storage.js"
 
@@ -94,6 +91,16 @@ function createMessageReceiver(listeners) {
     return messageReceiver;
 }
 
+async function storageObjsFromStorageInstances(storageInstancesArr) {
+    let stats = {};
+    await Promise.all(storageInstancesArr.map(async instance => {
+        let key = instance.storageAreaName;
+        let storageObj = await instance.getContentsAsObject();
+        stats[key] = storageObj;
+    }));
+    return stats;
+}
+
 /**
  * Trigger each analysis script in a separate worker thread
  * The result of analysis is passed on from the worker to the
@@ -102,12 +109,10 @@ function createMessageReceiver(listeners) {
  */
 export async function triggerAnalysisScripts() {
     debugLog("Number of storage instances " + storageInstances.length);
-    let stats = await statsFromStorageInstances(storageInstances);
-    debugLog("json stats are "+JSON.stringify(stats));
+    let storageObjs = await storageObjsFromStorageInstances(storageInstances);
     for(let [scriptPath, listeners] of resultRouter) {
-        debugLog("creating a worker with script "+ scriptPath);
         let worker = new Worker(scriptPath);
-        worker.postMessage('run');
+        worker.postMessage(storageObjs);
         worker.addEventListener('message', createMessageReceiver(listeners));
         worker.addEventListener('error', workerError);
     }
