@@ -1,21 +1,12 @@
 /**
- * @file Sample analysis script
- * @module WebScience.Measurements.AnalysisTemplate
+ * @file Script for computing aggregate statistics
+ * @module WebScience.Measurements.AggregateStatistics
  */
-
-/**
- * instance of indexedDB database
- * @type {IDBDatabase} 
- * @private
- */
-let db;
 
 /**
  * Event handler for messages from the main thread
- * On receiving "run" trigger, it waits for 5 seconds and tries to open an
- * indexed database. The wait is used to simulate intense computation. It shows
- * that the main thread is not blocked. At the end of timeout, a result object
- * is created and communicated back to the main thread.
+ * On receiving data, the function computes aggregate statistics and 
+ * sends a message back to the caller with the result object.
  * 
  * @param {MessageEvent} event - message object
  * @listens MessageEvent
@@ -57,9 +48,34 @@ onmessage = event => {
       });
   }
 
+/**
+* Functions for computing statistics 
+*/
+
+/**
+ * The number of seconds in a day.
+ * @private
+ * @const {number}
+ * @default
+ */
 const _MS_PER_DAY = 1000 * 60 * 60 * 24;
+/**
+ * Maximum date supported. Used in computing the earliest
+ * date from a list of date objects.
+ * @private
+ * @const {number}
+ * @default
+ */
 const _MAX_DATE = 8640000000000000;
 
+/**
+ * Object that maps the type of data and the stats function to apply on 
+ * data object of that type.
+ * 
+ * @private
+ * @const {Object}
+ * @default
+ */
 const functionMapping = {
     "WebScience.Measurements.SocialMediaAccountExposure": socialMediaAccountExposureStats,
     "WebScience.Measurements.SocialMediaNewsExposure": socialMediaNewsExposureStats,
@@ -67,26 +83,32 @@ const functionMapping = {
     "WebScience.Measurements.LinkExposure": linkExposureStats
 }
 
-// a and b are javascript Date objects
-function utcDateDiffInDays(utc1, utc2) {
-    return Math.floor((utc2 - utc1) / _MS_PER_DAY);
-}
-
+/**
+ * Gets hostname from a given url string
+ * 
+ * @param {string} url url string
+ * @returns {string|null} hostname in the input url
+ */
 function getHostName(url) {
     var match = url.match(/:\/\/(www[0-9]?\.)?(.[^/:]+)/i);
     if (match != null && match.length > 2 && typeof match[2] === 'string' && match[2].length > 0) {
         return match[2];
     }
-    else {
-        return null;
-    }
+    return null;
 }
+
+
+/**
+ * Gets domain name from a url
+ * 
+ * @param {string} url url string
+ * @returns {string|null} hostname in the input url
+ */
 function getDomain(url) {
     var hostName = getHostName(url);
     var domain = hostName;
     if (hostName != null) {
         var parts = hostName.split('.').reverse();
-
         if (parts != null && parts.length > 1) {
             domain = parts[1] + '.' + parts[0];
         }
@@ -95,46 +117,55 @@ function getDomain(url) {
 }
 
 
-function Counter(array) {
-    array.forEach(val => this[val] = (this[val] || 0) + 1);
-}
-
-function defaultDict(createValue = () => {return 0}) {
+/**
+ * Proxy wraps an empty object that intercepts the get function. When a get
+ * is attempted with a missing property, the proxy returns the value of empty
+ * function instead of undefined value.
+ * @param {function} defaultValue - Function that returns a default value
+ */
+function objectWithDefaultValue(defaultValue = () => {return 0}) {
     return Proxy.revocable({}, {
-        get : (obj, property) => (property in obj) ? obj[property] : createValue()
+        get : (obj, property) => (property in obj) ? obj[property] : defaultValue()
     })
 }
 
-let copyDefaultDict = function(dict) {
+/**
+ * Copies properties from wrapped object into a barebones object
+ * @param {Proxy} defaultValueObject - wrapped object
+ */
+function copyDefaultValueObject(defaultValueObject) {
     let ret = {};
-    Object.entries(dict).forEach(entry => {
+    Object.entries(defaultValueObject).forEach(entry => {
         ret[entry[0]] = entry[1];
     })
     return ret;
 }
 
-let processCounts = function (counter, itemFunction = (key, val) => {console.log({key, val})}){
-    Object.keys(counter).forEach(key => {
-        itemFunction(key, counter[key]);
-    })
-}
-
+/**
+ * Given an object containing aggregate statistics, the function unwraps the
+ * proxy object, copies the values and revokes proxy.
+ * @param {Object} statsObj statistics object
+ */
 function gatherStats(statsObj) {
     let overallStats = {};
     Object.entries(statsObj).forEach(entry => {
-        overallStats[entry[0]] = copyDefaultDict(entry[1].proxy);
+        overallStats[entry[0]] = copyDefaultValueObject(entry[1].proxy);
         entry[1].revoke();
     });
     return overallStats;
 }
-// compute page navigation stats
-function pageNavigationStats(obj) {
+
+/**
+ * Function for computing page navigation statistics
+ * @param {Object} pageNavigationStorage page navigation storage object
+ */
+function pageNavigationStats(pageNavigationStorage) {
     let stats = {};
-    stats.attention_duration = defaultDict();
-    stats.page_domain = defaultDict(); // key is domain and value is number of pages in that domain
-    stats.page_url = defaultDict(); // key is url and value is number unique visits, multiple attentions are counted as a single visit
-    stats.referrer_url = defaultDict(function() {return new Set();}); // key is referrer url and value is number of unique urls it referred
-    Object.entries(obj).forEach(entry => {
+    stats.attention_duration = objectWithDefaultValue();
+    stats.page_domain = objectWithDefaultValue(); // key is domain and value is number of pages in that domain
+    stats.page_url = objectWithDefaultValue(); // key is url and value is number unique visits, multiple attentions are counted as a single visit
+    stats.referrer_url = objectWithDefaultValue(function() {return new Set();}); // key is referrer url and value is number of unique urls it referred
+    Object.entries(pageNavigationStorage).forEach(entry => {
 
         let key = entry[0];
         let navObj = entry[1];
@@ -152,16 +183,20 @@ function pageNavigationStats(obj) {
     return gatherStats(stats);
 }
 
-function linkExposureStats(obj) {
+/**
+ * Function for computing link exposure statistics
+ * @param {Object} linkExposureStorage page navigation storage object
+ */
+function linkExposureStats(linkExposureStorage) {
     let stats = {};
-    stats.source_domains = defaultDict();
-    stats.source_domains_category = defaultDict();
-    stats.source_urls = defaultDict();
-    stats.exposed_domains = defaultDict();
-    stats.exposed_urls = defaultDict();
-    stats.source_first_seen = defaultDict(() => { return new Date(_MAX_DATE); });
-    Object.keys(obj).forEach(key => {
-        let val = obj[key];
+    stats.source_domains = objectWithDefaultValue();
+    stats.source_domains_category = objectWithDefaultValue();
+    stats.source_urls = objectWithDefaultValue();
+    stats.exposed_domains = objectWithDefaultValue();
+    stats.exposed_urls = objectWithDefaultValue();
+    stats.source_first_seen = objectWithDefaultValue(() => { return new Date(_MAX_DATE); });
+    Object.keys(linkExposureStorage).forEach(key => {
+        let val = linkExposureStorage[key];
         if ('metadata' in val) {
             if ('location' in val.metadata) {
                 let source_domain = getDomain(val.metadata.location);
@@ -184,12 +219,16 @@ function linkExposureStats(obj) {
 }
 
 
-function socialMediaAccountExposureStats(obj) {
+/**
+ * Function for computing social media account exposure statistics
+ * @param {Object} socialMediaAccountExposureStorage social media account exposure storage
+ */
+function socialMediaAccountExposureStats(socialMediaAccountExposureStorage) {
     let stats = {};
-    stats.account_posts = defaultDict(function () {
+    stats.account_posts = objectWithDefaultValue(function () {
         return { platform: "", count: 0 };
     }); // key is account and value is number of exposed posts
-    Object.entries(obj).forEach(entry => {
+    Object.entries(socialMediaAccountExposureStorage).forEach(entry => {
         let val = entry[1];
         val.posts.forEach(post => {
             stats.account_posts.proxy[post.account] = {
@@ -200,10 +239,15 @@ function socialMediaAccountExposureStats(obj) {
     });
     return gatherStats(stats);
 }
-function socialMediaNewsExposureStats(obj) {
+
+/**
+ * Function for computing social media news exposure statistics
+ * @param {Object} socialMediaNewsExposureStorage social media news exposure storage
+ */
+function socialMediaNewsExposureStats(socialMediaNewsExposureStorage) {
     let stats = {};
-    stats.source_counts = defaultDict();
-    Object.entries(obj).forEach(entry => {
+    stats.source_counts = objectWithDefaultValue();
+    Object.entries(socialMediaNewsExposureStorage).forEach(entry => {
         let val = entry[1];
         stats.source_counts.proxy[val.type] += 1;
     })
