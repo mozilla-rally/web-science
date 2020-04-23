@@ -86,7 +86,6 @@ export async function runStudy({
       // the tab, ignore the message
       // Neither of these things should happen!
     debugLog("socialMediaAccountExposure: " + JSON.stringify(message));
-    debugLog("socialMediaAccountExposure sender: " + JSON.stringify(sender));
       if(!("tab" in sender)){
           debugLog("Warning: unexpected social media account exposure update");
           return;
