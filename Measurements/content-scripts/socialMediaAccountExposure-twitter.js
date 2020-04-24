@@ -6,6 +6,8 @@
     async function () {
 
 
+        /** time when the document is loaded */
+        let initialLoadTime = Date.now();
         /**
          * Convert relative url to abs url
          * @param {string} url 
@@ -71,6 +73,7 @@
             browser.runtime.sendMessage({
                 type: "WebScience.Measurements.SocialMediaAccountExposure",
                 posts: tweets,
+                loadTime: initialLoadTime,
                 platform: "twitter"
             });
         }

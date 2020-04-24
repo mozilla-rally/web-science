@@ -5,6 +5,9 @@
 (
     async function () {
 
+        /** time when the document is loaded */
+        let initialLoadTime = Date.now();
+
         let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaAccountExposure.privateWindows");
         if (("WebScience.Measurements.SocialMediaAccountExposure.privateWindows" in privateWindowResults) &&
             !privateWindowResults["WebScience.Measurements.SocialMediaAccountExposure.privateWindows"] &&
@@ -50,6 +53,7 @@
                     post: document.location.href,
                     account: channels[0]
                 }],
+                loadTime: initialLoadTime,
                 platform: "YouTube"
             });
         }

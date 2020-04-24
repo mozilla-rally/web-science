@@ -23,10 +23,12 @@ var storage = null;
  * @name LinkExposure.runStudy starts the LinkExposure study.
  * @param {String[]} domains - Array of domains to track 
  * @param {boolean} privateWindows - If true then the study works in private windows
+ * @param {string} domainsCategory - Category of the domains to track
  */
 export async function runStudy({
   domains = [],
   privateWindows = false,
+  domainsCategory = "news",
 }) {
 
   // store private windows preference in the storage
@@ -63,26 +65,28 @@ export async function runStudy({
       debugLog("Warning: unexpected link exposure update");
       return;
     }
-      exposureInfo.exposureEvents.forEach(exposureEvent => {
+      exposureInfo.exposureEvents.forEach(async exposureEvent => {
       exposureEvent.isShortenedUrl = shortDomainMatcher.test(exposureEvent.originalUrl);
       exposureEvent.resolutionSucceded = true;
+      exposureEvent.metadata = exposureInfo.metadata;
       // resolvedUrl is valid only for urls from short domains
       exposureEvent.resolvedUrl = undefined;
+      exposureEvent.metadata.domainCategory = domainsCategory;
       if (exposureEvent.isShortenedUrl) {
         let promise = LinkResolution.resolveUrl(exposureEvent.originalUrl);
-        promise.then(function (result) {
+        promise.then(async function (result) {
           if (urlMatcher.test(result.dest)) {
             exposureEvent.resolvedUrl = result.dest;
           }
         }, function (error) {
           exposureEvent.error = error.message;
           exposureEvent.resolutionSucceded = false;
-        }).finally(function () {
+        }).finally(async function () {
           if (!exposureEvent.resolutionSucceded || exposureEvent.resolvedUrl !== undefined)
-            createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
+            await createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
         });
       } else {
-        createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
+        await createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
       }
     });
 
@@ -129,7 +133,8 @@ function isEmpty(obj) {
  * @param {Object} LinkExposureEvent.size - width and height of links
  * @param {Counter} nextLinkExposureIdCounter counter object
  */
-function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter) {
+async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter) {
   debugLog("storing " + JSON.stringify(exposureEvent));
-  storage.set("" + nextLinkExposureIdCounter.incrementAndGet(), exposureEvent);
+  storage.set("" + nextLinkExposureIdCounter.get(), exposureEvent);
+  await nextLinkExposureIdCounter.increment();
 }

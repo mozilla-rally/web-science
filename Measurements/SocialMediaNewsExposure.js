@@ -39,16 +39,18 @@ export async function runStudy({
   });
 
   // Listen for SocialMediaNewsExposure.Youtube messages from content script
-  Messaging.registerListener("WebScience.Measurements.SocialMediaNewsExposure.Youtube", (message, sender, sendResponse) => {
+  Messaging.registerListener("WebScience.Measurements.SocialMediaNewsExposure.Youtube", async (message, sender, sendResponse) => {
       // If the page content message is not from a tab, or if we are not tracking
       // the tab, ignore the message
       // Neither of these things should happen!
     debugLog("socialMediaNewsExposure.Youtube: " + JSON.stringify(message));
-      if(!("tab" in sender) || !(sender.tab.id in currentTabInfo)) {
+      if(!("tab" in sender)){
           debugLog("Warning: unexpected page content update");
           return;
       }
-    storage.set("" + nextSocialMediaNewsExposureIdCounter.incrementAndGet(), message);
+    storage.set("" + nextSocialMediaNewsExposureIdCounter.get(), message);
+    await nextSocialMediaNewsExposureIdCounter.increment();
+    //storage.set("" + nextSocialMediaNewsExposureIdCounter.incrementAndGet(), message);
   }, {
     title : "string",
     url : "string"
