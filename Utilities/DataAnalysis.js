@@ -8,7 +8,7 @@ import {
   getDebuggingLog
 } from './Debugging.js';
 import * as Idle from "./Idle.js"
-import {storageInstances} from "./Storage.js"
+import * as StorageManager from "./StorageManager.js"
 
 const debugLog = getDebuggingLog("Utilities.DataAnalysis");
 /**
@@ -91,64 +91,6 @@ function createMessageReceiver(listeners) {
     return messageReceiver;
 }
 
-async function storageObjsFromStorageInstances(storageInstancesArr) {
-    let stats = {};
-    await Promise.all(storageInstancesArr.map(async instance => {
-        let key = instance.storageAreaName;
-        let storageObj = await instance.getContentsAsObject();
-        stats[key] = storageObj;
-    }));
-    return stats;
-}
-
-const _MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-// a and b are javascript Date objects
-function utcDateDiffInDays(utc1, utc2) {
-    return Math.floor((utc2 - utc1) / _MS_PER_DAY);
-}
-
-function utcDateDiffInIntervals(utc1, utc2, msInInterval) {
-    return Math.floor((utc2 - utc1) / msInInterval);
-}
-
-function slidingWindow(obj, currentTime, timeProperty, msInInterval, nIntervals) {
-    return Object.keys(obj).reduce((acc, val) => {
-        let diffIntervals = utcDateDiffInIntervals(obj[val][timeProperty], currentTime, msInInterval);
-        return (diffIntervals > nIntervals) ? acc : {
-            ...acc,
-            [val]: obj[val]
-        }
-    }, {});
-}
-
-const timePropertyMapping = {
-    "WebScience.Measurements.LinkExposure" : "firstSeen",
-    "WebScience.Measurements.PageNavigation" : "visitStart"
-}
-
-function filterStorageObjs(storageObjs, msInInterval, nIntervals) {
-    let currentTime = Date.now();
-    Object.entries(storageObjs).forEach(entry => {
-        let key = entry[0];
-        let value = entry[1];
-        if(key in timePropertyMapping) {
-            let filteredEvents = slidingWindow(value, currentTime, timePropertyMapping[key], msInInterval, nIntervals);
-            storageObjs[key] = filteredEvents;
-        }
-    });
-}
-
-function getSize(storageObjs) {
-    let r = {}
-    Object.entries(storageObjs).forEach(entry => {
-        let key = entry[0];
-        let value = entry[1];
-        r[key] = Object.keys(value).length;
-    })
-    debugLog("number of entries " + JSON.stringify(r));
-}
-
 /**
  * Trigger each analysis script in a separate worker thread
  * The result of analysis is passed on from the worker to the
@@ -156,11 +98,10 @@ function getSize(storageObjs) {
  * @private
  */
 export async function triggerAnalysisScripts() {
-    debugLog("Number of storage instances " + storageInstances.length);
-    let storageObjs = await storageObjsFromStorageInstances(storageInstances);
-    getSize(storageObjs);
-    filterStorageObjs(storageObjs, 1000*60, 10);
-    getSize(storageObjs);
+    let storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
+    //StorageManager.getSize(storageObjs);
+    //StorageManager.filterStorageObjs(storageObjs, 1000*60, 10);
+    //StorageManager.getSize(storageObjs);
     for(let [scriptPath, listeners] of resultRouter) {
         let worker = new Worker(scriptPath);
         worker.postMessage(storageObjs);
