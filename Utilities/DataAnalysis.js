@@ -99,9 +99,6 @@ function createMessageReceiver(listeners) {
  */
 export async function triggerAnalysisScripts() {
     let storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
-    //StorageManager.getSize(storageObjs);
-    //StorageManager.filterStorageObjs(storageObjs, 1000*60, 10);
-    //StorageManager.getSize(storageObjs);
     for(let [scriptPath, listeners] of resultRouter) {
         let worker = new Worker(scriptPath);
         worker.postMessage(storageObjs);
