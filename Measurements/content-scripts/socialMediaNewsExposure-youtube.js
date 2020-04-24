@@ -6,6 +6,9 @@
     async function () {
 
 
+        /** time when the document is loaded */
+        let initialLoadTime = Date.now();
+
         // Checks if the script should exit because private windows are not supported for SocialMediaNewsExposure
         let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaNewsExposure.privateWindows");
         if (("WebScience.Measurements.SocialMediaNewsExposure.privateWindows" in privateWindowResults) &&
@@ -82,6 +85,7 @@
             browser.runtime.sendMessage({
                 type: "WebScience.Measurements.SocialMediaNewsExposure.Youtube",
                 url: document.location.href,
+                loadTime: initialLoadTime,
                 title: videoTitle
             });
         }
