@@ -7,10 +7,12 @@
  */
 
 import {
-  getDebuggingLog
+    getDebuggingLog
 } from './Debugging.js';
 
-import {storageInstances} from "./Storage.js"
+import {
+    storageInstances
+} from "./Storage.js"
 const debugLog = getDebuggingLog("Utilities.StorageManager");
 
 const _MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -22,8 +24,10 @@ const _DAYS_PER_WEEK = 7;
  * @constant
  */
 const timePropertyMapping = {
-    "WebScience.Measurements.LinkExposure" : "firstSeen",
-    "WebScience.Measurements.PageNavigation" : "visitStart"
+    "WebScience.Measurements.LinkExposure": "firstSeen",
+    "WebScience.Measurements.PageNavigation": "visitStart",
+    "WebScience.Measurements.SocialMediaNewsExposure": "loadTime",
+    "WebScience.Measurements.SocialMediaAccountExposure": "loadTime"
 }
 
 /**
@@ -58,7 +62,7 @@ function utcDateDiffInIntervals(utc1, utc2, msInInterval) {
  * @param {number} utc1 start time
  * @param {number} utc2 end time
  */
-const utcDateDiffInDays = function(utc1, utc2) {
+const utcDateDiffInDays = function (utc1, utc2) {
     return utcDateDiffInIntervals(utc1, utc2, _MS_PER_DAY);
 }
 
@@ -75,6 +79,9 @@ const utcDateDiffInDays = function(utc1, utc2) {
  */
 function getRecentEvents(obj, currentTime, timeProperty, msInInterval, nIntervals) {
     return Object.keys(obj).reduce((acc, val) => {
+        if (!(timeProperty in obj[val])) {
+            return acc;
+        }
         let diffIntervals = utcDateDiffInIntervals(obj[val][timeProperty], currentTime, msInInterval);
         return (diffIntervals > nIntervals) ? acc : {
             ...acc,
@@ -86,6 +93,8 @@ function getRecentEvents(obj, currentTime, timeProperty, msInInterval, nInterval
 
 /**
  * Modify the snapshot to include only the most recent data
+ * Uses time property defined in `timePropertyMapping`.
+ * 
  * @param {Object} storageObjs Snapshot of storage
  * @param {number} msInInterval Width of interval measured in milliseconds
  * @param {number} nIntervals number of intervals to look back
@@ -95,7 +104,7 @@ function filterStorageObjs(storageObjs, msInInterval, nIntervals) {
     Object.entries(storageObjs).forEach(entry => {
         let key = entry[0];
         let value = entry[1];
-        if(key in timePropertyMapping) {
+        if (key in timePropertyMapping) {
             let filteredEvents = getRecentEvents(value, currentTime, timePropertyMapping[key], msInInterval, nIntervals);
             storageObjs[key] = filteredEvents;
         }
