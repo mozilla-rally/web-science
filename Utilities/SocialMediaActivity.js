@@ -3,7 +3,6 @@
  *
  * @module WebScience.Utilities.SocialMediaActivity
  */
-
 import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
 
@@ -164,10 +163,7 @@ async function handleGenericEvent({requestDetails = null,
                 return;
             }
         }
-<<<<<<< HEAD
         if (platform == "facebook") facebookTabId = requestDetails.tabId;
-=======
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
         var details = {};
         for (var extractor of handler.extractors) {
             details = await extractor({requestDetails: requestDetails, details: details,
@@ -286,13 +282,9 @@ platformHandlers.twitter.favorite = {
 
 platformHandlers.facebook.post = {
     stage: "onBeforeRequest",
-<<<<<<< HEAD
     urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*", // Old FB
            "https://www.facebook.com/api/graphql/" // New FB
           ],
-=======
-    urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*"],
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
     verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookPost],
     extractors: [extractFacebookPost],
     completers: [],
@@ -319,13 +311,9 @@ platformHandlers.facebook.comment = {
 };
 platformHandlers.facebook.reshare = {
     stage: "onBeforeRequest",
-<<<<<<< HEAD
     urls: ["https://www.facebook.com/share/dialog/submit/*", // Old FB
            "https://www.facebook.com/api/graphql/" // New FB
           ],
-=======
-    urls: ["https://www.facebook.com/share/dialog/submit/*"],
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
     verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookReshare],
     extractors: [extractFacebookReshare],
     completers: [],
@@ -529,11 +517,7 @@ async function fbPostContentInit() {
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
         js: [
-<<<<<<< HEAD
-            //{ file: "/WebScience/Studies/content-scripts/utils.js" },
-=======
             //{ file: "/WebScience/Measurements/content-scripts/utils.js" },
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
             { file: "/WebScience/Measurements/content-scripts/facebook.js" }
         ],
         //runAt: "document_idle"
@@ -546,7 +530,6 @@ async function fbPostContentInit() {
  * @param requestDetails - the raw request
  * @returns - the parsed event
  */
-<<<<<<< HEAD
 function extractFacebookReact({requestDetails = null, eventTime = null, verified = null}) {
     var reactionRequest = verified.reactionRequest;
     var postId = "";
@@ -586,40 +569,6 @@ function extractFacebookReact({requestDetails = null, eventTime = null, verified
     var details = {eventType: "react", eventTime: eventTime,
         postId: postId, groupId: groupId,
         ownerId: ownerId, reactionType: reactionType};
-=======
-function extractFacebookReact({requestDetails = null, eventTime = null}) {
-    var reactionRequest = JSON.parse(requestDetails.requestBody.formData.variables[0]);
-    var tracking = JSON.parse(reactionRequest.input.tracking[0]);
-    var postId = "";
-    var groupId = "";
-    var ownerId = "";
-    postId = tracking["top_level_post_id"];
-    if ("group_id" in tracking) {
-        groupId = tracking["group_id"];
-    } else {
-        ownerId = tracking["content_owner_id_new"];
-    }
-    var reaction = reactionRequest.input.feedback_reaction;
-    var reaction_type = "";
-    if (reaction == 0) { // removing reaction
-        reaction_type = "remove";
-    } else if (reaction == 1) { // don't ask me why the numbers go like this, I just work here
-        reaction_type = "like";
-    } else if (reaction == 2) {
-        reaction_type = "love";
-    } else if (reaction == 4) {
-        reaction_type = "haha";
-    } else if (reaction == 3) {
-        reaction_type = "wow";
-    } else if (reaction == 7) {
-        reaction_type = "sad";
-    } else if (reaction == 8) {
-        reaction_type = "angry";
-    }
-    var details = {eventType: "react", eventTime: eventTime,
-        postId: postId, groupId: groupId,
-        ownerId: ownerId, reaction_type: reaction_type};
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
     return details;
 }
 
@@ -633,15 +582,11 @@ function verifyFacebookReact({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "UFI2FeedbackReactMutation")) {
         return null;
     }
-<<<<<<< HEAD
     var reactionRequest = JSON.parse(requestDetails.requestBody.formData.variables[0]);
     if (reactionRequest.client_mutation_id) {
         if (!(reactionRequest.client_mutation_id == 1)) { return null; }
     }
     return {reactionRequest};
-=======
-    return {};
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
 }
 
 /**
@@ -651,12 +596,9 @@ function verifyFacebookReact({requestDetails = null}) {
  */
 function verifyFacebookPost({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.variables)) { return null; }
-<<<<<<< HEAD
     if (requestDetails.url.includes("api/graphql")) {
         if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "ComposerStoryCreateMutation")) { return null; }
     }
-=======
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
     return {};
 }
 
@@ -684,11 +626,7 @@ function extractFacebookPost({requestDetails = null, eventTime = null}) {
             }
         }
     }
-<<<<<<< HEAD
     var details = {postTime: eventTime, postText: postText,
-=======
-    var details = {postTime: postTime, postText: postText,
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
         postUrls: postUrls, eventType: "post", eventTime: eventTime};
     return details;
 }
@@ -740,7 +678,6 @@ function verifyFacebookComment({requestDetails = null}) {
  * @returns - the parsed event
  */
 function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
-<<<<<<< HEAD
     // New FB
     if (requestDetails.url.includes("api/graphql")) {
         var details = {};
@@ -755,8 +692,6 @@ function extractFacebookReshare({requestDetails = null, verified = null, eventTi
     }
 
     // Old FB
-=======
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
     // If the user chooses "share now", the post id is in the formData and there is no message.
     // If they choose "share" or "share on a friend's timeline", it's in the url parameters instead.
     var details = {
@@ -774,14 +709,11 @@ function extractFacebookReshare({requestDetails = null, verified = null, eventTi
  * @returns - null if the request is not a valid reshare, empty object otherwise
  */
 function verifyFacebookReshare({requestDetails = null }) {
-<<<<<<< HEAD
     if (requestDetails.url.includes("api/graphql")) {
         if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
         if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "useCometFeedToFeedReshare_FeedToFeedMutation")) { return null; }
         return {}
     }
-=======
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
     var sharedFromPostId = null // the ID of the original post that's being shared
     var ownerId = null; // we need this if the main method of getting the contents doesn't work
     var newPostMessage = null // any content the user adds when sharing
@@ -813,43 +745,11 @@ function verifyFacebookReshare({requestDetails = null }) {
     return null;
 }
 
-<<<<<<< HEAD
-=======
-// TODO -- These aren't currently working. Not sure if this was an issue between
-// my developer test account and real one, or something else. The method of finding
-// posts in the page has worked consistently throughout my testing, so I'll come
-// back to this method later.
-function parseFacebookPost(node, response) {
-    response.post = node;
-    return response;
-}
-/**
- * Send a fetch request for the post we're looking for, and parse links from the result
- * @param request -- the request post's ID and the ID of the person who shared it
- * @param response -- an object set up with arrays for the links to return
- */
-function requestPostContents(request, response) {
-    return new Promise((resolve, reject) => {
-        var reqString = `https://www.facebook.com/permalink.php?story_fbid=${request.postId}&id=${request.ownerId}`;
-        fetch(reqString).then((responseFromFetch) => {
-            responseFromFetch.text().then((text) => {
-                text = text.replace(/<!-- </g, "<");
-                text = text.replace(/> -->/g, ">");
-                var doc = (new DOMParser()).parseFromString(text, "text/html");
-                response = parseFacebookPost(doc, response);
-                resolve(response);
-            });
-        });
-    });
-}
-
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
 /**
  * Get the contents and attachments of a Facebook post.
  * @param postId - the unique ID of the post
  * @param ownerId - the unique ID of the owner, or of the group, if the post is in a group
  */
-<<<<<<< HEAD
 export function getFacebookPostContents(postId) {
     return new Promise((resolve, reject) => {
         if (facebookTabId >= 0) {
@@ -858,19 +758,6 @@ export function getFacebookPostContents(postId) {
                 return;
             });
         } else reject();
-=======
-export function getFacebookPostContents(postId, ownerId) {
-    return new Promise((resolve, reject) => {
-        if (facebookTabId >= 0) {
-            browser.tabs.sendMessage(facebookTabId,
-                { "postId": postId, "ownerId": ownerId }).then((response) => {
-                    resolve(response);
-                    return;
-                });
-        }
-
-        //return requestPostContents({postId: postId, ownerId: ownerId}, {});
->>>>>>> 060aeb787ff9806799a44686cce815d9b954c465
     });
 }
 
