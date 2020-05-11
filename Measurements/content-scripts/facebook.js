@@ -4,9 +4,9 @@
  */
 (async function() {
     // stop running if this is an incognito window and we're not supposed to run there
-    var privateWindowResults = await browser.storage.local.get("WebScience.Studies.SocialMediaLinkSharing.privateWindows");
-    if (("WebScience.Studies.SocialMediaLinkSharing.privateWindows" in privateWindowResults)
-        && !privateWindowResults["WebScience.Studies.SocialMediaLinkSharing.privateWindows"]
+    var privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaLinkSharing.privateWindows");
+    if (("WebScience.Measurements.SocialMediaLinkSharing.privateWindows" in privateWindowResults)
+        && !privateWindowResults["WebScience.Measurements.SocialMediaLinkSharing.privateWindows"]
         && browser.extension.inIncognitoContext) { return; }
 
     // Let the background page know that the script is loaded and which tab it's in

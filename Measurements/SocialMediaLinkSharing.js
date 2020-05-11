@@ -2,7 +2,7 @@
  * This module is used to run studies that track the user's
  * social media sharing of links.
  * 
- * @module WebScience.Studies.SocialMediaLinkSharing
+ * @module WebScience.Measurements.SocialMediaLinkSharing
  */
 
 import * as Debugging from "../Utilities/Debugging.js"
