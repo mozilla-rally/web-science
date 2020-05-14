@@ -9,6 +9,8 @@ import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as PageEvents from "../Utilities/PageEvents.js"
 import * as Messaging from "../Utilities/Messaging.js"
+import * as PageClassification from "./PageClassification.js"
+import covid from "./weights/covid-linearsvc_data.js";
 
 const debugLog = Debugging.getDebuggingLog("Measurements.PageNavigation");
 
@@ -40,36 +42,9 @@ export async function runStudy({
 
     urlMatcher = new Matching.UrlMatcher(domains);
 
+    await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/SampleClassifier.js", covid);
+
     // Listen for metadata of the visited pages from content script
-    Messaging.registerListener("WebScience.metadata", (metadata, sender) => {
-        if (!("tab" in sender)) {
-            debugLog("Warning: unexpected metadata message");
-            return;
-        }
-        /**
-         * Handler for errors from worker threads
-         * @param {Event} err - error 
-         */
-        function workerError(err) {
-            debugLog("error :" + err);
-        }
-        function resultReceiver(result) {
-            let data = result.data;
-            debugLog("received message from classification {" + JSON.stringify(data) + "}. ");
-        }
-        debugLog(JSON.stringify(metadata));
-        // spin a worker script for classification
-        let worker = new Worker("/WebScience/Measurements/SampleClassifier.js");
-        // send metadata as a message to the classifier script
-        worker.postMessage(metadata);
-        // receive the result classification result.
-        worker.addEventListener('message', resultReceiver);
-        worker.addEventListener('error', workerError);
-    }, {
-        type: "string",
-        url: "string",
-        title: "string"
-    });
     // Use a unique identifier for each webpage the user visits that has a matching domain
     var nextPageIdCounter = await (new Storage.Counter("WebScience.Measurements.PageNavigation.nextPageId")).initialize();
 
@@ -85,18 +60,6 @@ export async function runStudy({
         // If the URL does not match the study domains, ignore the page visit start
         if (!urlMatcher.testUrl(url))
             return;
-        // Add content script for extracting metadata(title, url and content) from the current page
-        await browser.contentScripts.register({
-            matches: ["*://*/*"],
-            js: [{
-                file: "/WebScience/Measurements/content-scripts/Readability.js"
-            },
-            {
-                file: "/WebScience/Measurements/content-scripts/metadata.js"
-            }
-            ],
-            runAt: "document_idle"
-        });
 
         // If we are already tracking a page in this tab, ignore the page visit start
         // This shouldn't happen!
