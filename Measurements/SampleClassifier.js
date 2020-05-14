@@ -3,6 +3,8 @@
  * @module WebScience.Measurements.Classifier
  */
 
+ let param = 7;
+ let name = "";
 /**
  * Event handler for messages from the main thread
  * On receiving data, the function computes aggregate statistics and 
@@ -13,7 +15,13 @@
  */
 onmessage = event => {
     let data = event.data;
-    sendMessageToCaller("classifier ", classifyUsingMetadata(data));
+    if (data.type === "init") {
+        // set param to the number of properties in the json object
+        param = Object.keys(data.args).length;
+        name = data.name;
+    } else if (data.type === "classify") {
+        sendMessageToCaller("classifier ", classifyUsingMetadata(data.payload));
+    }
 }
 
 /**
@@ -37,7 +45,9 @@ onerror = event => {
 function sendMessageToCaller(messageType, data) {
     postMessage({
         type: messageType,
-        data: data
+        data: data,
+        param: param,
+        name: name
     });
 }
 
@@ -54,5 +64,5 @@ function classifyUsingMetadata(metadata) {
     // ************ Implement the actual classifier here ****** 
     // The following is a dummy classifier that maps page to [0, 10) based on
     // content length
-    return metadata.content.length % 10;
+    return metadata.content.length % param;
 }

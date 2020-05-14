@@ -23,6 +23,6 @@
     // clone for document for parsing using Redability script
     let documentClone = document.cloneNode(true);
     let article = new Readability(documentClone).parse();
-    sendPageMetadataToBackground("WebScience.metadata", article);
+    sendPageMetadataToBackground(name, article);
   }
 )();
