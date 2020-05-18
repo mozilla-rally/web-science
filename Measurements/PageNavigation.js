@@ -10,6 +10,7 @@ import * as Matching from "../Utilities/Matching.js"
 import * as PageEvents from "../Utilities/PageEvents.js"
 import * as Messaging from "../Utilities/Messaging.js"
 import * as PageClassification from "./PageClassification.js"
+// imports classifier weights
 import covid from "./weights/covid-linearsvc_data.js";
 
 const debugLog = Debugging.getDebuggingLog("Measurements.PageNavigation");
@@ -23,6 +24,10 @@ var storage = null;
 var currentTabInfo = null;
 var urlMatcher = null;
 
+/**
+ * Callback function for classification result
+ * @param {Object} result result object
+ */
 function classificationResults(result) {
     debugLog(JSON.stringify(result));
 }
