@@ -6,11 +6,12 @@
  let param = 7;
  let name = "";
 /**
- * Event handler for messages from the main thread
- * On receiving data, the function computes aggregate statistics and 
- * sends a message back to the caller with the result object.
+ * Event handler for messages from the main thread. It handles two types of
+ * messages. "init" messages are for initializing classifier defined in this file.
+ * "classify" messages are requests for classifying new data.
  * 
  * @param {MessageEvent} event - message object
+ * @param {MessageEvent.data} event.data - data object
  * @listens MessageEvent
  */
 onmessage = event => {
@@ -48,7 +49,6 @@ function sendMessageToCaller(messageType, data, url) {
         predicted_class: data,
         ts: Date.now(),
         url: url,
-        param: param,
         name: name
     });
 }
