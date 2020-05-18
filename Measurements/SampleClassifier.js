@@ -20,7 +20,7 @@ onmessage = event => {
         param = Object.keys(data.args).length;
         name = data.name;
     } else if (data.type === "classify") {
-        sendMessageToCaller("classifier ", classifyUsingMetadata(data.payload));
+        sendMessageToCaller("classifier ", classifyUsingMetadata(data.payload), data.payload.url);
     }
 }
 
@@ -42,10 +42,12 @@ onerror = event => {
  * @param {string} messageType message type
  * @param {Object} data data to be sent
  */
-function sendMessageToCaller(messageType, data) {
+function sendMessageToCaller(messageType, data, url) {
     postMessage({
         type: messageType,
-        data: data,
+        predicted_class: data,
+        ts: Date.now(),
+        url: url,
         param: param,
         name: name
     });
