@@ -23,6 +23,9 @@ var storage = null;
 var currentTabInfo = null;
 var urlMatcher = null;
 
+function classificationResults(result) {
+    debugLog(JSON.stringify(result));
+}
 /**
  * Start a navigation study. Note that only one study is supported per extension.
  * @param {Object} options - A set of options for the study.
@@ -42,7 +45,7 @@ export async function runStudy({
 
     urlMatcher = new Matching.UrlMatcher(domains);
 
-    await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/SampleClassifier.js", covid);
+    await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/SampleClassifier.js", covid,"page navigation classifier", classificationResults);
 
     // Listen for metadata of the visited pages from content script
     // Use a unique identifier for each webpage the user visits that has a matching domain

@@ -29,7 +29,7 @@ async function registerContentScript(matchPatterns, name) {
     });
 }
 
-function listenForCSMessages(name) {
+function listenForCSMessages(name, listener) {
     Messaging.registerListener(name, (metadata, sender) => {
         if (!("tab" in sender)) {
             debugLog("Warning: unexpected metadata message");
@@ -44,7 +44,9 @@ function listenForCSMessages(name) {
         }
         function resultReceiver(result) {
             let data = result.data;
-            debugLog("received message from classification {" + JSON.stringify(data) + "}. ");
+            //debugLog("received message from classification {" +
+            //JSON.stringify(data) + "}. ");
+            listener(data);
         }
         // fetch worker associated with this 
         let worker = workers.get(name);
@@ -63,7 +65,7 @@ function listenForCSMessages(name) {
     });
 }
 
-export async function registerPageClassifier(matchPatterns, classifierFilePath, initArgs={}, name="sample classifier") {
+export async function registerPageClassifier(matchPatterns, classifierFilePath, initArgs, name, listener) {
     // TODO : check that name is not in use
     if(name in workers) {
         debugLog("classifier exists with same name");
@@ -73,7 +75,7 @@ export async function registerPageClassifier(matchPatterns, classifierFilePath, 
     // setup content scripts for extracting metadata from matched pages
     await registerContentScript(matchPatterns, name);
     // setup comunication with worker via message passing
-    listenForCSMessages(name);
+    listenForCSMessages(name, listener);
 
 }
 
