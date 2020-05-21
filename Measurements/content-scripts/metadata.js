@@ -1,5 +1,5 @@
 /**
- * Content script for extracting url, title, and content from page using Readibility script
+ * Content script for extracting url, title, and content from page using Readability script
  * @module WebScience.Measurements.content-scripts.metadata
  */
 // Function encapsulation to maintain unique variable scope for each content script
@@ -24,7 +24,7 @@
       });
     }
 
-    // clone for document for parsing using Redability script
+    // clone for document for parsing using Readability script
     let documentClone = document.cloneNode(true);
     let article = new Readability(documentClone).parse();
     sendPageMetadataToBackground(name, article);
