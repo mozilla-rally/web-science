@@ -9,8 +9,19 @@ import * as Storage from "../Utilities/Storage.js";
 
 const debugLog = Debugging.getDebuggingLog("Measurements.PageClassification");
 
+/**
+ * Whether the classification module is initialized (at least one registration)
+ * @private
+ * @type {boolean}
+ * @default
+ */
 var initialized = false;
-var nextPageClassificationIdCounter = false;
+/**
+ * Counter for storing classification results
+ * @type {Storage.Counter}
+ * @private
+ */
+var nextPageClassificationIdCounter = null;
 /**
  * A KeyValueStorage object for data associated with the study.
  * @type {Object}
@@ -26,6 +37,10 @@ var storage = null;
  */
 const workers = new Map();
 
+/**
+ * Setup storage and counter objects.
+ * 
+ */
 async function initialize() {
     if(initialized) return;
     storage = await (new Storage.KeyValueStorage("WebScience.Measurements.PageClassification")).initialize();
