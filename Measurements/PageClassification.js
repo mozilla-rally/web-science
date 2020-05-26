@@ -5,9 +5,18 @@
  */
 import * as Messaging from "../Utilities/Messaging.js";
 import * as Debugging from "../Utilities/Debugging.js";
+import * as Storage from "../Utilities/Storage.js";
 
 const debugLog = Debugging.getDebuggingLog("Measurements.PageClassification");
 
+var initialized = false;
+var nextPageClassificationIdCounter = false;
+/**
+ * A KeyValueStorage object for data associated with the study.
+ * @type {Object}
+ * @private
+ */
+var storage = null;
 /**
  * A Map that stores worker objects. The keys are message types (used when
  * registering classifiers) and the values
@@ -17,6 +26,12 @@ const debugLog = Debugging.getDebuggingLog("Measurements.PageClassification");
  */
 const workers = new Map();
 
+async function initialize() {
+    if(initialized) return;
+    storage = await (new Storage.KeyValueStorage("WebScience.Measurements.PageClassification")).initialize();
+    nextPageClassificationIdCounter = await (new Storage.Counter("WebScience.Measurements.PageClassification.nextPageId")).initialize();
+    initialized = true;
+}
 /**
  * Registers readability script for pages that belong to a set of patterns.
  * 
@@ -62,6 +77,8 @@ function listenForContentScriptMessages(messageType, resultListener) {
             debugLog("Warning: unexpected metadata message");
             return;
         }
+        // add tab id to metadata
+        metadata.context["tabID"] = sender.tab.id;
         /**
          * Handler for errors from worker threads
          * @param {Event} err - error 
@@ -69,9 +86,13 @@ function listenForContentScriptMessages(messageType, resultListener) {
         function workerError(err) {
             debugLog("error :" + err);
         }
-        function resultReceiver(result) {
+        async function resultReceiver(result) {
             let data = result.data;
-            resultListener(data);
+            let classificationStorageObj = {...data, ...metadata.context};
+            debugLog("storing " + JSON.stringify(classificationStorageObj));
+            storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
+            await nextPageClassificationIdCounter.increment();
+            resultListener({...data, ...metadata.context});
         }
         // fetch worker associated with this 
         let worker = workers.get(messageType);
@@ -81,7 +102,7 @@ function listenForContentScriptMessages(messageType, resultListener) {
             payload: metadata
         });
         // receive the result classification result.
-        worker.addEventListener('message', resultReceiver);
+        worker.addEventListener('message', async (result) => { await resultReceiver(result)});
         worker.addEventListener('error', workerError);
     }, {
         type: "string",
@@ -106,6 +127,8 @@ function listenForContentScriptMessages(messageType, resultListener) {
  * @param {function} listener Callback for classification result
  */
 export async function registerPageClassifier(matchPatterns, classifierFilePath, initArgs, messageType, listener) {
+    // initialize module
+    await initialize();
     // TODO : check that name is not in use
     if(messageType in workers) {
         debugLog("classifier exists with same name");

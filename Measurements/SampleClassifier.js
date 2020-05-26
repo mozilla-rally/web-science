@@ -47,7 +47,6 @@ function sendMessageToCaller(messageType, data, url) {
     postMessage({
         type: messageType,
         predicted_class: data,
-        ts: Date.now(),
         url: url,
         name: name
     });
