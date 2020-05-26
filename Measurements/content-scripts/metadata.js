@@ -12,12 +12,16 @@
      * @returns {void} Nothing
      */
     function sendPageMetadataToBackground(type, article) {
-        browser.runtime.sendMessage({
-            type: type,
-            url : document.location.href,
-            title : article.title,
-            content : article.content
-        });
+      browser.runtime.sendMessage({
+        type: type,
+        url: document.location.href,
+        title: article.title,
+        content: article.content,
+        context: {
+          timestamp: Date.now(),
+          referrer: document.referrer,
+        }
+      });
     }
 
     // clone for document for parsing using Redability script
