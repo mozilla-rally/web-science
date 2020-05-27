@@ -8,10 +8,10 @@ import * as Debugging from "../Utilities/Debugging.js"
 import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as PageEvents from "../Utilities/PageEvents.js"
-import * as Messaging from "../Utilities/Messaging.js"
 import * as PageClassification from "./PageClassification.js"
-// imports classifier weights
-import covid from "./weights/covid-linearsvc_data.js";
+
+// import classifier weights
+import covidClassifierData from "./weights/covid-linearsvc_data.js";
 
 const debugLog = Debugging.getDebuggingLog("Measurements.PageNavigation");
 
@@ -50,7 +50,7 @@ export async function runStudy({
 
     urlMatcher = new Matching.UrlMatcher(domains);
 
-    await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/CovidClassifier.js", covid,"covid page classifier", classificationResults);
+    await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/CovidClassifier2.js", covidClassifierData,"covid-page-classifier", classificationResults);
 
     // Listen for metadata of the visited pages from content script
     // Use a unique identifier for each webpage the user visits that has a matching domain
