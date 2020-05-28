@@ -52,8 +52,12 @@ export async function runStudy({
 
     urlMatcher = new Matching.UrlMatcher(domains);
 
+<<<<<<< HEAD
     await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/PolClassifier.js", polClassifierData,"pol-page-classifier", classificationResults);
     //await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/CovidClassifier.js", covidClassifierData,"covid-page-classifier", classificationResults);
+=======
+    await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/CovidClassifier.js", covid,"covid page classifier", classificationResults);
+>>>>>>> 3fad0d103ae2d2d77dfa62504c7b9e1686f7c981
 
     // Listen for metadata of the visited pages from content script
     // Use a unique identifier for each webpage the user visits that has a matching domain
