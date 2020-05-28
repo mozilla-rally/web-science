@@ -106,7 +106,7 @@ function listenForContentScriptMessages(workerId, resultListener) {
             debugLog("storing " + JSON.stringify(classificationStorageObj));
             storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
             await nextPageClassificationIdCounter.increment();
-            resultListener({...data, ...metadata.context});
+            resultListener({...data, ...pageContent.context});
         }
         // fetch worker associated with this
         let worker = workers.get(workerId);
