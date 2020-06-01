@@ -1,6 +1,6 @@
 /**
  * Content script for getting Facebook post contents
- * @module WebScience.Measurements.content-scripts.socialMediaSharing
+ * @module WebScience.Measurements.content-scripts.SocialMediaLinkSharing
  */
 (async function() {
     // stop running if this is an incognito window and we're not supposed to run there
