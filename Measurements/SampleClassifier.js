@@ -3,17 +3,26 @@
  * @module WebScience.Measurements.Classifier
  */
 
+ let param = 7;
+ let name = "";
 /**
- * Event handler for messages from the main thread
- * On receiving data, the function computes aggregate statistics and 
- * sends a message back to the caller with the result object.
+ * Event handler for messages from the main thread. It handles two types of
+ * messages. "init" messages are for initializing classifier defined in this file.
+ * "classify" messages are requests for classifying new data.
  * 
  * @param {MessageEvent} event - message object
+ * @param {MessageEvent.data} event.data - data object
  * @listens MessageEvent
  */
 onmessage = event => {
     let data = event.data;
-    sendMessageToCaller("classifier ", classifyUsingMetadata(data));
+    if (data.type === "init") {
+        // set param to the number of properties in the json object
+        param = Object.keys(data.args).length;
+        name = data.name;
+    } else if (data.type === "classify") {
+        sendMessageToCaller("classifier ", classifyUsingMetadata(data.payload), data.payload.url);
+    }
 }
 
 /**
@@ -34,10 +43,12 @@ onerror = event => {
  * @param {string} messageType message type
  * @param {Object} data data to be sent
  */
-function sendMessageToCaller(messageType, data) {
+function sendMessageToCaller(messageType, data, url) {
     postMessage({
         type: messageType,
-        data: data
+        predicted_class: data,
+        url: url,
+        name: name
     });
 }
 
@@ -54,5 +65,5 @@ function classifyUsingMetadata(metadata) {
     // ************ Implement the actual classifier here ****** 
     // The following is a dummy classifier that maps page to [0, 10) based on
     // content length
-    return metadata.content.length % 10;
+    return metadata.content.length % param;
 }
