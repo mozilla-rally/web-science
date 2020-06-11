@@ -141,6 +141,7 @@ function listenForContentScriptMessages(workerId, resultListener) {
  * @param {function} listener Callback for classification result
  */
 export async function registerPageClassifier(matchPatterns, classifierFilePath, initArgs, workerId, listener) {
+    initialize();
     // TODO: check that id is not in use
     if(workerId in workers) {
         debugLog("worker exists with same name");
