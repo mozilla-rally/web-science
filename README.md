@@ -25,7 +25,7 @@ The measurement modules provide reusable passive collection and intervention bui
 
 ### Utility Modules - [/Utilities/](https://github.com/citp/web-science/tree/master/Utilities)
 The utility modules provide a library of reusable functions that assist with conducting studies.
-* [Consent.js](https://github.com/citp/web-science/blob/master/Utilities/Consent.js) - Functions for requesting user consent and acting on user consent events.
+* [Lifecycle.js](https://github.com/citp/web-science/blob/master/Utilities/Lifecycle.js) - Functions for starting and stopping studies.
 * [Debugging.js](https://github.com/citp/web-science/blob/master/Utilities/Debugging.js) - Functionality for outputting debugging messages to the console in a consistent format. Implemented with the [`console`](https://developer.mozilla.org/en-US/docs/Web/API/console) Web API.
 * [Idle.js](https://github.com/citp/web-science/blob/master/Utilities/Idle.js) - Functionality for supporting browser idle state listeners with differing idle state thresholds. Implemented with the [`idle`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/idle) WebExtensions API.
 * [LinkResolution.js](https://github.com/citp/web-science/blob/master/Utilities/LinkResolution.js) - Functionality for resolving shortened and shimmed URLs. Implemented with the [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) Web API and the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
