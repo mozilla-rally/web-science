@@ -27,6 +27,15 @@ function removeFacebookShim(url) {
     return "";
 }
 
+function removeFacebookfbclid(url) {
+    var fbclidRegex = /(.*)(\?fbclid=.*)/;
+    var urlResult = fbclidRegex.exec(url);
+    if (urlResult) {
+        return urlResult[1];
+    }
+    return url;
+}
+
 /**
  * Removes url shim. Currently supports only facebook urls
  * @param {string} url 
@@ -37,7 +46,7 @@ function removeShim(url) {
     // check if the url matches shim
     if (facebookUrlRegex.test(url)) {
         return {
-            url: removeFacebookShim(url),
+            url: removeFacebookfbclid(removeFacebookShim(url)),
             isShim: true
         };
     }

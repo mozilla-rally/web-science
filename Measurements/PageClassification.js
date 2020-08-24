@@ -104,8 +104,9 @@ function listenForContentScriptMessages(workerId, resultListener) {
             let data = result.data;
             let classificationStorageObj = {...data, ...pageContent.context};
             debugLog("storing " + JSON.stringify(classificationStorageObj));
-            storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
-            await nextPageClassificationIdCounter.increment();
+            //storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
+            storage.set(classificationStorageObj.url, classificationStorageObj);
+            //await nextPageClassificationIdCounter.increment();
             resultListener({...data, ...pageContent.context});
         }
         // fetch worker associated with this
@@ -123,6 +124,35 @@ function listenForContentScriptMessages(workerId, resultListener) {
         url: "string",
         title: "string"
     });
+}
+
+export function messageWorker(workerId, pageContent, callback) {
+    function workerError(err) {
+        debugLog(err.message + err.filename + err.lineno);
+    }
+    async function resultReceiver(result) {
+        let data = result.data;
+        let classificationStorageObj = {...data, ...pageContent.context};
+        debugLog("storing " + JSON.stringify(classificationStorageObj));
+        //storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
+        storage.set(classificationStorageObj.url, classificationStorageObj);
+        //await nextPageClassificationIdCounter.increment();
+        callback({...data, ...pageContent.context});
+    }
+    let worker = workers.get(workerId);
+    worker.postMessage({
+        type: "classify",
+        payload: pageContent,
+    });
+    worker.addEventListener('message', async (result) => { await resultReceiver(result)});
+    worker.addEventListener('error', workerError);
+}
+
+export async function lookupClassificationResult(url, workerId) {
+    initialize();
+    var result = await storage.get(url);
+    if (result && result.type == workerId) return result;
+    return null;
 }
 
 /**

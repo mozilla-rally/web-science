@@ -2,6 +2,7 @@
  * Content script for getting Facebook post contents
  * @module WebScience.Measurements.content-scripts.SocialMediaLinkSharing
  */
+
 (async function() {
     // stop running if this is an incognito window and we're not supposed to run there
     var privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaLinkSharing.privateWindows");
@@ -55,24 +56,128 @@
             var reqString = `https://www.facebook.com/${request.postId}`;
             fetch(reqString, {credentials: 'include'}).then((responseFromFetch) => {
                 var redir = responseFromFetch.url;
-                var groupsIndex = redir.indexOf("/groups/");
-                var domainIndex = redir.indexOf("facebook.com/");
-                var usernameEndIndex = redir.indexOf("/posts/");
-                var username = "";
-                var groupName = "";
-                var newUrl = "";
-                if (groupsIndex > 0) {
-                    groupName = redir.substring(groupsIndex + 8, redir.indexOf("/?post_id="));
+                var oldGroupRegex = /facebook\.com\/groups\/([^\/]*)\/permalink\/([0-9]*)/;
+                var newGroupRegex = /facebook\.com\/groups\/([^\/]*)\/\?post_id=([0-9]*)/;
+                var userIdRegex = /facebook\.com\/permalink\.php\?story_fbid=([0-9]*)&id=([0-9]*)/;
+                var usernameRegex = /facebook\.com\/([^\/]*)\/posts\/([0-9]*)/;
+                var username = ""; var groupName = ""; var newUrl = ""; var userId = "";
+                var oldGroupResult = oldGroupRegex.exec(redir);
+                if (oldGroupResult) {
+                    groupName = oldGroupResult[1];
                     newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
-                } else {
-                    if (domainIndex >= 0 && usernameEndIndex > 0) {
-                        username = redir.substring(domainIndex + 13, usernameEndIndex);
-                        newUrl = `facebook.com/${username}/posts/${request.postId}`;
-                    }
                 }
-                resolve({newUrl: newUrl, groupName: groupName, username: username});
+                var newGroupResult = newGroupRegex.exec(redir);
+                if (newGroupResult) {
+                    groupName = newGroupResult[1];
+                    newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
+                }
+                var idResult = userIdRegex.exec(redir);
+                if (idResult) {
+                    userId = idResult[2];
+                    newUrl = idResult[0];
+                }
+                var nameResult = usernameRegex.exec(redir);
+                if (nameResult) {
+                    username = nameResult[1];
+                    newUrl = nameResult[0];
+                }
+                resolve({newUrl: newUrl, groupName: groupName, username: username, userId: userId});
             });
         });
+    }
+
+    function findContent(wantedPost, newUrl) {
+        var counter = 0
+        while (true){
+            if (counter > 10) return wantedPost;
+            counter += 1;
+            if (wantedPost.childNodes && wantedPost.childNodes.length == 1) {
+                wantedPost = wantedPost.childNodes[0];
+            }
+            else return wantedPost;
+        }
+        return wantedPost;
+    }
+
+    function recStructure(node) {
+        var links = [];//node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
+        var ret;
+        if (node.textContent == "") {
+            links = node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
+            links = Array.prototype.map.call(links, link => link.href ? removeShim(link.href).url : null);
+            if (node.target && node.href && node.target == "_blank") {
+                links.push(removeShim(node.href).url);
+            }
+            if (links.length == 0) return null;
+            ret = {"text": null, "links": links};
+            return ret;
+        }
+        if (node.childNodes.length == 0) {
+            links = node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
+            links = Array.prototype.map.call(links, link => link.href ? removeShim(link.href).url : null);
+            if (node.target && node.href && node.target == "_blank") {
+                links.push(removeShim(node.href).url);
+            }
+            ret = {"text": node.textContent, "links": links};
+            return ret;
+        }
+        var children = [];
+        for (var child of node.childNodes) {
+            var childContent = recStructure(child);
+            if (childContent != null) children.push(childContent);
+        }
+        if (children.length == 0) {
+            console.log("ERROR", node, children, node.textContent, links);
+        }
+        ret = children.length == 0 ? null : (children.length == 1 ? children[0] : children);
+        return ret;
+    }
+
+    function isComments(structure) {
+        if (structure == null) return false;
+        if (structure.hasOwnProperty("text")) return false;
+        if (structure.length >= 2) {
+            if (structure[0].hasOwnProperty("text") && structure[0].text == "Like" &&
+                structure[1].hasOwnProperty("text") && structure[1].text == "Comment") {
+                return true;
+            }
+        }
+        for (var child of structure) {
+            if (isComments(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function removeComments(structure) {
+        var index = 0;
+        for (var child of structure) {
+            var childIsComments = isComments(child);
+            if (childIsComments) {
+                structure.splice(index, 1);
+                return;
+            }
+            index += 1;
+        }
+        return structure;
+    }
+
+    function condenseContent(structure, text, links) {
+        if (structure == null) {
+            console.log("ERROR", structure, text, links);
+            return;
+        }
+        if (structure.hasOwnProperty("text") && structure.hasOwnProperty("links")) {
+            if (structure.text != null) text.push(structure.text);
+            for (var link of structure.links) {
+                links.push(link);
+            }
+            return;
+        }
+        for (var child of structure) {
+            condenseContent(child, text, links);
+        }
     }
 
     browser.runtime.onMessage.addListener(async (request) => {
@@ -89,7 +194,6 @@
             var groupName = detailsObj.groupName;
             response.username = username;
             response.groupName = groupName;
-            // walk up the page structure, looking for links
             var node = requestedPost;
 
             // New FB
@@ -103,28 +207,15 @@
                         break;
                     }
                 }
-                var wantedPost = wantedPost.childNodes[0].childNodes[2];
-                var content = wantedPost.childNodes[0];
-                if (wantedPost.childNodes.length > 1) {
-                    var attachment = wantedPost.childNodes[1];
-                } else {
-                    var attachment = null;
-                }
-                if (content.textContent) response.content.push(content.textContent);
-                var internalLinks = content.querySelectorAll('a[href]');
-                for (var link of internalLinks) {
-                    response.content.push(removeShim(link.href).url);
-                }
-                if (attachment) {
-                    var attachmentLinks = attachment.querySelectorAll('a[href]');
-                    for (var link of attachmentLinks) {
-                        if (link.hasAttribute("aria-label") &&
-                            link.getAttribute("aria-label") == "More") continue;
-                        response.attachedUrls.push(removeShim(link.href).url);
-                    }
-                }
+                var recStructureWanted = recStructure(wantedPost);
+                var textRet = [];
+                var linksRet = [];
+                removeComments(recStructureWanted);
+                condenseContent(recStructureWanted, textRet, linksRet);
+                response.content = textRet;
+                response.attachedUrls = linksRet;
                 resolve(response);
-
+                return;
             } catch (error) {
                 while (node.parentElement != null) {
                     node = node.parentElement;
@@ -146,3 +237,4 @@
         });
     });
 })();
+
