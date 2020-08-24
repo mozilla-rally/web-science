@@ -166,7 +166,8 @@ export class Counter {
      * @returns {Promise<number>} - The counter value before incrementing.
      */
     async getAndIncrement() {
-        return await this.increment() - 1;
+        var ret = await this.increment() - 1;
+        return ret;
     }
 
     /**
@@ -174,7 +175,14 @@ export class Counter {
      * the Promise returned by `counter.incrementAndGet.then(value => return)`.
      */
     async increment() {
-        await this.incrementAndGet();
+        return await this.incrementAndGet();
+    }
+
+    async getAndReset() {
+        var currentCounterValue = this.counterValue;
+        this.counterValue = 0;
+        await Counter.storage.set(this.counterName, this.counterValue);
+        return currentCounterValue;
     }
 
     /**

@@ -18,6 +18,8 @@ var twitter_tabid = "";
 var fbPostContentSetUp = false;
 var facebookTabId = -1;
 
+var processedRequestIds = {};
+
 /**
  * Configure listeners to run in private windows.
  */
@@ -61,6 +63,7 @@ function registerPlatformListener(platform, eventType, blockingType, callback) {
     }
     clientCallbacks[platform][eventType][blockingType].push(callback);
 }
+
 
 /**
  * Register a callback for specific Twitter events. Supported events are "tweet" (includes
@@ -183,6 +186,13 @@ async function handleGenericEvent({requestDetails = null,
             } else {
                 resolve({});
             }
+        // on Facebook, all listeners are for the same url (events are
+        // distinguished by variables in the request body. Therefore, if we have a
+        // blocking listener for one event, it makes all the listeners blocking.
+        // To deal with that, we resolve if there aren't any supposed to be any blocking
+        // listeners for this event type.
+        } else {
+            resolve({});
         }
         for (var userListener of clientCallbacks[platform][eventType]["nonblocking"]) {
             userListener(details);
@@ -211,6 +221,19 @@ function verifyPostReq({requestDetails = null}) {
 function verifyReadableFormData({requestDetails = null}) {
     if (!requestDetails.requestBody) return null;
     if (!requestDetails.requestBody.formData) return null;
+    return {};
+}
+
+/**
+ * Sometimes a redir gets issued (for the same url) and we see the event twice,
+ * resulting in double-counting events. Check whether we've seen this requestId
+ * already, cancel if so, and record the view if not.
+ * @param requestDetails - the raw request
+ */
+function verifyNewRequest({requestDetails = null}) {
+    if (!requestDetails.requestId) return null;
+    if (processedRequestIds[requestDetails.requestId]) return null;
+    processedRequestIds[requestDetails.requestId] = true;
     return {};
 }
 
@@ -255,7 +278,7 @@ var platformHandlers = {
 platformHandlers.twitter.tweet = {
     stage: "onBeforeRequest",
     urls: ["https://twitter.com/intent/tweet", "https://api.twitter.com/1.1/statuses/update.json"],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyTwitterTweet],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyTwitterTweet],
     extractors: [extractTwitterTweet],
     completers: [],
     registeredListener: null,
@@ -264,7 +287,7 @@ platformHandlers.twitter.tweet = {
 platformHandlers.twitter.retweet = {
     stage: "onBeforeRequest",
     urls: ["https://api.twitter.com/1.1/statuses/retweet.json"],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyTwitterRetweet],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyTwitterRetweet],
     extractors: [extractTwitterRetweet],
     completers: [],
     registeredListener: null,
@@ -273,7 +296,7 @@ platformHandlers.twitter.retweet = {
 platformHandlers.twitter.favorite = {
     stage: "onBeforeRequest",
     urls: ["https://api.twitter.com/1.1/favorites/create.json"],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyTwitterFavorite],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyTwitterFavorite],
     extractors: [extractTwitterFavorite],
     completers: [],
     registeredListener: null,
@@ -285,7 +308,7 @@ platformHandlers.facebook.post = {
     urls: ["https://www.facebook.com/webgraphql/mutation/?doc_id=*", // Old FB
            "https://www.facebook.com/api/graphql/" // New FB
           ],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookPost],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyFacebookPost],
     extractors: [extractFacebookPost],
     completers: [],
     registeredListener: null,
@@ -294,7 +317,7 @@ platformHandlers.facebook.post = {
 platformHandlers.facebook.react = {
     stage: "onBeforeRequest",
     urls: ["https://www.facebook.com/api/graphql/"],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookReact],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyFacebookReact],
     extractors: [extractFacebookReact],
     completers: [],
     registeredListener: null,
@@ -303,7 +326,7 @@ platformHandlers.facebook.react = {
 platformHandlers.facebook.comment = {
     stage: "onBeforeRequest",
     urls: ["https://www.facebook.com/api/graphql/"],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookComment],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyFacebookComment],
     extractors: [extractFacebookComment],
     completers: [],
     registeredListener: null,
@@ -314,7 +337,7 @@ platformHandlers.facebook.reshare = {
     urls: ["https://www.facebook.com/share/dialog/submit/*", // Old FB
            "https://www.facebook.com/api/graphql/" // New FB
           ],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyFacebookReshare],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyFacebookReshare],
     extractors: [extractFacebookReshare],
     completers: [],
     registeredListener: null,
@@ -324,7 +347,7 @@ platformHandlers.facebook.reshare = {
 platformHandlers.reddit.post = {
     stage: "onBeforeRequest",
     urls: [ "https://oauth.reddit.com/api/submit*" ],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyRedditPost],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyRedditPost],
     extractors: [extractRedditPost],
     completers: [],
     registeredListener: null,
@@ -333,7 +356,7 @@ platformHandlers.reddit.post = {
 platformHandlers.reddit.comment = {
     stage: "onBeforeRequest",
     urls: [ "https://oauth.reddit.com/api/comment*" ],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyRedditComment],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyRedditComment],
     extractors: [extractRedditComment],
     completers: [],
     registeredListener: null,
@@ -342,7 +365,7 @@ platformHandlers.reddit.comment = {
 platformHandlers.reddit.postVote = {
     stage: "onBeforeRequest",
     urls: [ "https://oauth.reddit.com/api/vote*" ],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyRedditPostVote],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyRedditPostVote],
     extractors: [extractRedditPostVote],
     completers: [],
     registeredListener: null,
@@ -351,7 +374,7 @@ platformHandlers.reddit.postVote = {
 platformHandlers.reddit.commentVote = {
     stage: "onBeforeRequest",
     urls: [ "https://oauth.reddit.com/api/vote*" ],
-    verifiers: [verifyPostReq, verifyReadableFormData, verifyRedditCommentVote],
+    verifiers: [verifyPostReq, verifyReadableFormData, verifyNewRequest, verifyRedditCommentVote],
     extractors: [extractRedditCommentVote],
     completers: [],
     registeredListener: null,
@@ -579,13 +602,11 @@ function extractFacebookReact({requestDetails = null, eventTime = null, verified
  */
 function verifyFacebookReact({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
-    if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "UFI2FeedbackReactMutation")) {
+    if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "UFI2FeedbackReactMutation" ||
+          requestDetails.requestBody.formData.fb_api_req_friendly_name == "CometUFIFeedbackReactMutation")) {
         return null;
     }
     var reactionRequest = JSON.parse(requestDetails.requestBody.formData.variables[0]);
-    if (reactionRequest.client_mutation_id) {
-        if (!(reactionRequest.client_mutation_id == 1)) { return null; }
-    }
     return {reactionRequest};
 }
 
@@ -599,6 +620,7 @@ function verifyFacebookPost({requestDetails = null}) {
     if (requestDetails.url.includes("api/graphql")) {
         if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "ComposerStoryCreateMutation")) { return null; }
     }
+    if (isThisPostAReshare(requestDetails)) { return null; }
     return {};
 }
 
@@ -610,13 +632,17 @@ function verifyFacebookPost({requestDetails = null}) {
 function extractFacebookPost({requestDetails = null, eventTime = null}) {
     var postText = "";
     var postUrls = [];
+    var audience = "unknown";
+    var composerType = "unknown";
     for (var variable of requestDetails.requestBody.formData.variables) {
         variable = JSON.parse(variable);
+        composerType = variable.input.composer_type;
 
         // Check for urls in the post text itself
         if (variable && variable.input && variable.input.message && variable.input.message.text) {
             postText = postText.concat(variable.input.message.text);
         }
+        var audience = checkFacebookPostAudience(requestDetails);
 
         // Check for urls that are attachments instead of post text
         if (variable && variable.input && variable.input.attachments) {
@@ -626,7 +652,7 @@ function extractFacebookPost({requestDetails = null, eventTime = null}) {
             }
         }
     }
-    var details = {postTime: eventTime, postText: postText,
+    var details = {postTime: eventTime, postText: postText, audience: audience,
         postUrls: postUrls, eventType: "post", eventTime: eventTime};
     return details;
 }
@@ -672,22 +698,83 @@ function verifyFacebookComment({requestDetails = null}) {
     return {};
 }
 
+function checkFacebookPostAudience(requestDetails) {
+    var base_state = "unknown";
+    var audience = "unknown";
+
+    if (!(requestDetails && requestDetails.requestBody &&
+        requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return audience; }
+
+    var variables = JSON.parse(requestDetails.requestBody.formData.variables[0]);
+    if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
+        "ComposerStoryCreateMutation") {
+        // this is a "post"-type event
+        if ("input" in variables && "audience" in variables.input &&
+            "privacy" in variables.input.audience &&
+            "base_state" in variables.input.audience.privacy) {
+            base_state = variables.input.audience.privacy.base_state;
+        }
+    }
+
+    if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
+        "useCometFeedToFeedReshare_FeedToFeedMutation") {
+        // this is a "reshare"-type event
+        if ("input" in variables && "audiences" in variables.input &&
+            "undirected" in variables.input.audiences &&
+            "privacy" in variables.input.audiences.undirected &&
+            "base_state" in variables.input.audiences.undirected.privacy) {
+            base_state = variables.input.audiences.undirected.privacy.base_state;
+        }
+    }
+
+    if (base_state.toLowerCase() == "friends" ||
+        base_state.toLowerCase() == "self") {
+        audience = "restricted";
+    } else if (base_state.toLowerCase() == "everyone") {
+        audience = "public";
+    }
+    return audience;
+}
+
 /**
  * Parse a reshare request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
  */
 function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
+
     // New FB
     if (requestDetails.url.includes("api/graphql")) {
         var details = {};
+        var composerType = "unknown";
         var variables = JSON.parse(requestDetails.requestBody.formData.variables[0]);
-        details.newPostMessage = variables.input.message.text;
+        if ("composer_type" in variables.input) {
+            composerType = variables.input.composer_type;
+        }
+        if ("message" in variables.input && "text" in variables.input.message) {
+            details.newPostMessage = variables.input.message.text;
+        } else {
+            details.newPostMessage = "";
+        }
         details.attachedUrls = [];
+        if ("attachments" in variables.input &&
+            "link" in variables.input.attachments &&
+            "share_scrape_data" in variables.input.attachments.link) {
+            var linkData = JSON.parse(variables.input.attachments.link.share_scrape_data);
+            if ("share_params" in linkData &&
+                "urlInfo" in linkData.share_params &&
+                "canonical" in linkData.share_params.urlInfo) {
+                details.attachedUrls.push(linkData.share_params.urlInfo.canonical);
+            }
+        }
+        /*
         for (var attachment of variables.input.attachments) {
             var linkData = JSON.parse(attachment.share_scrape_data);
             details.attachedUrls.push(linkData.canonical);
         }
+        */
+        var audience = checkFacebookPostAudience(requestDetails);
+        details.audience = audience;
         return details;
     }
 
@@ -703,6 +790,23 @@ function extractFacebookReshare({requestDetails = null, verified = null, eventTi
     return details;
 }
 
+function isThisPostAReshare(requestDetails) {
+    if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
+        "ComposerStoryCreateMutation") {
+        // sometimes things that look like posts are secretly reshares
+        if ("variables" in requestDetails.requestBody.formData &&
+            requestDetails.requestBody.formData.variables.length > 0) {
+            var variables = JSON.parse(requestDetails.requestBody.formData.variables[0]);
+            if ("input" in variables && "composer_type" in variables.input &&
+                variables.input.composer_type == "share") {
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
 /**
  * Check that a request is a valid reshare request
  * @param requestDetails - the raw request
@@ -710,9 +814,15 @@ function extractFacebookReshare({requestDetails = null, verified = null, eventTi
  */
 function verifyFacebookReshare({requestDetails = null }) {
     if (requestDetails.url.includes("api/graphql")) {
-        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
-        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "useCometFeedToFeedReshare_FeedToFeedMutation")) { return null; }
-        return {}
+        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) {
+            return null;
+        }
+        if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
+            "useCometFeedToFeedReshare_FeedToFeedMutation") {
+            return {};
+        }
+        if (isThisPostAReshare(requestDetails)) return {};
+        return null;
     }
     var sharedFromPostId = null // the ID of the original post that's being shared
     var ownerId = null; // we need this if the main method of getting the contents doesn't work
@@ -756,7 +866,7 @@ export function getFacebookPostContents(postId) {
             browser.tabs.sendMessage(facebookTabId, {"postId": postId}).then((response) => {
                 resolve(response);
                 return;
-            });
+            }, (e) => { console.log("ERROR", e); } );
         } else reject();
     });
 }
@@ -777,6 +887,16 @@ function extractRedditPost({requestDetails = null}) {
     var shareTime = Date.now();
     var details = {};
     details.eventTime = shareTime;
+
+    var subredditName = "";
+    if ("submit_type" in requestDetails.requestBody.formData &&
+        requestDetails.requestBody.formData.submit_type.length > 0 &&
+        requestDetails.requestBody.formData.submit_type[0] == "subreddit" &&
+        "sr" in requestDetails.requestBody.formData &&
+        requestDetails.requestBody.formData.sr.length > 0) {
+        subredditName = requestDetails.requestBody.formData.sr[0];
+        details.subredditName = subredditName;
+    }
 
     // Handle if there's a URL attached to the post
     if (("url" in requestDetails.requestBody.formData) &&
@@ -802,12 +922,24 @@ function extractRedditPost({requestDetails = null}) {
      */
     if ("richtext_json" in requestDetails.requestBody.formData) {
         var postObject = JSON.parse(requestDetails.requestBody.formData["richtext_json"]);
+        if ("document" in postObject) {
+            details.postBody = [];
+            for (var paragraph of postObject.document) {
+                if ("c" in paragraph) {
+                    details.postBody.push(paragraph.c);
+                }
+            }
+        }
+
+
+        /*
         if ("document" in postObject &&
             postObject.document.length > 0 &&
             "c" in postObject.document[0]) {
             var postBody = postObject.document[0].c; // TODO this could be a lot nicer
             details.postBody = postBody;
         }
+        */
     }
     return details;
 }
@@ -898,6 +1030,26 @@ function extractRedditCommentVote({requestDetails = null, eventTime = null}) {
         details.postId = hydratedComment.data.children[0].data.link_id;
         details.commentContents = hydratedComment;
         resolve(details);
+    });
+}
+
+export function checkSubredditStatus(subredditName) {
+    return new Promise((resolve, reject) => {
+        fetch(`https://www.reddit.com/r/${subredditName}/about.json`).then(responseFF => {
+            responseFF.text().then(response => {
+                var subredditInfo = JSON.parse(response);
+                if ("error" in subredditInfo && subredditInfo.error == 403 &&
+                    "reason" in subredditInfo && subredditInfo.reason == "private") {
+                    resolve("private");
+                    return;
+                }
+                if ("data" in subredditInfo && "subreddit_type" in subredditInfo.data) {
+                    resolve(subredditInfo.data.subreddit_type);
+                    return;
+                }
+                resolve("unknown");
+            });
+        });
     });
 }
 
