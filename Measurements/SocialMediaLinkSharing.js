@@ -14,6 +14,7 @@ import * as PageNavigation from "../Measurements/PageNavigation.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
 import * as PageClassification from "../Measurements/PageClassification.js"
 import * as Readability from "../Utilities/Readability.js"
+import * as LinkExposure from "../Measurements/LinkExposure.js"
 
 const debugLog = Debugging.getDebuggingLog("SocialMediaLinkSharing");
 
@@ -70,7 +71,6 @@ export async function runStudy({
     if (privateWindows) SocialMediaActivity.enablePrivateWindows();
     if (facebook) {
         SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare", "react"]);
-        SocialMediaActivity.registerFacebookActivityTracker(blockFacebookShares, ["post", "reshare"], true);
     }
     if (reddit) {
         SocialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
@@ -81,11 +81,11 @@ export async function runStudy({
 
     storage = await (new Storage.KeyValueStorage("WebScience.Measurements.SocialMediaLinkSharing")).initialize();
     numUntrackedShares.facebook = await (new Storage.Counter(
-        "WebScience.Matching.SocialMediaLinkSharing.numUntrackedSharesFacebook")).initialize();
+        "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesFacebook")).initialize();
     numUntrackedShares.reddit = await (new Storage.Counter(
-        "WebScience.Matching.SocialMediaLinkSharing.numUntrackedSharesReddit")).initialize();
+        "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesReddit")).initialize();
     numUntrackedShares.twitter = await (new Storage.Counter(
-        "WebScience.Matching.SocialMediaLinkSharing.numUntrackedSharesTwitter")).initialize();
+        "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesTwitter")).initialize();
     urlMatcher = new Matching.UrlMatcher(domains);
     //var sdrs = await browser.storage.local.get("shortDomainRegexString");
     var shortDomains = LinkResolution.getShortDomains();
@@ -145,6 +145,7 @@ async function twitterLinks(details) {
             }
         }
     }
+    urlsToSave = deduplicateUrls(urlsToSave);
     for (var urlToSave of urlsToSave) {
         var shareRecord = await createShareRecord({shareTime: details.eventTime,
                                                    platform: "twitter",
@@ -213,12 +214,14 @@ async function facebookLinks(details) {
         await extractRelevantUrlsFromTokens(post.attachedUrls, urlsToSave, urlsNotToSave);
         details.eventType = details.eventType + " " + details.reactionType;
     }
+    urlsToSave = deduplicateUrls(urlsToSave);
     for (var urlToSave of urlsToSave) {
         var shareRecord = await createShareRecord({shareTime: details.eventTime,
                                                    platform: "facebook",
                                                    audience: details.audience,
                                                    url: urlToSave,
-                                                   eventType: details.eventType});
+                                                   eventType: details.eventType,
+                                                   source: details.source});
         storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
         debugLog("Facebook: " + JSON.stringify(shareRecord));
     }
@@ -249,6 +252,7 @@ async function redditLinks(details) {
             audience = await SocialMediaActivity.checkSubredditStatus(details.subredditName);
         }
     }
+    urlsToSave = deduplicateUrls(urlsToSave);
     for (var urlToSave of urlsToSave) {
         var shareRecord = await createShareRecord({shareTime: details.eventTime,
                                                    platform: "reddit",
@@ -280,12 +284,14 @@ async function createShareRecord({shareTime = null,
                                   platform = null,
                                   url = null,
                                   eventType = null,
-                                  audience = null}) {
-    var pageVisits = await PageNavigation.findUrlVisit(url);
-    var historyVisits = await browser.history.search({text: Matching.stripUrl(url)});
+                                  audience = null,
+                                  source = null}) {
+    var prevVisitReferrers = await PageNavigation.logShare(url);
+    var prevExposed = await LinkExposure.logShare(url);
+    var historyVisits = await browser.history.search({text: url});
     var classification = await getClassificationResult(url, "pol-page-classifier");
     var type = "linkShare";
-    return { type, shareTime, platform, url, eventType, classification, audience, pageVisits, historyVisits };
+    return { type, shareTime, platform, url, eventType, classification, audience, source, prevVisitReferrers, historyVisits, prevExposed};
 }
 
 function getClassificationResult(urlToSave, workerId) {
@@ -346,7 +352,7 @@ export async function getStudyDataAsObject() {
 function deduplicateUrls(urls) {
     var uniqueUrls = new Set();
     for (var url of urls) {
-        uniqueUrls.add(Matching.removeUrlParams(url));
+        uniqueUrls.add(Storage.normalizeUrl(url));
     }
     return uniqueUrls;
 }

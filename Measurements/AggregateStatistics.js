@@ -11,7 +11,7 @@
  * @param {MessageEvent} event - message object
  * @listens MessageEvent
  */
-onmessage = event => {
+onmessage = async event => {
     let data = event.data;
     let stats = {};
     Object.entries(data).forEach(entry => {
@@ -94,7 +94,8 @@ const functionMapping = {
     "WebScience.Measurements.SocialMediaAccountExposure": socialMediaAccountExposureStats,
     "WebScience.Measurements.SocialMediaNewsExposure": socialMediaNewsExposureStats,
     "WebScience.Measurements.PageNavigation": pageNavigationStats,
-    "WebScience.Measurements.LinkExposure": linkExposureStats
+    "WebScience.Measurements.LinkExposure": linkExposureStats,
+    "WebScience.Measurements.SocialMediaLinkSharing": socialMediaLinkSharingStats
 }
 
 /**
@@ -119,28 +120,75 @@ function pageNavigationStats(pageNavigationStorage) {
     let statsObj = new StorageStatistics(
         () => {
             let stats = {};
-            stats.attention_duration = objectWithDefaultValue();
-            stats.page_domain = objectWithDefaultValue(); // key is domain and value is number of pages in that domain
-            stats.page_url = objectWithDefaultValue(); // key is url and value is number unique visits, multiple attentions are counted as a single visit
-            stats.referrer_url = objectWithDefaultValue(function () {
-                return new Set();
-            }); // key is referrer url and value is number of unique urls it referred
+            stats.trackedVisitsByDomain = {};
+
             return stats;
         },
         (entry, stats) => {
             let navObj = entry[1];
-            let domain = getDomain(navObj.url);
-            stats.page_domain.proxy[domain] += 1;
-            stats.page_url.proxy[navObj.url] += 1;
-            stats.referrer_url.proxy[navObj.referrer] = stats.referrer_url.proxy[navObj.referrer].add(navObj.url);
-            let attention = 0;
-            navObj.attentionSpanStarts.map((start_time, index) => {
-                let end_time = navObj.attentionSpanEnds[index];
-                attention += end_time - start_time;
-            });
-            stats.attention_duration.proxy[navObj.url] += attention
+            if (navObj.type == "pageVisit") {
+                let domain = getDomain(navObj.url);
+                var domainIndex = JSON.stringify({domain: domain});
+                var domainObj = stats.trackedVisitsByDomain[domainIndex];
+                if (!domainObj) {
+                    stats.trackedVisitsByDomain[domainIndex] = {};
+                    domainObj = stats.trackedVisitsByDomain[domainIndex];
+                    domainObj.visitsByReferrer = {};
+                }
+
+                var date = new Date(navObj.visitStart);
+                var dayOfWeek = date.getDay();
+                var hourOfDay = date.getHours();
+                var timeOfDay = Math.floor(hourOfDay / 4) * 4;
+
+                var index = JSON.stringify({
+                    referrerDomain: getDomain(navObj.referrer),
+                    dayOfWeek: dayOfWeek,
+                    timeOfDay: timeOfDay,
+                    pageCategory: navObj.classification
+                });
+
+                var specificObj = domainObj.visitsByReferrer[index];
+                if (specificObj) {
+                    specificObj.numVisits += 1;
+                    specificObj.totalAttention += navObj.attentionDuration;
+                    specificObj.laterSharedCount += navObj.laterShared ? 1 : 0;
+                    specificObj.prevExposedCount += navObj.prevExposed ? 1 : 0;
+                } else {
+                    specificObj = {};
+                    specificObj.numVisits = 1;
+                    specificObj.totalAttention = navObj.attentionDuration;
+                    specificObj.laterSharedCount = navObj.laterShared ? 1 : 0;
+                    specificObj.prevExposedCount = navObj.prevExposed ? 1 : 0;
+                    domainObj.visitsByReferrer[index] = specificObj;
+                }
+            } else if (navObj.type = "untrackedVisitCount") {
+                stats.numUntrackedVisits = navObj.numUntrackedVisits;
+            }
         },
-        gatherStats
+        (r) => {
+            for (var domain in r.trackedVisitsByDomain) {
+                var trackedVisits = r.trackedVisitsByDomain[domain].visitsByReferrer;
+                var trackedVisitsArray = Object.entries(trackedVisits).map((pair) => {
+                    var entry = JSON.parse(pair[0]);
+                    entry.numVisits = pair[1].numVisits;
+                    entry.totalAttention = pair[1].totalAttention;
+                    entry.prevExposedCount = pair[1].prevExposedCount;
+                    entry.laterSharedCount = pair[1].laterSharedCount;
+                    return entry;
+                });
+                r.trackedVisitsByDomain[domain].visitsByReferrer = trackedVisitsArray;
+            }
+            var domains = r.trackedVisitsByDomain;
+            var domainsArray = Object.entries(domains).map((pair) => {
+                var entry = JSON.parse(pair[0]);
+                entry.numUntrackedVisits = pair[1].numUntrackedVisits;
+                entry.trackedVisitsByReferrer = pair[1].visitsByReferrer;
+                return entry;
+            });
+            r.trackedVisitsByDomain = domainsArray;
+            return r;
+        }
     );
     return statsObj.computeStats(pageNavigationStorage);
 
@@ -153,40 +201,47 @@ function pageNavigationStats(pageNavigationStorage) {
 function linkExposureStats(linkExposureStorage) {
     let statsObj = new StorageStatistics(
         () => {
-    let stats = {};
-    stats.source_domains = objectWithDefaultValue();
-    stats.source_domains_category = objectWithDefaultValue();
-    stats.source_urls = objectWithDefaultValue();
-    stats.exposed_domains = objectWithDefaultValue();
-    stats.exposed_urls = objectWithDefaultValue();
-    stats.source_first_seen = objectWithDefaultValue(() => {
-        return new Date(_MAX_DATE);
-    });
-    return stats;
+            let stats = {};
+            stats.untrackedLinkExposures = -2;
+            stats.linkExposures = {};
 
+            return stats;
         },
         (entry, stats) => {
-        let val = entry[1];
-        if ('metadata' in val) {
-            if ('location' in val.metadata) {
-                let source_domain = getDomain(val.metadata.location);
-                stats.source_domains.proxy[source_domain] += 1;
-                stats.source_urls.proxy[val.metadata.location] += 1;
+            let exposureObj = entry[1];
+            if (exposureObj.type == "linkExposure") {
+                var index = JSON.stringify({
+                    sourceDomain: getDomain(exposureObj.metadata.location),
+                    destinationDomain: getDomain(exposureObj.url),
+                    dayOfWeek: (new Date(exposureObj.firstSeen)).getDay()
+                });
+                if (!(stats.linkExposures[index])) {
+                    stats.linkExposures[index] = {
+                        numExposures: 1,
+                        laterVisitedCount: exposureObj.laterVisited ? 1 : 0
+                    };
+                } else {
+                    current = stats.linkExposures[index];
+                    stats.linkExposures[index] = {
+                        numExposures: current.numExposures + 1,
+                        laterVisitedCount: current.laterVisitedCount + exposureObj.laterVisited ? 1 : 0
+                    }
+                }
+            } else if (exposureObj.type == "numUntrackedUrls") {
+                stats.untrackedLinkExposures = exposureObj.numUntrackedUrls;
+                stats.untrackedLinkExposures = exposureObj.untrackedUrlsCount;
             }
-            if ('domainCategory' in val.metadata) {
-                stats.source_domains_category.proxy[val.metadata.domainCategory] += 1;
-            }
-            if ('loadTime' in val.metadata) {
-                stats.source_first_seen.proxy[val.metadata.location] = Math.min(stats.source_first_seen.proxy[val.metadata.location], new Date(val.metadata.loadTime));
-            }
-        }
-        let exposedURL = val.resolvedUrl ? 'resolvedUrl' in val : val.originalUrl;
-        let exposedDomain = getDomain(exposedURL);
-        stats.exposed_domains.proxy[exposedDomain] += 1;
-        stats.exposed_urls.proxy[exposedURL] += 1;
-
         },
-        gatherStats
+        (r) => {
+            var exposuresArray = Object.entries(r.linkExposures).map((pair) => {
+                var entry = JSON.parse(pair[0]);
+                entry.numExposures = pair[1].numExposures;
+                entry.laterVisitedCount = pair[1].laterVisitedCount;
+                return entry;
+            });
+            r.linkExposures = exposuresArray;
+            return r;
+        }
     );
     return statsObj.computeStats(linkExposureStorage);
 }
@@ -240,6 +295,89 @@ function socialMediaNewsExposureStats(socialMediaNewsExposureStorage) {
         gatherStats
     );
     return statsObj.computeStats(socialMediaNewsExposureStorage);
+}
+
+function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
+    var fbIndex = JSON.stringify({platform: "facebook"});
+    var twIndex = JSON.stringify({platform: "twitter"});
+    var rdIndex = JSON.stringify({platform: "reddit"});
+
+    let statsObj = new StorageStatistics(
+        () => {
+            let stats = {};
+            stats.linkSharesByPlatform = {}
+            stats.linkSharesByPlatform[fbIndex] = {trackedShares: {}, numUntrackedShares: 0};
+            stats.linkSharesByPlatform[twIndex] = {trackedShares: {}, numUntrackedShares: 0};
+            stats.linkSharesByPlatform[rdIndex] = {trackedShares: {}, numUntrackedShares: 0};
+
+            return stats;
+        },
+        (entry, stats) => {
+            let val = entry[1];
+            if (val.type == "numUntrackedShares") {
+                stats.linkSharesByPlatform[fbIndex].numUntrackedShares += val.facebook;
+                stats.linkSharesByPlatform[twIndex].numUntrackedShares += val.twitter;
+                stats.linkSharesByPlatform[rdIndex].numUntrackedShares += val.reddit;
+            }
+            if (val.type == "linkShare") {
+                var platformIndex = "";
+                if (val.platform == "facebook") platformIndex = fbIndex;
+                if (val.platform == "twitter") platformIndex = twIndex;
+                if (val.platform == "reddit") platformIndex = rdIndex;
+                var platformObj = stats.linkSharesByPlatform[platformIndex];
+                if (!platformObj) {
+                    stats.linkSharesByPlatform[platformIndex] = {};
+                    platformObj = stats.linkSharesByPlatform[platformIndex];
+                }
+
+                var hostname = getHostName(val.url);
+                var prevVisitReferrers = val.prevVisitReferrers;
+                var visitReferrer = null;
+                if (prevVisitReferrers && prevVisitReferrers.length > 0) {
+                    visitReferrer = getDomain(prevVisitReferrers[0]);
+                }
+
+                var index = JSON.stringify({
+                    domain: hostname,
+                    classification: val.classification == 1 ? "pol news" : "not pol news",
+                    audience: val.audience,
+                    source: val.source,
+                    visitReferrer: visitReferrer,
+                });
+                var specificObj = platformObj.trackedShares[index];
+                if (specificObj) {
+                    specificObj.trackedSharesCount += 1;
+                    specificObj.prevExposedCount += val.prevExposed ? 1 : 0;
+                } else {
+                    specificObj = {};
+                    specificObj.trackedSharesCount = 1;
+                    specificObj.prevExposedCount = val.prevExposed ? 1 : 0;
+                    platformObj.trackedShares[index] = specificObj;
+                }
+            }
+        },
+        (r) => {
+            for (var platform in r.linkSharesByPlatform) {
+                var trackedShares = r.linkSharesByPlatform[platform].trackedShares;
+                var trackedSharesArray = Object.entries(trackedShares).map((pair) => {
+                    var entry = JSON.parse(pair[0]);
+                    entry.numShares = pair[1];
+                    return entry;
+                });
+                r.linkSharesByPlatform[platform].trackedShares = trackedSharesArray;
+            }
+            var platforms = r.linkSharesByPlatform;
+            var platformsArray = Object.entries(platforms).map((pair) => {
+                var entry = JSON.parse(pair[0]);
+                entry.numUntrackedShares = pair[1].numUntrackedShares;
+                entry.trackedShares = pair[1].trackedShares;
+                return entry;
+            });
+            r.linkSharesByPlatform = platformsArray;
+            return r;
+        }
+    );
+    return statsObj.computeStats(socialMediaLinkSharingStorage);
 }
 
 /**

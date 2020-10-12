@@ -4,15 +4,17 @@
  * duplication and allows us to swap out the underlying storage implementation if
  * needed (e.g., switching from localforage to Dexie, or directly using browser
  * storage APIs).
- * 
+ *
  * @module WebScience.Utilities.Storage
  */
 
 // Currently implemented with localforage
-import { localforage } from "../dependencies/localforagees6.min.js"
+//import { localforage } from "../dependencies/localforagees6.min.js"
+//import { localforageKeysStartingWith } from "../dependencies/localForage-startsWith/lib/localforage-startswith.js"
+import { localforageKeysStartingWith, localforage } from "../dependencies/localForage-startsWith/lib/localforage-startswith.js"
 
 export var storageInstances = [];
-/** 
+/**
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types.
  */
@@ -29,7 +31,7 @@ export class KeyValueStorage {
         this.storageInstance = null;
     }
 
-    /** 
+    /**
      * Complete creation of the storage area. Returns itself for convenience.
      * @returns {Object} The key-value storage area.
      */
@@ -94,7 +96,7 @@ export class KeyValueStorage {
     /**
      * Iterate over all the entries in the storage area. Note that iteration
      * will stop if `callback` returns anything non-`undefined`.
-     * 
+     *
      * As long as we're using LocalForage, this is easy and presumably not
      * memory-intensive, as long as the callback isn't storing all of the entires.
      * @param {iterator} callback - function called on each key-value pair
@@ -102,6 +104,14 @@ export class KeyValueStorage {
      */
     iterate(callback) {
         return this.storageInstance.iterate(callback);
+    }
+
+    async keysStartingWith(keyPrefix) {
+        return this.storageInstance.keysStartingWith(keyPrefix);
+    }
+
+    async startsWith(keyPrefix) {
+        return this.storageInstance.startsWith(keyPrefix);
     }
 }
 
@@ -121,7 +131,7 @@ export class Counter {
         this.counterValue = 0;
     }
 
-    /** 
+    /**
      * Complete creation of the persistent counter. Returns itself for convenience.
      * @returns {Object} The persistent counter.
      */
@@ -143,6 +153,12 @@ export class Counter {
      */
     get() {
         return this.counterValue;
+    }
+
+    async incrementByAndGet(incValue) {
+        var currentCounterValue = (this.counterValue = this.counterValue + incValue);
+        await Counter.storage.set(this.counterName, this.counterValue);
+        return currentCounterValue;
     }
 
     /**
@@ -192,6 +208,14 @@ export class Counter {
     static async getContentsAsObject() {
         return await Counter.storage.getContentsAsObject();
     }
+}
+
+export function normalizeUrl(url) {
+    var urlObj = new URL(url);
+    var normalizedUrl = (urlObj.protocol ? urlObj.protocol : "https:") + 
+                        "//" + urlObj.hostname + 
+                        (urlObj.pathname ? urlObj.pathname : "");
+    return normalizedUrl;
 }
 
 // Workaround for static class variable

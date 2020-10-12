@@ -64,7 +64,7 @@ export function createUrlMatchPatternArray(domains, matchSubdomains = true) {
  * @param {string} url - the url to normalize
  * @returns {string} - url with parameters stripped
  */
-export function removeUrlParams(url) {
+export function old_removeUrlParams(url) {
     if (url.includes("?")) {
         return url.substring(0, url.indexOf("?"));
     }
@@ -76,7 +76,7 @@ export function removeUrlParams(url) {
  * @param {string} url - the url from which to strip http(s)
  * @returns {string} - the url with http(s):// removed
  */
-export function removeHttps(url) {
+export function old_removeHttps(url) {
     return url.replace("http://", "").replace("https://", "");
 }
 
@@ -85,7 +85,7 @@ export function removeHttps(url) {
  * @param {string} url - the url to strip
  * @returns {string} - the url with parameters and http(s):// removed
  */
-export function stripUrl(url) {
+export function old_stripUrl(url) {
     return removeHttps(removeUrlParams(url));
 }
 
@@ -95,7 +95,7 @@ export function stripUrl(url) {
  * @param {string} url2 - second url to match against the first
  * @returns {Boolean} - whether the two urls match on host and path
  */
-export function approxMatchUrl(url1, url2) {
+export function old_approxMatchUrl(url1, url2) {
     var url1Object = new URL(url1);
     var url2Object = new URL(url2);
     return (url1Object.hostname == url2Object.hostname &&

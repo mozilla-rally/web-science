@@ -9,6 +9,9 @@ import {
 } from './Debugging.js';
 import * as Idle from "./Idle.js"
 import * as StorageManager from "./StorageManager.js"
+import * as SocialMediaLinkSharing from "../Measurements/SocialMediaLinkSharing.js"
+import * as LinkExposure from "../Measurements/LinkExposure.js"
+import * as PageNavigation from "../Measurements/PageNavigation.js"
 
 const debugLog = getDebuggingLog("Utilities.DataAnalysis");
 /**
@@ -98,6 +101,9 @@ function createMessageReceiver(listeners) {
  * @private
  */
 export async function triggerAnalysisScripts() {
+    await SocialMediaLinkSharing.storeAndResetUntrackedShareCounts();
+    await LinkExposure.storeAndResetUntrackedExposuresCount();
+    await PageNavigation.storeAndResetUntrackedVisitsCount();
     let storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
     for(let [scriptPath, listeners] of resultRouter) {
         let worker = new Worker(scriptPath);
