@@ -166,7 +166,9 @@ async function handleGenericEvent({requestDetails = null,
                 return;
             }
         }
-        if (platform == "facebook") facebookTabId = requestDetails.tabId;
+        if (platform == "facebook") {
+            facebookTabId = requestDetails.tabId;
+        }
         var details = {};
         for (var extractor of handler.extractors) {
             details = await extractor({requestDetails: requestDetails, details: details,
@@ -231,8 +233,11 @@ function verifyReadableFormData({requestDetails = null}) {
  * @param requestDetails - the raw request
  */
 function verifyNewRequest({requestDetails = null}) {
+    return {};
     if (!requestDetails.requestId) return null;
-    if (processedRequestIds[requestDetails.requestId]) return null;
+    if (processedRequestIds[requestDetails.requestId]) {
+        return null;
+    }
     processedRequestIds[requestDetails.requestId] = true;
     return {};
 }
@@ -602,8 +607,10 @@ function extractFacebookReact({requestDetails = null, eventTime = null, verified
  */
 function verifyFacebookReact({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
-    if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "UFI2FeedbackReactMutation" ||
-          requestDetails.requestBody.formData.fb_api_req_friendly_name == "CometUFIFeedbackReactMutation")) {
+    if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name.includes(
+        "UFI2FeedbackReactMutation") ||
+          requestDetails.requestBody.formData.fb_api_req_friendly_name.includes(
+              "CometUFIFeedbackReactMutation"))) {
         return null;
     }
     var reactionRequest = JSON.parse(requestDetails.requestBody.formData.variables[0]);
@@ -618,7 +625,7 @@ function verifyFacebookReact({requestDetails = null}) {
 function verifyFacebookPost({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.variables)) { return null; }
     if (requestDetails.url.includes("api/graphql")) {
-        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "ComposerStoryCreateMutation")) { return null; }
+        if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name.includes("ComposerStoryCreateMutation"))) { return null; }
     }
     if (isThisPostAReshare(requestDetails)) { return null; }
     return {};
@@ -692,7 +699,7 @@ function extractFacebookComment({requestDetails = null, eventTime = null}) {
  */
 function verifyFacebookComment({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
-    if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name == "UFI2CreateCommentMutation")) {
+    if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name.includes("UFI2CreateCommentMutation"))) {
         return null;
     }
     return {};
@@ -706,8 +713,7 @@ function checkFacebookPostAudience(requestDetails) {
         requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return audience; }
 
     var variables = JSON.parse(requestDetails.requestBody.formData.variables[0]);
-    if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
-        "ComposerStoryCreateMutation") {
+    if (requestDetails.requestBody.formData.fb_api_req_friendly_name.includes(        "ComposerStoryCreateMutation")) {
         // this is a "post"-type event
         if ("input" in variables && "audience" in variables.input &&
             "privacy" in variables.input.audience &&
@@ -716,8 +722,7 @@ function checkFacebookPostAudience(requestDetails) {
         }
     }
 
-    if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
-        "useCometFeedToFeedReshare_FeedToFeedMutation") {
+    if (requestDetails.requestBody.formData.fb_api_req_friendly_name.includes(        "useCometFeedToFeedReshare_FeedToFeedMutation")) {
         // this is a "reshare"-type event
         if ("input" in variables && "audiences" in variables.input &&
             "undirected" in variables.input.audiences &&
@@ -741,7 +746,7 @@ function checkFacebookPostAudience(requestDetails) {
  * @param requestDetails - the raw request
  * @returns - the parsed event
  */
-function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
+async function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
 
     // New FB
     if (requestDetails.url.includes("api/graphql")) {
@@ -774,7 +779,9 @@ function extractFacebookReshare({requestDetails = null, verified = null, eventTi
         }
         */
         var audience = checkFacebookPostAudience(requestDetails);
+        var source = await getReshareInfo();
         details.audience = audience;
+        details.source = source;
         return details;
     }
 
@@ -790,9 +797,15 @@ function extractFacebookReshare({requestDetails = null, verified = null, eventTi
     return details;
 }
 
+async function getReshareInfo() {
+    return browser.tabs.sendMessage(facebookTabId, {"recentReshare": true}).then((response) => {
+        return response;
+    }, (e) => { console.log("ERROR", e); } );
+}
+
 function isThisPostAReshare(requestDetails) {
-    if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
-        "ComposerStoryCreateMutation") {
+    if (requestDetails.requestBody.formData.fb_api_req_friendly_name.includes(
+        "ComposerStoryCreateMutation")) {
         // sometimes things that look like posts are secretly reshares
         if ("variables" in requestDetails.requestBody.formData &&
             requestDetails.requestBody.formData.variables.length > 0) {
@@ -817,11 +830,13 @@ function verifyFacebookReshare({requestDetails = null }) {
         if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) {
             return null;
         }
-        if (requestDetails.requestBody.formData.fb_api_req_friendly_name ==
-            "useCometFeedToFeedReshare_FeedToFeedMutation") {
+        if (requestDetails.requestBody.formData.fb_api_req_friendly_name.includes(
+            "useCometFeedToFeedReshare_FeedToFeedMutation")) {
             return {};
         }
-        if (isThisPostAReshare(requestDetails)) return {};
+        if (isThisPostAReshare(requestDetails)) {
+            return {};
+        }
         return null;
     }
     var sharedFromPostId = null // the ID of the original post that's being shared

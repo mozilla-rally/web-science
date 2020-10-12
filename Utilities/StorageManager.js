@@ -27,7 +27,8 @@ const timePropertyMapping = {
     "WebScience.Measurements.LinkExposure": "firstSeen",
     "WebScience.Measurements.PageNavigation": "visitStart",
     "WebScience.Measurements.SocialMediaNewsExposure": "loadTime",
-    "WebScience.Measurements.SocialMediaAccountExposure": "loadTime"
+    "WebScience.Measurements.SocialMediaAccountExposure": "loadTime",
+    "WebScience.Measurements.SocialMediaLinkSharing": "shareTime"
 }
 
 /**
@@ -80,7 +81,8 @@ const utcDateDiffInDays = function (utc1, utc2) {
 function getRecentEvents(obj, currentTime, timeProperty, msInInterval, nIntervals) {
     return Object.keys(obj).reduce((acc, val) => {
         if (!(timeProperty in obj[val])) {
-            return acc;
+            return { ...acc,
+                   [val]: obj[val]};
         }
         let diffIntervals = utcDateDiffInIntervals(obj[val][timeProperty], currentTime, msInInterval);
         return (diffIntervals > nIntervals) ? acc : {

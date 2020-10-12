@@ -4,6 +4,7 @@
  */
 
 (async function() {
+
     // stop running if this is an incognito window and we're not supposed to run there
     var privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaLinkSharing.privateWindows");
     if (("WebScience.Measurements.SocialMediaLinkSharing.privateWindows" in privateWindowResults)
@@ -13,6 +14,53 @@
     // Let the background page know that the script is loaded and which tab it's in
     browser.runtime.sendMessage({type: "WebScience.Utilities.SocialMediaActivity",
                                  platform: "facebook"});
+
+
+    var trackedReshares = []
+    var mostRecentReshare = null;
+
+    function logReshareClick(clicked) {
+        var node = clicked.srcElement;
+        mostRecentReshare = node;
+        var profile = null;
+        var type = null;
+        var posts = document.querySelectorAll('div[role="article"]');
+        for (var post of posts) {
+            if (post.contains(mostRecentReshare)) {
+                var internal = /https:\/\/www.facebook.com\//;
+                var links = post.querySelectorAll("a[href]");
+                for (var link of links) {
+                    if (internal.test(link.getAttribute("href"))) {
+                        profile = link;
+                        break;
+                    }
+                }
+                fetch(profile.getAttribute("href"), {"credentials":"omit"}).then((rFF) => {
+                    rFF.text().then((text) => {
+                        var u0 = /u0040type":"([a-zA-Z0-9]*)"/;
+                        var uType = u0.exec(text);
+                        if (uType == null || (uType.length > 1 && uType[1] == "Person")) {
+                            type = "person";
+                        } else type = "page";
+                        mostRecentReshare = type;
+                    });
+                });
+            }
+        }
+    }
+
+    function reshareSourceTracking() {
+        var reshareButtons = document.querySelectorAll("div[aria-label*='Send this to friends']");
+        for (var reshareButton of reshareButtons) {
+            if (!(trackedReshares.includes(reshareButton))) {
+                trackedReshares.push(reshareButton);
+                reshareButton.addEventListener("click", logReshareClick);
+            }
+        }
+    }
+
+    let timer = setInterval(() => reshareSourceTracking(), 3000);
+
 
     /**
      * Find links and text inside a node that's part of a Facebook post
@@ -46,6 +94,35 @@
         }
     }
 
+    function parseFacebookUrl(url) {
+        var oldGroupRegex = /facebook\.com\/groups\/([^\/]*)\/permalink\/([0-9]*)/;
+        var newGroupRegex = /facebook\.com\/groups\/([^\/]*)\/\?post_id=([0-9]*)/;
+        var userIdRegex = /facebook\.com\/permalink\.php\?story_fbid=([0-9]*)&id=([0-9]*)/;
+        var usernameRegex = /facebook\.com\/([^\/]*)\/posts\/([0-9]*)/;
+        var username = ""; var groupName = ""; var newUrl = ""; var userId = "";
+        var oldGroupResult = oldGroupRegex.exec(url);
+        if (oldGroupResult) {
+            groupName = oldGroupResult[1];
+            newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
+        }
+        var newGroupResult = newGroupRegex.exec(url);
+        if (newGroupResult) {
+            groupName = newGroupResult[1];
+            newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
+        }
+        var idResult = userIdRegex.exec(url);
+        if (idResult) {
+            userId = idResult[2];
+            newUrl = idResult[0];
+        }
+        var nameResult = usernameRegex.exec(url);
+        if (nameResult) {
+            username = nameResult[1];
+            newUrl = nameResult[0];
+        }
+        return({newUrl: newUrl, groupName: groupName, username: username, userId: userId});
+    }
+
     /**
      * Send a fetch request for the post we're looking for, and parse links from the result
      * @param request -- the request post's ID and the ID of the person who shared it
@@ -56,6 +133,8 @@
             var reqString = `https://www.facebook.com/${request.postId}`;
             fetch(reqString, {credentials: 'include'}).then((responseFromFetch) => {
                 var redir = responseFromFetch.url;
+                resolve(parseFacebookUrl(redir));
+                /*
                 var oldGroupRegex = /facebook\.com\/groups\/([^\/]*)\/permalink\/([0-9]*)/;
                 var newGroupRegex = /facebook\.com\/groups\/([^\/]*)\/\?post_id=([0-9]*)/;
                 var userIdRegex = /facebook\.com\/permalink\.php\?story_fbid=([0-9]*)&id=([0-9]*)/;
@@ -82,6 +161,7 @@
                     newUrl = nameResult[0];
                 }
                 resolve({newUrl: newUrl, groupName: groupName, username: username, userId: userId});
+                */
             });
         });
     }
@@ -182,6 +262,10 @@
 
     browser.runtime.onMessage.addListener(async (request) => {
         return new Promise(async (resolve, reject) => {
+            if ("recentReshare" in request) {
+                resolve(mostRecentReshare);
+                return;
+            }
             var response = {};
             response.content = [];
             response.attachedUrls = [];

@@ -19,6 +19,10 @@ const debugLog = Debugging.getDebuggingLog("Measurements.LinkExposure");
  */
 var storage = null;
 
+var numUntrackedUrls = null;
+
+var initialized = false;
+
 /**
  * @name LinkExposure.runStudy starts the LinkExposure study.
  * @param {String[]} domains - Array of domains to track 
@@ -26,74 +30,77 @@ var storage = null;
  * @param {string} domainsCategory - Category of the domains to track
  */
 export async function runStudy({
-  domains = [],
-  privateWindows = false,
-  domainsCategory = "news",
+    domains = [],
+    privateWindows = false,
+    domainsCategory = "news",
 }) {
 
-  // store private windows preference in the storage
-  await browser.storage.local.set({ "WebScience.Measurements.LinkExposure.privateWindows": privateWindows }); 
-  storage = await (new Storage.KeyValueStorage("WebScience.Measurements.LinkExposure")).initialize();
-  // Use a unique identifier for each webpage the user visits that has a matching domain
-  var nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.LinkExposure.nextPageId")).initialize();
-  let shortDomains = LinkResolution.getShortDomains();
-  let ampCacheDomains = LinkResolution.getAmpCacheDomains();
-  let domainPattern = Matching.createUrlRegexString(domains);
-  let shortDomainPattern = Matching.createUrlRegexString(shortDomains);
-  let ampCacheDomainPattern = Matching.createUrlRegexString(ampCacheDomains);
-  const ampCacheMatcher = new RegExp(ampCacheDomainPattern);
-  const shortDomainMatcher = new RegExp(shortDomainPattern);
-  const urlMatcher = new RegExp(domainPattern);
-  await browser.storage.local.set({domainRegex: urlMatcher, shortDomainRegex: shortDomainMatcher, ampDomainRegex : ampCacheMatcher});
+    // store private windows preference in the storage
+    await browser.storage.local.set({ "WebScience.Measurements.LinkExposure.privateWindows": privateWindows }); 
+    storage = await (new Storage.KeyValueStorage("WebScience.Measurements.LinkExposure")).initialize();
+    // Use a unique identifier for each webpage the user visits that has a matching domain
+    var nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.LinkExposure.nextPageId")).initialize();
+    let shortDomains = LinkResolution.getShortDomains();
+    let ampCacheDomains = LinkResolution.getAmpCacheDomains();
+    let domainPattern = Matching.createUrlRegexString(domains);
+    let shortDomainPattern = Matching.createUrlRegexString(shortDomains);
+    let ampCacheDomainPattern = Matching.createUrlRegexString(ampCacheDomains);
+    numUntrackedUrls = await (new Storage.Counter("WebScience.Measurements.LinkExposure.numUntrackedUrls")).initialize();
+    const ampCacheMatcher = new RegExp(ampCacheDomainPattern);
+    const shortDomainMatcher = new RegExp(shortDomainPattern);
+    const urlMatcher = new RegExp(domainPattern);
+    await browser.storage.local.set({domainRegex: urlMatcher, shortDomainRegex: shortDomainMatcher, ampDomainRegex : ampCacheMatcher});
 
-  // Add the content script for checking links on pages
-  await browser.contentScripts.register({
-    matches: ["*://*/*"],
-    js: [{
-        file: "/WebScience/Measurements/content-scripts/utils.js"
-      },
-      {
-        file: "/WebScience/Measurements/content-scripts/linkExposure.js"
-      }
-    ],
-    runAt: "document_idle"
-  });
-
-  // Listen for LinkExposure messages from content script
-  Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender, sendResponse) => {
-    if (!("tab" in sender)) {
-      debugLog("Warning: unexpected link exposure update");
-      return;
-    }
-      exposureInfo.exposureEvents.forEach(async exposureEvent => {
-      exposureEvent.isShortenedUrl = shortDomainMatcher.test(exposureEvent.originalUrl);
-      exposureEvent.resolutionSucceded = true;
-      exposureEvent.metadata = exposureInfo.metadata;
-      // resolvedUrl is valid only for urls from short domains
-      exposureEvent.resolvedUrl = undefined;
-      exposureEvent.metadata.domainCategory = domainsCategory;
-      if (exposureEvent.isShortenedUrl) {
-        let promise = LinkResolution.resolveUrl(exposureEvent.originalUrl);
-        promise.then(async function (result) {
-          if (urlMatcher.test(result.dest)) {
-            exposureEvent.resolvedUrl = result.dest;
-          }
-        }, function (error) {
-          exposureEvent.error = error.message;
-          exposureEvent.resolutionSucceded = false;
-        }).finally(async function () {
-          if (!exposureEvent.resolutionSucceded || exposureEvent.resolvedUrl !== undefined)
-            await createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
-        });
-      } else {
-        await createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
-      }
+    // Add the content script for checking links on pages
+    await browser.contentScripts.register({
+        matches: ["*://*/*"],
+        js: [{
+            file: "/WebScience/Measurements/content-scripts/utils.js"
+        },
+            {
+                file: "/WebScience/Measurements/content-scripts/linkExposure.js"
+            }
+        ],
+        runAt: "document_idle"
     });
+
+    // Listen for LinkExposure messages from content script
+    Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender, sendResponse) => {
+        if (!("tab" in sender)) {
+            debugLog("Warning: unexpected link exposure update");
+            return;
+        }
+        numUntrackedUrls.incrementByAndGet(exposureInfo.numUntrackedUrls);
+        exposureInfo.exposureEvents.forEach(async exposureEvent => {
+            exposureEvent.isShortenedUrl = shortDomainMatcher.test(exposureEvent.originalUrl);
+            exposureEvent.resolutionSucceded = true;
+            exposureEvent.metadata = exposureInfo.metadata;
+            // resolvedUrl is valid only for urls from short domains
+            exposureEvent.resolvedUrl = undefined;
+            exposureEvent.metadata.domainCategory = domainsCategory;
+            if (exposureEvent.isShortenedUrl) {
+                let promise = LinkResolution.resolveUrl(exposureEvent.originalUrl);
+                promise.then(async function (result) {
+                    if (urlMatcher.test(result.dest)) {
+                        exposureEvent.resolvedUrl = result.dest;
+                    }
+                }, function (error) {
+                    exposureEvent.error = error.message;
+                    exposureEvent.resolutionSucceded = false;
+                }).finally(async function () {
+                    if (!exposureEvent.resolutionSucceded || exposureEvent.resolvedUrl !== undefined)
+                        await createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
+                });
+            } else {
+                await createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter);
+            }
+        });
 
     }, {
-      type: "string",
-      metadata: "object"
+        type: "string",
+        metadata: "object"
     });
+    initialized = true;
 
 }
 
@@ -106,9 +113,9 @@ export async function runStudy({
  * could be retrieved.
  */
 export async function getStudyDataAsObject() {
-  if(storage != null)
-      return await storage.getContentsAsObject();
-  return null;
+    if(storage != null)
+        return await storage.getContentsAsObject();
+    return null;
 }
 
 /**
@@ -118,7 +125,7 @@ export async function getStudyDataAsObject() {
  * @private
  */
 function isEmpty(obj) {
-  return !obj || Object.keys(obj).length === 0;
+    return !obj || Object.keys(obj).length === 0;
 }
 
 /**
@@ -134,7 +141,44 @@ function isEmpty(obj) {
  * @param {Counter} nextLinkExposureIdCounter counter object
  */
 async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter) {
-  debugLog("storing " + JSON.stringify(exposureEvent));
-  storage.set("" + nextLinkExposureIdCounter.get(), exposureEvent);
-  await nextLinkExposureIdCounter.increment();
+    exposureEvent.type = "linkExposure";
+    exposureEvent.url = (exposureEvent.isShortenedUrl && exposureEvent.resolutionSucceded ?
+                         Storage.normalizeUrl(exposureEvent.resolvedUrl) :
+                         Storage.normalizeUrl(exposureEvent.originalUrl));
+    exposureEvent.laterVisited = false;
+    debugLog("storing " + JSON.stringify(exposureEvent));
+    var key = exposureEvent.url + " " + await nextLinkExposureIdCounter.getAndIncrement();
+    storage.set(key, exposureEvent);
+}
+
+export async function storeAndResetUntrackedExposuresCount() {
+    if (initialized) {
+        var obj = 
+            {type: "numUntrackedUrls",
+             untrackedUrlsCount: await numUntrackedUrls.getAndReset()
+            };
+        await storage.set("ebScience.Measurements.LinkExposure.untrackedUrlsCount", obj);
+    }
+}
+
+export async function logVisit(url) {
+    var prevExposures = await storage.startsWith(url);
+    var hasPrevExposures = false;
+    for (var key in prevExposures) {
+        hasPrevExposures = true;
+        prevExposures[key].laterVisited = true;
+        await storage.set(key, prevExposures[key]);
+    }
+    return (hasPrevExposures);
+}
+
+export async function logShare(url) {
+    var prevExposures = await storage.startsWith(url);
+    var hasPrevExposures = false;
+    for (var key in prevExposures) {
+        hasPrevExposures = true;
+        prevExposures[key].laterShared = true;
+        await storage.set(key, prevExposures[key]);
+    }
+    return hasPrevExposures;
 }
