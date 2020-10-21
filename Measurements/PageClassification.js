@@ -117,7 +117,6 @@ function listenForContentScriptMessages(workerId, resultListener) {
             type: "classify",
             payload: pageContent,
         });
-        console.log("messaged listener");
         // receive the result classification result.
         worker.addEventListener('message', async (result) => { await resultReceiver(result)});
         worker.addEventListener('error', workerError);
@@ -174,7 +173,6 @@ export async function lookupClassificationResult(url, workerId) {
  */
 export async function registerPageClassifier(matchPatterns, classifierFilePath, initArgs, workerId, listener) {
     initialize();
-    console.log("registered", listener);
     // TODO: check that id is not in use
     if(workerId in workers) {
         debugLog("worker exists with same name");

@@ -5,9 +5,9 @@
 
 /**
  * Event handler for messages from the main thread
- * On receiving data, the function computes aggregate statistics and 
+ * On receiving data, the function computes aggregate statistics and
  * sends a message back to the caller with the result object.
- * 
+ *
  * @param {MessageEvent} event - message object
  * @listens MessageEvent
  */
@@ -17,8 +17,10 @@ onmessage = async event => {
     Object.entries(data).forEach(entry => {
         let key = entry[0];
         let storageObj = entry[1];
-        let aggregrateStats = (key in functionMapping) ? functionMapping[key](storageObj) : {};
-        stats[key] = aggregrateStats;
+        if (key in functionMapping) {
+            let aggregrateStats = functionMapping[key](storageObj);
+            stats[key] = aggregrateStats;
+        }
     });
     sendMessageToCaller("stats ", stats);
 }
@@ -36,8 +38,8 @@ onerror = event => {
  * Sends messages to the main thread that spawned this worker thread.
  * Each message has a type property for the main thread to handle messages.
  * The data property in the message contains the data object that the worker
- * thread intends to send to the main thread. 
- * 
+ * thread intends to send to the main thread.
+ *
  * @param {string} messageType message type
  * @param {Object} data data to be sent
  */
@@ -63,7 +65,7 @@ StorageStatistics.prototype.computeStats = function (storageInstance) {
 }
 
 /**
- * Functions for computing statistics 
+ * Functions for computing statistics
  */
 
 /**
@@ -83,16 +85,14 @@ const _MS_PER_DAY = 1000 * 60 * 60 * 24;
 const _MAX_DATE = 8640000000000000;
 
 /**
- * Object that maps the type of data and the stats function to apply on 
+ * Object that maps the type of data and the stats function to apply on
  * data object of that type.
- * 
+ *
  * @private
  * @const {Object}
  * @default
  */
 const functionMapping = {
-    "WebScience.Measurements.SocialMediaAccountExposure": socialMediaAccountExposureStats,
-    "WebScience.Measurements.SocialMediaNewsExposure": socialMediaNewsExposureStats,
     "WebScience.Measurements.PageNavigation": pageNavigationStats,
     "WebScience.Measurements.LinkExposure": linkExposureStats,
     "WebScience.Measurements.SocialMediaLinkSharing": socialMediaLinkSharingStats
@@ -152,12 +152,16 @@ function pageNavigationStats(pageNavigationStorage) {
                 if (specificObj) {
                     specificObj.numVisits += 1;
                     specificObj.totalAttention += navObj.attentionDuration;
+                    specificObj.totalScroll += navObj.scrollDepth == -1 ? 0 :
+                        Math.floor(navObj.scrollDepth * 100);
                     specificObj.laterSharedCount += navObj.laterShared ? 1 : 0;
                     specificObj.prevExposedCount += navObj.prevExposed ? 1 : 0;
                 } else {
                     specificObj = {};
                     specificObj.numVisits = 1;
                     specificObj.totalAttention = navObj.attentionDuration;
+                    specificObj.totalScroll = navObj.scrollDepth == -1 ? 0 :
+                        Math.floor(navObj.scrollDepth * 100);
                     specificObj.laterSharedCount = navObj.laterShared ? 1 : 0;
                     specificObj.prevExposedCount = navObj.prevExposed ? 1 : 0;
                     domainObj.visitsByReferrer[index] = specificObj;
@@ -173,6 +177,7 @@ function pageNavigationStats(pageNavigationStorage) {
                     var entry = JSON.parse(pair[0]);
                     entry.numVisits = pair[1].numVisits;
                     entry.totalAttention = pair[1].totalAttention;
+                    entry.totalScroll = pair[1].totalScroll;
                     entry.prevExposedCount = pair[1].prevExposedCount;
                     entry.laterSharedCount = pair[1].laterSharedCount;
                     return entry;
@@ -210,28 +215,34 @@ function linkExposureStats(linkExposureStorage) {
         (entry, stats) => {
             let exposureObj = entry[1];
             if (exposureObj.type == "linkExposure") {
+                var date = new Date(exposureObj.firstSeen);
+                var hourOfDay = date.getHours();
+                var timeOfDay = Math.floor(hourOfDay / 4) * 4;
                 var index = JSON.stringify({
                     sourceDomain: getDomain(exposureObj.metadata.location),
                     destinationDomain: getDomain(exposureObj.url),
                     dayOfWeek: (new Date(exposureObj.firstSeen)).getDay(),
+                    timeOfDay: timeOfDay,
                     visThreshold: exposureObj.visThreshold
                 });
                 if (!(stats.linkExposures[index])) {
                     stats.linkExposures[index] = {
                         numExposures: 1,
-                        laterVisitedCount: exposureObj.laterVisited ? 1 : 0
+                        laterVisitedCount: exposureObj.laterVisited ? 1 : 0,
+                        laterSharedCount: exposureObj.laterShared ? 1 : 0
                     };
                 } else {
                     current = stats.linkExposures[index];
                     stats.linkExposures[index] = {
                         numExposures: current.numExposures + 1,
-                        laterVisitedCount: current.laterVisitedCount + exposureObj.laterVisited ? 1 : 0
+                        laterVisitedCount: current.laterVisitedCount + exposureObj.laterVisited ? 1 : 0,
+                        laterSharedCount: current.laterSharedCount + exposureObj.laterShared ? 1 : 0
                     }
                 }
             } else if (exposureObj.type == "numUntrackedUrls") {
                 for (var threshold in exposureObj.untrackedCounts) {
                     var thresholdObj = exposureObj.untrackedCounts[threshold];
-                    stats.untrackedLinkExposures[thresholdObj.threshold] = 
+                    stats.untrackedLinkExposures[thresholdObj.threshold] =
                         thresholdObj.numUntracked;
                 }
             }
@@ -241,6 +252,7 @@ function linkExposureStats(linkExposureStorage) {
                 var entry = JSON.parse(pair[0]);
                 entry.numExposures = pair[1].numExposures;
                 entry.laterVisitedCount = pair[1].laterVisitedCount;
+                entry.laterSharedCount = pair[1].laterSharedCount;
                 return entry;
             });
             r.linkExposures = exposuresArray;
@@ -340,6 +352,10 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                 if (prevVisitReferrers && prevVisitReferrers.length > 0) {
                     visitReferrer = getDomain(prevVisitReferrers[0]);
                 }
+                var date = new Date(val.shareTime);
+                var dayOfWeek = date.getDay();
+                var hourOfDay = date.getHours();
+                var timeOfDay = Math.floor(hourOfDay / 4) * 4;
 
                 var index = JSON.stringify({
                     domain: hostname,
@@ -347,6 +363,8 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                     audience: val.audience,
                     source: val.source,
                     visitReferrer: visitReferrer,
+                    dayOfWeek: dayOfWeek,
+                    timeOfDay: timeOfDay
                 });
                 var specificObj = platformObj.trackedShares[index];
                 if (specificObj) {
@@ -386,7 +404,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
 
 /**
  * Gets hostname from a given url string
- * 
+ *
  * @param {string} url url string
  * @returns {string|null} hostname in the input url
  */
@@ -401,7 +419,7 @@ function getHostName(url) {
 
 /**
  * Gets domain name from a url
- * 
+ *
  * @param {string} url url string
  * @returns {string|null} hostname in the input url
  */

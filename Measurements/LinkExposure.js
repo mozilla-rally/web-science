@@ -117,20 +117,12 @@ export async function runStudy({
 function pageAttentionStart({url, referrer, tabId, timeStamp}) {
     browser.tabs.sendMessage(tabId, {
         attentionChange: "gain", 
-        timeStamp: timeStamp}).catch((err) => {
-            if (url != undefined) {
-                console.log(err, tabId, url);
-            }
-        });
+        timeStamp: timeStamp}).catch( (err) => { return; } );
 }
 function pageAttentionStop({url, referrer, tabId, timeStamp}) {
     browser.tabs.sendMessage(tabId, {
         attentionChange: "lose", 
-        timeStamp: timeStamp}).catch((err) => {
-            if (url != undefined) {
-                console.log(err, tabId, url);
-            }
-        });
+        timeStamp: timeStamp}).catch( (err) => { return; } );
 }
 
 

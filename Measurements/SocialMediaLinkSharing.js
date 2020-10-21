@@ -106,21 +106,17 @@ function isTwitterLink(url) {
 
 async function parsePossibleTwitterQuoteTweet(twitterUrl, urlsToSave, urlsNotToSave) {
     var matchTwitter = isTwitterLink(twitterUrl);
-    console.log(twitterUrl, matchTwitter);
     if (matchTwitter == null) return;
     await parseTwitterQuoteTweet(matchTwitter[1], urlsToSave, urlsNotToSave, []);
 }
 
 async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets) {
     if (!tweetId) return;
-    console.log(tweetId, tweets);
     if (!(tweets.hasOwnProperty(tweetId))) {
-        console.log("call", tweetId);
         var tweets = await SocialMediaActivity.getTweetContent(tweetId);
     }
 
     var quoteTweetedTweet = tweets[tweetId];
-    console.log(quoteTweetedTweet);
     try {
         await extractRelevantUrlsFromTokens(quoteTweetedTweet.full_text.split(/\s+/),
             urlsToSave, urlsNotToSave);
@@ -128,7 +124,6 @@ async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets
     try {
     for (var url of quoteTweetedTweet.entities.urls) {
         url = parseTwitterUrlObject(url);
-        console.log(url);
         await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
     }
     } catch {}
@@ -159,7 +154,6 @@ async function twitterLinks(details) {
     var urlsToSave = [];
     var urlsNotToSave = [];
     var audience = null;
-    console.log(details);
     if (details.eventType == "tweet") {
         try {
             await extractRelevantUrlsFromTokens(details.postText.split(/\s+/),
@@ -175,7 +169,6 @@ async function twitterLinks(details) {
         } catch {}
 
     } else if (details.eventType == "retweet") {
-        console.log("call", details);
         var retweetedTweets = await SocialMediaActivity.getTweetContent(details.retweetedId);
         var retweetedTweet = retweetedTweets[details.retweetedId];
         try {
@@ -194,15 +187,12 @@ async function twitterLinks(details) {
         } catch {}
 
     } else if (details.eventType == "favorite") {
-        console.log("call", details);
         var favoritedTweets = await SocialMediaActivity.getTweetContent(details.favoritedId);
         var favoritedTweet = favoritedTweets[details.favoritedId];
-        console.log(favoritedTweet, favoritedTweets);
         if ("retweeted_status_id_str" in favoritedTweet) {
             if (favoritedTweets.hasOwnProperty(favoritedTweet["retweeted_status_id_str"])) {
                 favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
             } else {
-                console.log("call", details);
                 favoritedTweets = await SocialMediaActivity.getTweetContent(
                     favoritedTweet["retweeted_status_id_str"]);
                 favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
@@ -248,7 +238,6 @@ async function twitterLinks(details) {
  * @param details - the description of the event
  */
 async function facebookLinks(details) {
-    console.log(details);
     var urlsToSave = [];
     var urlsNotToSave = [];
     if (details.eventType == "post") {
@@ -302,7 +291,6 @@ async function facebookLinks(details) {
  * @param details - the description of the event
  */
 async function redditLinks(details) {
-    console.log(details);
     var urlsToSave = [];
     var urlsNotToSave = [];
     var audience = "unknown";

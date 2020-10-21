@@ -22,6 +22,8 @@ const debugLog = Debugging.getDebuggingLog("Measurements.PageDepth");
 var storage = null;
 var initialized = false;
 
+var listeners = [];
+
 /**
  * Start a page depth study. Note that only one study is supported per extension.
  * @param {Object} options - A set of options for the study.
@@ -54,9 +56,11 @@ export async function runStudy({
     // Handle page depth events
     Messaging.registerListener("WebScience.pageDepth", async (depthInfo, sender, sendResponse) => {
         var pageId = await nextPageIdCounter.getAndIncrement();
-        depthInfo.url = sender.url;
+        depthInfo.url = Storage.normalizeUrl(sender.url);
         depthInfo.tabId = sender.tab.id;
+        for (var listener of listeners) { listener(depthInfo); }
         storage.set(pageId.toString(), depthInfo);
+        debugLog(JSON.stringify(depthInfo));
     }, {
         type: "string",
         maxRelativeScrollDepth: "number",
@@ -78,3 +82,6 @@ export async function getStudyDataAsObject() {
     return null;
 }
 
+export function registerListener(listener) {
+    listeners.push(listener);
+}

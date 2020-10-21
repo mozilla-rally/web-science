@@ -10,6 +10,7 @@ import * as Matching from "../Utilities/Matching.js"
 import * as PageEvents from "../Utilities/PageEvents.js"
 import * as PageClassification from "./PageClassification.js"
 import * as LinkExposure from "./LinkExposure.js"
+import * as PageDepth from "./PageDepth.js"
 
 // import classifier weights
 // import covidClassifierData from "./weights/covid-linearsvc_data.js";
@@ -33,14 +34,31 @@ var untrackedPageVisits = null;
  * Callback function for classification result
  * @param {Object} result result object
  */
-function classificationResults(result) {
+async function classificationResults(result) {
     if (currentTabInfo[result.tabID] && currentTabInfo[result.tabID].url == result.url) {
         currentTabInfo[result.tabID].classification = result.predicted_class;
-        console.log("happy days", result);
-    } else {
-        console.log("LOOK AT ME I'M SAD", result, currentTabInfo);
     }
 }
+
+async function depthResults(result) {
+    if (currentTabInfo[result.tabId] && currentTabInfo[result.tabId].url == result.url) {
+        currentTabInfo[result.tabId].scrollDepth = result.maxRelativeScrollDepth;
+    }
+    else {
+        if (!urlMatcher.testUrl(result.url)) { return; }
+        await storage.startsWith(result.url).then((prevVisits) => {
+            for (var key in prevVisits) {
+                if (prevVisits[key].tabId == result.tabId) {
+                    prevVisits[key].scrollDepth = result.maxRelativeScrollDepth;
+                    storage.set(key, prevVisits[key]);
+                    return;
+                }
+            }
+        });
+    }
+
+}
+
 /**
  * Start a navigation study. Note that only one study is supported per extension.
  * @param {Object} options - A set of options for the study.
@@ -64,6 +82,8 @@ export async function runStudy({
 
     await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/PolClassifier.js", polClassifierData,"pol-page-classifier", classificationResults);
     //await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/CovidClassifier.js", covidClassifierData,"covid-page-classifier", classificationResults);
+
+    PageDepth.registerListener(depthResults);
 
     // Listen for metadata of the visited pages from content script
     // Use a unique identifier for each webpage the user visits that has a matching domain
@@ -107,6 +127,7 @@ export async function runStudy({
             attentionSpanStarts: [ ],
             attentionSpanEnds: [ ],
             classification: -1,
+            scrollDepth: -1,
             prevExposed: false, // will check after storing this
             laterShared: false
         };
@@ -227,24 +248,31 @@ export async function storeAndResetUntrackedVisitsCount() {
 export async function logShare(url) {
     if (!urlMatcher.testUrl(url)) { return; } // if it's not a tracked url, it definitely isn't in our database
 
-    var prevVisitReferrers = [];
+    var prevVisitReferrer = null;
 
     // Search in-memory pages
     for (let pageId in currentTabInfo){
         var pageVisit = currentTabInfo[pageId];
         if (url == pageVisit.url) {
             currentTabInfo[pageId].laterShared = true;
-            prevVisitReferrers.push(pageVisit.referrer);
+            if (!prevVisitReferrer) prevVisitReferrer = pageVisit.referrer;
         }
     }
 
     // Search previously-stored pages
+    var bestReferrer = {ts: 0, referrer: ""}
     await storage.startsWith(url).then((prevVisits) => {
         for (var key in prevVisits) {
+            if (prevVisits[key].visitStart > bestReferrer.ts) {
+                bestReferrer.ts = prevVisits[key].visitStart
+                bestReferrer.referrer = prevVisits[key].referrer
+            }
             prevVisits[key].laterShared = true;
             storage.set(key, prevVisits[key]);
-            prevVisitReferrers.push(prevVisits[key].referrer);
         }
     });
-    return prevVisitReferrers;
+
+    if (!prevVisitReferrer) prevVisitReferrer = bestReferrer.referrer;
+    console.log(prevVisitReferrer);
+    return [prevVisitReferrer];
 }
