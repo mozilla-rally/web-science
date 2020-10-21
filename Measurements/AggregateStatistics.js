@@ -202,7 +202,7 @@ function linkExposureStats(linkExposureStorage) {
     let statsObj = new StorageStatistics(
         () => {
             let stats = {};
-            stats.untrackedLinkExposures = -2;
+            stats.untrackedLinkExposures = {};
             stats.linkExposures = {};
 
             return stats;
@@ -213,7 +213,8 @@ function linkExposureStats(linkExposureStorage) {
                 var index = JSON.stringify({
                     sourceDomain: getDomain(exposureObj.metadata.location),
                     destinationDomain: getDomain(exposureObj.url),
-                    dayOfWeek: (new Date(exposureObj.firstSeen)).getDay()
+                    dayOfWeek: (new Date(exposureObj.firstSeen)).getDay(),
+                    visThreshold: exposureObj.visThreshold
                 });
                 if (!(stats.linkExposures[index])) {
                     stats.linkExposures[index] = {
@@ -228,8 +229,11 @@ function linkExposureStats(linkExposureStorage) {
                     }
                 }
             } else if (exposureObj.type == "numUntrackedUrls") {
-                stats.untrackedLinkExposures = exposureObj.numUntrackedUrls;
-                stats.untrackedLinkExposures = exposureObj.untrackedUrlsCount;
+                for (var threshold in exposureObj.untrackedCounts) {
+                    var thresholdObj = exposureObj.untrackedCounts[threshold];
+                    stats.untrackedLinkExposures[thresholdObj.threshold] = 
+                        thresholdObj.numUntracked;
+                }
             }
         },
         (r) => {
@@ -339,7 +343,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
 
                 var index = JSON.stringify({
                     domain: hostname,
-                    classification: val.classification == 1 ? "pol news" : "not pol news",
+                    classification: val.classification,
                     audience: val.audience,
                     source: val.source,
                     visitReferrer: visitReferrer,
@@ -402,6 +406,11 @@ function getHostName(url) {
  * @returns {string|null} hostname in the input url
  */
 function getDomain(url) {
+    try {
+        var urlObj = new URL(url);
+    } catch { return ""; }
+    return urlObj.hostname;
+    /*
     var hostName = getHostName(url);
     var domain = hostName;
     if (hostName != null) {
@@ -411,6 +420,7 @@ function getDomain(url) {
         }
     }
     return domain;
+    */
 }
 
 

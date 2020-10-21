@@ -102,9 +102,10 @@ function listenForContentScriptMessages(workerId, resultListener) {
         }
         async function resultReceiver(result) {
             let data = result.data;
+            data.url = Storage.normalizeUrl(data.url);
             let classificationStorageObj = {...data, ...pageContent.context};
-            debugLog("storing " + JSON.stringify(classificationStorageObj));
             //storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
+            debugLog("storing " + JSON.stringify(classificationStorageObj));
             storage.set(classificationStorageObj.url, classificationStorageObj);
             //await nextPageClassificationIdCounter.increment();
             resultListener({...data, ...pageContent.context});
@@ -116,6 +117,7 @@ function listenForContentScriptMessages(workerId, resultListener) {
             type: "classify",
             payload: pageContent,
         });
+        console.log("messaged listener");
         // receive the result classification result.
         worker.addEventListener('message', async (result) => { await resultReceiver(result)});
         worker.addEventListener('error', workerError);
@@ -172,6 +174,7 @@ export async function lookupClassificationResult(url, workerId) {
  */
 export async function registerPageClassifier(matchPatterns, classifierFilePath, initArgs, workerId, listener) {
     initialize();
+    console.log("registered", listener);
     // TODO: check that id is not in use
     if(workerId in workers) {
         debugLog("worker exists with same name");
