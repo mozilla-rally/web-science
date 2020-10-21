@@ -36,8 +36,10 @@ var untrackedPageVisits = null;
 function classificationResults(result) {
     if (currentTabInfo[result.tabID] && currentTabInfo[result.tabID].url == result.url) {
         currentTabInfo[result.tabID].classification = result.predicted_class;
+        console.log("happy days", result);
+    } else {
+        console.log("LOOK AT ME I'M SAD", result, currentTabInfo);
     }
-    debugLog(JSON.stringify(result));
 }
 /**
  * Start a navigation study. Note that only one study is supported per extension.
@@ -96,6 +98,7 @@ export async function runStudy({
         currentTabInfo[tabId] = {
             pageId: nextPageIdCounter.get(),
             url,
+            tabId,
             referrer,
             visitStart: timeStamp,
             visitEnd: -1,

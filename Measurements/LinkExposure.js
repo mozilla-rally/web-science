@@ -9,6 +9,7 @@ import * as Storage from "../Utilities/Storage.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as Messaging from "../Utilities/Messaging.js"
+import * as PageEvents from "../Utilities/PageEvents.js"
 
 const debugLog = Debugging.getDebuggingLog("Measurements.LinkExposure");
 
@@ -19,10 +20,11 @@ const debugLog = Debugging.getDebuggingLog("Measurements.LinkExposure");
  */
 var storage = null;
 
-var numUntrackedUrls = null;
+var numUntrackedUrlsByThreshold = {};
 
 var initialized = false;
 
+var visibilityThresholds = [1000, 3000, 5000, 10000]; // match to CS values
 /**
  * @name LinkExposure.runStudy starts the LinkExposure study.
  * @param {String[]} domains - Array of domains to track 
@@ -45,7 +47,9 @@ export async function runStudy({
     let domainPattern = Matching.createUrlRegexString(domains);
     let shortDomainPattern = Matching.createUrlRegexString(shortDomains);
     let ampCacheDomainPattern = Matching.createUrlRegexString(ampCacheDomains);
-    numUntrackedUrls = await (new Storage.Counter("WebScience.Measurements.LinkExposure.numUntrackedUrls")).initialize();
+    for (var visThreshold of visibilityThresholds) {
+        numUntrackedUrlsByThreshold[visThreshold] = await (new Storage.Counter("WebScience.Measurements.LinkExposure.numUntrackedUrls" + visThreshold)).initialize();
+    }
     const ampCacheMatcher = new RegExp(ampCacheDomainPattern);
     const shortDomainMatcher = new RegExp(shortDomainPattern);
     const urlMatcher = new RegExp(domainPattern);
@@ -70,7 +74,10 @@ export async function runStudy({
             debugLog("Warning: unexpected link exposure update");
             return;
         }
-        numUntrackedUrls.incrementByAndGet(exposureInfo.numUntrackedUrls);
+        var untrackedInfo = exposureInfo.numUntrackedUrls;
+        for (var visThreshold in untrackedInfo) {
+            numUntrackedUrlsByThreshold[visThreshold].incrementByAndGet(untrackedInfo[visThreshold]);
+        }
         exposureInfo.exposureEvents.forEach(async exposureEvent => {
             exposureEvent.isShortenedUrl = shortDomainMatcher.test(exposureEvent.originalUrl);
             exposureEvent.resolutionSucceded = true;
@@ -100,9 +107,32 @@ export async function runStudy({
         type: "string",
         metadata: "object"
     });
+
+    PageEvents.registerPageAttentionStartListener(pageAttentionStart, true, privateWindows);
+    PageEvents.registerPageAttentionStopListener(pageAttentionStop, privateWindows);
     initialized = true;
 
 }
+
+function pageAttentionStart({url, referrer, tabId, timeStamp}) {
+    browser.tabs.sendMessage(tabId, {
+        attentionChange: "gain", 
+        timeStamp: timeStamp}).catch((err) => {
+            if (url != undefined) {
+                console.log(err, tabId, url);
+            }
+        });
+}
+function pageAttentionStop({url, referrer, tabId, timeStamp}) {
+    browser.tabs.sendMessage(tabId, {
+        attentionChange: "lose", 
+        timeStamp: timeStamp}).catch((err) => {
+            if (url != undefined) {
+                console.log(err, tabId, url);
+            }
+        });
+}
+
 
 /* Utilities */
 
@@ -146,6 +176,7 @@ async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter
                          Storage.normalizeUrl(exposureEvent.resolvedUrl) :
                          Storage.normalizeUrl(exposureEvent.originalUrl));
     exposureEvent.laterVisited = false;
+    exposureEvent.laterShared = false;
     debugLog("storing " + JSON.stringify(exposureEvent));
     var key = exposureEvent.url + " " + await nextLinkExposureIdCounter.getAndIncrement();
     storage.set(key, exposureEvent);
@@ -153,11 +184,14 @@ async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter
 
 export async function storeAndResetUntrackedExposuresCount() {
     if (initialized) {
-        var obj = 
-            {type: "numUntrackedUrls",
-             untrackedUrlsCount: await numUntrackedUrls.getAndReset()
+        var untrackedObj = { type: "numUntrackedUrls", untrackedCounts: {}};
+        for (var visThreshold of visibilityThresholds) {
+            untrackedObj.untrackedCounts[visThreshold] = {
+                threshold: visThreshold,
+                numUntracked: await numUntrackedUrlsByThreshold[visThreshold].getAndReset()
             };
-        await storage.set("ebScience.Measurements.LinkExposure.untrackedUrlsCount", obj);
+        }
+        await storage.set("WebScience.Measurements.LinkExposure.untrackedUrlsCount", untrackedObj);
     }
 }
 

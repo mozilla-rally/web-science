@@ -70,7 +70,7 @@ export async function runStudy({
 }) {
     if (privateWindows) SocialMediaActivity.enablePrivateWindows();
     if (facebook) {
-        SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare", "react"]);
+        SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare"]);
     }
     if (reddit) {
         SocialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
@@ -99,10 +99,48 @@ export async function runStudy({
     initialized = true;
 }
 
-function filterTwitterQuoteTweets(url) {
-    var twitterLink = /twitter\.com\/[0-9|a-z|A-Z|_]*\/status\//;
-    return twitterLink.test(url);
+function isTwitterLink(url) {
+    var twitterLink = /twitter\.com\/[0-9|a-z|A-Z|_]*\/status\/([0-9]*)\/?$/;
+    return twitterLink.exec(url);
 }
+
+async function parsePossibleTwitterQuoteTweet(twitterUrl, urlsToSave, urlsNotToSave) {
+    var matchTwitter = isTwitterLink(twitterUrl);
+    console.log(twitterUrl, matchTwitter);
+    if (matchTwitter == null) return;
+    await parseTwitterQuoteTweet(matchTwitter[1], urlsToSave, urlsNotToSave, []);
+}
+
+async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets) {
+    if (!tweetId) return;
+    console.log(tweetId, tweets);
+    if (!(tweets.hasOwnProperty(tweetId))) {
+        console.log("call", tweetId);
+        var tweets = await SocialMediaActivity.getTweetContent(tweetId);
+    }
+
+    var quoteTweetedTweet = tweets[tweetId];
+    console.log(quoteTweetedTweet);
+    try {
+        await extractRelevantUrlsFromTokens(quoteTweetedTweet.full_text.split(/\s+/),
+            urlsToSave, urlsNotToSave);
+    } catch {}
+    try {
+    for (var url of quoteTweetedTweet.entities.urls) {
+        url = parseTwitterUrlObject(url);
+        console.log(url);
+        await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
+    }
+    } catch {}
+}
+
+function parseTwitterUrlObject(urlObject) {
+    try {
+        if (urlObject.hasOwnProperty("expanded_url")) return urlObject.expanded_url;
+        if (urlObject.hasOwnProperty("url")) return url.url;
+    } catch { }
+    return url;
+}       
 
 /**
  * The callback for Twitter events.
@@ -121,61 +159,87 @@ async function twitterLinks(details) {
     var urlsToSave = [];
     var urlsNotToSave = [];
     var audience = null;
+    console.log(details);
     if (details.eventType == "tweet") {
-        await extractRelevantUrlsFromTokens(details.postText.split(/\s+/), urlsToSave, urlsNotToSave);
-        await extractRelevantUrlsFromTokens([details.attachmentUrl], urlsToSave, urlsNotToSave);
+        try {
+            await extractRelevantUrlsFromTokens(details.postText.split(/\s+/),
+                urlsToSave, urlsNotToSave);
+        } catch {}
+        try {
+            await parsePossibleTwitterQuoteTweet(details.postAttachments,
+                urlsToSave, urlsNotToSave);
+        } catch {}
+        try {
+            await extractRelevantUrlsFromTokens([details.postAttachments],
+                urlsToSave, urlsNotToSave);
+        } catch {}
+
     } else if (details.eventType == "retweet") {
+        console.log("call", details);
         var retweetedTweets = await SocialMediaActivity.getTweetContent(details.retweetedId);
         var retweetedTweet = retweetedTweets[details.retweetedId];
-        await extractRelevantUrlsFromTokens(retweetedTweet.full_text.split(/\s+/), urlsToSave, urlsNotToSave);
-        for (var url of retweetedTweet.entities.urls) {
-            await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
-        }
-    } else if (details.eventType == "favorite") {
-        var favoritedTweets = await SocialMediaActivity.getTweetContent(details.favoritedId);
-        var favoritedTweet = favoritedTweets[details.favoritedId];
-        if ("retweeted_status_id_str" in favoritedTweet) {
-            favoritedTweets = await SocialMediaActivity.getTweetContent(favoritedTweet.retweeted_status_id_str);
-            favoritedTweet = favoritedTweets[favoritedTweet.retweeted_status_id_str];
-        }
-        await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/), urlsToSave, urlsNotToSave);
-        if ("urls" in favoritedTweet.entities) {
-            for (var url of favoritedTweet.entities.urls) {
+        try {
+            await extractRelevantUrlsFromTokens(retweetedTweet.full_text.split(/\s+/),
+                urlsToSave, urlsNotToSave);
+        } catch {}
+        try {
+            for (var url of retweetedTweet.entities.urls) {
+                url = parseTwitterUrlObject(url);
                 await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
             }
+        } catch {}
+        try {
+            await parseTwitterQuoteTweet(retweetedTweet["quoted_status_id_str"],
+                urlsToSave, urlsNotToSave, retweetedTweets);
+        } catch {}
+
+    } else if (details.eventType == "favorite") {
+        console.log("call", details);
+        var favoritedTweets = await SocialMediaActivity.getTweetContent(details.favoritedId);
+        var favoritedTweet = favoritedTweets[details.favoritedId];
+        console.log(favoritedTweet, favoritedTweets);
+        if ("retweeted_status_id_str" in favoritedTweet) {
+            if (favoritedTweets.hasOwnProperty(favoritedTweet["retweeted_status_id_str"])) {
+                favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
+            } else {
+                console.log("call", details);
+                favoritedTweets = await SocialMediaActivity.getTweetContent(
+                    favoritedTweet["retweeted_status_id_str"]);
+                favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
+            }
         }
+        try {
+            await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/),
+                urlsToSave, urlsNotToSave);
+        } catch {}
+        try {
+            for (var url of favoritedTweet.entities.urls) {
+                url = parseTwitterUrlObject(url);
+                await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
+            }
+        } catch {}
+        try {
+            await parseTwitterQuoteTweet(favoritedTweet["quoted_status_id_str"],
+                urlsToSave, urlsNotToSave, favoritedTweets);
+        } catch {}
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (var urlToSave of urlsToSave) {
-        var shareRecord = await createShareRecord({shareTime: details.eventTime,
-                                                   platform: "twitter",
-                                                   url: urlToSave,
-                                                   audience: twitterPrivacySetting,
-                                                   eventType: details.eventType});
+        var shareRecord = await createShareRecord({
+            shareTime: details.eventTime,
+            platform: "twitter",
+            url: urlToSave,
+            audience: twitterPrivacySetting,
+            eventType: details.eventType
+        });
         storage.set((await shareIdCounter.getAndIncrement()).toString(), shareRecord);
         debugLog("Twitter: " + JSON.stringify(shareRecord));
     }
     for (var urlNotToSave of urlsNotToSave) {
-        if (!(filterTwitterQuoteTweets(urlNotToSave))) {
+        if (!(isTwitterLink(urlNotToSave))) {
             await numUntrackedShares.twitter.increment();
         }
     }
-}
-
-async function twitterFaves(details) {
-    var urlsToSave = [];
-    var favoritedTweets = await SocialMediaActivity.getTweetContent(details.favoritedId);
-    var favoritedTweet = favoritedTweets[details.favoritedId];
-    await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/), urlsToSave);
-    for (var url of favoritedTweet.entities.urls) {
-        await extractRelevantUrlsFromTokens([url], urlsToSave);
-    }
-}
-
-async function blockFacebookShares(details) {
-    return new Promise((resolve, reject) => {
-        resolve({cancel: true});
-    });
 }
 
 /**
@@ -184,14 +248,14 @@ async function blockFacebookShares(details) {
  * @param details - the description of the event
  */
 async function facebookLinks(details) {
+    console.log(details);
     var urlsToSave = [];
     var urlsNotToSave = [];
     if (details.eventType == "post") {
-        for (var contentItem of details.postText) {
-            var postTokens = contentItem.split(/\s+/);
-            await extractRelevantUrlsFromTokens(postTokens, urlsToSave, urlsNotToSave);
-        }
+        var postTokens = details.postText.split(/\s+/);
+        await extractRelevantUrlsFromTokens(postTokens, urlsToSave, urlsNotToSave);
         await extractRelevantUrlsFromTokens(details.postUrls, urlsToSave, urlsNotToSave);
+
     } else if (details.eventType == "reshare") {
         if (details.postId) {
             // in old facebook, we get the postid and need to go look it up
@@ -205,6 +269,7 @@ async function facebookLinks(details) {
             // in new facebook, we get the post contents and no ID
             await extractRelevantUrlsFromTokens(details.attachedUrls, urlsToSave, urlsNotToSave);
         }
+
     } else if (details.eventType == "react") {
         var post = await SocialMediaActivity.getFacebookPostContents(details.postId);
         for (var contentItem of post.content) {
@@ -237,6 +302,7 @@ async function facebookLinks(details) {
  * @param details - the description of the event
  */
 async function redditLinks(details) {
+    console.log(details);
     var urlsToSave = [];
     var urlsNotToSave = [];
     var audience = "unknown";
