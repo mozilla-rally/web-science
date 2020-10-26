@@ -273,6 +273,5 @@ export async function logShare(url) {
     });
 
     if (!prevVisitReferrer) prevVisitReferrer = bestReferrer.referrer;
-    console.log(prevVisitReferrer);
     return [prevVisitReferrer];
 }
