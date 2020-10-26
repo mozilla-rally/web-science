@@ -1,4 +1,4 @@
-import { localforage } from './localforagees6.min.js';
+import { localforage } from './localforage.es6.js';
 
 function getSerializerPromise(localForageInstance) {
     if (getSerializerPromise.result) {
