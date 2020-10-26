@@ -9,9 +9,7 @@
  */
 
 // Currently implemented with localforage
-//import { localforage } from "../dependencies/localforagees6.min.js"
-//import { localforageKeysStartingWith } from "../dependencies/localForage-startsWith/lib/localforage-startswith.js"
-import { localforageKeysStartingWith, localforage } from "../dependencies/localForage-startsWith/lib/localforage-startswith.js"
+import { localforageKeysStartingWith, localforage } from "../dependencies/localforage-startswith.js"
 
 export var storageInstances = [];
 /**
