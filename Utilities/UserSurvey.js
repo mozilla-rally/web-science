@@ -5,12 +5,13 @@
 
 import * as Storage from "./Storage.js"
 import * as Debugging from "./Debugging.js"
+import * as Messaging from "./Messaging.js"
 
 var storage = null;
 
 /**
  * Logger object
- * 
+ *
  * @constant
  * @private
  * @type {function(string)}
@@ -22,60 +23,130 @@ const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
  * @constant
  * @type {string}
  */
-export const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.png");
+const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.png");
+// TODO -- wording, icon image
+const surveyRequestMessage = "survey request here";
+const surveyRequestTitle = "New Ion survey available";
 
-browser.privileged.onSurveyPopup.addListener(async(url) => {
-    debugLog("survey created for user" + url);
-    let surveys = await storage.get("surveyList");
-    if(!surveys) {
-        surveys = new Array();
-    }
-    surveys.push(url);
-    await storage.set("surveyList", surveys);
-    debugLog("survey list " + surveys);
-    browser.tabs.create({
-        url: url
-    });
-});
+//const secondsPerDay = 86400;
+const secondsPerDay = 5; // TODO very temporary
+
+const millisecondsPerSecond = 1000;
+
+const surveyRemindPeriodDays = 3;
+
+var surveyUrlBase = "";
 
 /**
- * Schedule a survey popup using privileged API
- * @param {string} surveyURLBase - Base URL for survey
- * @param {number} surveyTime - When to create survey popup
+ * Generates a RFC4122 compliant ID
+ * https://www.ietf.org/rfc/rfc4122.txt based on given seed.
+ *
+ * A compliant UUID is of the form
+ * xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx; where 1 <= M <= 5
+ * In this implementation M = 4.
+ *
+ * @param  {number} seed - seed. Example UTC milliseconds
+ * @returns {string} - UUID
  */
-function scheduleSurvey(surveyURLBase, surveyTime) {
-    browser.alarms.onAlarm.addListener(function () {
-        browser.privileged.createSurveyPopup(surveyURLBase, surveyTime, SHIELD_URL);
+function generateUUID(seed) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16;
+        r = (seed + r) % 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
     });
-    browser.alarms.create(
-        "surveyAlarm",
-        { when: surveyTime }
-    );
+}
+
+async function openSurveyTab() {
+    var surveyId = await storage.get("surveyId");
+    var creating = browser.tabs.create({
+        active: true,
+        url: surveyUrlBase + "?surveyId=" + surveyId
+    });
+}
+
+async function requestSurvey(alarm) {
+    if (alarm.name == "surveyAlarm") {
+        var surveyCompleted = await storage.get("surveyCompleted");
+        var noRequestSurvey = await storage.get("noRequestSurvey");
+        if (surveyCompleted) return;
+        if (noRequestSurvey) return;
+        var currentTime = Date.now();
+        await storage.set("lastSurveyRequest", currentTime);
+        browser.notifications.create({
+            type: "image",
+            message: surveyRequestMessage,
+            title: surveyRequestTitle,
+            iconUrl: SHIELD_URL
+        });
+        scheduleSurveyRequest(currentTime);
+    }
+}
+
+function scheduleSurveyRequest(lastSurveyRequest) {
+    browser.alarms.onAlarm.addListener(requestSurvey);
+    browser.alarms.create("surveyAlarm", {
+        when: lastSurveyRequest + (millisecondsPerSecond * secondsPerDay * surveyRemindPeriodDays)
+    });
+}
+
+function handleSurveyCompleted() {
+    storage.set("surveyCompleted", true);
+}
+
+function cancelSurveyRequest() {
+    storage.set("noRequestSurvey", true);
 }
 
 /**
- * Run a survey at scheduled survey time if it exists otherwise 
+ * Run a survey at scheduled survey time if it exists otherwise
  * current time + delta
- * 
- * @param {string} surveyURLBase - survey URL
- * @param {number} surveyTimeAfterInitialRun - amount of time to wait before presenting survey
+ *
+ * @param {string} surveyUrl - survey URL
  */
 export async function runStudy({
-    surveyURLBase,
-    surveyTimeAfterInitialRun
+    surveyUrl
 }) {
+    var currentTime = Date.now();
+    surveyUrlBase = surveyUrl;
+
     storage = await(new Storage.KeyValueStorage("WebScience.Measurements.UserSurvey")).initialize();
-    var surveyTime = await storage.get("surveyTime");
-    // create listeners
-    if (surveyTime) {
-        if (surveyTime < Date.now()) {
-            scheduleSurvey(surveyURLBase, surveyTime);
-        } else {
-            browser.privileged.createSurveyPopup(surveyURLBase, Date.now(), SHIELD_URL);
-        }
-    } else {
-        surveyTime = surveyTimeAfterInitialRun + Date.now();
-        await storage.set("surveyTime", surveyTime);
-        scheduleSurvey(surveyURLBase, surveyTime);
+    /* Check when we last asked the user to do the survey. If it's null,
+     * we've never asked, which means the extension just got installed.
+     * Open a tab with the survey, and save this time as the most recent
+     * request for participation.
+     */
+    var lastSurveyRequest = await storage.get("lastSurveyRequest");
+    if (lastSurveyRequest == null) {
+        lastSurveyRequest = currentTime;
+        await storage.set("lastSurveyRequest", lastSurveyRequest);
+        await storage.set("surveyCompleted", false);
+        await storage.set("noRequestSurvey", false);
+        await storage.set("surveyId", generateUUID(Date.now()));
+        openSurveyTab();
     }
+    /* If set a time to ask the user in three days (we won't actually ask
+     * if they end up compelting the survey before then).
+     */
+    scheduleSurveyRequest(lastSurveyRequest);
+    /* The user gets directed to this page at the end of the survey, so
+     * seeing a request for it means they did it -- stop bothering them
+     */
+    browser.webRequest.onBeforeRequest.addListener(
+        handleSurveyCompleted,
+        {urls: [ "https://citpsurveys.cs.princeton.edu/thankyou"]}
+    );
+    /* This is the popup users will see when they click our icon, with buttons
+     * to take the survey or decline it.
+     */
+    browser.browserAction.setPopup({
+        popup: browser.runtime.getURL("study/survey.html")
+    });
+
+    /* If the user tells us to never ask them again, we catch it with this message */
+    Messaging.registerListener("WebScience.Utilities.UserSurvey.cancelSurveyRequest", cancelSurveyRequest);
+    Messaging.registerListener("WebScience.Utilities.UserSurvey.openSurveyTab", openSurveyTab);
+}
+
+export async function getSurveyId() {
+    return await storage.get("surveyId");
 }
