@@ -77,7 +77,6 @@ export async function runStudy({
     storage = await (new Storage.KeyValueStorage("WebScience.Measurements.PageNavigation")).initialize();
 
     urlMatcher = new Matching.UrlMatcher(domains);
-    console.log(urlMatcher);
 
     untrackedPageVisits = await (new Storage.Counter("WebScience.Measurements.PageNavigation.untrackedPageVisits")).initialize();
 

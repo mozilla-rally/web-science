@@ -1,4 +1,4 @@
-/** 
+/**
  * This module provides a convenience wrapper around `browser.runtime.onMessage`,
  * routing messages to the right listener(s) based on the message type.
  * Message types are defined as strings, and a message must be an object with a
@@ -47,9 +47,9 @@ function browserRuntimeListener(message, sender, sendResponse) {
     var browserRuntimeReturnValue;
     // If the message is not in an expected format or does not have at least
     // one registered listener, ignore it.
-    if ((message == null) || 
+    if ((message == null) ||
         (typeof message !== "object") ||
-        !("type" in message) || 
+        !("type" in message) ||
         (typeof message.type !== "string") ||
         ((messageListeners = messageRouter.get(message.type)) === undefined)) {
         debugLog("Unexpected browser.runtime message: " + JSON.stringify(message));
