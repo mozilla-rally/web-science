@@ -6,10 +6,14 @@
 import * as Storage from "./Storage.js"
 import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
+import * as Scheduling from "./Scheduling.js"
 
 var storage = null;
 
 var callback = null;
+
+const secondsPerDay = 86400;
+const millisecondsPerSecond = 1000;
 
 /**
  * Logger object
@@ -36,6 +40,14 @@ function consentRefused() {
     browser.management.uninstallSelf();
 }
 
+async function dayListener() {
+    var hasConsent = await storage.get("hasConsent");
+    var installTime = await storage.get("installTime");
+    if (!hasConsent && installTime + (secondsPerDay * millisecondsPerSecond) <= Date.now()){
+        consentRefused();
+    }
+}
+
 /**
  * Run a survey at scheduled survey time if it exists otherwise
  * current time + delta
@@ -54,6 +66,10 @@ export async function runStudy(callbackAfterConsent) {
      */
     var hasConsent = await storage.get("hasConsent");
     if (hasConsent == null) {
+        await storage.set("hasConsent", false);
+        await storage.set("installTime", Date.now());
+        // If we make it to 24 hours with no consent, assume they don't consent and uninstall
+        Scheduling.registerIdleDailyListener(dayListener);
         openConsentTab();
     } else if (hasConsent) {
         callback();
