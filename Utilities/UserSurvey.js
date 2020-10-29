@@ -28,8 +28,7 @@ const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.png");
 const surveyRequestMessage = "survey request here";
 const surveyRequestTitle = "New Ion survey available";
 
-//const secondsPerDay = 86400;
-const secondsPerDay = 5; // TODO very temporary
+const secondsPerDay = 86400;
 
 const millisecondsPerSecond = 1000;
 

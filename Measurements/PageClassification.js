@@ -60,7 +60,6 @@ async function registerContentScript(matchPatterns, workerId) {
     var injectWorkerId = ['/* Inject worker id: */ let workerId =  "' + workerId + '";',
     '// code ----->'].join('\n');
 
-    debugLog(injectWorkerId);
     await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{

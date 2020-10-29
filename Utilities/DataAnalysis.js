@@ -13,6 +13,7 @@ import * as SocialMediaLinkSharing from "../Measurements/SocialMediaLinkSharing.
 import * as LinkExposure from "../Measurements/LinkExposure.js"
 import * as PageNavigation from "../Measurements/PageNavigation.js"
 import * as Matching from "../Utilities/Matching.js"
+import * as Scheduling from "../Utilities/Scheduling.js"
 
 const debugLog = getDebuggingLog("Utilities.DataAnalysis");
 /**
@@ -48,9 +49,8 @@ async function initialize() {
     if(initialized)
         return;
     initialized = true;
-    // TODO : replace the interval with secondsPerDay in production
     debugLog("registering idle state listener for data analysis");
-    Idle.registerIdleStateListener(idleStateListener, 1);
+    Scheduling.registerIdleWeeklyListener(idleStateListener);
 }
 
 /**
@@ -60,14 +60,8 @@ async function initialize() {
  * @param {string} newState - The new browser idle state.
  * @private
  */
-async function idleStateListener(newState) {
-    // If the browser has entered an idle state, fire the
-    // analysis scripts
-    debugLog("data analysis idle state listener triggered with state " + newState);
+async function idleStateListener() {
     await triggerAnalysisScripts();
-    //if(newState === "idle")
-        //await triggerAnalysisScripts();
-    
 }
 
 /**
