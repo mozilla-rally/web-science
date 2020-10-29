@@ -132,8 +132,11 @@ export async function runStudy({
      */
     browser.webRequest.onBeforeRequest.addListener(
         handleSurveyCompleted,
-        {urls: [ "https://psrc.princeton.edu/node/291"]}
-    );
+        {urls: [
+            "https://psrc.princeton.edu/node/291",
+            "https://citpsurveys.cs.princeton.edu/thankyou"
+        ]}
+
     /* This is the popup users will see when they click our icon, with buttons
      * to take the survey or decline it.
      */
