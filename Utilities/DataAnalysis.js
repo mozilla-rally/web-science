@@ -12,6 +12,7 @@ import * as StorageManager from "./StorageManager.js"
 import * as SocialMediaLinkSharing from "../Measurements/SocialMediaLinkSharing.js"
 import * as LinkExposure from "../Measurements/LinkExposure.js"
 import * as PageNavigation from "../Measurements/PageNavigation.js"
+import * as Matching from "../Utilities/Matching.js"
 
 const debugLog = getDebuggingLog("Utilities.DataAnalysis");
 /**
@@ -36,6 +37,8 @@ const secondsPerDay = 86400;
  * @type {boolean}
  */
 var initialized = false;
+
+var studyDomains = null;
 
 /**
  * Setup for the module. Runs only once.
@@ -105,9 +108,14 @@ export async function triggerAnalysisScripts() {
     await LinkExposure.storeAndResetUntrackedExposuresCount();
     await PageNavigation.storeAndResetUntrackedVisitsCount();
     let storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
+    let toSend = {
+        studyDomains: studyDomains,
+        fromStorage: storageObjs
+    };
+
     for(let [scriptPath, listeners] of resultRouter) {
         let worker = new Worker(scriptPath);
-        worker.postMessage(storageObjs);
+        worker.postMessage(toSend);
         worker.addEventListener('message', createMessageReceiver(listeners));
         worker.addEventListener('error', workerError);
     }
@@ -141,7 +149,8 @@ async function registerAnalysisResultListener(workerScriptPath, listener) {
  * @param {Object.any.resultListener} path - Listener function for processing
  * the result from analysis script
  */
-export async function runStudy(scripts) {
+export async function runStudy(scripts, studyDomainsParam) {
+    studyDomains = studyDomainsParam;
     for (let [scriptName, scriptParameters] of Object.entries(scripts)) {
         await registerAnalysisResultListener(scriptParameters.path, scriptParameters.resultListener);
     }

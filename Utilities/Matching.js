@@ -3,6 +3,11 @@
  * 
  * @module WebScience.Utilities.Matching
  */
+import { destinationDomains } from "../../study/paths/destinationDomains.js"
+import { referrerDomains } from "../../study/paths/referrerDomains.js"
+import { fbPages } from "../../study/paths/pages-fb.js"
+import { ytPages } from "../../study/paths/pages-yt.js"
+//import { twPages } from "../../study/paths/pages-tw.js"  // no twitter handles yet
 
 /** 
  * Class for testing whether a URL matches a set of domains.
@@ -59,45 +64,26 @@ export function createUrlMatchPatternArray(domains, matchSubdomains = true) {
     return matchPatterns;
 }
 
-/**
- * Remove url parameters from a given url.
- * @param {string} url - the url to normalize
- * @returns {string} - url with parameters stripped
- */
-export function old_removeUrlParams(url) {
-    if (url.includes("?")) {
-        return url.substring(0, url.indexOf("?"));
-    }
-    return url;
+export function getStudyPaths() {
+    var studyPaths = {};
+    studyPaths.domains = new UrlMatcher(destinationDomains);
+    studyPaths.referrerOnlyDomains = new UrlMatcher(referrerDomains);
+    studyPaths.paths = {}
+    studyPaths.paths.fb = {
+        regex: /(facebook.com\/pages\/[0-9|a-z|A-Z|-]*\/[0-9]*(\/|$))|(facebook\.com\/[0-9|a-z|A-Z|.]*(\/|$))/,
+        pages: new UrlMatcher(fbPages)
+    };
+    studyPaths.paths.yt = {
+        regex: /(youtube.com\/(user|channel)\/[0-9|a-z|A-Z|_|-]*(\/videos)?)(\/|$)/,
+        pages: new UrlMatcher(ytPages)
+    };
+    /*
+    studyPaths.paths.tw = {
+        regex: /(twitter\.com\/[0-9|a-z|A-Z|_]*(\/|$))/,
+        pages: new UrlMatcher(twPages)
+    };
+    */
+    studyPaths.destinationPaths = destinationDomains.concat(fbPages).concat(ytPages)/*.concat(twPages);*/
+    return studyPaths;
 }
 
-/**
- * Remove a leading http:// or https:// from a url.
- * @param {string} url - the url from which to strip http(s)
- * @returns {string} - the url with http(s):// removed
- */
-export function old_removeHttps(url) {
-    return url.replace("http://", "").replace("https://", "");
-}
-
-/**
- * Remove both url parameters and http(s):// from a url.
- * @param {string} url - the url to strip
- * @returns {string} - the url with parameters and http(s):// removed
- */
-export function old_stripUrl(url) {
-    return removeHttps(removeUrlParams(url));
-}
-
-/**
- * Check whether two urls match based only on host and path.
- * @param {string} url1 - first url
- * @param {string} url2 - second url to match against the first
- * @returns {Boolean} - whether the two urls match on host and path
- */
-export function old_approxMatchUrl(url1, url2) {
-    var url1Object = new URL(url1);
-    var url2Object = new URL(url2);
-    return (url1Object.hostname == url2Object.hostname &&
-            url1Object.pathname == url2Object.pathname);
-}
