@@ -27,7 +27,7 @@ const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
 function openConsentTab() {
     browser.tabs.create({
         active: true,
-        url: "/study/consent.html"
+        url: "/study/notice.html"
     });
 }
 
