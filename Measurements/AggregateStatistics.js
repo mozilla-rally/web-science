@@ -298,7 +298,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
 
                 var index = JSON.stringify({
                     domain: hostname,
-                    classification: val.classification,
+                    pageClassification: val.classification,
                     audience: val.audience,
                     source: val.source,
                     visitReferrer: visitReferrer,
