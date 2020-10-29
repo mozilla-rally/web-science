@@ -2,7 +2,6 @@
  * Present surveys to the user.
  * @module WebScience.Utilities.userSurvey
  */
-
 import * as Storage from "./Storage.js"
 import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
@@ -25,7 +24,7 @@ const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
  */
 const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.png");
 // TODO -- wording, icon image
-const surveyRequestMessage = "survey request here";
+const surveyRequestMessage = "A new survey is available for your Ion study. Click the Princeton logo in the toolbar to continue.";
 const surveyRequestTitle = "New Ion survey available";
 
 const secondsPerDay = 86400;
@@ -135,7 +134,7 @@ export async function runStudy({
         {urls: [
             "https://psrc.princeton.edu/node/291",
             "https://citpsurveys.cs.princeton.edu/thankyou"
-        ]}
+        ]});
 
     /* This is the popup users will see when they click our icon, with buttons
      * to take the survey or decline it.
