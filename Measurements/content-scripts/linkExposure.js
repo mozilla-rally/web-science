@@ -4,7 +4,6 @@
  */
 // Function encapsulation to maintain unique variable scope for each content script
 (
-    //TODO integrate attention?
     async function () {
         /**
          * @constant
@@ -16,7 +15,7 @@
          * @constant
          * visibilityThreshold (number of milliseconds) is minimum number of milliseconds for link exposure
          */
-        const visibilityThreshold = 10000; // TODO : Make this a configurable option which can be set during the setup
+        var visibilityThresholds = [1000, 3000, 5000, 10000]; // match to BG page
         /**
          * @constant
          * minimum link width for link exposure
@@ -29,7 +28,15 @@
         const linkHeightThreshold = 15;
         const elementSizeCache = new Map();
 
-        var numUntrackedUrls = 0;
+        var numUntrackedUrlsByThreshold = {};
+        for (var visThreshold of visibilityThresholds) {
+            numUntrackedUrlsByThreshold[visThreshold] = 0;
+        }
+        var newUntracked = false;
+
+        var hasAttentionNow = true;
+        var lastLostAttention = -1;
+        var lastGainedAttention = -1;
 
         // First check private windows support
         let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.LinkExposure.privateWindows");
@@ -67,20 +74,24 @@
          * @returns {void} Nothing
          */
         function sendExposureEventsToBackground(type, data) {
-            if (data.length > 0 || numUntrackedUrls > 0) {
+            if (data.length > 0 || newUntracked) {
                 let metadata = {
                     location: document.location.href,
                     loadTime: initialLoadTime,
                     visible: isDocVisible(),
                     referrer: document.referrer
                 };
-                let updateUntrackedUrls = numUntrackedUrls;
-                numUntrackedUrls = 0;
+                let updateUntrackedUrls = numUntrackedUrlsByThreshold;
+                newUntracked = false;
                 browser.runtime.sendMessage({
                     type: type,
                     metadata: metadata,
                     exposureEvents: data,
                     numUntrackedUrls: updateUntrackedUrls
+                }).then (() => {
+                    for (var visThreshold of visibilityThresholds) {
+                        numUntrackedUrlsByThreshold[visThreshold] = 0;
+                    }
                 });
             }
         }
@@ -96,7 +107,7 @@
         /**
          * Function to get publisher domain and actual url from a amp link
          * https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/
-         * 
+         *
          * @param {string} url - the {@link url} to be resolved
          * @param {ampResolutionResult} - result of amp resolution
          * @param {string} ampResolutionResult.domain - cache domain
@@ -160,15 +171,9 @@
          * @returns {boolean} true if the element is visible
          */
         function isElementVisible(element) {
-            const rect = element.getBoundingClientRect();
             const st = window.getComputedStyle(element);
             let ret = (
                 element &&
-                element.offsetHeight > 0 &&
-                element.offsetWidth > 0 &&
-                rect &&
-                rect.height > 0 &&
-                rect.width > 0 &&
                 st &&
                 st.display && st.display !== "none" &&
                 st.opacity && st.opacity !== "0"
@@ -178,7 +183,7 @@
 
         /**
          * Convert relative url to abs url
-         * @param {string} url 
+         * @param {string} url
          * @returns {string} absolute url
          */
         function relativeToAbsoluteUrl(url) {
@@ -211,10 +216,10 @@
         /**
          * @typedef {Object} Match
          * @property {string} url - normalized url
-         * @property {Boolean} isMatched - domain matches 
+         * @property {Boolean} isMatched - domain matches
          */
 
-        /** 
+        /**
          * Function takes an element, tests it for matches with link shorteners or domains of interest and
          * returns a Match object @see Match
          * @function
@@ -243,9 +248,15 @@
          */
         function checkLinksInDom() {
             // check the visibility state of document
+            const currentTime = Date.now();
             if (!isDocVisible()) {
                 return;
             }
+            // if we don't have attention it's been more than updateInterval since we lost it
+            if (!hasAttentionNow && (lastLostAttention + updateInterval < currentTime)) {
+                return;
+            }
+            updateTime = hasAttentionNow ? currentTime : lastLostAttention;
             let exposureEvents = [];
             // Get <a> elements and either observe (for new elements) or send them to background script if visible for > threshold
             Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
@@ -262,30 +273,39 @@
                         return;
                     }
                     checkedElements.set(element, {track: true, url: url, isMatched: isMatched,
-                                                  ignored:false, totalTimeSeen: 0, firstSeen: -1,
-                                                  lastSeenStart: -1});
+                        ignored:false, totalTimeSeen: 0, firstSeen: -1,
+                        lastSeenStart: -1, lastThresholdMet: -1,
+                    });
                     observer.observe(element);
-                } else {
-                    let status = checkedElements.get(element);
-                    if (status.ignored) return;
-                    // if we have seen and the element is visible for atleast threshold milliseconds
-                    var totalTimeSeen = status.totalTimeSeen + 
-                        (status.lastSeenStart == -1 ? 0 :
-                        (Date.now() - status.lastSeenStart));
-                    if (status.track && totalTimeSeen >= visibilityThreshold && !status.ignored) {
+                    return;
+                }
+                let status = checkedElements.get(element);
+                if (status.ignored || !(status.track)) return;
+                // if we have seen and the element is visible for atleast threshold milliseconds
+                var totalTimeSeen = status.totalTimeSeen +
+                    (status.lastSeenStart == -1 ? 0 :
+                        (updateTime - status.lastSeenStart));
+                for (var visThreshold of visibilityThresholds) {
+                    if (status.lastThresholdMet >= visThreshold) continue;
+                    if (totalTimeSeen >= visThreshold) {
                         // send <a> element this to background script
                         if (status.isMatched) {
                             exposureEvents.push({
                                 originalUrl: status.url,
                                 size: getElementSize(element),
                                 firstSeen: status.firstSeen,
-                                duration: totalTimeSeen
+                                visThreshold: visThreshold,
                             });
                         } else {
-                            numUntrackedUrls += 1;
+                            numUntrackedUrlsByThreshold[visThreshold] += 1;
+                            newUntracked = true;
                         }
-                        observer.unobserve(element);
-                        status.ignored = true;
+                        if (visThreshold == visibilityThresholds[visibilityThresholds.length - 1]) {
+                            observer.unobserve(element);
+                            status.ignored = true;
+                        } else {
+                            status.lastThresholdMet = visThreshold;
+                        }
                     }
                 }
             });
@@ -294,19 +314,21 @@
 
         /** callback for IntersectionObserver */
         function handleIntersection(entries, observer) {
+            const currentTime = Date.now();
             entries.forEach(entry => {
                 const {
                     target
                 } = entry;
                 let status = checkedElements.get(target);
-                if (entry.intersectionRatio >= 0.70 && status.track && isElementVisible(target)) {
+                if (entry.intersectionRatio >= 0.70 && status.track &&
+                    isElementVisible(target) && hasAttentionNow) {
                     if (status.lastSeenStart == -1) {
-                        status.lastSeenStart = Date.now();
+                        status.lastSeenStart = currentTime;
+                        if (status.firstSeen == -1) status.firstSeen = status.lastSeenStart;
                     }
-                    if (status.firstSeen == -1) status.firstSeen = status.lastSeenStart;
                 } else if (entry.intersectionRatio < 0.70 && status.track) {
                     if (status.lastSeenStart == -1) return; //we already weren't watching
-                    status.totalTimeSeen += (Date.now() - status.lastSeenStart);
+                    status.totalTimeSeen += (currentTime - status.lastSeenStart);
                     status.lastSeenStart = -1;
                 }
 
@@ -332,12 +354,38 @@
             numUpdates++;
         }
 
+        browser.runtime.onMessage.addListener((request) => {
+            if ("attentionChange" in request) {
+                const timeStamp = request.timeStamp;
+                if (request.attentionChange == "gain") {
+                    hasAttentionNow = true;
+                    lastGainedAttention = timeStamp;
+
+                    Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
+                        if (!checkedElements.has(element)) {
+                            return;
+                        } else {
+                            var status = checkedElements.get(element);
+                            if (status.ignored || !(status.track)) {
+                                return;
+                            }
+                            if (status.lastSeenStart != -1) {
+                                status.totalTimeSeen += lastLostAttention - status.lastSeenStart;
+                                status.lastSeenStart = timeStamp;
+                            }
+                        }
+                    });
+                } else if (request.attentionChange == "lose") {
+                    hasAttentionNow = false;
+                    lastLostAttention = timeStamp;
+                }
+            }
+        });
+    function getDomain(url) {
+        var urlObj = new URL(url);
+        return urlObj.hostname;
+    }
+
     } // end of anon function
-
 )(); // encapsulate and invoke
-
-function getDomain(url) {
-    var urlObj = new URL(url);
-    return urlObj.hostname;
-}
 

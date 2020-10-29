@@ -109,7 +109,7 @@ export async function runStudy({
     var currentTime = Date.now();
     surveyUrlBase = surveyUrl;
 
-    storage = await(new Storage.KeyValueStorage("WebScience.Measurements.UserSurvey")).initialize();
+    storage = await(new Storage.KeyValueStorage("WebScience.Utilities.UserSurvey")).initialize();
     /* Check when we last asked the user to do the survey. If it's null,
      * we've never asked, which means the extension just got installed.
      * Open a tab with the survey, and save this time as the most recent
@@ -133,7 +133,7 @@ export async function runStudy({
      */
     browser.webRequest.onBeforeRequest.addListener(
         handleSurveyCompleted,
-        {urls: [ "https://citpsurveys.cs.princeton.edu/thankyou"]}
+        {urls: [ "https://psrc.princeton.edu/node/291"]}
     );
     /* This is the popup users will see when they click our icon, with buttons
      * to take the survey or decline it.

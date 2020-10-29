@@ -3,6 +3,8 @@
  * @module WebScience.Measurements.AggregateStatistics
  */
 
+var studyDomains = null;
+
 /**
  * Event handler for messages from the main thread
  * On receiving data, the function computes aggregate statistics and
@@ -14,7 +16,8 @@
 onmessage = async event => {
     let data = event.data;
     let stats = {};
-    Object.entries(data).forEach(entry => {
+    studyDomains = data.studyDomains;
+    Object.entries(data.fromStorage).forEach(entry => {
         let key = entry[0];
         let storageObj = entry[1];
         if (key in functionMapping) {
@@ -99,20 +102,6 @@ const functionMapping = {
 }
 
 /**
- * Given an object containing aggregate statistics, the function unwraps the
- * proxy object, copies the values and revokes proxy.
- * @param {Object} statsObj statistics object
- */
-function gatherStats(statsObj) {
-    let overallStats = {};
-    Object.entries(statsObj).forEach(entry => {
-        overallStats[entry[0]] = copyDefaultValueObject(entry[1].proxy);
-        entry[1].revoke();
-    });
-    return overallStats;
-}
-
-/**
  * Function for computing page navigation statistics
  * @param {Object} pageNavigationStorage page navigation storage object
  */
@@ -127,7 +116,7 @@ function pageNavigationStats(pageNavigationStorage) {
         (entry, stats) => {
             let navObj = entry[1];
             if (navObj.type == "pageVisit") {
-                let domain = getDomain(navObj.url);
+                let domain = getTrackedPathDest(navObj.url);
                 var domainIndex = JSON.stringify({domain: domain});
                 var domainObj = stats.trackedVisitsByDomain[domainIndex];
                 if (!domainObj) {
@@ -142,7 +131,7 @@ function pageNavigationStats(pageNavigationStorage) {
                 var timeOfDay = Math.floor(hourOfDay / 4) * 4;
 
                 var index = JSON.stringify({
-                    referrerDomain: getDomain(navObj.referrer),
+                    referrerDomain: getTrackedPathSource(navObj.referrer),
                     dayOfWeek: dayOfWeek,
                     timeOfDay: timeOfDay,
                     pageCategory: navObj.classification
@@ -219,8 +208,8 @@ function linkExposureStats(linkExposureStorage) {
                 var hourOfDay = date.getHours();
                 var timeOfDay = Math.floor(hourOfDay / 4) * 4;
                 var index = JSON.stringify({
-                    sourceDomain: getDomain(exposureObj.metadata.location),
-                    destinationDomain: getDomain(exposureObj.url),
+                    sourceDomain: getTrackedPathSource(exposureObj.metadata.location),
+                    destinationDomain: getTrackedPathDest(exposureObj.url),
                     dayOfWeek: (new Date(exposureObj.firstSeen)).getDay(),
                     timeOfDay: timeOfDay,
                     visThreshold: exposureObj.visThreshold
@@ -263,56 +252,6 @@ function linkExposureStats(linkExposureStorage) {
 }
 
 
-/**
- * Function for computing social media account exposure statistics
- * @param {Object} socialMediaAccountExposureStorage social media account exposure storage
- */
-function socialMediaAccountExposureStats(socialMediaAccountExposureStorage) {
-    let statsObj = new StorageStatistics(
-        () => {
-            let stats = {};
-            stats.account_posts = objectWithDefaultValue(function () {
-                return {
-                    platform: "",
-                    count: 0
-                }
-            });
-            return stats;
-        },
-        (entry, stats) => {
-            let val = entry[1];
-            val.posts.forEach(post => {
-                stats.account_posts.proxy[post.account] = {
-                    platform: val.platform,
-                    count: stats.account_posts.proxy[post.account].count + 1
-                }
-            });
-        },
-        gatherStats
-    );
-    return statsObj.computeStats(socialMediaAccountExposureStorage);
-}
-
-/**
- * Function for computing social media news exposure statistics
- * @param {Object} socialMediaNewsExposureStorage social media news exposure storage
- */
-function socialMediaNewsExposureStats(socialMediaNewsExposureStorage) {
-    let statsObj = new StorageStatistics(
-        () => {
-            let stats = {};
-            stats.source_counts = objectWithDefaultValue();
-            return stats;
-        },
-        (entry, stats) => {
-            let val = entry[1];
-            stats.source_counts.proxy[val.type] += 1;
-        },
-        gatherStats
-    );
-    return statsObj.computeStats(socialMediaNewsExposureStorage);
-}
-
 function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
     var fbIndex = JSON.stringify({platform: "facebook"});
     var twIndex = JSON.stringify({platform: "twitter"});
@@ -350,7 +289,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                 var prevVisitReferrers = val.prevVisitReferrers;
                 var visitReferrer = null;
                 if (prevVisitReferrers && prevVisitReferrers.length > 0) {
-                    visitReferrer = getDomain(prevVisitReferrers[0]);
+                    visitReferrer = getTrackedPathSource(prevVisitReferrers[0]);
                 }
                 var date = new Date(val.shareTime);
                 var dayOfWeek = date.getDay();
@@ -416,7 +355,6 @@ function getHostName(url) {
     return null;
 }
 
-
 /**
  * Gets domain name from a url
  *
@@ -428,42 +366,31 @@ function getDomain(url) {
         var urlObj = new URL(url);
     } catch { return ""; }
     return urlObj.hostname;
+}
+
+function getTrackedPathDest(url) {
+    // if this is a dest, it must have passed a destination check already
+    var fbResult = studyDomains.paths.fb.regex.exec(url);
+    if (fbResult) { return fbResult[0]; }
     /*
-    var hostName = getHostName(url);
-    var domain = hostName;
-    if (hostName != null) {
-        var parts = hostName.split('.').reverse();
-        if (parts != null && parts.length > 1) {
-            domain = parts[1] + '.' + parts[0];
-        }
-    }
-    return domain;
+    var twResult = studyDomains.paths.tw.regex.exec(url);
+    if (twResult) { return twResult[0]; }
     */
+    var ytResult = studyDomains.paths.yt.regex.exec(url);
+    if (ytResult) { return ytResult[0]; }
+    return getDomain(url);
 }
 
-
-/**
- * Proxy wraps an empty object that intercepts the get function. When a get
- * is attempted with a missing property, the proxy returns the value of empty
- * function instead of undefined value.
- * @param {function} defaultValue - Function that returns a default value
- */
-function objectWithDefaultValue(defaultValue = () => {
-    return 0
-}) {
-    return Proxy.revocable({}, {
-        get: (obj, property) => (property in obj) ? obj[property] : defaultValue()
-    })
-}
-
-/**
- * Copies properties from wrapped object into a barebones object
- * @param {Proxy} defaultValueObject - wrapped object
- */
-function copyDefaultValueObject(defaultValueObject) {
-    let ret = {};
-    Object.entries(defaultValueObject).forEach(entry => {
-        ret[entry[0]] = entry[1];
-    })
-    return ret;
+function getTrackedPathSource(url) {
+    var fbResult = studyDomains.paths.fb.regex.exec(url);
+    if (fbResult && studyDomains.paths.fb.pages.regExp.exec(url)) { return fbResult[0]; }
+    /*
+    var twResult = studyDomains.paths.tw.regex.exec(url);
+    if (twResult && studyDomains.paths.tw.pages.regExp.exec(url)) { return twResult[0]; }
+    */
+    var ytResult = studyDomains.paths.yt.regex.exec(url);
+    if (ytResult && studyDomains.paths.yt.pages.regExp.exec(url)) { return ytResult[0]; }
+    if (studyDomains.referrerOnlyDomains.regExp.exec(url)) { return getDomain(url); }
+    if (studyDomains.domains.regExp.exec(url)) { return getDomain(url); }
+    return "other";
 }
