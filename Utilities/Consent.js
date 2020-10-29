@@ -74,6 +74,8 @@ export async function runStudy(callbackAfterConsent) {
     } else if (hasConsent) {
         callback();
         return;
+    } else {
+        Scheduling.registerIdleDailyListener(dayListener);
     }
 
     /* If the user tells us to never ask them again, we catch it with this message */
