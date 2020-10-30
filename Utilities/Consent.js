@@ -32,8 +32,11 @@ function openConsentTab() {
 }
 
 async function gainConsent() {
-    await storage.set("hasConsent", true);
-    callback()
+    var hasConsent = await storage.get("hasConsent");
+    if (!hasConsent) {
+        await storage.set("hasConsent", true);
+        callback()
+    }
 }
 
 function consentRefused() {
@@ -64,6 +67,9 @@ export async function runStudy(callbackAfterConsent) {
      * Open a tab with the survey, and save this time as the most recent
      * request for participation.
      */
+    Messaging.registerListener("WebScience.Utilities.Consent.agree", gainConsent);
+    Messaging.registerListener("WebScience.Utilities.Consent.disagree", consentRefused);
+    Messaging.registerListener("WebScience.Utilities.Consent.openNotice", openConsentTab);
     var hasConsent = await storage.get("hasConsent");
     if (hasConsent == null) {
         await storage.set("hasConsent", false);
@@ -78,7 +84,4 @@ export async function runStudy(callbackAfterConsent) {
         Scheduling.registerIdleDailyListener(dayListener);
     }
 
-    /* If the user tells us to never ask them again, we catch it with this message */
-    Messaging.registerListener("WebScience.Utilities.Consent.agree", gainConsent);
-    Messaging.registerListener("WebScience.Utilities.Consent.disagree", consentRefused);
 }

@@ -114,6 +114,20 @@ export async function runStudy({
      * request for participation.
      */
     var lastSurveyRequest = await storage.get("lastSurveyRequest");
+    var surveyCompleted = await storage.get("surveyCompleted");
+    var noRequestSurvey = await storage.get("noRequestSurvey");
+    if (surveyCompleted || noRequestSurvey) {
+        browser.browserAction.setPopup({
+            popup: browser.runtime.getURL("study/completedSurvey.html")
+        });
+        return;
+    } else {
+        browser.browserAction.setPopup({
+            popup: browser.runtime.getURL("study/survey.html")
+        });
+    }
+
+    // null means we've never asked before, so the extension was just enabled
     if (lastSurveyRequest == null) {
         lastSurveyRequest = currentTime;
         await storage.set("lastSurveyRequest", lastSurveyRequest);
@@ -122,8 +136,8 @@ export async function runStudy({
         await storage.set("surveyId", generateUUID(Date.now()));
         openSurveyTab();
     }
-    /* If set a time to ask the user in three days (we won't actually ask
-     * if they end up compelting the survey before then).
+    /* Set a time to ask the user in three days (we won't actually ask
+     * if they end up completing the survey before then).
      */
     scheduleSurveyRequest(lastSurveyRequest);
     /* The user gets directed to this page at the end of the survey, so
@@ -134,14 +148,8 @@ export async function runStudy({
         {urls: [
             "https://psrc.princeton.edu/node/291",
             "https://citpsurveys.cs.princeton.edu/thankyou"
-        ]});
-
-    /* This is the popup users will see when they click our icon, with buttons
-     * to take the survey or decline it.
-     */
-    browser.browserAction.setPopup({
-        popup: browser.runtime.getURL("study/survey.html")
-    });
+        ]}
+    );
 
     /* If the user tells us to never ask them again, we catch it with this message */
     Messaging.registerListener("WebScience.Utilities.UserSurvey.cancelSurveyRequest", cancelSurveyRequest);
