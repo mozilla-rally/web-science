@@ -176,8 +176,7 @@ function pageNavigationStats(pageNavigationStorage) {
             var domains = r.trackedVisitsByDomain;
             var domainsArray = Object.entries(domains).map((pair) => {
                 var entry = JSON.parse(pair[0]);
-                entry.numUntrackedVisits = pair[1].numUntrackedVisits;
-                entry.trackedVisitsByReferrer = pair[1].visitsByReferrer;
+                entry.visitsByReferrer = pair[1].visitsByReferrer;
                 return entry;
             });
             r.trackedVisitsByDomain = domainsArray;
@@ -302,17 +301,16 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                     audience: val.audience,
                     source: val.source,
                     visitReferrer: visitReferrer,
+                    prevExposed: val.prevExposed ? 1 : 0,
                     dayOfWeek: dayOfWeek,
                     timeOfDay: timeOfDay
                 });
                 var specificObj = platformObj.trackedShares[index];
                 if (specificObj) {
                     specificObj.trackedSharesCount += 1;
-                    specificObj.prevExposedCount += val.prevExposed ? 1 : 0;
                 } else {
                     specificObj = {};
                     specificObj.trackedSharesCount = 1;
-                    specificObj.prevExposedCount = val.prevExposed ? 1 : 0;
                     platformObj.trackedShares[index] = specificObj;
                 }
             }
@@ -322,7 +320,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                 var trackedShares = r.linkSharesByPlatform[platform].trackedShares;
                 var trackedSharesArray = Object.entries(trackedShares).map((pair) => {
                     var entry = JSON.parse(pair[0]);
-                    entry.numShares = pair[1];
+                    entry.numShares = pair[1].trackedSharesCount;
                     return entry;
                 });
                 r.linkSharesByPlatform[platform].trackedShares = trackedSharesArray;
@@ -371,13 +369,13 @@ function getDomain(url) {
 function getTrackedPathDest(url) {
     // if this is a dest, it must have passed a destination check already
     var fbResult = studyDomains.paths.fb.regex.exec(url);
-    if (fbResult) { return fbResult[0]; }
+    if (fbResult && studyDomains.paths.fb.pages.regExp.exec(url)) { return fbResult[0]; }
     /*
     var twResult = studyDomains.paths.tw.regex.exec(url);
-    if (twResult) { return twResult[0]; }
+    if (twResult && studyDomains.paths.tw.pages.regExp.exec(url)) { return twResult[0]; }
     */
     var ytResult = studyDomains.paths.yt.regex.exec(url);
-    if (ytResult) { return ytResult[0]; }
+    if (ytResult && studyDomains.paths.yt.pages.regExp.exec(url)) { return ytResult[0]; }
     return getDomain(url);
 }
 

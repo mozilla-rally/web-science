@@ -334,12 +334,12 @@ async function redditLinks(details) {
  * `url`, and `event` as properties, as well as the Navigation and browser
  * history data for the given url.
  */
-async function createShareRecord({shareTime = null,
-                                  platform = null,
-                                  url = null,
-                                  eventType = null,
-                                  audience = null,
-                                  source = null}) {
+async function createShareRecord({shareTime = "",
+                                  platform = "",
+                                  url = "",
+                                  eventType = "",
+                                  audience = "",
+                                  source = ""}) {
     var prevVisitReferrers = await PageNavigation.logShare(url);
     var prevExposed = await LinkExposure.logShare(url);
     var historyVisits = await browser.history.search({text: url});
