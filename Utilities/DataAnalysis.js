@@ -50,7 +50,8 @@ async function initialize() {
         return;
     initialized = true;
     debugLog("registering idle state listener for data analysis");
-    Scheduling.registerIdleWeeklyListener(idleStateListener);
+    //Idle.registerIdleStateListener(idleStateListener, 1); // for testing
+    Scheduling.registerIdleDailyListener(idleStateListener);
 }
 
 /**
