@@ -21,7 +21,7 @@ export class UrlMatcher {
      * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
      */
     constructor(domains, matchSubdomains = true) {
-        this.regExp = new RegExp(createUrlRegexString(domains, matchSubdomains));
+        this.regExp = new RegExp(createUrlRegexString(domains, matchSubdomains), "i");
     }
 
     /**
@@ -44,7 +44,7 @@ export function createUrlRegexString(domains, matchSubdomains = true) {
     var urlMatchRE = "^(?:http|https)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
     for (const domain of domains)
         urlMatchRE = urlMatchRE + domain.replace(/\./g, "\\.") + "|";
-    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|/.*)";
+    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|(/|\\?).*)";  ")(?:$|/.*)";
     return urlMatchRE;
 }
 
@@ -70,11 +70,11 @@ export function getStudyPaths() {
     studyPaths.referrerOnlyDomains = new UrlMatcher(referrerDomains);
     studyPaths.paths = {}
     studyPaths.paths.fb = {
-        regex: /(facebook.com\/pages\/[0-9|a-z|A-Z|-]*\/[0-9]*(\/|$))|(facebook\.com\/[0-9|a-z|A-Z|.]*(\/|$))/,
+        regex: /(facebook.com\/pages\/[0-9|a-z|A-Z|-]*\/[0-9]*(\/|$))|(facebook\.com\/[0-9|a-z|A-Z|.]*(\/|$))/i,
         pages: new UrlMatcher(fbPages)
     };
     studyPaths.paths.yt = {
-        regex: /(youtube.com\/(user|channel)\/[0-9|a-z|A-Z|_|-]*(\/videos)?)(\/|$)/,
+        regex: /(youtube.com\/(user|channel)\/[0-9|a-z|A-Z|_|-]*(\/videos)?)(\/|$)|(youtube\.com\/[0-9|A-Z|a-z]*)(\/|$)|(youtube\.com\/profile\?user=[0-9|A-Z|a-z]*)(\/|$)/i,
         pages: new UrlMatcher(ytPages)
     };
     /*
