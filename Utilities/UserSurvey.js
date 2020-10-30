@@ -150,7 +150,6 @@ export async function runStudy({
     browser.webRequest.onBeforeRequest.addListener(
         handleSurveyCompleted,
         {urls: [
-            "https://psrc.princeton.edu/node/291",
             "https://citpsurveys.cs.princeton.edu/thankyou"
         ]}
     );
