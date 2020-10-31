@@ -55,11 +55,11 @@ function generateUUID(seed) {
 }
 
 async function openSurveyTab(useSameTab = false) {
+    const surveyId = await storage.get("surveyId");
     if (useSameTab) {
         browser.tabs.update({url: surveyUrlBase + "?surveyId=" + surveyId });
         return;
     }
-    var surveyId = await storage.get("surveyId");
     var creating = browser.tabs.create({
         active: true,
         url: surveyUrlBase + "?surveyId=" + surveyId
