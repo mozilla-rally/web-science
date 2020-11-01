@@ -156,7 +156,7 @@ export async function runStudy({
 
     /* If the user tells us to never ask them again, we catch it with this message */
     Messaging.registerListener("WebScience.Utilities.UserSurvey.cancelSurveyRequest", cancelSurveyRequest);
-    Messaging.registerListener("WebScience.Utilities.UserSurvey.openSurveyTab", openSurveyTab);
+    Messaging.registerListener("WebScience.Utilities.UserSurvey.openSurveyTab",  () => { openSurveyTab(false); });
 }
 
 export async function getSurveyId() {
