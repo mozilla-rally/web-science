@@ -810,6 +810,7 @@ async function extractFacebookReshare({requestDetails = null, verified = null, e
         details.audience = audience;
         details.source = source;
         details.eventType = "reshare";
+        details.eventTime = eventTime;
         return details;
     }
 }
