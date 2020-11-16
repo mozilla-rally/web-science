@@ -57,10 +57,18 @@ async function initialize() {
  */
 async function registerContentScript(matchPatterns, workerId) {
     // setup content script injection
-    var injectWorkerId = ['/* Inject worker id: */ let workerId =  "' + workerId + '";',
-    '// code ----->'].join('\n');
+    //var injectWorkerId = ['/* Inject worker id: */ let workerId =  "' + workerId + '";',
+    //'// code ----->'].join('\n');
+    var injectWorkerId = [
+        "try {",
+        `workerIds.push("${workerId}");`,
+        "} catch {",
+        `workerIds = ["${workerId}"];`,
+        "}"
+    ].join('\n');
 
-    await browser.contentScripts.register({
+    //await browser.contentScripts.register({
+     browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
             code: injectWorkerId
@@ -73,7 +81,7 @@ async function registerContentScript(matchPatterns, workerId) {
         }
         ],
         runAt: "document_idle"
-    });
+    }).then(null, (err) => {console.log("ERROR", err);});
 }
 
 /**
@@ -103,10 +111,7 @@ function listenForContentScriptMessages(workerId, resultListener) {
             let data = result.data;
             data.url = Storage.normalizeUrl(data.url);
             let classificationStorageObj = {...data, ...pageContent.context};
-            //storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
-            debugLog("storing " + JSON.stringify(classificationStorageObj));
             storage.set(classificationStorageObj.url, classificationStorageObj);
-            //await nextPageClassificationIdCounter.increment();
             resultListener({...data, ...pageContent.context});
         }
         // fetch worker associated with this
@@ -183,7 +188,6 @@ export async function registerPageClassifier(matchPatterns, classifierFilePath, 
     await registerContentScript(matchPatterns, workerId);
     // setup comunication with worker via message passing
     listenForContentScriptMessages(workerId, listener);
-
 }
 
 /**

@@ -13,7 +13,7 @@ import * as LinkExposure from "./LinkExposure.js"
 import * as PageDepth from "./PageDepth.js"
 
 // import classifier weights
-// import covidClassifierData from "./weights/covid-linearsvc_data.js";
+import covidClassifierData from "./weights/covid-linearsvc_data.js";
 import polClassifierData from "./weights/pol-linearsvc_data.js";
 
 
@@ -36,18 +36,30 @@ var untrackedPageVisits = null;
  */
 async function classificationResults(result) {
     if (currentTabInfo[result.tabID] && currentTabInfo[result.tabID].url == result.url) {
-        currentTabInfo[result.tabID].classification = result.predicted_class;
+        currentTabInfo[result.tabID].classification[result.name] = result.predicted_class;
+    } else {
+        if (!urlMatcher.testUrl(result.url)) { return; }
+        await storage.startsWith(result.url).then(async (prevVisits) => {
+            for (let key in prevVisits) {
+                if (prevVisits[key].tabId == result.tabId) {
+                    prevVisits[key].classification[result.name] = result.predicted_class;
+                    await storage.set(key, prevVisits[key]);
+                    return;
+                }
+            }
+        });
     }
 }
 
 async function depthResults(result) {
+    if (result.maxRelativeScrollDepth == null) return;
     if (currentTabInfo[result.tabId] && currentTabInfo[result.tabId].url == result.url) {
         currentTabInfo[result.tabId].scrollDepth = result.maxRelativeScrollDepth;
     }
     else {
         if (!urlMatcher.testUrl(result.url)) { return; }
         await storage.startsWith(result.url).then((prevVisits) => {
-            for (var key in prevVisits) {
+            for (let key in prevVisits) {
                 if (prevVisits[key].tabId == result.tabId) {
                     prevVisits[key].scrollDepth = result.maxRelativeScrollDepth;
                     storage.set(key, prevVisits[key]);
@@ -80,8 +92,19 @@ export async function runStudy({
 
     untrackedPageVisits = await (new Storage.Counter("WebScience.Measurements.PageNavigation.untrackedPageVisits")).initialize();
 
-    await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/PolClassifier.js", polClassifierData,"pol-page-classifier", classificationResults);
-    //await PageClassification.registerPageClassifier(["*://*/*"], "/WebScience/Measurements/CovidClassifier.js", covidClassifierData,"covid-page-classifier", classificationResults);
+    await PageClassification.registerPageClassifier(
+        ["*://*/*"], 
+        "/WebScience/Measurements/PolClassifier.js",
+        polClassifierData,
+        "pol-page-classifier",
+        classificationResults);
+
+    await PageClassification.registerPageClassifier(
+        ["*://*/*"],
+        "/WebScience/Measurements/CovidClassifier.js",
+        covidClassifierData,
+        "covid-page-classifier",
+        classificationResults);
 
     PageDepth.registerListener(depthResults);
 
@@ -126,7 +149,7 @@ export async function runStudy({
             attentionSpanCount: 0,
             attentionSpanStarts: [ ],
             attentionSpanEnds: [ ],
-            classification: -1,
+            classification: { },
             scrollDepth: -1,
             prevExposed: false, // will check after storing this
             laterShared: false

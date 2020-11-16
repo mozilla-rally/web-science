@@ -134,7 +134,7 @@ function pageNavigationStats(pageNavigationStorage) {
                     referrerDomain: getTrackedPathSource(navObj.referrer),
                     dayOfWeek: dayOfWeek,
                     timeOfDay: timeOfDay,
-                    pageCategory: navObj.classification
+                    classifierResults: navObj.classification
                 });
 
                 var specificObj = domainObj.visitsByReferrer[index];
@@ -297,7 +297,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
 
                 var index = JSON.stringify({
                     domain: hostname,
-                    pageClassification: val.classification,
+                    classifierResults: val.classifierResults,
                     audience: val.audience,
                     source: val.source,
                     visitReferrer: visitReferrer,
@@ -382,10 +382,8 @@ function getTrackedPathDest(url) {
 function getTrackedPathSource(url) {
     var fbResult = studyDomains.paths.fb.regex.exec(url);
     if (fbResult && studyDomains.paths.fb.pages.regExp.exec(url)) { return fbResult[0]; }
-    /*
     var twResult = studyDomains.paths.tw.regex.exec(url);
     if (twResult && studyDomains.paths.tw.pages.regExp.exec(url)) { return twResult[0]; }
-    */
     var ytResult = studyDomains.paths.yt.regex.exec(url);
     if (ytResult && studyDomains.paths.yt.pages.regExp.exec(url)) { return ytResult[0]; }
     if (studyDomains.referrerOnlyDomains.regExp.exec(url)) { return getDomain(url); }

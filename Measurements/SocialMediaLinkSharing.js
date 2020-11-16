@@ -189,15 +189,17 @@ async function twitterLinks(details) {
     } else if (details.eventType == "favorite") {
         var favoritedTweets = await SocialMediaActivity.getTweetContent(details.favoritedId);
         var favoritedTweet = favoritedTweets[details.favoritedId];
-        if ("retweeted_status_id_str" in favoritedTweet) {
-            if (favoritedTweets.hasOwnProperty(favoritedTweet["retweeted_status_id_str"])) {
-                favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
-            } else {
-                favoritedTweets = await SocialMediaActivity.getTweetContent(
-                    favoritedTweet["retweeted_status_id_str"]);
-                favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
+        try {
+            if ("retweeted_status_id_str" in favoritedTweet) {
+                if (favoritedTweets.hasOwnProperty(favoritedTweet["retweeted_status_id_str"])) {
+                    favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
+                } else {
+                    favoritedTweets = await SocialMediaActivity.getTweetContent(
+                        favoritedTweet["retweeted_status_id_str"]);
+                    favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
+                }
             }
-        }
+        } catch {}
         try {
             await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/),
                 urlsToSave, urlsNotToSave);
@@ -343,9 +345,13 @@ async function createShareRecord({shareTime = "",
     var prevVisitReferrers = await PageNavigation.logShare(url);
     var prevExposed = await LinkExposure.logShare(url);
     var historyVisits = await browser.history.search({text: url});
-    var classification = await getClassificationResult(url, "pol-page-classifier");
+    const polClassification = await getClassificationResult(url, "pol-page-classifier");
+    const covClassification = await getClassificationResult(url, "covid-page-classifier");
+    const classifierResults = {'pol-page-classifier': polClassification,
+                               'cov-page-classifier': covClassification};
     var type = "linkShare";
-    return { type, shareTime, platform, url, eventType, classification, audience, source, prevVisitReferrers, historyVisits, prevExposed};
+    return { type, shareTime, platform, url, eventType, classifierResults,
+             audience, source, prevVisitReferrers, historyVisits, prevExposed};
 }
 
 function getClassificationResult(urlToSave, workerId) {

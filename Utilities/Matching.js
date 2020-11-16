@@ -7,7 +7,7 @@ import { destinationDomains } from "../../study/paths/destinationDomains.js"
 import { referrerDomains } from "../../study/paths/referrerDomains.js"
 import { fbPages } from "../../study/paths/pages-fb.js"
 import { ytPages } from "../../study/paths/pages-yt.js"
-//import { twPages } from "../../study/paths/pages-tw.js"  // no twitter handles yet
+import { twPages } from "../../study/paths/pages-tw.js"
 
 /** 
  * Class for testing whether a URL matches a set of domains.
@@ -77,13 +77,11 @@ export function getStudyPaths() {
         regex: /(youtube.com\/(user|channel)\/[0-9|a-z|A-Z|_|-]*(\/videos)?)(\/|$)|(youtube\.com\/[0-9|A-Z|a-z]*)(\/|$)|(youtube\.com\/profile\?user=[0-9|A-Z|a-z]*)(\/|$)/i,
         pages: new UrlMatcher(ytPages)
     };
-    /*
     studyPaths.paths.tw = {
         regex: /(twitter\.com\/[0-9|a-z|A-Z|_]*(\/|$))/,
         pages: new UrlMatcher(twPages)
     };
-    */
-    studyPaths.destinationPaths = destinationDomains.concat(fbPages).concat(ytPages)/*.concat(twPages);*/
+    studyPaths.destinationPaths = destinationDomains.concat(fbPages).concat(ytPages).concat(twPages);
     return studyPaths;
 }
 
