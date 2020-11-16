@@ -3,6 +3,9 @@
  * @module WebScience.Measurements.content-scripts.page-content
  */
 // Function encapsulation to maintain unique variable scope for each content script
+
+// workerIds is defined by injected code
+
 (
   async function () {
     /**
@@ -28,6 +31,8 @@
     let documentClone = document.cloneNode(true);
     let pageContent = new Readability(documentClone).parse();
 
-    sendPageContentToBackground(workerId, pageContent);
+    for (let workerId of workerIds) {
+        sendPageContentToBackground(workerId, pageContent);
+    }
   }
 )();
