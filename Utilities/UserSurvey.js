@@ -68,11 +68,11 @@ async function openSurveyTab(useSameTab = false) {
 
 async function requestSurvey(alarm) {
     if (alarm.name == "surveyAlarm") {
-        var surveyCompleted = await storage.get("surveyCompleted");
-        var noRequestSurvey = await storage.get("noRequestSurvey");
+        const surveyCompleted = await storage.get("surveyCompleted");
+        const noRequestSurvey = await storage.get("noRequestSurvey");
         if (surveyCompleted) return;
         if (noRequestSurvey) return;
-        var currentTime = Date.now();
+        const currentTime = Date.now();
         await storage.set("lastSurveyRequest", currentTime);
         browser.notifications.create({
             type: "image",
@@ -93,6 +93,13 @@ function scheduleSurveyRequest(lastSurveyRequest) {
 
 function handleSurveyCompleted() {
     storage.set("surveyCompleted", true);
+    setPopupSurveyCompleted();
+}
+
+function setPopupSurveyCompleted() {
+    browser.browserAction.setPopup({
+        popup: browser.runtime.getURL("study/completedSurvey.html")
+    });
 }
 
 function cancelSurveyRequest() {
@@ -121,9 +128,7 @@ export async function runStudy({
     var surveyCompleted = await storage.get("surveyCompleted");
     var noRequestSurvey = await storage.get("noRequestSurvey");
     if (surveyCompleted || noRequestSurvey) {
-        browser.browserAction.setPopup({
-            popup: browser.runtime.getURL("study/completedSurvey.html")
-        });
+        setPopupSurveyCompleted();
         return;
     } else {
         browser.browserAction.setPopup({
@@ -150,7 +155,7 @@ export async function runStudy({
     browser.webRequest.onBeforeRequest.addListener(
         handleSurveyCompleted,
         {urls: [
-            "https://citpsurveys.cs.princeton.edu/thankyou"
+            "https://citpsurveys.cs.princeton.edu/thankyou*" 
         ]}
     );
 
