@@ -36,6 +36,8 @@ var storage = null;
  */
 const workers = new Map();
 
+var firstRegistered = null;
+
 /**
  * Setup storage and counter objects.
  * 
@@ -57,18 +59,22 @@ async function initialize() {
  */
 async function registerContentScript(matchPatterns, workerId) {
     // setup content script injection
-    //var injectWorkerId = ['/* Inject worker id: */ let workerId =  "' + workerId + '";',
+    //var injectWorkerId = ['/* Inject worker id: */ let workerId =  "' + workerId +'";',
     //'// code ----->'].join('\n');
-    var injectWorkerId = [
-        "try {",
-        `workerIds.push("${workerId}");`,
-        "} catch {",
-        `workerIds = ["${workerId}"];`,
-        "}"
-    ].join('\n');
+    let workerString = "";
+    for (let key of workers.keys()) {
+        workerString = workerString.concat('"');
+        workerString = workerString.concat(key);
+        workerString = workerString.concat('",');
+    }
 
-    //await browser.contentScripts.register({
-     browser.contentScripts.register({
+    var injectWorkerId = `workerIds = [${workerString}];`;
+
+    if (firstRegistered) {
+        firstRegistered.unregister();
+    }
+
+    firstRegistered = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
             code: injectWorkerId
@@ -81,7 +87,7 @@ async function registerContentScript(matchPatterns, workerId) {
         }
         ],
         runAt: "document_idle"
-    }).then(null, (err) => {console.log("ERROR", err);});
+    });
 }
 
 /**
@@ -177,7 +183,6 @@ export async function lookupClassificationResult(url, workerId) {
  */
 export async function registerPageClassifier(matchPatterns, classifierFilePath, initArgs, workerId, listener) {
     initialize();
-    // TODO: check that id is not in use
     if(workerId in workers) {
         debugLog("worker exists with same name");
         return;

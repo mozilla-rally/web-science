@@ -29,6 +29,8 @@ var currentTabInfo = null;
 var urlMatcher = null;
 var initialized = false;
 
+const recentVisitThreshold = 3000;
+
 var untrackedPageVisits = null;
 /**
  * Callback function for classification result
@@ -37,18 +39,19 @@ var untrackedPageVisits = null;
 async function classificationResults(result) {
     if (currentTabInfo[result.tabID] && currentTabInfo[result.tabID].url == result.url) {
         currentTabInfo[result.tabID].classification[result.name] = result.predicted_class;
-    } else {
-        if (!urlMatcher.testUrl(result.url)) { return; }
-        await storage.startsWith(result.url).then(async (prevVisits) => {
-            for (let key in prevVisits) {
-                if (prevVisits[key].tabId == result.tabId) {
-                    prevVisits[key].classification[result.name] = result.predicted_class;
-                    await storage.set(key, prevVisits[key]);
-                    return;
-                }
-            }
-        });
+    } 
+    if (!urlMatcher.testUrl(result.url)) { 
+        return;
     }
+    await storage.startsWith(result.url).then(async (prevVisits) => {
+        for (let key in prevVisits) {
+            if (prevVisits[key].tabId == result.tabId && 
+                Math.abs(result.timestamp - prevVisits[key].visitStart) < recentVisitThreshold) {
+                prevVisits[key].classification[result.name] = result.predicted_class;
+                await storage.set(key, prevVisits[key]);
+            }
+        }
+    });
 }
 
 async function depthResults(result) {
@@ -93,17 +96,17 @@ export async function runStudy({
     untrackedPageVisits = await (new Storage.Counter("WebScience.Measurements.PageNavigation.untrackedPageVisits")).initialize();
 
     await PageClassification.registerPageClassifier(
-        ["*://*/*"], 
-        "/WebScience/Measurements/PolClassifier.js",
-        polClassifierData,
-        "pol-page-classifier",
-        classificationResults);
-
-    await PageClassification.registerPageClassifier(
         ["*://*/*"],
         "/WebScience/Measurements/CovidClassifier.js",
         covidClassifierData,
         "covid-page-classifier",
+        classificationResults);
+
+    await PageClassification.registerPageClassifier(
+        ["*://*/*"], 
+        "/WebScience/Measurements/PolClassifier.js",
+        polClassifierData,
+        "pol-page-classifier",
         classificationResults);
 
     PageDepth.registerListener(depthResults);
@@ -174,6 +177,7 @@ export async function runStudy({
         tabInfoToSave.visitEnd = timeStamp;
         delete currentTabInfo[tabId];
         tabInfoToSave.type = "pageVisit";
+        if (tabInfoToSave.attentionDuration < 1000) return;
 
         debugLog("pageVisitStopListener: " + JSON.stringify(tabInfoToSave));
 
