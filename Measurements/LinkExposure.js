@@ -169,7 +169,7 @@ async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter
                          Storage.normalizeUrl(exposureEvent.originalUrl));
     exposureEvent.laterVisited = false;
     exposureEvent.laterShared = false;
-    debugLog("storing " + JSON.stringify(exposureEvent));
+    //debugLog("storing " + JSON.stringify(exposureEvent));
     var key = exposureEvent.url + " " + await nextLinkExposureIdCounter.getAndIncrement();
     storage.set(key, exposureEvent);
 }
