@@ -1,8 +1,22 @@
 /**
- * This module provides a convenience wrapper around `browser.runtime.onMessage`,
- * routing messages to the right listener(s) based on the message type.
- * Message types are defined as strings, and a message must be an object with a
- * type property to be handled correctly.
+ * This module provides functionality for passing messages between the
+ * background page and content script environments. Messages between the
+ * environments are easily malformed, and minor errors in message handlers
+ * can have cascading effects. These problems can be quite difficult to debug.
+ * This module addresses these issue by providing a simple message type and
+ * type checking system on top of `browser.runtime.onMessage` and
+ * `browser.tabs.sendMessage`.
+ * 
+ * # Messages
+ * A message, for purposes of this module, must be an object and must have a
+ * type property with a string value.
+ * 
+ * # Schemas
+ * A schema, for purposes of this module, must be an object. Each property in
+ * the schema object is a property that is required in a corresponding message
+ * object. Each value in the schema object is a string that must match the
+ * `typeof` value for that property in a corresponding message.
+ * 
  * @module WebScience.Utilities.Messaging
  */
 
@@ -35,6 +49,59 @@ const messageSchemas = new Map();
 var initialized = false;
 
 /**
+ * Validates that a message is an object with a type string.
+ * @param {*} message - The message.
+ * @returns {boolean} Whether the message is an object with a type string.
+ */
+export function validateMessageObject(message) {
+    // If the message does not have the right type, fail validation.
+    if ((typeof message !== "object") || (message === null)) {
+        debugLog(`Unable to validate message with type: ${typeof message}`);
+        return false;
+    }
+
+    // If there is no type string, fail validation.
+    if(!("type" in message) || (typeof message.type !== "string")) {
+        debugLog(`Unable to validate message object with missing type string: ${JSON.stringify(message)}`);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Validates a message against a registered schema. Assumes that the message is an object
+ * with a type string. If you cannot guarantee that, call `validateMessageObject` first.
+ * @param {*} message - The message, which must be an object that matches the properties
+ * and types specified in the schema.
+ * @param {object} [messageSchema] - The schema to use for validation. If no schema is
+ * specified, this function attempts to retrieve the registered schema for the message type.
+ * @returns {boolean} Whether the message successfully validated against the schema. Returns
+ * `false` if there is a schema mismatch or if there is no schema registered for the message
+ * type.
+ */
+export function validateMessageAgainstSchema(message, messageSchema)
+{
+    // If the caller doesn't specify a message schema, attempt to retrieve the registered schema.
+    if(messageSchema === undefined) {
+        messageSchema = messageSchemas.get(message.type);
+        if(messageSchema === undefined) {
+            debugLog(`No schema for message with type: ${message.type}`);
+            return false;
+        }
+    }
+
+    // Check the message against the schema.
+    for(let field in messageSchema) {
+        if (!(field in message) || (typeof message[field] !== messageSchema[field])) {
+            debugLog(`Mismatch between message and schema: ${JSON.stringify(message)}`);
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * A listener for `browser.runtime.onMessage` that routes messages to the right
  * listener(s) based on message type. See the documentation for `browser.runtime.onMessage`
  * for detail on the parameters.
@@ -42,34 +109,34 @@ var initialized = false;
  * @private
  */
 function browserRuntimeListener(message, sender, sendResponse) {
-    var messageListeners;
-    var messageSchema;
-    var browserRuntimeReturnValue;
-    // If the message is not in an expected format or does not have at least
-    // one registered listener, ignore it.
-    if ((message == null) ||
-        (typeof message !== "object") ||
-        !("type" in message) ||
-        (typeof message.type !== "string") ||
-        ((messageListeners = messageRouter.get(message.type)) === undefined)) {
-        debugLog("Unexpected browser.runtime message: " + JSON.stringify(message));
+    let messageListeners, messageSchema, browserRuntimeReturnValue;
+
+    // If the message is not in an expected format, ignore it.
+    if(!validateMessageObject(message)) {
+        debugLog(`browser.runtime message with unexpected format: ${JSON.stringify(message)}`);
         return;
     }
-    // If there is a schema registered for this message type, check the message against the schema
-    if((messageSchema = messageSchemas.get(message.type)) !== undefined) {
-        for(var field in messageSchema) {
-            if (!(field in message) || (typeof message[field] != messageSchema[field])) {
-                debugLog("Mismatch between message and schema: " + JSON.stringify(message));
-                return;
-            }
-        }
+
+    // If the message does not have at least one registered listener, ignore it.
+    if ((messageListeners = messageRouter.get(message.type)) === undefined) {
+        debugLog(`browser.runtime message with no listener for message type: ${JSON.stringify(message)}`);
+        return;
     }
+
+    // If there is a schema registered for this message type, check the message against the schema.
+    if(((messageSchema = messageSchemas.get(message.type)) !== undefined)
+         && !validateMessageAgainstSchema(message, messageSchema)) {
+             debugLog(`browser.runtime message failed schema validation: ${JSON.stringify(message)}`);
+        return;
+    }
+
     for (const messageListener of messageListeners) {
         var messageListenerReturnValue = messageListener(message, sender, sendResponse);
         if ((messageListenerReturnValue !== undefined) && (browserRuntimeReturnValue !== undefined))
-            debugLog("Multiple listener return values for message type " + message.type);
+            debugLog(`Multiple listener return values for message type: ${message.type}`);
         browserRuntimeReturnValue = messageListenerReturnValue;
     }
+    
     return browserRuntimeReturnValue;
 }
 
@@ -105,7 +172,31 @@ export function registerListener(messageType, messageListener, messageSchema) {
  * a built-in type string.
  */
 export function registerSchema(messageType, messageSchema) {
-    if(messageSchemas.has(messageType))
-        debugLog("Multiple schemas for message type " + messageType);
+    // Check whether the schema has already been registered
+    if(messageSchemas.has(messageType)) {
+        debugLog(`Multiple schemas for message type: ${messageType}`);
+        return;
+    }
     messageSchemas.set(messageType, messageSchema);
+}
+
+/**
+ * Sends a message to a tab after checking the message against the registered
+ * schema for the message type. Equivalent to calling `browser.tabs.sendMessage`
+ * with a `catch` handler after validating the message against the schema.
+ * @param {number} tabId - The ID of the tab that should receive the message.
+ * @param {Object} message - The contents of the message.
+ * @returns {Promise} - The same return value as `browser.tabs.sendMessage`,
+ * or a Promise that resolves to false if there was an errror sending the message.
+ */
+export function sendMessageToTab(tabId, message) {
+    // Validate the outbound message against the schema
+    if(!validateMessageObject(message) || !validateMessageAgainstSchema(message)) {
+        debugLog(`Attempted to send message that fails validation: ${JSON.stringify(message)}`);
+        return new Promise((resolve) => { resolve(false); });
+    }
+    return browser.tabs.sendMessage(tabId, message).catch((reason) => {
+        debugLog(`Unable to send message to tab: ${JSON.stringify(message)}`);
+        return false;
+    });
 }
