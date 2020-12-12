@@ -33,6 +33,8 @@ const millisecondsPerSecond = 1000;
 
 const surveyRemindPeriodDays = 3;
 
+const surveyCompletionUrl = "https://citpsurveys.cs.princeton.edu/thankyou";
+
 var surveyUrlBase = "";
 
 /**
@@ -106,6 +108,19 @@ function cancelSurveyRequest() {
     storage.set("noRequestSurvey", true);
 }
 
+function checkHistory(url) {
+    return browser.history.search({
+        text: url,
+        startTime: 0
+    }).then((results) => {
+        return results.length > 0;
+    });
+}
+
+async function checkSurveyCompletionInHistory() {
+    return checkHistory(surveyCompletionUrl);
+}
+
 /**
  * Run a survey at scheduled survey time if it exists otherwise
  * current time + delta
@@ -127,8 +142,12 @@ export async function runStudy({
     var lastSurveyRequest = await storage.get("lastSurveyRequest");
     var surveyCompleted = await storage.get("surveyCompleted");
     var noRequestSurvey = await storage.get("noRequestSurvey");
+    console.log(surveyCompleted);
+    if (!surveyCompleted) { surveyCompleted = await checkSurveyCompletionInHistory(); }
+    console.log(surveyCompleted);
     if (surveyCompleted || noRequestSurvey) {
         setPopupSurveyCompleted();
+        await storage.set("surveyCompleted", surveyCompleted);
         return;
     } else {
         browser.browserAction.setPopup({
@@ -154,9 +173,7 @@ export async function runStudy({
      */
     browser.webRequest.onBeforeRequest.addListener(
         handleSurveyCompleted,
-        {urls: [
-            "https://citpsurveys.cs.princeton.edu/thankyou*" 
-        ]}
+        {urls: [ surveyCompletionUrl + "*" ]}
     );
 
     /* If the user tells us to never ask them again, we catch it with this message */
