@@ -99,8 +99,7 @@
  * Some implementation quirks to be aware of for future development on this module:
  *   * The `tabs.onCreated` event appears to consistently fire before the `windows.onCreated`
  *     event, so this module listens to the `tabs.onCreated` event to get an earlier view of
- *     window details. The module assumes that a `tabs.onCreated` event with a positive tab
- *     ID is for a `"normal"` or `"popup"` window type.
+ *     window details.
  *   * Non-browser windows do not appear in the results of `windows.getAll()`, and calling
  *     `windows.get()` on a non-browser window throws an error. Switching focus to a non-
  *     browser window will, however, fire the `windows.onFocusChanged` event. The module
@@ -485,10 +484,6 @@ function checkForAttention(tabId, windowId) {
 
 /**
  * @typedef {Object} WindowDetails
- * @property {string} type - The type of window. This string can have the
- * same values as `windows.WindowType` (`"normal"`, `"popup"`, `"panel"`, and
- * `"devtools"`), plus the value `"normalorpopup"` if we don't yet know which
- * of the two types the window is.
  * @property {number} activeTab - The ID of the active tab in the window,
  * or -1 if there is no active tab.
  * @property {boolean} privacy - Whether the window is a private window. Values
@@ -499,7 +494,7 @@ function checkForAttention(tabId, windowId) {
 /**
  * A Map that tracks the current state of browser windows. We need this cached
  * state to avoid asynchronous queries when the focused window changes. The
- * keys are tab IDs and the values are WindowDetails objects.
+ * keys are window IDs and the values are WindowDetails objects.
  * @private
  * @const {Map<number,WindowDetails>}
  * @default
@@ -516,7 +511,6 @@ const windowState = new Map();
  * window.
  */
 function updateWindowState(windowId, {
-    type = "unknown",
     activeTab,
     privacy = "unknown"
 }) {
@@ -526,20 +520,11 @@ function updateWindowState(windowId, {
     // what we know now and be done
     if(windowDetails === undefined) {
         windowState.set(windowId, {
-            type: type,
             activeTab: (activeTab !== undefined) ? activeTab : -1,
             privacy: privacy
         });
         return;
     }
-
-    // If the update has more information about the window type
-    // than the cached window details, update the cached window
-    // type
-    if((type !== "unknown") &&
-        ((windowDetails.type === "unknown") ||
-        (type !== "normalorpopup") && (windowDetails.type === "normalorpopup")))
-        windowDetails.type = type;
 
     // If the update has an active tab ID, update the cached
     // active tab ID
@@ -817,10 +802,8 @@ export async function initialize() {
         if(!("id" in createdWindow) || createdWindow.id < 0)
             return;
 
-        // Update the window state cache with the window's type and
-        // privacy property
+        // Update the window state cache with the window's privacy property
         updateWindowState(createdWindow.id, {
-            type: ("type" in createdWindow) ? createdWindow.type : "unknown",
             privacy: createdWindow.incognito ? "private" : "normal"
         });
     });
@@ -838,12 +821,10 @@ export async function initialize() {
             return;
         
         // Update the window state cache with the window's privacy
-        // property and, since we know this is a browsing window based
-        // on the tab ID, the "normalorpopup" window type
+        // property
         // While we might now know this is the active tab in the window,
         // the tabs.onActivated event will separately fire
         updateWindowState(tab.windowId, {
-            type: "normalorpopup",
             privacy: tab.incognito ? "private" : "normal"
         });
     });
@@ -905,14 +886,6 @@ export async function initialize() {
             return;
         }
 
-        // If the new window is not a browser window, remember tab ID = -1 and window ID = -1,
-        // and do not start a new attention span
-        if((focusedWindowDetails.type !== "normal") && (focusedWindowDetails.type !== "popup") && (focusedWindowDetails.type !== "normalorpopup")) {
-            currentActiveTab = -1;
-            currentFocusedWindow = -1;
-            return;
-        }
-
         // Otherwise, remember the new active tab and focused window, and if the browser is active
         // or (optionally) we are not considering user input, start a new attention span
         currentActiveTab = focusedWindowDetails.activeTab;
@@ -960,8 +933,7 @@ export async function initialize() {
     
     // Get and remember the browser window and tab state
     var openWindows = await browser.windows.getAll({
-        populate: true,
-        windowTypes: [ "normal", "popup", "panel", "devtools" ]
+        populate: true
     });
     for(const openWindow of openWindows) {
         // If the window doesn't have a window ID, ignore it
@@ -980,7 +952,6 @@ export async function initialize() {
                 updateTabState(tab.id, tab.url, "", openWindow.incognito, openWindow.id);
             }
         updateWindowState(openWindow.id, {
-            type: openWindow.type,
             activeTab: activeTabInOpenWindow,
             privacy: openWindow.incognito ? "private" : "normal"
         });
@@ -991,7 +962,7 @@ export async function initialize() {
         // a normal or popup window, this block will not run and we
         // will retain the default values of tab ID = -1 and window
         // ID = -1
-        if((openWindow.focused) && ((openWindow.type === "normal") || (openWindow.type === "popup"))) {
+        if(openWindow.focused) {
             currentFocusedWindow = openWindow.id;
             currentActiveTab = activeTabInOpenWindow;
         }
