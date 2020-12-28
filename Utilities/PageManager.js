@@ -183,18 +183,15 @@ const pageVisitStartListenerSet = new Set();
 /** 
  * Register a listener function that will be notified about page visit start events.
  * @param {pageVisitStartListener} pageVisitStartListener - The listener function.
- * @param {boolean} [notifyAboutCurrentPages=true] - Whether the listener should be fired for the currently open set of pages.
  * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
  * @param {number} [timeStamp=Date.now()] - The time to use if the listener should be fired for the currently open set of pages.
  */
-export async function registerPageVisitStartListener(pageVisitStartListener, notifyAboutCurrentPages = true, privateWindows = false, timeStamp = Date.now()) {
+export async function registerPageVisitStartListener(pageVisitStartListener, privateWindows = false, timeStamp = Date.now()) {
     initialize();
     pageVisitStartListenerSet.add({
         listener: pageVisitStartListener,
         privateWindows: privateWindows
     });
-    if(notifyAboutCurrentPages)
-        notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, privateWindows, timeStamp);
 }
 
 /** 
@@ -218,30 +215,6 @@ function notifyPageVisitStartListeners(tabId, windowId, url, referrer, privateWi
                 referrer: referrer.repeat(1),
                 privateWindow,
                 timeStamp
-            });
-}
-
-/**
- * Notify a page visit start listener about the current set of open pages. Useful for when
- * a listener is registered in the middle of a browsing session (e.g., because the extension
- * was just installed or the user just gave consent).
- * @private
- * @param {pageVisitStartListener} pageVisitStartListener - The listener.
- * @param {boolean} privateWindows - Whether to notify the listener about pages in private
- * windows.
- * @param {number} timeStamp - The time when the listener was registered.
- */
-async function notifyPageVisitStartListenerAboutCurrentPages(pageVisitStartListener, privateWindows, timeStamp) {
-    // Load the tabs from the tab state cache to avoid inconsistencies
-    for (const [tabId, tabDetails] of tabState)
-        if(!tabDetails.privateWindow || privateWindows)
-            pageVisitStartListener({
-                tabId: tabId,
-                windowId: tabDetails.windowId,
-                url: tabDetails.url.repeat(1), // copy the string in case a listener modifies it
-                referrer: tabDetails.referrer.repeat(1),
-                privateWindow: tabDetails.privateWindow,
-                timeStamp: timeStamp
             });
 }
 
@@ -322,20 +295,16 @@ const pageAttentionStartListenerSet = new Set();
 /** 
  * Register a listener function that will be notified about page attention start events.
  * @param {pageAttentionStartListener} pageAttentionStartListener - The listener function. 
- * @param {boolean} [notifyAboutCurrentPages=true] - Whether the listener should be fired
- * for the page that currently has attention (if there is one).
  * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
  * @param {number} [timeStamp=Date.now()] - The time to use if the listener should be fired
  * for the page that currently has attention (if there is one).
  */
-export async function registerPageAttentionStartListener(pageAttentionStartListener, notifyAboutCurrentPageAttention = true, privateWindows = false, timeStamp = Date.now()) {
+export async function registerPageAttentionStartListener(pageAttentionStartListener, privateWindows = false, timeStamp = Date.now()) {
     initialize();
     pageAttentionStartListenerSet.add({
         listener: pageAttentionStartListener,
         privateWindows: privateWindows
     });
-    if(notifyAboutCurrentPageAttention)
-        notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, privateWindows, timeStamp);
 }
 
 /** 
@@ -356,39 +325,6 @@ function notifyPageAttentionStartListeners(tabId, windowId, privateWindow, timeS
             timeStamp,
             pageHasAttention: true
         });
-}
-
-/**
- * Notify a page attention start listener about the currently active tab in the currently
- * focused window (if there is such a tab). Useful for when a listener is registered in the
- * middle of a browsing session (e.g., because the extension was just installed or the user
- * just gave consent).
- * @private
- * @param {pageAttentionStartListener} pageAttentionStartListener - The listener.
- * @param {boolean} privateWindows - Whether to notify the listener if the page with
- attention is in a private window.
- * @param {number} timeStamp - The time when the listener was registered.
- */
-async function notifyPageAttentionStartListenerAboutCurrentPageAttention(pageAttentionStartListener, privateWindows, timeStamp) {
-    // If there is no active tab or no focused window, there is no notification to provide
-    if((currentActiveTab < 0) || (currentFocusedWindow < 0))
-        return;
-
-    // If the module should consider user input and the browser is inactive, there is no notification to provide
-    if(considerUserInputForAttention && !browserIsActive)
-        return;
-
-    // If the listener should not receive notifications about private windows and this is a private window
-    // according to the window state cache, there is no notification to provide
-    if(!privateWindows && isPrivateWindow(currentFocusedWindow))
-        return;
-    
-    // Otherwise, notify the listener
-    pageAttentionStartListener({
-        tabId: currentActiveTab,
-        windowId: currentFocusedWindow,
-        timeStamp: timeStamp
-    });
 }
 
 /**
