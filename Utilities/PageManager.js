@@ -97,18 +97,12 @@
  * module will detect that with the windows API and fire a page attention stop (if needed).
  * 
  * Some implementation quirks to be aware of for future development on this module:
- *   * The `tabs.onCreated` event appears to consistently fire before the `windows.onCreated`
- *     event, so this module listens to the `tabs.onCreated` event to get an earlier view of
- *     window details.
  *   * Non-browser windows do not appear in the results of `windows.getAll()`, and calling
  *     `windows.get()` on a non-browser window throws an error. Switching focus to a non-
  *     browser window will, however, fire the `windows.onFocusChanged` event. The module
  *     assumes that if `windows.onFocusChanged` fires with an unknown window, that window
  *     is a non-browser window.
  *   * The module assumes that valid tab IDs and window IDs are always >= 0.
- *   * The module listens for `tabs.onAttached` to track tab movement between windows. It does
- *     not listen for `tabs.onDetached` so that tabs remain associated with valid windows and
- *     because it's likely the user is just moving the tab within the tab strip in a window.
  * 
  * # Known Issues
  *   * When a page loads in a tab that has attention, that tab does not consistently receive
@@ -463,33 +457,6 @@ function updateWindowState(windowId, {
 }
 
 /**
- * @typedef {Object} TabDetails
- * @property {number} windowId - The ID of the window containing the tab.
- */
-
-/**
- * A Map that tracks the current state of browser tabs. We need this cached
- * state to avoid inconsistencies when registering a page visit start listener
- * and to filter notifications for tabs that don't contain ordinary webpages.
- * The keys are tab IDs and the values are TabDetails objects.
- * @private
- * @const {Map<number,TabDetails>}
- * @default
- */
-const tabState = new Map();
-
-/**
- * Update the tab state cache with new information about a tab. Any
- * existing information about the tab is replaced.
- * @private
- * @param {number} tabId - The tab ID.
- * @param {string} windowId - The ID of the window containing the tab.
- */
-function updateTabState(tabId, windowId) {
-    tabState.set(tabId, { windowId });
-}
-
-/**
  * Whether the browser is active or idle. Ignored if the module is configured to
  * not consider user input when determining the attention state.
  * @private
@@ -596,15 +563,11 @@ export async function initialize() {
     browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
         if(!initialized)
             return;
-        var timeStamp = Date.now();
 
         // We don't have to update the window state here, because either there is
         // another tab in the window that will become active (and tabs.onActivated
         // will fire), or there is no other tab in the window so the window closes
         // (and windows.onRemoved will fire)
-
-        // If we have cached state for this tab, drop it
-        tabState.delete(tabId);
         
         // If this is the active tab, forget it
         if(currentActiveTab == tabId)
@@ -643,19 +606,6 @@ export async function initialize() {
         
         // Remember the new active tab
         currentActiveTab = activeInfo.tabId;
-    });
-
-    // Handle when a tab is moved between windows
-    // We are not listening for tabs.onDetached because we want tabs
-    // to be associated with valid windows, and because it's likely
-    // the user is just moving the tab within the tab strip in a
-    // window
-    browser.tabs.onAttached.addListener((tabId, attachInfo) => {
-        // If this tab is in the tab state cache,
-        // update the cache
-        var tabDetails = tabState.get(tabId);
-        if(tabDetails !== undefined)
-            tabDetails.windowId = attachInfo.newWindowId;
     });
 
     browser.windows.onRemoved.addListener(windowId => {
@@ -763,7 +713,6 @@ export async function initialize() {
             for(const tab of openWindow.tabs) {
                 if(tab.active)
                     activeTabInOpenWindow = tab.id;
-                updateTabState(tab.id, tab.url, "", openWindow.incognito, openWindow.id);
             }
         updateWindowState(openWindow.id, {
             activeTab: activeTabInOpenWindow
