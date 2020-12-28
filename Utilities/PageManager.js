@@ -515,7 +515,8 @@ var initializing = false;
 var initialized = false;
 
 /**
- * Configure browser event handlers and cache initial state. Runs only once.
+ * Configure message passing between the background script and content script, register browser
+ * event handlers, cache initial state, and register the content script. Runs only once.
  * @private
  */
 export async function initialize() {
@@ -523,7 +524,10 @@ export async function initialize() {
         return;
     initializing = true;
     
-    // Register the page visit start message handler and schema
+    // Register message listeners and schemas for communicating with the content script
+
+    // The content script sends a WebScience.Utilities.PageManger.pageVisitStart message when
+    // there is a page visit start event
     Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStart", (pageVisitStartInfo) => {
         debugLog("Page Visit Start: " + JSON.stringify(pageVisitStartInfo));
     }, {
@@ -533,7 +537,8 @@ export async function initialize() {
         timeStamp: "number"
     });
 
-    // Register the page visit stop message handler and schema
+    // The content script sends a WebScience.Utilities.PageManger.pageVisitStop message when
+    // there is a page visit stop event
     Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStop", (pageVisitStopInfo) => {
         debugLog("Page Visit Stop: " + JSON.stringify(pageVisitStopInfo));
     }, {
@@ -543,94 +548,51 @@ export async function initialize() {
         timeStamp: "number"
     });
 
-    // Register the page attention update message schema
+    // The background script sends a WebScience.Utilities.PageManager.pageAttentionUpdate message
+    // when the attention state of the page may have changed
     Messaging.registerSchema("WebScience.Utilities.PageManager.pageAttentionUpdate", {
         timeStamp: "number",
         pageHasAttention: "boolean"
     });
 
-    // Register the URL changed message schema
+    // The background script sends a WebScience.Utilities.PageManager.urlChanged message when
+    // the URL changes for a tab, indicating a possible page load with the History API
     Messaging.registerSchema("WebScience.Utilities.PageManager.urlChanged", {
         timeStamp: "number"
     });
 
-    // When the URL changes for a tab, send the event to the tab
-    // That could signal a page load with the Histoy API,
-    browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
-        if("url" in changeInfo)
-            Messaging.sendMessageToTab(tabId, {
-                type: "WebScience.Utilities.PageManager.urlChanged",
-                timeStamp: Date.now()
-            });
-    }, {
-        urls: [ "http://*/*", "https://*/*" ]
-    });
-
-    // Register the page audio update message schema
+    // The background script sends a WebScience.Utilities.PageManager.pageAudioUpdate message
+    // when the audio state of the page may have changed
     Messaging.registerSchema("WebScience.Utilities.PageManager.pageAudioUpdate", {
         pageHasAudio: "boolean",
         timeStamp: "number"
     });
 
-    // When the audible state changes for a tab, send an event to the tab
-    browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
-        Messaging.sendMessageToTab(tabId, {
-            type: "WebScience.Utilities.PageManager.pageAudioUpdate",
-            pageHasAudio: changeInfo.audible,
-            timeStamp: Date.now()
-        });
-    }, {
-        urls: [ "http://*/*", "https://*/*" ],
-        properties: [ "audible" ]
-    });
-    
-    // Register the PageManager content script for all HTTP(S) URLs
-    browser.contentScripts.register({
-        matches: [ "http://*/*", "https://*/*" ],
-        js: [{
-            file: "/WebScience/Utilities/content-scripts/pageManager.js"
-        }],
-        runAt: "document_start"
-    });
+    // Register background script event handlers
 
-    // Configure event listeners
-    // Note that we have to call Idle.registerIdleStateListener before we call
-    // Idle.queryState, so this comes before caching the initial state
-
-    // Handle when the webpage in a tab changes
     browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if(!initialized)
             return;
-        var timeStamp = Date.now();
-
-        // Ignore changes that do not involve the URL
-        if (!("url" in changeInfo))
-            return;
-
-        // Try to get the referrer from the web request cache and consume
-        // the most recent entry in the web request cache
-        var referrer = "";
-
-        // Update the tab state cache
-        updateTabState(tabId, changeInfo.url, referrer, tab.incognito, tab.windowId);
-
-        // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
-        var hasAttention = checkForAttention(tabId, tab.windowId);
-        if (hasAttention)
-            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, tab.incognito, timeStamp);
-
-        // End the page visit
-        notifyPageVisitStopListeners(tabId, tab.windowId, tab.incognito, timeStamp);
+        let timeStamp = Date.now();
         
-        // Start the page visit
-        notifyPageVisitStartListeners(tabId, tab.windowId, changeInfo.url, referrer, tab.incognito, timeStamp);
+        // If the URL changed, send WebScience.Utilities.PageManager.urlChanged
+        if("url" in changeInfo)
+            Messaging.sendMessageToTab(tabId, {
+                type: "WebScience.Utilities.PageManager.urlChanged",
+                timeStamp
+            });
 
-        // If this is the active tab and focused window, and (optionally) the browser is active, start an attention span
-        if (hasAttention)
-            notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, tab.incognito, timeStamp);
+        // If the audible state changed, send WebScience.Utilities.PageManager.pageAudioUpdate
+        if("audible" in changeInfo)
+            Messaging.sendMessageToTab(tabId, {
+                type: "WebScience.Utilities.PageManager.pageAudioUpdate",
+                pageHasAudio: changeInfo.audible,
+                timeStamp
+            });
+    }, {
+        urls: [ "http://*/*", "https://*/*" ]
     });
 
-    // Handle when a tab closes
     browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
         if(!initialized)
             return;
@@ -643,17 +605,10 @@ export async function initialize() {
 
         // If we have cached state for this tab, drop it
         tabState.delete(tabId);
-
-        // If this is the active tab and focused window, and (optionally) the browser is active, end the attention span
-        if(checkForAttention(tabId, removeInfo.windowId))
-            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, false, timeStamp);
         
         // If this is the active tab, forget it
         if(currentActiveTab == tabId)
             currentActiveTab = -1;
-
-        // End the page visit
-        notifyPageVisitStopListeners(tabId, removeInfo.windowId, false, timeStamp);
     });
 
     // Handle when the active tab in a window changes
@@ -663,7 +618,7 @@ export async function initialize() {
         var timeStamp = Date.now();
 
         // If this is a non-browser tab, ignore it
-        if((activeInfo.tabId == browser.tabs.TAB_ID_NONE) || (activeInfo.tabId < 0) ||
+        if((activeInfo.tabId === browser.tabs.TAB_ID_NONE) || (activeInfo.tabId < 0) ||
             (activeInfo.windowId < 0))
             return;
 
@@ -703,7 +658,6 @@ export async function initialize() {
             tabDetails.windowId = attachInfo.newWindowId;
     });
 
-    // Handle when a window is removed
     browser.windows.onRemoved.addListener(windowId => {
         if(!initialized)
             return;
@@ -713,7 +667,6 @@ export async function initialize() {
             windowState.delete(windowId);
     });
 
-    // Handle when the focused window changes
     browser.windows.onFocusChanged.addListener(windowId => {
         if(!initialized)
             return;
@@ -730,7 +683,7 @@ export async function initialize() {
         // because quick sequential events can cause the browser.windows.onFocusChanged
         // listener to run again before the await resolves and trigger errors if currentActiveTab
         // and currentFocusedWindow are not set properly
-        if (windowId == browser.windows.WINDOW_ID_NONE) {
+        if (windowId === browser.windows.WINDOW_ID_NONE) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
             return;
@@ -759,6 +712,9 @@ export async function initialize() {
     // This listener abstracts the browser activity state into two categories: active and inactive
     // Active means the user has recently provided input to the browser, inactive means any other
     // state (regardless of whether a screensaver or lock screen is enabled)
+
+    // Note that we have to call Idle.registerIdleStateListener before we call
+    // Idle.queryState, so this comes before caching the initial state
     if(considerUserInputForAttention) {
         await Idle.registerIdleStateListener(newState => {
             if(!initialized)
@@ -766,7 +722,7 @@ export async function initialize() {
             var timeStamp = Date.now();
 
             // If the browser is not transitioning between active and inactive states, ignore the event
-            if((browserIsActive) == (newState === "active"))
+            if((browserIsActive) === (newState === "active"))
                 return;
             
             // Remember the flipped browser activity state
@@ -785,12 +741,12 @@ export async function initialize() {
         }, idleThreshold);
     }
 
-    // Get and remember the browser idle state
+    // Cache the initial idle, window, and tab state
+
     if(considerUserInputForAttention)
         browserIsActive = (Idle.queryState(idleThreshold) === "active");
     
-    // Get and remember the browser window and tab state
-    var openWindows = await browser.windows.getAll({
+    let openWindows = await browser.windows.getAll({
         populate: true
     });
     for(const openWindow of openWindows) {
@@ -824,6 +780,15 @@ export async function initialize() {
             currentActiveTab = activeTabInOpenWindow;
         }
     }
+
+    // Register the PageManager content script for all HTTP(S) URLs
+    browser.contentScripts.register({
+        matches: [ "http://*/*", "https://*/*" ],
+        js: [{
+            file: "/WebScience/Utilities/content-scripts/pageManager.js"
+        }],
+        runAt: "document_start"
+    });
 
     initializing = false;
     initialized = true;
