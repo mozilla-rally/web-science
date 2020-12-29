@@ -365,6 +365,12 @@ export async function initialize() {
     // The content script sends a WebScience.Utilities.PageManger.pageVisitStart message when
     // there is a page visit start event
     Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStart", (pageVisitStartInfo, sender) => {
+        // Notify the content script if it has attention
+        // We can't send this message earlier (e.g., when the tab URL changes) because we need to know the content
+        // script is ready to receive the message
+        if(checkForAttention(sender.tab.id, sender.tab.windowId))
+            sendPageAttentionUpdate(sender.tab.id, true, Date.now());
+
         pageVisitStart({
             pageId: pageVisitStartInfo.pageId,
             tabId: sender.tab.id,
