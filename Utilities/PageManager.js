@@ -485,8 +485,8 @@ export async function initialize() {
             return;
 
         // If the browser is active or (optionally) we are not considering user input,
-        // first end the attention span if there is an active tab in the focused window,
-        // then start a new attention span
+        // notify the current page with attention that it no longer has attention, and notify
+        // the new page with attention that is has attention
         if((browserIsActive || !considerUserInputForAttention)) {
             if((currentActiveTab >= 0) && (currentFocusedWindow >= 0))
                 sendPageAttentionUpdate(currentActiveTab, false, timeStamp);
@@ -511,12 +511,13 @@ export async function initialize() {
         var timeStamp = Date.now();
 
         // If the browser is active or (optionally) we are not considering user input, and if
-        // if there is an active tab in a focused window, end the attention span
+        // if there is an active tab in a focused window, notify the current page with attention
+        // that it no longer has attention
         if((browserIsActive || !considerUserInputForAttention) && ((currentActiveTab >= 0) && (currentFocusedWindow >= 0)))
             sendPageAttentionUpdate(currentActiveTab, false, timeStamp);
 
         // If the browser has lost focus in the operating system, remember 
-        // tab ID = -1 and window ID = -1, and do not start a new attention span
+        // tab ID = -1 and window ID = -1, and do not notify any page that it has attention
         // Note that this check should happen before the browser.windows.get await below,
         // because quick sequential events can cause the browser.windows.onFocusChanged
         // listener to run again before the await resolves and trigger errors if currentActiveTab
@@ -531,7 +532,7 @@ export async function initialize() {
         var focusedWindowDetails = windowState.get(windowId);
 
         // If we haven't seen this window before, that means it's not a browser window,
-        // so remember tab ID = -1 and window ID -1, and do not start a new attention span
+        // so remember tab ID = -1 and window ID -1, and do not notify any page that it has attention
         if(focusedWindowDetails === undefined) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
@@ -539,7 +540,8 @@ export async function initialize() {
         }
 
         // Otherwise, remember the new active tab and focused window, and if the browser is active
-        // or (optionally) we are not considering user input, start a new attention span
+        // or (optionally) we are not considering user input, notify the page in the tab that it
+        // has attention
         currentActiveTab = focusedWindowDetails.activeTab;
         currentFocusedWindow = windowId;
         if(browserIsActive || !considerUserInputForAttention)
