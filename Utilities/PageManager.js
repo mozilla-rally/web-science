@@ -149,118 +149,98 @@ const idleThreshold = 15;
 const considerUserInputForAttention = true;
 
 /**
+ * Additional information about a page visit start event.
+ * @typedef {Object} PageVisitStartDetails
+ * @param {number} pageId - The ID for the page, unique across browsing sessions.
+ * @param {number} tabId - The ID for the tab containing the page, unique to the browsing session.
+ * @param {number} windowId - The ID for the window containing the page, unique to the browsing session.
+ * Note that tabs can subsequently move between windows.
+ * @param {string} url - The URL of the page loading in the tab, without any hash.
+ * @param {string} referrer - The referrer URL for the page loading in the tab, or `""` if
+ * there is no referrer.
+ * @param {number} pageVisitStartTime - The time when the underlying event fired.
+ * @param {boolean} privateWindow - Whether the page is in a private window.
+ */
+
+/**
  * A listener function for page visit start events.
  * @callback pageVisitStartListener
- * @param {Object} details - Additional information about the page visit start event.
- * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
- * @param {number} details.windowId - The window containing the page, unique to the browsing session.
- * Note that tabs can subsequently move between windows.
- * @param {string} details.url - The URL of the page loading in the tab.
- * @param {string} details.referrer - The referrer URL for the page loading in the tab, or `""` if
- * there is no referrer.
- * @param {number} details.timeStamp - The time when the underlying event fired.
+ * @param {PageVisitStartDetails} details - Additional information about the page visit start event.
  */
 
 /**
  * Additional information about a page visit start event listener function.
  * @typedef {Object} PageVisitStartListenerDetails
  * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
- * @property {pageVisitStartListener} listener - The listener function.
  */
 
 /**
- * The set of listener details for page visit start events.
- * @private
- * @constant {Set<PageVisitStartListenerDetails>}
+ * An event that is fired when a page visit starts.
+ * @type Events.Event
+ * @const
  */
-const pageVisitStartListenerSet = new Set();
+export const onPageVisitStart = Events.createEvent();
 
-/** 
- * Register a listener function that will be notified about page visit start events.
- * @param {pageVisitStartListener} pageVisitStartListener - The listener function.
- * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
- * @param {number} [timeStamp=Date.now()] - The time to use if the listener should be fired for the currently open set of pages.
+/**
+ * Notify listeners for the page visit start event.
+ * @param {PageVisitStartDetails} details - Additional information about the page visit start event.
+ * @private
  */
-export async function registerPageVisitStartListener(pageVisitStartListener, privateWindows = false, timeStamp = Date.now()) {
-    initialize();
-    pageVisitStartListenerSet.add({
-        listener: pageVisitStartListener,
-        privateWindows: privateWindows
+function pageVisitStart(details) {
+    // Apply a filter for events in private windows
+    onPageVisitStart.notifyListeners([ details ], ([ details ], listenerOptions) => {
+        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
+            return true;
+        return false;
     });
 }
 
-/** 
- * Notify page visit start listeners about a page visit start event.
- * @private
- * @param {number} tabId - The tab containing the page, unique to the browsing session.
- * @param {number} windowId - The window containing the page, unique to the browsing session.
- * @param {string} url - The URL of the page loading in the tab.
+/**
+ * Additional information about a page visit stop event.
+ * @typedef {Object} PageVisitStopDetails
+ * @param {number} pageId - The ID for the page, unique across browsing sessions.
+ * @param {number} tabId - The ID for the tab containing the page, unique to the browsing session.
+ * @param {number} windowId - The ID for the window containing the page, unique to the browsing session.
+ * Note that tabs can subsequently move between windows.
+ * @param {string} url - The URL of the page loading in the tab, without any hash.
  * @param {string} referrer - The referrer URL for the page loading in the tab, or `""` if
  * there is no referrer.
- * @param {boolean} privateWindow - Whether the event is in a private window.
- * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
+ * @param {number} pageVisitStartTime - The time when the page visit started.
+ * @param {number} pageVisitStopTime - The time when the underlying event fired.
+ * @param {boolean} privateWindow - Whether the page is in a private window.
  */
-function notifyPageVisitStartListeners(tabId, windowId, url, referrer, privateWindow, timeStamp = Date.now()) {
-    for (const pageVisitStartListenerDetails of pageVisitStartListenerSet)
-        if(!privateWindow || pageVisitStartListenerDetails.privateWindows)
-            pageVisitStartListenerDetails.listener({
-                tabId,
-                windowId,
-                url: url.repeat(1), // copy the string in case a listener modifies it
-                referrer: referrer.repeat(1),
-                privateWindow,
-                timeStamp
-            });
-}
 
 /**
  * A listener function for page visit stop events.
  * @callback pageVisitStopListener
- * @param {Object} details - Additional information about the page visit stop event.
- * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
- * @param {number} details.windowId - The window containing the page, unique to the browsing session.
- * @param {number} details.timeStamp - The time when the underlying browser event fired.
+ * @param {PageVisitStopDetails} details - Additional information about the page visit stop event.
  */
 
 /**
  * Additional information about a page visit start stop listener function.
  * @typedef {Object} PageVisitStopListenerDetails
  * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
- * @property {pageVisitStopListener} listener - The listener function.
  */
 
 /**
- * The set of listener details for page visit stop events.
+ * An event that is fired when a page visit starts.
+ * @type Events.Event
+ * @const
+ */
+export const onPageVisitStop = Events.createEvent();
+
+/**
+ * Notify listeners for the page visit stop event.
+ * @param {PageVisitStopDetails} details - Additional information about the page visit stop event.
  * @private
- * @constant {Set<PageVisitStopListenerDetails>}
  */
-const pageVisitStopListenerSet = new Set();
-
-/**
- * Register a listener function that will be notified about page visit stop events.
- * @param {pageVisitStopListener} pageVisitStopListener - The listener function.
- * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
- */
-export function registerPageVisitStopListener(pageVisitStopListener, privateWindows = false) {
-    initialize();
-    pageVisitStopListenerSet.add({
-        listener: pageVisitStopListener,
-        privateWindows: privateWindows
+function pageVisitStop(details) {
+    // Apply a filter for events in private windows
+    onPageVisitStop.notifyListeners([ details ], ([ details ], listenerOptions) => {
+        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
+            return true;
+        return false;
     });
-}
-
-/** 
- * Notify page visit stop listeners about a page visit stop event.
- * @private
- * @param {number} tabId - The tab containing the page, unique to the browsing session.
- * @param {number} windowId - The window containing the page, unique to the browsing session.
- * @param {boolean} privateWindow - Whether the event is in a private window.
- * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
- */
-function notifyPageVisitStopListeners(tabId, windowId, privateWindow, timeStamp = Date.now()) {
-    for (const pageVisitStopListenerDetails of pageVisitStopListenerSet)
-        if(!privateWindow || pageVisitStopListenerDetails.privateWindows)
-            pageVisitStopListenerDetails.listener({ tabId, windowId, timeStamp });
 }
 
 /** 
@@ -384,24 +364,44 @@ export async function initialize() {
 
     // The content script sends a WebScience.Utilities.PageManger.pageVisitStart message when
     // there is a page visit start event
-    Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStart", (pageVisitStartInfo) => {
-        debugLog("Page Visit Start: " + JSON.stringify(pageVisitStartInfo));
+    Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStart", (pageVisitStartInfo, sender) => {
+        pageVisitStart({
+            pageId: pageVisitStartInfo.pageId,
+            tabId: sender.tab.id,
+            windowId: sender.tab.windowId,
+            url: pageVisitStartInfo.url,
+            referrer: pageVisitStartInfo.referrer,
+            pageVisitStartTime: pageVisitStartInfo.timeStamp,
+            privateWindow: pageVisitStartInfo.privateWindow
+        });
     }, {
         pageId: "string",
         url: "string",
         referrer: "string",
-        timeStamp: "number"
+        timeStamp: "number",
+        privateWindow: "boolean"
     });
 
     // The content script sends a WebScience.Utilities.PageManger.pageVisitStop message when
     // there is a page visit stop event
-    Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStop", (pageVisitStopInfo) => {
-        debugLog("Page Visit Stop: " + JSON.stringify(pageVisitStopInfo));
+    Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStop", (pageVisitStopInfo, sender) => {
+        pageVisitStop({
+            pageId: pageVisitStopInfo.pageId,
+            tabId: sender.tab.id,
+            windowId: sender.tab.windowId,
+            url: pageVisitStopInfo.url,
+            referrer: pageVisitStopInfo.referrer,
+            pageVisitStartTime: pageVisitStopInfo.timeStamp,
+            pageVisitStopTime: pageVisitStopInfo.timeStamp,
+            privateWindow: pageVisitStopInfo.privateWindow
+        });
     }, {
         pageId: "string",
         url: "string",
         referrer: "string",
-        timeStamp: "number"
+        timeStamp: "number",
+        pageVisitStartTime: "number",
+        privateWindow: "boolean"
     });
 
     // The background script sends a WebScience.Utilities.PageManager.pageAttentionUpdate message

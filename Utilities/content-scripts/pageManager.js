@@ -5,9 +5,10 @@
  *   * pageId - A unique ID for the page.
  *   * url - The URL of the page, omitting any hash.
  *   * referrer - The referrer for the page.
- *   * pageHasAttenion - Whether the page currently has the user's attention.
+ *   * pageHasAttention - Whether the page currently has the user's attention.
  *   * pageHasAudio - Whether there is currently audio playing on the page.
- *   * pageVisitStart - An event that fires when a page visit begins. 
+ *   * pageVisitStart - An event that fires when a page visit begins.
+ *   * pageVisitStartTime - The time that the page visit started.
  *   * pageVisitStop - An event that fires when a page visit ends.
  *   * pageAttentionUpdate - An event that fires when the page's attention state
  *     changes.
@@ -175,7 +176,8 @@
                 pageId: PageManager.pageId,
                 url: PageManager.url,
                 referrer: PageManager.referrer,
-                timeStamp: PageManager.pageVisitStartTime
+                timeStamp: PageManager.pageVisitStartTime,
+                privateWindow: browser.extension.inIncognitoContext
             });
 
             // Notify the page visit start event listeners in the content script environment
@@ -200,7 +202,9 @@
                 pageId: PageManager.pageId,
                 url: PageManager.url,
                 referrer: PageManager.referrer,
-                timeStamp
+                timeStamp,
+                pageVisitStartTime: PageManager.pageVisitStartTime,
+                privateWindow: browser.extension.inIncognitoContext
             });
 
             // Notify the page visit stop event listeners in the content script environment

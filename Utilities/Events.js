@@ -82,7 +82,7 @@ export function createEvent() {
             return listeners.has(listener);
         },
         notifyListeners: function(listenerArguments, filter) {
-            for(let listener of listeners) {
+            listeners.forEach((options, listener) => {
                 try {
                     if((filter === undefined) || filter(listenerArguments, options))
                         listener.apply(null, listenerArguments);
@@ -90,7 +90,7 @@ export function createEvent() {
                 catch(error) {
                     debugLog(`Error in listener notification: ${error}`);
                 }
-            }
+            });
         }
     };
 }
