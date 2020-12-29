@@ -427,33 +427,22 @@ function checkForAttention(tabId, windowId) {
 const windowState = new Map();
 
 /**
- * Update the window state cache with new information about a window. If
- * we already know more specific information about the window than
- * the new information, ignore the new information.
+ * Update the window state cache with new information about a window.
  * @private
  * @param {number} windowId - The window ID.
  * @param {WindowDetails} windowDetails - The new information about the
  * window.
  */
-function updateWindowState(windowId, {
-    activeTab
-}) {
-    var windowDetails = windowState.get(windowId);
+function updateWindowState(windowId, { activeTab }) {
+    let windowDetails = windowState.get(windowId);
 
-    // If we don't have any cached state on the window, save
-    // what we know now and be done
     if(windowDetails === undefined) {
-        windowState.set(windowId, {
-            activeTab: (activeTab !== undefined) ? activeTab : -1
-        });
-        return;
+        windowDetails = { activeTab: -1 };
+        windowState.set(windowId, windowDetails);
     }
 
-    // If the update has an active tab ID, update the cached
-    // active tab ID
     if(activeTab !== undefined)
         windowDetails.activeTab = activeTab;
-
 }
 
 /**
@@ -570,7 +559,7 @@ export async function initialize() {
         // (and windows.onRemoved will fire)
         
         // If this is the active tab, forget it
-        if(currentActiveTab == tabId)
+        if(currentActiveTab === tabId)
             currentActiveTab = -1;
     });
 
@@ -613,8 +602,7 @@ export async function initialize() {
             return;
         
         // If we have cached state for this window, drop it
-        if(windowState.has(windowId))
-            windowState.delete(windowId);
+        windowState.delete(windowId);
     });
 
     browser.windows.onFocusChanged.addListener(windowId => {
