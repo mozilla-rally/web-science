@@ -125,6 +125,7 @@
  */
 
 import * as Debugging from "./Debugging.js"
+import * as Events from "./Events.js"
 import * as Idle from "./Idle.js"
 import * as Messaging from "./Messaging.js"
 
@@ -262,120 +263,19 @@ function notifyPageVisitStopListeners(tabId, windowId, privateWindow, timeStamp 
             pageVisitStopListenerDetails.listener({ tabId, windowId, timeStamp });
 }
 
-/**
- * A listener function for page attention start events.
- * @callback pageAttentionStartListener
- * @param {Object} details - Additional information about the page attention start event.
- * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
- * @param {number} details.windowId - The window containing the page, unique to the browsing session.
- * Note that tabs can subsequently move between windows.
- * @param {number} details.timeStamp - The time when the underlying browser event fired.
- */
-
-/**
- * Additional information about a page attention start event listener function.
- * @typedef {Object} PageAttentionStartListenerDetails
- * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
- * @property {pageAttentionStartListener} listener - The listener function.
- */
-
-/**
- * The set of listener details for page attention start events.
- * @private
- * @constant {Set<PageAttentionStartListenerDetails>}
- */
-const pageAttentionStartListenerSet = new Set();
-
 /** 
- * Register a listener function that will be notified about page attention start events.
- * @param {pageAttentionStartListener} pageAttentionStartListener - The listener function. 
- * @param {boolean} [privateWindows=false] - Whether the listener should be fired for events in private windows.
- * @param {number} [timeStamp=Date.now()] - The time to use if the listener should be fired
- * for the page that currently has attention (if there is one).
- */
-export async function registerPageAttentionStartListener(pageAttentionStartListener, privateWindows = false, timeStamp = Date.now()) {
-    initialize();
-    pageAttentionStartListenerSet.add({
-        listener: pageAttentionStartListener,
-        privateWindows: privateWindows
-    });
-}
-
-/** 
- * Notify page attention start listeners and content scripts about a page attention start event.
+ * Notify a page that its attention state may have changed.
  * @private
  * @param {number} tabId - The tab containing the page, unique to the browsing session.
- * @param {number} windowId - The window containing the page, unique to the browsing session.
- * @param {boolean} privateWindow - Whether the event is in a private window.
+ * @param {boolean} pageHasAttention - Whether the tab containing the page has the user's
+ * attention.
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
-function notifyPageAttentionStartListeners(tabId, windowId, privateWindow, timeStamp = Date.now()) {
-    for (const pageAttentionStartListenerDetails of pageAttentionStartListenerSet)
-        if(!privateWindow || pageAttentionStartListenerDetails.privateWindows)
-            pageAttentionStartListenerDetails.listener({ tabId, windowId, timeStamp });
+function sendPageAttentionUpdate(tabId, pageHasAttention, timeStamp = Date.now()) {
     Messaging.sendMessageToTab(tabId, {
         type: "WebScience.Utilities.PageManager.pageAttentionUpdate",
-        timeStamp,
-        pageHasAttention: true
-    });
-}
-
-/**
- * A listener function for page attention stop events.
- * @callback pageAttentionStopListener
- * @param {Object} details - Additional information about the page attention stop event.
- * @param {number} details.tabId - The tab containing the page, unique to the browsing session.
- * @param {number} details.windowId - The window containing the page, unique to the browsing session.
- * Note that tabs can subsequently move between windows.
- * @param {number} details.timeStamp - The time when the underlying browser event fired.
- */
-
-/**
- * Additional information about a page attention stop event listener function.
- * @typedef {Object} PageAttentionStopListenerDetails
- * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
- * @property {pageAttentionStartListener} listener - The listener function.
- */
-
-/**
- * The set of listener details for page attention stop events.
- * @private
- * @constant {Set<PageAttentionStopListenerDetails>}
- */
-const pageAttentionStopListenerSet = new Set();
-
-/** 
- * Register a listener function that will be notified about page attention stop events.
- * @param {pageAttentionStopListener} pageAttentionStopListener - The listener function. 
- */
-export async function registerPageAttentionStopListener(pageAttentionStopListener, privateWindows = false) {
-    initialize();
-    pageAttentionStopListenerSet.add({
-        listener: pageAttentionStopListener,
-        privateWindows: privateWindows
-    });
-}
-
-/** 
- * Notify page attention stop listeners and content scripts about a page attention stop event.
- * @private
- * @param {number} tabId - The tab containing the page, unique to the browsing session.
- * @param {number} windowId - The window containing the page, unique to the browsing session.
- * @param {boolean} privateWindow - Whether the event is in a private window.
- * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
- */
-function notifyPageAttentionStopListeners(tabId, windowId, privateWindow, timeStamp = Date.now()) {
-    for (const pageAttentionStopListenerDetails of pageAttentionStopListenerSet)
-        if(!privateWindow || pageAttentionStopListenerDetails.privateWindows)
-            pageAttentionStopListenerDetails.listener({
-                tabId: tabId,
-                windowId: windowId,
-                timeStamp: timeStamp
-            });
-    Messaging.sendMessageToTab(tabId, {
-        type: "WebScience.Utilities.PageManager.pageAttentionUpdate",
-        timeStamp,
-        pageHasAttention: false
+        pageHasAttention,
+        timeStamp
     });
 }
 
@@ -589,8 +489,8 @@ export async function initialize() {
         // then start a new attention span
         if((browserIsActive || !considerUserInputForAttention)) {
             if((currentActiveTab >= 0) && (currentFocusedWindow >= 0))
-                notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, false, timeStamp);
-            notifyPageAttentionStartListeners(activeInfo.tabId, currentFocusedWindow, false, timeStamp);
+                sendPageAttentionUpdate(currentActiveTab, false, timeStamp);
+            sendPageAttentionUpdate(activeInfo.tabId, true, timeStamp);
         }
         
         // Remember the new active tab
@@ -613,7 +513,7 @@ export async function initialize() {
         // If the browser is active or (optionally) we are not considering user input, and if
         // if there is an active tab in a focused window, end the attention span
         if((browserIsActive || !considerUserInputForAttention) && ((currentActiveTab >= 0) && (currentFocusedWindow >= 0)))
-            notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, false, timeStamp);
+            sendPageAttentionUpdate(currentActiveTab, false, timeStamp);
 
         // If the browser has lost focus in the operating system, remember 
         // tab ID = -1 and window ID = -1, and do not start a new attention span
@@ -643,7 +543,7 @@ export async function initialize() {
         currentActiveTab = focusedWindowDetails.activeTab;
         currentFocusedWindow = windowId;
         if(browserIsActive || !considerUserInputForAttention)
-            notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, false, timeStamp);
+            sendPageAttentionUpdate(currentActiveTab, true, timeStamp);
     });
     
     // Handle when the browser activity state changes
@@ -670,12 +570,8 @@ export async function initialize() {
             if((currentActiveTab < 0) || (currentFocusedWindow < 0))
                 return;
 
-            // Send an attention start event (if the browser is transitioning to active) or an
-            // attention stop event (if the browser is transitioning to inactive)
-            if(browserIsActive)
-                notifyPageAttentionStartListeners(currentActiveTab, currentFocusedWindow, false,  timeStamp);
-            else
-                notifyPageAttentionStopListeners(currentActiveTab, currentFocusedWindow, false, timeStamp);
+            // Send an attention state change event to the current active tab, reflecting the browser activity state
+            sendPageAttentionUpdate(currentActiveTab, browserIsActive, timeStamp);
         }, idleThreshold);
     }
 
