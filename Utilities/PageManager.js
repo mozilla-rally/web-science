@@ -176,7 +176,7 @@ const considerUserInputForAttention = true;
 
 /**
  * An event that is fired when a page visit starts.
- * @type Events.Event
+ * @type {Events.Event}
  * @const
  */
 export const onPageVisitStart = Events.createEvent();
@@ -199,9 +199,6 @@ function pageVisitStart(details) {
  * Additional information about a page visit stop event.
  * @typedef {Object} PageVisitStopDetails
  * @param {number} pageId - The ID for the page, unique across browsing sessions.
- * @param {number} tabId - The ID for the tab containing the page, unique to the browsing session.
- * @param {number} windowId - The ID for the window containing the page, unique to the browsing session.
- * Note that tabs can subsequently move between windows.
  * @param {string} url - The URL of the page loading in the tab, without any hash.
  * @param {string} referrer - The referrer URL for the page loading in the tab, or `""` if
  * there is no referrer.
@@ -224,7 +221,7 @@ function pageVisitStart(details) {
 
 /**
  * An event that is fired when a page visit starts.
- * @type Events.Event
+ * @type {Events.Event}
  * @const
  */
 export const onPageVisitStop = Events.createEvent();
@@ -390,11 +387,11 @@ export async function initialize() {
 
     // The content script sends a WebScience.Utilities.PageManger.pageVisitStop message when
     // there is a page visit stop event
-    Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStop", (pageVisitStopInfo, sender) => {
+    // We don't currently include tab or window information with the page visit stop event
+    // because the sender object doesn't include that information when the tab is closing
+    Messaging.registerListener("WebScience.Utilities.PageManager.pageVisitStop", (pageVisitStopInfo) => {
         pageVisitStop({
             pageId: pageVisitStopInfo.pageId,
-            tabId: sender.tab.id,
-            windowId: sender.tab.windowId,
             url: pageVisitStopInfo.url,
             referrer: pageVisitStopInfo.referrer,
             pageVisitStartTime: pageVisitStopInfo.timeStamp,

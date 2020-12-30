@@ -5,14 +5,16 @@
  *   * pageId - A unique ID for the page.
  *   * url - The URL of the page, omitting any hash.
  *   * referrer - The referrer for the page.
+ *   * onPageVisitStart - An event that fires when a page visit begins.
+ *   * onPageVisitStop - An event that fires when a page visit ends.
+ *   * onPageAttentionUpdate - An event that fires when the page's attention state
+ *     changes.
+ *   * onPageAudioUpdate - An event that fires when the page's audio state changes.
  *   * pageHasAttention - Whether the page currently has the user's attention.
  *   * pageHasAudio - Whether there is currently audio playing on the page.
- *   * pageVisitStart - An event that fires when a page visit begins.
+ *   * pageVisitStarted - Whether the page visit start event has completed firing,
+ *     such that all listeners have been notified.
  *   * pageVisitStartTime - The time that the page visit started.
- *   * pageVisitStop - An event that fires when a page visit ends.
- *   * pageAttentionUpdate - An event that fires when the page's attention state
- *     changes.
- *   * pageAudioUpdate - An event that fires when the page's audio state changes.
  * 
  * # Events
  * See the documentation in the PageManager module for detail on the event types.
@@ -27,16 +29,17 @@
  * 
  * Example usage:
  * ```
- * PageManager.pageVisitStart.addListener(({timeStamp}) => {
- *     console.log(`Page visit started at ${timeStamp} with page ID ${PageManager.pageId}`);
+ * PageManager.onPageVisitStop.addListener(({timeStamp}) => {
+ *     console.log(`Page visit stopped at ${timeStamp} with page ID ${PageManager.pageId}`);
  * });
  * 
- * PageManager.pageAttentionUpdate.addListener(({timeStamp}) => {
+ * PageManager.onPageAttentionUpdate.addListener(({timeStamp}) => {
  *     console.log(`Page attention update at ${timeStamp} with attention state ${PageManager.pageHasAttention}.`);
  * });
  * ```
  * 
  * # Content Script Load Ordering
+ * ## Executing a Content Script After the PageManager API Has Loaded
  * Note that the WebExtensions content script model does not guarantee execution
  * order for content scripts, so it is possible that the API will not have loaded
  * when a content script that depends on the API loads. As a workaround, this
@@ -59,6 +62,34 @@
  * }
  * ```
  * 
+ * ## Listening for the Page Visit Start Event
+ * Because the order of content script execution is not guaranteed, a content
+ * script that uses the PageManager API might miss a page visit start event. For
+ * example, the PageManager content script might attach and fire the page visit
+ * start event, then another content script attaches and begins listening for
+ * the event. The PageManager API addresses this limitation by providing a
+ * `pageVisitStarted` boolean reflecting whether the page visit start event has
+ * already completed firing (i.e., all listeners have been notified). Content scripts
+ * that use the page visit start event will commonly want to call their own page visit
+ * start listener if `pageVisitStarted` is `true`.
+ * 
+ * Example usage:
+ * ```
+ * function pageVisitStartListener({timeStamp}) {
+ *     // Page visit start logic goes here
+ * }
+ * PageManager.onPageVisitStart.addListener(pageVisitStartListener);
+ * if(PageManager.pageVisitStarted)
+ *     pageVisitStartListener({ timeStamp: PageManager.pageVisitStartTime });
+ * ```
+ * 
+ * # Known Issues
+ *   * When sending a page visit stop message to the background script, sometimes
+ *     Firefox generates an error ("Promise resolved while context is inactive")
+ *     because the content script execution environment is terminating while the
+ *     message sending Promise remains open. This error does not affect functionality,
+ *     because we do not depend on resolving the Promise (i.e., a response to the
+ *     page visit stop message).
  * @module WebScience.Utilities.content-scripts.pageManager
  */
 
@@ -95,7 +126,6 @@
          * hash at the end. We canonicalize URLs without the hash because jumping
          * between parts of a page (as indicated by a hash) should not be considered page
          * navigation.
-         * @href
          * @returns {string} 
          */
         function locationHrefWithoutHash() {
@@ -131,10 +161,10 @@
             };
         }
 
-        PageManager.pageVisitStart = createEvent();
-        PageManager.pageVisitStop = createEvent();
-        PageManager.pageAttentionUpdate = createEvent();
-        PageManager.pageAudioUpdate = createEvent();
+        PageManager.onPageVisitStart = createEvent();
+        PageManager.onPageVisitStop = createEvent();
+        PageManager.onPageAttentionUpdate = createEvent();
+        PageManager.onPageAudioUpdate = createEvent();
 
         /**
          * Send a message to the background page, with a catch because errors can
@@ -143,9 +173,14 @@
          * a type string.
          */
         PageManager.sendMessage = function(message) {
-            browser.runtime.sendMessage(message).catch((reason) => {
+            try {
+                browser.runtime.sendMessage(message).catch((reason) => {
+                    console.debug(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
+                });
+            }
+            catch(error) {
                 console.debug(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
-            });
+            }
         };
         
         /**
@@ -169,6 +204,8 @@
             // If this is a History API page load, persist the states for attention and audio
             PageManager.pageHasAttention = isHistoryChange ? PageManager.pageHasAttention : false;
             PageManager.pageHasAudio = isHistoryChange ? PageManager.pageHasAudio : false;
+            // Store whether the page visit event has completed firing
+            PageManager.pageVisitStarted = false;
 
             // Send the page visit start event to the background page
             PageManager.sendMessage({
@@ -181,9 +218,11 @@
             });
 
             // Notify the page visit start event listeners in the content script environment
-            PageManager.pageVisitStart.notifyListeners([{
+            PageManager.onPageVisitStart.notifyListeners([{
                 timeStamp
             }]);
+
+            PageManager.pageVisitStarted = true;
 
             console.debug(`Page visit start: ${JSON.stringify(PageManager)}`);
         };
@@ -208,7 +247,7 @@
             });
 
             // Notify the page visit stop event listeners in the content script environment
-            PageManager.pageVisitStop.notifyListeners([{
+            PageManager.onPageVisitStop.notifyListeners([{
                 timeStamp
             }]);
 
@@ -230,7 +269,7 @@
             PageManager.pageHasAttention = pageHasAttention;
 
             // Notify the page attention update event listeners in the content script environment
-            PageManager.pageAttentionUpdate.notifyListeners([{
+            PageManager.onPageAttentionUpdate.notifyListeners([{
                 timeStamp
             }]);
 
@@ -252,7 +291,7 @@
             PageManager.pageHasAudio = pageHasAudio;
 
             // Notify the page audio update event listeners in the content script environment
-            PageManager.pageAudioUpdate.notifyListeners([{
+            PageManager.onPageAudioUpdate.notifyListeners([{
                 timeStamp
             }]);
 
@@ -298,7 +337,7 @@
                             console.debug(`Error in callback for PageManager load: ${error}`);
                         }
                     }
-            delete window.pageManagerHasLoaded();
+            delete window.pageManagerHasLoaded;
         }
 
         // Send the page visit start event for the first time
