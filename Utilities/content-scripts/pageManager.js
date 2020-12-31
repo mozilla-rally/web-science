@@ -1,20 +1,25 @@
 /**
- * Content script for the PageManager module. This module provides a PageManager
+ * Content script for the PageManager module. This module provides a `PageManager`
  * API with global scope in the content script environment. The API includes the
  * following features.
- *   * pageId - A unique ID for the page.
- *   * url - The URL of the page, omitting any hash.
- *   * referrer - The referrer for the page.
- *   * onPageVisitStart - An event that fires when a page visit begins.
- *   * onPageVisitStop - An event that fires when a page visit ends.
- *   * onPageAttentionUpdate - An event that fires when the page's attention state
+ *   * Page Tracking
+ *     * `pageId` - A unique ID for the page.
+ *     * `url` - The URL of the page, omitting any hash.
+ *     * `referrer` - The referrer for the page.
+ *   * Page Events
+ *     * `onPageVisitStart` - An event that fires when a page visit begins. Note that
+ *       the page visit start event may have already fired by the time another
+ *       content script attaches (see discussion below).
+ *     * `onPageVisitStop` - An event that fires when a page visit ends.
+ *     * `onPageAttentionUpdate` - An event that fires when the page's attention state
  *     changes.
- *   * onPageAudioUpdate - An event that fires when the page's audio state changes.
- *   * pageHasAttention - Whether the page currently has the user's attention.
- *   * pageHasAudio - Whether there is currently audio playing on the page.
- *   * pageVisitStarted - Whether the page visit start event has completed firing,
+ *     * `onPageAudioUpdate` - An event that fires when the page's audio state changes.
+ *   * Page Properties
+ *     * `pageHasAttention` - Whether the page currently has the user's attention.
+ *     * `pageHasAudio - Whether there is currently audio playing on the page.
+ *     * `pageVisitStarted` - Whether the page visit start event has completed firing,
  *     such that all listeners have been notified.
- *   * pageVisitStartTime - The time that the page visit started.
+ *     * `pageVisitStartTime` - The time that the page visit started.
  * 
  * # Events
  * See the documentation in the PageManager module for detail on the event types.
