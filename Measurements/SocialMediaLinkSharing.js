@@ -8,7 +8,6 @@
 import * as Debugging from "../Utilities/Debugging.js"
 import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
-import * as PageEvents from "../Utilities/PageEvents.js"
 import * as SocialMediaActivity from "../Utilities/SocialMediaActivity.js"
 import * as PageNavigation from "../Measurements/PageNavigation.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
