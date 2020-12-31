@@ -2,9 +2,12 @@
  * Content script for link exposure study
  * @module WebScience.Measurements.content-scripts.linkExposure
  */
+
 // Function encapsulation to maintain unique variable scope for each content script
-(
-    async function () {
+(async function () {
+
+    // Inner function encapsulation to wait for PageManager load
+    let linkExposure = async function () {
         /**
          * @constant
          * updateInterval (number of milliseconds) is the interval at which we look for new links that users
@@ -34,7 +37,6 @@
         }
         var newUntracked = false;
 
-        var hasAttentionNow = true;
         var lastLostAttention = -1;
         var lastGainedAttention = -1;
 
@@ -51,8 +53,6 @@
         const shortURLMatcher = shortDomainRegex.shortDomainRegex;
         const urlMatcher = domainRegex.domainRegex;
 
-        /** time when the document is loaded */
-        let initialLoadTime = Date.now();
         let currentDomain = getDomain(document.URL);
 
         /**
@@ -76,10 +76,11 @@
         function sendExposureEventsToBackground(type, data) {
             if (data.length > 0 || newUntracked) {
                 let metadata = {
-                    location: document.location.href,
-                    loadTime: initialLoadTime,
+                    location: PageManager.url,
+                    loadTime: PageManager.pageVisitStartTime,
                     visible: isDocVisible(),
-                    referrer: document.referrer
+                    referrer: PageManager.referrer,
+                    pageId: PageManager.pageId
                 };
                 let updateUntrackedUrls = numUntrackedUrlsByThreshold;
                 newUntracked = false;
@@ -181,6 +182,11 @@
             return ret;
         }
 
+        function getDomain(url) {
+            var urlObj = new URL(url);
+            return urlObj.hostname;
+        }
+
         /**
          * Convert relative url to abs url
          * @param {string} url
@@ -253,10 +259,10 @@
                 return;
             }
             // if we don't have attention it's been more than updateInterval since we lost it
-            if (!hasAttentionNow && (lastLostAttention + updateInterval < currentTime)) {
+            if (!PageManager.pageHasAttention && (lastLostAttention + updateInterval < currentTime)) {
                 return;
             }
-            updateTime = hasAttentionNow ? currentTime : lastLostAttention;
+            updateTime = PageManager.pageHasAttention ? currentTime : lastLostAttention;
             let exposureEvents = [];
             // Get <a> elements and either observe (for new elements) or send them to background script if visible for > threshold
             Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
@@ -321,7 +327,7 @@
                 } = entry;
                 let status = checkedElements.get(target);
                 if (entry.intersectionRatio >= 0.70 && status.track &&
-                    isElementVisible(target) && hasAttentionNow) {
+                    isElementVisible(target) && PageManager.pageHasAttention) {
                     if (status.lastSeenStart == -1) {
                         status.lastSeenStart = currentTime;
                         if (status.firstSeen == -1) status.firstSeen = status.lastSeenStart;
@@ -354,38 +360,48 @@
             numUpdates++;
         }
 
-        browser.runtime.onMessage.addListener((request) => {
-            if ("attentionChange" in request) {
-                const timeStamp = request.timeStamp;
-                if (request.attentionChange == "gain") {
-                    hasAttentionNow = true;
-                    lastGainedAttention = timeStamp;
+        function gainAttention(timeStamp) {
+            lastGainedAttention = timeStamp;
 
-                    Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
-                        if (!checkedElements.has(element)) {
-                            return;
-                        } else {
-                            var status = checkedElements.get(element);
-                            if (status.ignored || !(status.track)) {
-                                return;
-                            }
-                            if (status.lastSeenStart != -1) {
-                                status.totalTimeSeen += lastLostAttention - status.lastSeenStart;
-                                status.lastSeenStart = timeStamp;
-                            }
-                        }
-                    });
-                } else if (request.attentionChange == "lose") {
-                    hasAttentionNow = false;
-                    lastLostAttention = timeStamp;
+            Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
+                if (!checkedElements.has(element)) {
+                    return;
+                } else {
+                    var status = checkedElements.get(element);
+                    if (status.ignored || !(status.track)) {
+                        return;
+                    }
+                    if (status.lastSeenStart != -1) {
+                        status.totalTimeSeen += lastLostAttention - status.lastSeenStart;
+                        status.lastSeenStart = timeStamp;
+                    }
                 }
-            }
+            });
+        }
+
+        function loseAttention(timeStamp) {
+            lastLostAttention = timeStamp;
+        }
+
+        PageManager.onPageAttentionUpdate.addListener(({ timeStamp }) => {
+            if(PageManager.pageHasAttention)
+                gainAttention(timeStamp);
+            else
+                loseAttention(timeStamp);
         });
-    function getDomain(url) {
-        var urlObj = new URL(url);
-        return urlObj.hostname;
+
+        if(PageManager.pageHasAttention)
+            gainAttention();
     }
 
-    } // end of anon function
-)(); // encapsulate and invoke
+    // Wait for PageManager load
+    if ("PageManager" in window)
+        linkExposure();
+    else {
+        if(!("pageManagerHasLoaded" in window))
+            window.pageManagerHasLoaded = [];
+        window.pageManagerHasLoaded.push(linkExposure);
+    }
+
+})(); // encapsulate and invoke
 

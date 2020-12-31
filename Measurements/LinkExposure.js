@@ -1,6 +1,5 @@
 /**
- * LinkExposure module is used to run studies that track user's exposure
- * to content from known news domains
+ * This module measures the user's exposure to links for specific domains.
  * @module WebScience.Measurements.LinkExposure
  */
 
@@ -9,7 +8,7 @@ import * as Storage from "../Utilities/Storage.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as Messaging from "../Utilities/Messaging.js"
-import * as PageEvents from "../Utilities/PageEvents.js"
+import * as PageManager from "../Utilities/PageManager.js"
 
 const debugLog = Debugging.getDebuggingLog("Measurements.LinkExposure");
 
@@ -69,7 +68,7 @@ export async function runStudy({
     });
 
     // Listen for LinkExposure messages from content script
-    Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender, sendResponse) => {
+    Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender) => {
         if (!("tab" in sender)) {
             debugLog("Warning: unexpected link exposure update");
             return;
@@ -108,21 +107,9 @@ export async function runStudy({
         metadata: "object"
     });
 
-    PageEvents.registerPageAttentionStartListener(pageAttentionStart, true, privateWindows);
-    PageEvents.registerPageAttentionStopListener(pageAttentionStop, privateWindows);
+    PageManager.initialize();
+
     initialized = true;
-
-}
-
-function pageAttentionStart({url, referrer, tabId, timeStamp}) {
-    browser.tabs.sendMessage(tabId, {
-        attentionChange: "gain", 
-        timeStamp: timeStamp}).catch( (err) => { return; } );
-}
-function pageAttentionStop({url, referrer, tabId, timeStamp}) {
-    browser.tabs.sendMessage(tabId, {
-        attentionChange: "lose", 
-        timeStamp: timeStamp}).catch( (err) => { return; } );
 }
 
 
