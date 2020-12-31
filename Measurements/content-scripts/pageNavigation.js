@@ -48,11 +48,46 @@
         let attentionAndAudioDuration = 0;
 
         /**
+         * How often (in milliseconds) to check maximum page scroll depth.
          * @constant
          * @type {number}
-         * How often (in milliseconds) to check maximum page scroll depth.
          */
         const scrollDepthUpdateInterval = 1000;
+
+        /**
+         * How often (in milliseconds) after the first time the page gains attention (or after
+         * page visit start if `scrollDepthWaitForAttention` is `false`) to begin checking the
+         * maximum relative scroll depth. A delay is helpful because some pages have placeholder
+         * content while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
+         * @constant
+         * @type {number}
+         */
+        const scrollDepthUpdateDelay = 2000;
+
+        /**
+         * The minimum page height required (in pixels, using `document.documentElement.offsetHeight` rather
+         * than `scrollHeight` or `clientHeight` to avoid clamping to screen size) to check the maximum
+         * relative scroll depth. A minimum height is helpful because some pages have placeholder content
+         * while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
+         * @constant
+         * @type {number}
+         */
+        const scrollDepthMinimumHeight = 50;
+
+        /**
+         * Whether to wait until the first time the page gains attention before checking the maximum relative
+         * scroll depth. Delaying until the first instance of attention is helpful because some pages have
+         * placeholder content while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
+         * @constant
+         * @type {boolean}
+         */
+        const scrollDepthWaitForAttention = true;
+
+        /**
+         * The first time the page had attention, or 0 if the page has never had attention.
+         * @type {number}
+         */
+        let firstAttentionTime = 0;
 
         /**
          * The maximum relative scroll depth, defined as the depth of the bottom of
@@ -74,6 +109,7 @@
             // Reset page attention and page audio tracking
             attentionDuration = 0;
             lastAttentionUpdateTime = timeStamp;
+            firstAttentionTime = PageManager.pageHasAttention ? timeStamp : 0;
             audioDuration = 0;
             lastAudioUpdateTime = timeStamp;
             attentionAndAudioDuration = 0;
@@ -81,9 +117,12 @@
             // Reset scroll depth tracking and set an interval timer for checking scroll depth
             maxRelativeScrollDepth = 0;
             scrollDepthIntervalId = setInterval(function() {
-                maxRelativeScrollDepth = Math.min(
-                    Math.max(maxRelativeScrollDepth, (window.scrollY + document.documentElement.clientHeight) / document.documentElement.scrollHeight),
-                    1);
+                if((scrollDepthWaitForAttention || ((Date.now() - PageManager.pageVisitStartTime) >= scrollDepthUpdateDelay)) &&
+                   (!scrollDepthWaitForAttention || ((firstAttentionTime > 0) && ((Date.now() - firstAttentionTime) >= scrollDepthUpdateDelay))) &&
+                   (document.documentElement.offsetHeight >= scrollDepthMinimumHeight))
+                    maxRelativeScrollDepth = Math.min(
+                        Math.max(maxRelativeScrollDepth, (window.scrollY + document.documentElement.clientHeight) / document.documentElement.scrollHeight),
+                        1);
             }, scrollDepthUpdateInterval);
         };
         if(PageManager.pageVisitStarted)
@@ -118,6 +157,10 @@
         });
 
         PageManager.onPageAttentionUpdate.addListener(({ timeStamp }) => {
+            // If the page just gained attention for the first time, store the time stamp
+            if(PageManager.pageHasAttention && (firstAttentionTime < PageManager.pageVisitStartTime))
+                firstAttentionTime = timeStamp;
+
             // If the page just lost attention, add to the attention duration
             // and possibly the attention and audio duration
             if(!PageManager.pageHasAttention) {
