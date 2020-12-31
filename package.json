@@ -1,0 +1,62 @@
+{
+  "name": "ion-basic-study",
+  "version": "0.3.0",
+  "scripts": {
+    "dev": "rollup -c -w",
+    "start": "sirv public",
+    "build": "rollup -c",
+    "storybook": "start-storybook -p 6006 -s ./",
+    "build-storybook": "build-storybook -s ./",
+    "build-addon": "rollup -c && web-ext build --overwrite-dest && mv web-ext-artifacts/*.zip web-ext-artifacts/study.xpi",
+    "lint": "eslint . && web-ext lint",
+    "package": "npm run build-addon && web-ext build --ignore-files \"./tests/**/*\" --ignore-files \"./src/**/*\" --ignore-files \"./rollup.config.js\"",
+    "start-addon": "npm run build-addon && web-ext run",
+    "test-addon": "mocha --require  \"./tests/hooks.js\" \"./tests/unit/*.js\"",
+    "test-integration": "npm run build && mocha --timeout 30000 \"./tests/integration/*.js\""
+  },
+  "devDependencies": {
+    "@mozilla/rally": "0.0.4",
+    "@rollup/plugin-commonjs": "^14.0.0",
+    "@rollup/plugin-node-resolve": "^10.0.0",
+    "@storybook/svelte": "^6.1.11",
+    "babel-loader": "^8.2.2",
+    "core-js": "^3.8.1",
+    "eslint": "^7.12.1",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-mocha": "^8.0.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-svelte3": "^3.0.0",
+    "geckodriver": "^1.21.0",
+    "mocha": "^8.1.3",
+    "rollup": "^2.33.1",
+    "rollup-plugin-css-only": "^3.1.0",
+    "rollup-plugin-livereload": "^2.0.0",
+    "rollup-plugin-svelte": "^7.0.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "selenium-webdriver": "^4.0.0-alpha.7",
+    "sinon-chrome": "^3.0.1",
+    "svelte": "^3.31.0",
+    "svelte-loader": "^2.13.6",
+    "web-ext": "^5.4.0",
+    "webextension-polyfill": "^0.7.0"
+  },
+  "dependencies": {
+    "sirv-cli": "^1.0.10"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "description": "This a basic template for a Rally study.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mozilla-ion/ion-basic-study.git"
+  },
+  "keywords": [],
+  "author": "Mozilla",
+  "license": "MPL-2.0",
+  "private": true,
+  "bugs": {
+    "url": "https://github.com/mozilla-ion/ion-basic-study/issues"
+  },
+  "homepage": "https://github.com/mozilla-ion/ion-basic-study#readme"
+}

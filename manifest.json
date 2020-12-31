@@ -1,0 +1,33 @@
+{
+  "description": "A basic template for a Mozilla Rally Study.",
+  "author": "Mozilla",
+  "manifest_version": 2,
+  "name": "Rally Basic Study Template",
+  "version": "0.3.0",
+  "homepage_url": "https://github.com/mozilla-ion/ion-basic-study",
+
+  "applications": {
+    "gecko": {
+      "id": "ion-basic-study@mozilla.org",
+      "strict_min_version": "77.0a1"
+    }
+  },
+
+  "permissions": ["tabs"],
+
+  "options_ui": {
+    "page": "public/index.html",
+    "open_in_tab": true
+  },
+
+  "browser_action": {
+    "default_icon": {
+      "16": "icons/icon.svg",
+      "32": "icons/icon.svg"
+    }
+  },
+
+  "background": {
+    "scripts": ["dist/background.js"]
+  }
+}
