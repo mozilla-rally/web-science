@@ -104,7 +104,7 @@ export async function runStudy({
         metadata: "object"
     });
 
-    PageManager.initialize();
+    await PageManager.initialize();
 
     initialized = true;
 }

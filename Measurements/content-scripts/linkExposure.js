@@ -6,8 +6,23 @@
 // Function encapsulation to maintain unique variable scope for each content script
 (async function () {
 
+    let observer = null;
+
+    /**
+     * The ID for a timer to periodically check links.
+     * @type {number}
+     */
+    let timer = 0;
+
+    // Async calls come before the event handlers to avoid race conditions if a
+    // new page loads with the same document (i.e., via the History API)
+    let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.LinkExposure.privateWindows");
+    let shortDomainRegex = await browser.storage.local.get("shortDomainRegex");
+    let domainRegex = await browser.storage.local.get("domainRegex");
+    let ampDomainRegex = await browser.storage.local.get("ampDomainRegex");
+    
     // Inner function encapsulation to wait for PageManager load
-    let linkExposure = async function () {
+    let pageVisitStartListener = function ({ timeStamp }) {
         /**
          * @constant
          * updateInterval (number of milliseconds) is the interval at which we look for new links that users
@@ -18,7 +33,7 @@
          * @constant
          * visibilityThreshold (number of milliseconds) is minimum number of milliseconds for link exposure
          */
-        var visibilityThresholds = [1000, 3000, 5000, 10000]; // match to BG page
+        let visibilityThresholds = [1000, 3000, 5000, 10000]; // match to BG page
         /**
          * @constant
          * minimum link width for link exposure
@@ -31,25 +46,22 @@
         const linkHeightThreshold = 15;
         const elementSizeCache = new Map();
 
-        var numUntrackedUrlsByThreshold = {};
-        for (var visThreshold of visibilityThresholds) {
+        let numUntrackedUrlsByThreshold = {};
+        for (let visThreshold of visibilityThresholds) {
             numUntrackedUrlsByThreshold[visThreshold] = 0;
         }
-        var newUntracked = false;
+        let newUntracked = false;
 
-        var lastLostAttention = -1;
-        var lastGainedAttention = -1;
+        let lastLostAttention = -1;
+        let lastGainedAttention = -1;
 
         // First check private windows support
-        let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.LinkExposure.privateWindows");
         if (("WebScience.Measurements.LinkExposure.privateWindows" in privateWindowResults) &&
             !privateWindowResults["WebScience.Measurements.LinkExposure.privateWindows"] &&
             browser.extension.inIncognitoContext) {
             return;
         }
 
-        let shortDomainRegex = await browser.storage.local.get("shortDomainRegex");
-        let domainRegex = await browser.storage.local.get("domainRegex");
         const shortURLMatcher = shortDomainRegex.shortDomainRegex;
         const urlMatcher = domainRegex.domainRegex;
 
@@ -97,7 +109,6 @@
             }
         }
 
-        let ampDomainRegex = await browser.storage.local.get("ampDomainRegex");
         const ampDomainMatcher = ampDomainRegex.ampDomainRegex;
         /**
          * @const
@@ -346,9 +357,9 @@
         const options = {
             threshold: [0.70]
         };
-        const observer = new IntersectionObserver(handleIntersection, options);
+        observer = new IntersectionObserver(handleIntersection, options);
 
-        let timer = setInterval(() => run(), updateInterval);
+        timer = setInterval(() => run(), updateInterval);
         let maxUpdates = -1;
         let numUpdates = 0;
 
@@ -391,16 +402,33 @@
         });
 
         if(PageManager.pageHasAttention)
-            gainAttention();
-    }
+            gainAttention(Date.now());
+    };
+
+    // On page visit stop, clear the timer and intersection observer
+    let pageVisitStopListener = function({ timeStamp }) {
+        if(timer !== 0)
+            clearInterval(timer);
+        timer = 0;
+        if(observer !== null)
+            observer.disconnect();
+        observer = null;
+    };
 
     // Wait for PageManager load
+    let pageManagerLoaded = function () {
+        PageManager.onPageVisitStart.addListener(pageVisitStartListener);
+        if(PageManager.pageVisitStarted)
+            pageVisitStartListener({timeStamp: PageManager.pageVisitStartTime});
+
+        PageManager.onPageVisitStop.addListener(pageVisitStopListener);
+    };
     if ("PageManager" in window)
-        linkExposure();
+        pageManagerLoaded();
     else {
         if(!("pageManagerHasLoaded" in window))
             window.pageManagerHasLoaded = [];
-        window.pageManagerHasLoaded.push(linkExposure);
+        window.pageManagerHasLoaded.push(pageManagerLoaded);
     }
 
 })(); // encapsulate and invoke
