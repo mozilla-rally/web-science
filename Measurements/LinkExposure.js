@@ -28,12 +28,10 @@ var visibilityThresholds = [1000, 3000, 5000, 10000]; // match to CS values
  * @name LinkExposure.runStudy starts the LinkExposure study.
  * @param {String[]} domains - Array of domains to track 
  * @param {boolean} privateWindows - If true then the study works in private windows
- * @param {string} domainsCategory - Category of the domains to track
  */
 export async function runStudy({
     domains = [],
-    privateWindows = false,
-    domainsCategory = "news",
+    privateWindows = false
 }) {
 
     // store private windows preference in the storage
@@ -83,7 +81,6 @@ export async function runStudy({
             exposureEvent.metadata = exposureInfo.metadata;
             // resolvedUrl is valid only for urls from short domains
             exposureEvent.resolvedUrl = undefined;
-            exposureEvent.metadata.domainCategory = domainsCategory;
             if (exposureEvent.isShortenedUrl) {
                 let promise = LinkResolution.resolveUrl(exposureEvent.originalUrl);
                 promise.then(async function (result) {
