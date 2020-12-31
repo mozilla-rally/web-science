@@ -9,88 +9,99 @@ import * as Debugging from "./Debugging.js"
 
 const debugLog = Debugging.getDebuggingLog("Utilities.Events");
 
-/**
- * A function that adds an event listener, with optional parameters. If the
- * listener has previously been added for the event, the listener's options
- * (if any) will be updated.
- * @callback addListener
- * @param {function} listener - The function to call when the event fires.
- * The argument(s) that the function will receive depend on the event type.
- * @param {Object} [options] - Options for when the listener should be called.
- * The supported option(s) depend on the event type.
- */
-
-/**
- * A function that removes an event listener.
- * @callback removeListener
- * @param {function} listener - The listener function to remove.
- */
-
-/**
- * A function that checks whether an event listener has been added.
- * @callback hasListener
- * @param {function} listener - The listener function to check.
- * @return {boolean} Whether the listener function has been added.
- */
-
-/**
- * A function that determines whether to call a listener function for an event.
- * @callback filterFunction
- * @param {Array} listenerArguments - The arguments that will be passed to listener
- * functions.
- * @param {Object} options - The options that the listener was added with.
- * @return {boolean} Whether to call the listener function.
- */
-
- /**
-  * A function that calls the listeners for an event.
-  * @callback notifyListeners
-  * @param {Array} listenerArguments - The arguments to pass to the listener functions.
-  * @param {FilterFunction} [filter] - A function that determines whether to
-  * call each listener function based on the arguments and that listener's options.
-  */
-
-/**
- * An event object similar to WebExtensions `events.Event` objects.
- * @typedef {Object} Event
- * @property {addListener} addListener
- * @property {removeListener} removeListener
- * @property {hasListener} hasListener
- * @property {notifyListeners} notifyListeners
- */
-
-/**
- * Creates an event object similar to WebExtensions `events.Event` objects.
- * @return {Event}
- */
-export function createEvent() {
+/** A class that provides an event API similar to WebExtensions `events.Event` objects. */
+export class Event {
     /**
-    * The set of listener functions and options. Keys are listener functions,
-    * values are options.
-    * @private
-    * @type {Map<function, *>}
-    */
-    let listeners = new Map();
-    return {
-        addListener: function(listener, options = { }) {
-            listeners.set(listener, options);
-        },
-        removeListener: function(listener) {
-            listeners.delete(listener);
-        },
-        hasListener: function(listener) {
-            return listeners.has(listener);
-        },
-        notifyListeners: function(listenerArguments, filter) {
-            listeners.forEach((options, listener) => {
-                try {
-                    if((filter === undefined) || filter(listenerArguments, options))
-                        listener.apply(null, listenerArguments);
-                }
-                catch(error) {
-                    debugLog(`Error in listener notification: ${error}`);
-                }
-            });
-        }
-    };
+     * Creates an event instance similar to WebExtensions `events.Event` objects.
+     * @param {Object} [options] - A set of options for the event.
+     * @param {addListenerCallback} [options.addListenerCallback] - A function that is
+     * called when a listener function is added.
+     * @param {removeListenerCallback} [options.removeListenerCallback] - A function
+     * that is called when a listener function is removed.
+     * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
+     * that is called before a listener is notified and can filter the notification.
+     */
+    constructor({
+        addListenerCallback = null,
+        removeListenerCallback = null,
+        notifyListenersCallback = null
+    } = {
+        addListenerCallback: null,
+        removeListenerCallback: null,
+        notifyListenersCallback: null
+    }) {
+        this.addListenerCallback = addListenerCallback;
+        this.removeListenerCallback = removeListenerCallback;
+        this.notifyListenersCallback = notifyListenersCallback;
+        this.listeners = new Map();
+    }
+
+    /**
+     * @callback addListenerCallback
+     * @param {function} listener - The new listener function.
+     * @param {Object} options - The options for the new listener function.
+     */
+
+    /**
+     * A function that adds an event listener, with optional parameters. If the
+     * listener has previously been added for the event, the listener's options
+     * (if any) will be updated.
+     * @param {function} listener - The function to call when the event fires.
+     * @param {Object} [options={}] - Options for when the listener should be called.
+     * The supported option(s) depend on the event type.
+     */
+    addListener(listener, options = { }) {
+        if(this.addListenerCallback !== null)
+            this.addListenerCallback(listener, options);
+        this.listeners.set(listener, options);
+    }
+
+    /**
+     * @callback removeListenerCallback
+     * @param {function} listener - The listener function to remove.
+     */
+
+    /**
+     * A function that removes an event listener.
+     * @param {function} listener - The listener function to remove.
+     */
+    removeListener(listener) {
+        if(this.removeListenerCallback !== null)
+            this.removeListenerCallback(listener);
+        this.listeners.delete(listener);
+    }
+
+    /**
+     * A function that checks whether an event listener has been added.
+     * @param {function} listener - The listener function to check.
+     * @return {boolean} Whether the listener function has been added.
+     */
+    hasListener(listener) {
+        return this.listeners.has(listener);
+    }
+
+    /**
+     * @callback notifyListenersCallback
+     * @param {Array} listenerArguments - The arguments that will be passed to the listener
+     * function.
+     * @param {Object} options - The options that the listener was added with.
+     * @return {boolean} Whether to call the listener function.
+     */
+
+    /**
+     * Notify the listener functions for the event.
+     * @param {Array} listenerArguments - The arguments that will be passed to listener
+     * functions.
+     */
+    notifyListeners(listenerArguments) {
+        this.listeners.forEach((options, listener) => {
+            try {
+                if((this.addListenerCallback === null) || this.addListenerCallback(listenerArguments, options))
+                    listener.apply(null, listenerArguments);
+            }
+            catch(error) {
+                debugLog(`Error in listener notification: ${error}`);
+            }
+        });
+    }
 }

@@ -179,7 +179,14 @@ const considerUserInputForAttention = true;
  * @type {Events.Event}
  * @const
  */
-export const onPageVisitStart = Events.createEvent();
+export const onPageVisitStart = new Events.Event({
+    // Filter notifications for events in private windows
+    pageVisitStartCallback: ([ details ], listenerOptions) => {
+        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
+            return true;
+        return false;
+    }
+});
 
 /**
  * Notify listeners for the page visit start event.
@@ -187,12 +194,7 @@ export const onPageVisitStart = Events.createEvent();
  * @private
  */
 function pageVisitStart(details) {
-    // Apply a filter for events in private windows
-    onPageVisitStart.notifyListeners([ details ], ([ details ], listenerOptions) => {
-        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
-            return true;
-        return false;
-    });
+    onPageVisitStart.notifyListeners([ details ]);
 }
 
 /**
@@ -224,7 +226,14 @@ function pageVisitStart(details) {
  * @type {Events.Event}
  * @const
  */
-export const onPageVisitStop = Events.createEvent();
+export const onPageVisitStop = new Events.Event({
+    // Filter notifications for events in private windows
+    pageVisitStopListenerCallback: ([ details ], listenerOptions) => {
+        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
+            return true;
+        return false;
+    }
+});
 
 /**
  * Notify listeners for the page visit stop event.
@@ -232,12 +241,7 @@ export const onPageVisitStop = Events.createEvent();
  * @private
  */
 function pageVisitStop(details) {
-    // Apply a filter for events in private windows
-    onPageVisitStop.notifyListeners([ details ], ([ details ], listenerOptions) => {
-        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
-            return true;
-        return false;
-    });
+    onPageVisitStop.notifyListeners([ details ]);
 }
 
 /** 
