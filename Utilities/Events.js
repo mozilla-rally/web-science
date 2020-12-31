@@ -90,10 +90,10 @@ export class Event {
 
     /**
      * Notify the listener functions for the event.
-     * @param {Array} listenerArguments - The arguments that will be passed to listener
+     * @param {Array} [listenerArguments=[]] - The arguments that will be passed to listener
      * functions.
      */
-    notifyListeners(listenerArguments) {
+    notifyListeners(listenerArguments = []) {
         this.listeners.forEach((options, listener) => {
             try {
                 if((this.addListenerCallback === null) || this.addListenerCallback(listenerArguments, options))

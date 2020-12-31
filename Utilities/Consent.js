@@ -75,13 +75,13 @@ export async function runStudy(callbackAfterConsent) {
         await storage.set("hasConsent", false);
         await storage.set("installTime", Date.now());
         // If we make it to 24 hours with no consent, assume they don't consent and uninstall
-        Scheduling.registerIdleDailyListener(dayListener);
+        Scheduling.onIdleDaily.addListener(dayListener);
         openConsentTab();
     } else if (hasConsent) {
         callback();
         return;
     } else {
-        Scheduling.registerIdleDailyListener(dayListener);
+        Scheduling.onIdleDaily.addListener(dayListener);
     }
 
 }

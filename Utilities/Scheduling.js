@@ -40,6 +40,7 @@
 
 import * as Idle from "./Idle.js"
 import * as Storage from "./Storage.js"
+import * as Events from "./Events.js"
 
 /**
  * The number of seconds in a day.
@@ -117,40 +118,22 @@ var storage = null;
 var timeoutId = -1;
 
 /**
- * A Set containing the idle daily listener functions.
- * @private
- * @const {Set<function>}
- * @default
+ * An event that fires about once a day, when the browser is idle.
+ * @constant
+ * @type {Events.Event}
  */
-const idleDailyListeners = new Set();
+export const onIdleDaily = new Events.Event({
+    addListenerCallback: function() { initialize(); }
+})
 
 /**
- * A Set containing the idle weekly listener functions.
- * @private
- * @const {Set<function>}
- * @default
+ * An event that fires about once a week, when the browser is idle.
+ * @constant
+ * @type {Events.Event}
  */
-const idleWeeklyListeners = new Set();
-
-/**
- * Register a listener function that will be notified about once a day,
- * when the browser is idle.
- * @param {function} idleDailyListener - The listener function.
- */
-export async function registerIdleDailyListener(idleDailyListener) {
-    await initialize();
-    idleDailyListeners.add(idleDailyListener);
-}
-
-/**
- * Register a listener function that will be notified about once a week,
- * when the browser is idle.
- * @param {function} idleWeeklyListener - The listener function.
- */
-export async function registerIdleWeeklyListener(idleWeeklyListener) {
-    await initialize();
-    idleWeeklyListeners.add(idleWeeklyListener);
-}
+export const onIdleWeekly = new Events.Event({
+    addListenerCallback: function() { initialize(); }
+});
 
 /**
  * Set a timeout and listener for when the ordinary and the shortened
@@ -210,9 +193,7 @@ async function notifyListeners() {
     lastIdleDailyTime = Date.now();
     await storage.set("lastIdleDailyTime", lastIdleDailyTime);
 
-    // Notify the idle daily listeners.
-    for(const idleDailyListener of idleDailyListeners)
-        idleDailyListener();
+    onIdleDaily.notifyListeners();
     
     // Set a timeout to account for corner cases.
     setIdleStateDetectionTimeout();
@@ -227,9 +208,7 @@ async function notifyListeners() {
     lastIdleWeeklyTime = lastIdleDailyTime;
     await storage.set("lastIdleWeeklyTime", lastIdleWeeklyTime);
 
-    // Notify the idle weekly listeners.
-    for(const idleWeeklyListener of idleWeeklyListeners)
-        idleWeeklyListener();
+    onIdleWeekly.notifyListeners();
 }
 
 /**
