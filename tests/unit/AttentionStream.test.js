@@ -21,6 +21,10 @@ const FAKE_STUDY_LIST = [
 ];
 const FAKE_WEBSITE = "https://test.website";
 
+async function delay(ms=1000) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
  describe('Core', function () {
    beforeEach(function () {
      // Force the sinon-chrome stubbed API to resolve its promise
@@ -61,7 +65,6 @@ const FAKE_WEBSITE = "https://test.website";
     //  });
  
      it('listens for web extension tab events', function () {
-       this.attention.initialize();
        assert.ok(browser.tabs.onActivated.addListener.calledOnce);
        assert.ok(chrome.tabs.onUpdated.addListener.calledOnce);
        assert.ok(chrome.tabs.onRemoved.addListener.calledOnce);
@@ -70,7 +73,6 @@ const FAKE_WEBSITE = "https://test.website";
 
    describe('.onChange()', function () {
      it('adds an onChange callback', function() {
-      this.attention.initialize();
       this.attention.onChange(() => {
 
       });
@@ -79,17 +81,47 @@ const FAKE_WEBSITE = "https://test.website";
      it('calls all of the _onChangeHandlers callbacks', function() {
       const callback1 = sinon.fake();
       const callback2 = sinon.fake();
-      this.attention.initialize();
       this.attention.onChange(callback1);
       this.attention.onChange(callback2);
       this.attention._handleChange();
       assert.ok(callback1.calledOnce);
       assert.ok(callback2.calledOnce);
+     });
+     it('a new page load (update) creates a new event', async function() {
+      const callback = sinon.fake();
+      this.attention.onChange(callback);
+
+      chrome.tabs.onUpdated.dispatch(undefined, {status: "loading", url: "https://example.com/"});
+      await delay(1);
+      chrome.tabs.onUpdated.dispatch(undefined, {favIconUrl: "https://news.example.com/favicon.ico"});
+      await delay(1);
+      chrome.tabs.onUpdated.dispatch(undefined, {title: "Example.com"});
+      await delay(1);
+      chrome.tabs.onUpdated.dispatch(undefined, {status: "complete"});
+      await delay(1);
+
+      await delay(100);
+
+      chrome.tabs.onUpdated.dispatch(undefined, {status: "loading", url: "https://nytimes.com"});
+      await delay(1);
+      chrome.tabs.onUpdated.dispatch(undefined, {favIconUrl: "https://nytimes.com"});
+      await delay(1);
+      chrome.tabs.onUpdated.dispatch(undefined, {title: "The New York Times"});
+      await delay(1);
+      chrome.tabs.onUpdated.dispatch(undefined, {status: "complete"});
+      await delay(1);
+
+      const firstEvent = this.attention._events[0];
+      assert.equal(firstEvent.url, 'https://example.com/');
+      assert.equal(firstEvent.reason, 'update');
+      assert.equal(firstEvent.status, 'complete');
+     })
+     it('calls when the tab events occur', async function() {
+      
      })
    })
   
   afterEach(function () {
-    delete global.fetch;
     chrome.flush();
   });
 });
