@@ -9,9 +9,6 @@ module.exports = class AttentionStream {
     constructor() {
         this._events = [];
         this._onChangeHandlers = [];
-        this._activationHandlers = [];
-        this._removedHandlers = [];
-        this._updateHandlers = [];
         this._current = { firstRun: true };
         this.initialize();
         // supported patterns are full URI, URI minus qs, domain, TLD+1?
@@ -28,11 +25,20 @@ module.exports = class AttentionStream {
         browser.windows.onFocusChanged.addListener(this._createGenericHandlerCase('window-focus-changed').bind(this));
     }
 
+    // FIXME: needs tests
+    reset() {
+        this._events = [];
+        this._resetCurrentEvent();
+        // set the firstRun event to true.
+        this._current.firstRun = true;
+    }
+
     // registers a change.
     onChange(fcn) {
         this._onChangeHandlers.push(fcn);
     }
 
+    // FIXME: needs tests
     _finishEventAndStartNew({ reason, url }) {
         this._setEnd();
         // console.info('Site', currentlyFocusedTab);
@@ -105,14 +111,15 @@ module.exports = class AttentionStream {
         }
     }
 
-    async _handleUpdate(_, changeInfo, everything) {
-        if ((changeInfo.status === 'loading' && changeInfo.url)) {
-            // split off new one?
+    async _handleUpdate(_, changeInfo, everything = {}) {
+        // skip this update if it is not in an active tab.
+        if (everything.active === false) return;
+        // reset on the loading event.
+        if (changeInfo.status === 'loading' && changeInfo.url) {
             const fcn = this._createGenericHandlerCase('tab-updated').bind(this);
             await fcn('tab-updated');
         }
         if (changeInfo.status) this._current.status = changeInfo.status;
         if (changeInfo.title) this._current.title = changeInfo.title;
-        // if (changeInfo.url) this._current.url = changeInfo.url;
     }
 }
