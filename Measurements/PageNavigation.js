@@ -1,5 +1,5 @@
 /**
- * This module measures properties of webpage navigation for specific domains.
+ * This module measures properties of webpage navigation.
  * 
  * @module WebScience.Measurements.PageNavigation
  */
@@ -18,11 +18,11 @@ let storage = null;
 /**
  * Start a navigation measurement. Note that only one measurement is currently supported per extension.
  * @param {Object} options - A set of options for the measurement.
- * @param {string[]} [options.domains=[]] - The domains of interest for the measurement.
+ * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
  * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
  */
-export async function runMeasurement({
-    domains = [ ],
+export async function startMeasurement({
+    matchPatterns = [ ],
     privateWindows = false
 }) {
     await PageManager.initialize();
@@ -30,25 +30,29 @@ export async function runMeasurement({
     storage = await (new Storage.KeyValueStorage("WebScience.Measurements.PageNavigation")).initialize();
 
     /**
-     * A counter for page visits that are not on domains of interest.
-     * @type {WebScience.Utilities.Storage.Counter}
+     * A counter for page visits that are not for pages of interest.
+     * @type {Storage.Counter}
      */
     let untrackedPageVisits = await (new Storage.Counter("WebScience.Measurements.PageNavigation.untrackedPageVisits")).initialize();
 
-    let urlMatcher = new Matching.UrlMatcher(domains);
+    /**
+     * A RegExp for the match patterns.
+     * @type {RegExp}
+     */
+    let matchPatternsRegExp = Matching.matchPatternsToRegExp(matchPatterns);
 
     await browser.contentScripts.register({
-        matches: Matching.createUrlMatchPatternArray(domains, true),
+        matches: matchPatterns,
         js: [{
             file: "/WebScience/Measurements/content-scripts/pageNavigation.js"
         }],
         runAt: "document_start"
     });
 
-    // If the user completes a page visit and the page isn't on a domain of interest,
+    // If the user completes a page visit and the page doesn't match a match pattern,
     // increment the untracked page visit counter
     PageManager.onPageVisitStop.addListener((pageVisitStopDetails) => {
-        if (!urlMatcher.testUrl(pageVisitStopDetails.url))
+        if (!matchPatternsRegExp.test(pageVisitStopDetails.url))
             untrackedPageVisits.increment();
     });
 
