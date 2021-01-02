@@ -4,3 +4,4 @@ const attention = new AttentionStream();
 attention.onChange(console.log);
 
 browser.tabs.create({ url: "https://news.ycombinator.com", active: true});
+browser.tabs.create({ url: "https://washingtonpost.com", active: true});

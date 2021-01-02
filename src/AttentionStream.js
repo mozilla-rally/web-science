@@ -3,6 +3,7 @@
 // export function matchURL(url, method) {
 //     //
 // }
+const getPageURL = require('./get-page-url');
 
 module.exports = class AttentionStream {
     constructor() {
@@ -17,9 +18,14 @@ module.exports = class AttentionStream {
     }
 
     initialize() {
-        browser.tabs.onActivated.addListener(this._handleActivation.bind(this))
+        browser.tabs.onActivated.addListener(this._createGenericHandlerCase('tab-activated').bind(this))
         browser.tabs.onUpdated.addListener(this._handleUpdate.bind(this));
-        browser.tabs.onRemoved.addListener(this._handleRemove.bind(this));
+        browser.tabs.onRemoved.addListener(this._createGenericHandlerCase('tab-removed').bind(this));
+        browser.tabs.onCreated.addListener(this._createGenericHandlerCase('tab-created').bind(this));
+
+        browser.windows.onCreated.addListener(this._createGenericHandlerCase('window-created').bind(this));
+        browser.windows.onRemoved.addListener(this._createGenericHandlerCase('window-removed').bind(this));
+        browser.windows.onFocusChanged.addListener(this._createGenericHandlerCase('window-focus-changed').bind(this));
     }
 
     // registers a change.
@@ -86,43 +92,27 @@ module.exports = class AttentionStream {
         return url !== this._current.url;
     }
 
-    _handleActivation(_, changeInfo, everything) {
-        // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onActivated
-        // handler executes when the active tab has changed.
-        const url = '???';
-        console.log('activation', changeInfo, everything);
-        if (this._urlIsNew(url)) {
-            const finishedEvent = this._finishEventAndStartNew({ reason: "activation", url: "url" });
-            if (!finishedEvent.firstRun) {
-                this._handleChange(finishedEvent);
-            }
-        }
-    }
-
-    _handleUpdate(_, changeInfo, everything) {
-        console.log('update', changeInfo, everything);
-        // update status flag if loading.
-    
-        // first meaningful event on new page load.
-        if ((changeInfo.status === 'loading' && changeInfo.url)) {
-            // split off new one?
-            if (this._urlIsNew(changeInfo.url)) {
-                const finishedEvent = this._finishEventAndStartNew({ reason: "update", url: changeInfo.url });
+    _createGenericHandlerCase(reason) {
+        // this is the case that most of these functions use.
+        return async function() {
+            const url = await getPageURL();
+            if (this._urlIsNew(url)) {
+                const finishedEvent = this._finishEventAndStartNew({ reason, url });
                 if (!finishedEvent.firstRun) {
                     this._handleChange(finishedEvent);
                 }
             }
         }
-        // update the new object.
+    }
+
+    async _handleUpdate(_, changeInfo, everything) {
+        if ((changeInfo.status === 'loading' && changeInfo.url)) {
+            // split off new one?
+            const fcn = this._createGenericHandlerCase('tab-updated').bind(this);
+            await fcn('tab-updated');
+        }
         if (changeInfo.status) this._current.status = changeInfo.status;
         if (changeInfo.title) this._current.title = changeInfo.title;
-        if (changeInfo.url) this._current.url = changeInfo.url;
+        // if (changeInfo.url) this._current.url = changeInfo.url;
     }
-
-    _handleRemove(_, changeInfo, everything) {
-        console.log('remove', changeInfo, everything);
-        const finishedEvent = this._finishEventAndStartNew({reason: "remove" });
-        this._handleChange(finishedEvent);
-    }
-
 }

@@ -2,126 +2,163 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
- const assert = require('assert').strict;
+ jest.mock('webextension-polyfill', () => require('sinon-chrome/webextensions'));
+ const browser = require("webextension-polyfill");
+
  const sinon = require('sinon');
+
+ jest.mock('../../src/get-page-url');
+ const getPageURL = require('../../src/get-page-url');
  
  const AttentionStream = require('../../src/AttentionStream.js');
- 
-// A fake study id to use in the tests when looking for a
-// "known" study.
-const FAKE_STUDY_ID = "test@ion-studies.com";
-const FAKE_STUDY_ID_NOT_INSTALLED = "test-not-installed@ion-studies.com";
-const FAKE_STUDY_LIST = [
-  {
-    "addon_id": FAKE_STUDY_ID
-  },
-  {
-    "addon_id": FAKE_STUDY_ID_NOT_INSTALLED
-  }
-];
-const FAKE_WEBSITE = "https://test.website";
 
 async function delay(ms=1000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function updatePage(title, url) {
+  browser.tabs.onUpdated.dispatch(undefined, {status: "loading", url});
+  await delay(1);
+  browser.tabs.onUpdated.dispatch(undefined, {favIconUrl: url});
+  await delay(1);
+  browser.tabs.onUpdated.dispatch(undefined, {title});
+  await delay(1);
+  browser.tabs.onUpdated.dispatch(undefined, {status: "complete"});
+  await delay(1);
+}
+
+
  describe('Core', function () {
+    beforeAll(function() {
+      global.browser = browser;
+    })
+
+    afterAll(function() {
+      browser.flush();
+      delete global.browser;
+    })
+  let attention;
    beforeEach(function () {
-     // Force the sinon-chrome stubbed API to resolve its promise
-     // in tests. Without the next two lines, tests querying the
-     // `browser.management.getAll` API will be stuck and timeout.
-     // Note that this will fake our data to make FAKE_STUDY_ID look
-     // installed.
-    //  chrome.management.getAll
-    //    .callsArgWith(0, [{type: "extension", id: FAKE_STUDY_ID}])
-    //    .resolves();
-    //  chrome.management.getAll.yields(
-    //    [{type: "extension", id: FAKE_STUDY_ID}]);
- 
-     // NodeJS doesn't support "fetch" so we need to mock it
-     // manually (or use a third party package). This isn't too
-     // bad, as we can just return our fake ids.
- 
-     this.attention = new AttentionStream();
+    getPageURL.mockReset();
+    attention = new AttentionStream();
    });
- 
-  //  describe('_openControlPanel()', function () {
-  //    it('should open the options page', function () {
-  //      chrome.runtime.openOptionsPage.flush();
-  //      this.core._openControlPanel();
-  //      assert.ok(chrome.runtime.openOptionsPage.calledOnce);
-  //    });
-  //  });
+
+
  
    describe('.initialize()', function () {
-    //  it('opens the options page on install', function () {
-    //    chrome.runtime.openOptionsPage.flush();
-    //    // The initializer installs the handlers.
-    //    this.attention.initialize();
-    //    // Dispatch an installation event to see if the page is
-    //    // opened.
-    //    chrome.runtime.onInstalled.dispatch({reason: "install"});
-    //    assert.ok(chrome.runtime.openOptionsPage.calledOnce);
-    //  });
- 
      it('listens for web extension tab events', function () {
-       assert.ok(browser.tabs.onActivated.addListener.calledOnce);
-       assert.ok(chrome.tabs.onUpdated.addListener.calledOnce);
-       assert.ok(chrome.tabs.onRemoved.addListener.calledOnce);
+       expect(browser.tabs.onActivated.addListener.calledOnce).toBeTruthy();
+       expect(browser.tabs.onUpdated.addListener.calledOnce).toBeTruthy();
+       expect(browser.tabs.onRemoved.addListener.calledOnce).toBeTruthy();
      });
    });
 
    describe('.onChange()', function () {
      it('adds an onChange callback', function() {
-      this.attention.onChange(() => {
+      attention.onChange(() => {
 
       });
-      assert.equal(this.attention._onChangeHandlers.length, 1);
+      expect(attention._onChangeHandlers.length).toBe(1);
      })
      it('calls all of the _onChangeHandlers callbacks', function() {
       const callback1 = sinon.fake();
       const callback2 = sinon.fake();
-      this.attention.onChange(callback1);
-      this.attention.onChange(callback2);
-      this.attention._handleChange();
-      assert.ok(callback1.calledOnce);
-      assert.ok(callback2.calledOnce);
+      attention.onChange(callback1);
+      attention.onChange(callback2);
+      attention._handleChange();
+
+      expect(callback1.calledOnce).toBeTruthy();
+      expect(callback2.calledOnce).toBeTruthy();
      });
-     it('a new page load (update) creates a new event', async function() {
+     it('tab-updated: updating the tab creates a new event', async function() {
       const callback = sinon.fake();
-      this.attention.onChange(callback);
+      attention.onChange(callback);
 
-      chrome.tabs.onUpdated.dispatch(undefined, {status: "loading", url: "https://example.com/"});
-      await delay(1);
-      chrome.tabs.onUpdated.dispatch(undefined, {favIconUrl: "https://news.example.com/favicon.ico"});
-      await delay(1);
-      chrome.tabs.onUpdated.dispatch(undefined, {title: "Example.com"});
-      await delay(1);
-      chrome.tabs.onUpdated.dispatch(undefined, {status: "complete"});
+      getPageURL.mockResolvedValue("https://example.com/");
+      await updatePage('Example.com', "https://example.com/");
       await delay(1);
 
-      await delay(100);
-
-      chrome.tabs.onUpdated.dispatch(undefined, {status: "loading", url: "https://nytimes.com"});
-      await delay(1);
-      chrome.tabs.onUpdated.dispatch(undefined, {favIconUrl: "https://nytimes.com"});
-      await delay(1);
-      chrome.tabs.onUpdated.dispatch(undefined, {title: "The New York Times"});
-      await delay(1);
-      chrome.tabs.onUpdated.dispatch(undefined, {status: "complete"});
+      getPageURL.mockResolvedValue("https://news.com/");
+      await updatePage('News Site', "https://news.com/");
       await delay(1);
 
-      const firstEvent = this.attention._events[0];
-      assert.equal(firstEvent.url, 'https://example.com/');
-      assert.equal(firstEvent.reason, 'update');
-      assert.equal(firstEvent.status, 'complete');
+      // FIXME: create an active: false case.
+      getPageURL.mockResolvedValue("https://socialmedia.com/test/path?q=test");
+      await updatePage('Social Media Site', "https://socialmedia.com/test/path?q=test");
+
+      const [firstEvent, secondEvent] = attention._events;
+      expect(firstEvent.url).toBe('https://example.com/');
+      expect(firstEvent.reason).toBe('tab-updated');
+      expect(firstEvent.status).toBe('complete');
+
+      expect(secondEvent.url).toBe('https://news.com/');
+      expect(secondEvent.reason).toBe('tab-updated');
+      expect(secondEvent.status).toBe('complete');
+
+      expect(attention._current.url).toBe("https://socialmedia.com/test/path?q=test");
+      expect(attention._current.reason).toBe('tab-updated');
+      expect(attention._current.status).toBe('complete');
+
+      // FIXME: test that callback was called.
      })
-     it('calls when the tab events occur', async function() {
-      
+
+     it('tab-activated: switching tabs creates new event', async function() {
+      const callback = sinon.fake();
+      attention.onChange(callback);
+
+      // set first page
+      getPageURL.mockResolvedValue("https://example.com/");
+      await updatePage('Example.com', "https://example.com/");
+      await delay(1);
+
+      // mock a tab activation event
+      getPageURL.mockResolvedValue("https://news.com/");
+      browser.tabs.onActivated.dispatch();
+      await delay(0);
+
+      getPageURL.mockResolvedValue("https://example2.com/");
+      browser.tabs.onActivated.dispatch();
+      await delay(0);
+
+      const [event1, event2] = attention._events;
+      expect(event1.url).toBe('https://example.com/');
+      expect(event1.reason).toBe('tab-updated');
+      expect(event1.status).toBe('complete');
+
+      expect(event2.url).toBe('https://news.com/');
+      expect(event2.reason).toBe('tab-activated');
+
+      expect(attention._current.url).toBe("https://example2.com/");
      })
+   })
+
+   it('tab-removed: removing a tab creates a new event', async function() {
+    const callback = sinon.fake();
+    const attention = new AttentionStream();
+    attention.onChange(callback);
+
+    getPageURL.mockResolvedValue("https://example1.com/");
+    await updatePage('Example1.com', "https://example1.com/");
+
+    getPageURL.mockResolvedValue("https://example2.com/")
+    browser.tabs.onRemoved.dispatch();
+    await delay(0);
+
+    getPageURL.mockResolvedValue("https://example3.com/");
+    await updatePage('Example1.com', "https://example3.com/");
+    
+    const [event1, event2] = attention._events;
+    expect(event1.url).toBe('https://example1.com/');
+    expect(event1.reason).toBe('tab-updated');
+    expect(event1.status).toBe('complete');
+
+    expect(event2.url).toBe('https://example2.com/');
+    expect(event2.reason).toBe('tab-removed');
+
    })
   
   afterEach(function () {
-    chrome.flush();
+    browser.flush();
+    jest.resetModules();
   });
 });
