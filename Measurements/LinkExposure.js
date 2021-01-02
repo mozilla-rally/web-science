@@ -25,14 +25,19 @@ var initialized = false;
 
 var visibilityThresholds = [1000, 3000, 5000, 10000]; // match to CS values
 /**
- * @name LinkExposure.runStudy starts the LinkExposure study.
- * @param {String[]} domains - Array of domains to track 
- * @param {boolean} privateWindows - If true then the study works in private windows
+ * Start a link exposure measurement. Note that only one measurement is currently supported per extension.
+ * @param {Object} options - A set of options for the measurement.
+ * @param {string[]} [options.linkMatchPatterns=[]] - The links to measure, specified with WebExtensions match patterns.
+ * @param {string[]} [options.pageMatchPatterns=[]] - The pages where links should be measured, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure on pages in private windows.
  */
-export async function runStudy({
-    domains = [],
+export async function startMeasurement({
+    linkMatchPatterns = [],
+    pageMatchPatterns = [],
     privateWindows = false
 }) {
+
+    LinkResolution.initialize();
 
     // store private windows preference in the storage
     await browser.storage.local.set({ "WebScience.Measurements.LinkExposure.privateWindows": privateWindows }); 
@@ -41,7 +46,6 @@ export async function runStudy({
     var nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.LinkExposure.nextPageId")).initialize();
     let shortDomains = LinkResolution.getShortDomains();
     let ampCacheDomains = LinkResolution.getAmpCacheDomains();
-    let domainPattern = Matching.createUrlRegexString(domains);
     let shortDomainPattern = Matching.createUrlRegexString(shortDomains);
     let ampCacheDomainPattern = Matching.createUrlRegexString(ampCacheDomains);
     for (var visThreshold of visibilityThresholds) {
@@ -49,12 +53,12 @@ export async function runStudy({
     }
     const ampCacheMatcher = new RegExp(ampCacheDomainPattern);
     const shortDomainMatcher = new RegExp(shortDomainPattern);
-    const urlMatcher = new RegExp(domainPattern);
-    await browser.storage.local.set({domainRegex: urlMatcher, shortDomainRegex: shortDomainMatcher, ampDomainRegex : ampCacheMatcher});
+    const urlMatcher = Matching.matchPatternsToRegExp(linkMatchPatterns);
+    await browser.storage.local.set({linkRegex: urlMatcher, shortDomainRegex: shortDomainMatcher, ampDomainRegex : ampCacheMatcher});
 
     // Add the content script for checking links on pages
     await browser.contentScripts.register({
-        matches: ["*://*/*"],
+        matches: pageMatchPatterns,
         js: [{
             file: "/WebScience/Measurements/content-scripts/utils.js"
         },
@@ -66,7 +70,7 @@ export async function runStudy({
     });
 
     // Listen for LinkExposure messages from content script
-    Messaging.registerListener("WebScience.linkExposure", (exposureInfo, sender) => {
+    Messaging.registerListener("WebScience.LinkExposure.linkData", (exposureInfo, sender) => {
         if (!("tab" in sender)) {
             debugLog("Warning: unexpected link exposure update");
             return;
@@ -122,16 +126,6 @@ export async function getStudyDataAsObject() {
     if(storage != null)
         return await storage.getContentsAsObject();
     return null;
-}
-
-/**
- * Function tests whether a given object is empty
- * @param {Object} obj - Object to test
- * @returns {boolean} - true if the object is empty
- * @private
- */
-function isEmpty(obj) {
-    return !obj || Object.keys(obj).length === 0;
 }
 
 /**

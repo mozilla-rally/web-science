@@ -18,7 +18,7 @@
     // new page loads with the same document (i.e., via the History API)
     let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.LinkExposure.privateWindows");
     let shortDomainRegex = await browser.storage.local.get("shortDomainRegex");
-    let domainRegex = await browser.storage.local.get("domainRegex");
+    let linkRegex = await browser.storage.local.get("linkRegex");
     let ampDomainRegex = await browser.storage.local.get("ampDomainRegex");
     
     // Inner function encapsulation to wait for PageManager load
@@ -63,7 +63,7 @@
         }
 
         const shortURLMatcher = shortDomainRegex.shortDomainRegex;
-        const urlMatcher = domainRegex.domainRegex;
+        const urlMatcher = linkRegex.linkRegex;
 
         let currentDomain = getDomain(document.URL);
 
@@ -326,7 +326,7 @@
                     }
                 }
             });
-            sendExposureEventsToBackground("WebScience.linkExposure", exposureEvents);
+            sendExposureEventsToBackground("WebScience.LinkExposure.linkData", exposureEvents);
         }
 
         /** callback for IntersectionObserver */
