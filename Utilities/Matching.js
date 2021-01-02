@@ -107,12 +107,10 @@ export function matchPatternToRegExpString(matchPattern) {
         else {
             let matchSubdomains = false;
             if(host.startsWith("*.")) {
-                domain = host.substring(2);
+                host = host.substring(2);
                 matchSubdomains = true;
             }
-            else
-                domain = host;
-            escapedDomain = escapeRegExpString(domain);
+            escapedDomain = escapeRegExpString(host);
             if(matchSubdomains)
                 escapedDomain = "[a-zA-Z0-9\\-\\.]*" + escapedDomain;
         }
