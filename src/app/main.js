@@ -1,1 +1,7 @@
-console.log('it works here.');
+import App from './routes/App.svelte';
+
+const app = new App({
+	target: document.body,
+});
+
+export default app;

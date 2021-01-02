@@ -23,7 +23,59 @@ module.exports = class AttentionStream {
         browser.windows.onCreated.addListener(this._createGenericHandlerCase('window-created').bind(this));
         browser.windows.onRemoved.addListener(this._createGenericHandlerCase('window-removed').bind(this));
         browser.windows.onFocusChanged.addListener(this._createGenericHandlerCase('window-focus-changed').bind(this));
+
+        browser.runtime.onConnect.addListener(
+            p => this._onPortConnected(p));
     }
+
+    // FIXME: tests!
+    _onPortConnected(port) {
+        // const sender = port.sender;
+        // if ((sender.id != browser.runtime.id)
+        //   || (sender.url != browser.runtime.getURL(OPTIONS_PAGE_PATH))) {
+        //   console.error("Core - received message from unexpected sender");
+        //   port.disconnect();
+        //   return;
+        // }
+    
+        this._connectionPort = port;
+    
+        this._connectionPort.onMessage.addListener(
+          m => this._handleMessage(m));
+    
+        // The onDisconnect event is fired if there's no receiving
+        // end or in case of any other error. Log an error and clear
+        // the port in that case.
+        this._connectionPort.onDisconnect.addListener(e => {
+          console.error("Core - there was an error connecting to the page", e);
+          this._connectionPort = null;
+        });
+      }
+
+      // FIXME: tests
+      _handleMessage(message) {
+        // We only expect messages coming from the embedded options page
+        // at this time. We check for the sender in `_onPortConnected`.
+    
+        switch (message.type) {
+          case "get-data":
+            this._sendDataToUI();
+            break;
+          case "reset":
+            this._reset();
+            break;
+          default:
+            return Promise.reject(
+              new Error(`Core - unexpected message type ${message.type}`));
+        }
+      }
+    
+      // FIXME: tests
+      _sendDataToUI() {
+        // Send a message to the UI to update the list of studies.
+        this._connectionPort.postMessage(
+          {type: "receive-data", data: this._events});
+      }
 
     // FIXME: needs tests
     reset() {

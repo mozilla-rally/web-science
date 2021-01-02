@@ -10,7 +10,7 @@
     "build-addon": "rollup -c && web-ext build --overwrite-dest && mv web-ext-artifacts/*.zip web-ext-artifacts/study.xpi",
     "lint": "eslint . && web-ext lint",
     "package": "npm run build-addon && web-ext build --ignore-files \"./tests/**/*\" --ignore-files \"./src/**/*\" --ignore-files \"./rollup.config.js\"",
-    "start-addon": "npm run build-addon && web-ext run",
+    "start-addon": "npm run build && npm run build-addon && web-ext run",
     "test-addon": "jest",
     "test-integration": "npm run build && mocha --timeout 30000 \"./tests/integration/*.js\""
   },
