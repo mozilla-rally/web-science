@@ -9,6 +9,167 @@ import { fbPages } from "../../study/paths/pages-fb.js"
 import { ytPages } from "../../study/paths/pages-yt.js"
 import { twPages } from "../../study/paths/pages-tw.js"
 
+/**
+ * A function that escapes regular expression special characters in a string.
+ * @param {string} string - The input string.
+ * @returns {string} The input string with regular expression special characters escaped.
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions}
+ */
+export function escapeRegExpString(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * A RegExp for validating WebExtensions match patterns, using the same regular expressions for manifest
+ * validation as Firefox.
+ * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/schemas/manifest.json}
+ * @constant
+ * @type {RegExp}
+ */
+const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|file|ftp|\\*)://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$)|(^file:///.*$)|(^resource://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$|^about:)");
+
+/**
+ * A Set of URL schemes permitted in WebExtensions match patterns.
+ * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
+ * @constant
+ * @type {Set<string>}
+ */
+const permittedMatchPatternSchemes = new Set(["http", "https", "ws", "wss", "file", "ftp", "data", "file"]);
+
+/**
+ * A Set of URL schemes that require a host locator (i.e., are followed by `://` rather than `:`).
+ * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
+ * @constant
+ * @type {Set<string>}
+ */
+const hostLocatorMatchPatternSchemes = new Set(["http", "https", "ws", "wss", "file", "ftp", "moz-extension", "chrome", "resource", "moz", "moz-icon", "moz-gio"]);
+
+/**
+ * Converts a match pattern into a regular expression string, using the same logic
+ * for match pattern parsing as Firefox.
+ * @throws {Throws an error if the match pattern is not valid.}
+ * @param {string} matchPattern - The match pattern.
+ * @returns {string} The regular expression.
+ * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
+ */
+export function matchPatternToRegExpString(matchPattern) {
+    if(!matchPatternValidationRegExp.test(matchPattern))
+        throw new Error(`Invalid match pattern: {$matchPattern}`);
+    
+    let tail = matchPattern.repeat(1);
+
+    // The special "<all_urls>" match pattern should match the "http", "https", "ws", "wss", "ftp", "file", and "data" schemes
+    // This regular expression includes a little sanity checking: domains are limited to alphanumerics, hyphen, period, and brackets at the start and end (for IPv6 literals)
+    if(matchPattern === "<all_urls>")
+        return "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\\-\\.]+\\]?(?::[0-9]+)?(?:(?:)|(?:/.*))|(?:file:///.*)|(?:data:.*)$";
+
+    // Parse the scheme
+    let index = matchPattern.indexOf(":");
+    if(index <= 0)
+        throw new Error(`Invalid match pattern: {$matchPattern}`);
+    let scheme = matchPattern.substr(0, index);
+    let hostLocatorScheme = false;
+    // The special "*" wildcard scheme should match the "http", "https", "ws", and "wss" schemes
+    if(scheme === "*") {
+        scheme = "(?:(?:https?)|(?:wss?))";
+        hostLocatorScheme = true;
+    }
+    else {
+        if(!permittedMatchPatternSchemes.has(scheme))
+            throw new Error(`Invalid match pattern: {$matchPattern}`);
+        hostLocatorScheme = hostLocatorMatchPatternSchemes.has(scheme);
+    }
+
+    // Parse the host
+    let offset = index + 1;
+    tail = matchPattern.substr(offset);
+    let escapedDomain = "";
+    if(hostLocatorScheme) {
+        if(!tail.startsWith("//"))
+            throw new Error(`Invalid match pattern: {$matchPattern}`);
+        
+        offset += 2;
+        tail = matchPattern.substr(offset);
+        index = tail.indexOf("/");
+        if(index < 0)
+            index = tail.length;
+        
+        let host = tail.substring(0, index);
+        if((host === "") && (scheme !== "file"))
+            throw new Error(`Invalid match pattern: {$matchPattern}`);
+
+        offset += index;
+        tail = matchPattern.substring(offset);
+
+        if(host === "*")
+            escapedDomain = "\\[?[a-zA-Z0-9\\-\\.]+\\]?"; // This isn't a robust domain check, just limiting to permitted characters and IPv6 literal brackets
+
+        else {
+            let matchSubdomains = false;
+            if(host.startsWith("*.")) {
+                domain = host.substring(2);
+                matchSubdomains = true;
+            }
+            else
+                domain = host;
+            escapedDomain = escapeRegExpString(domain);
+            if(matchSubdomains)
+                escapedDomain = "[a-zA-Z0-9\\-\\.]*" + escapedDomain;
+        }
+
+        // If this is a scheme that requires "://" and isn't "file", there might be a port specified
+        if(scheme !== "file")
+            escapedDomain = escapedDomain + "(?::[0-9]+)?";
+    }
+    
+    // Parse the path
+    let path = tail;
+    let escapedPath = "";
+    if(path === "")
+        throw new Error(`Invalid match pattern: {$matchPattern}`);
+    
+    // If the path is / or /*, allow a URL with no path specified to match
+    if(path === "/" )
+        escapedPath = "/?";
+    else if(path === "/*")
+        escapedPath = "(?:/.*)?";
+    else {
+        let escapedPathArray = [ ];
+        for(let c of path) {
+            if(c === "*")
+                escapedPathArray.push(".*");
+            else
+                escapedPathArray.push(escapeRegExpString(c))
+        }
+        escapedPath = escapedPathArray.join("");
+    }
+
+    return "^" + scheme + (hostLocatorScheme ? "://" : ":") + escapedDomain + escapedPath + "$";
+}
+
+/**
+ * Converts an array of match patterns into a regular expression string.
+ * @throws {Throws an error if a match pattern is not valid.}
+ * @param {Array<string>} matchPatterns - The match patterns.
+ * @returns {string} The regular expression.
+ */
+export function matchPatternsToRegExpString(matchPatterns) {
+    let regExpArray = [ ];
+    for(let matchPattern of matchPatterns)
+        regExpArray.push("(?:" + matchPatternToRegExpString(matchPattern) + ")");
+    return regExpArray.join("|");
+}
+
+/**
+ * Converts an array of match patterns into a RegExp object.
+ * @throws {Throws an error if a match pattern is not valid.}
+ * @param {Array<string>} matchPatterns - The match patterns.
+ * @returns {RegExp} The regular expression RegExp object.
+ */
+export function matchPatternsToRegExp(matchPatterns) {
+    return new RegExp(matchPatternsToRegExpString(matchPatterns));
+}
+
 /** 
  * Class for testing whether a URL matches a set of domains.
  * Currently implemented with the native RegExp over the full URL, which gives good performance.
