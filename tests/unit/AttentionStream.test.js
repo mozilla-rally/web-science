@@ -103,6 +103,69 @@ async function updatePage(title, url, active=true, incognito=false) {
     });
   });
 
+  describe('_handleMessage', function() {
+    it('rejects unknown messages', function () {
+      // Mock the URL of the options page.
+      const TEST_OPTIONS_URL = "install.sample.html";
+      browser.runtime.getURL.returns(TEST_OPTIONS_URL);
+
+      // Provide an unknown message type and a valid origin:
+      // it should fail due to the unexpected type.
+      expect(() => attention._handleMessage({type: "test-unknown-type", data: {}})).rejects.toThrowError();
+    });
+    it('dispatches get-data messages', async function () {
+      // Mock the URL of the options page.
+      const TEST_OPTIONS_URL = "install.sample.html";
+      browser.runtime.getURL.returns(TEST_OPTIONS_URL);
+      attention._sendDataToUI = jest.fn();
+      await attention._handleMessage(
+        {type: "get-data"}
+      );
+
+      expect(attention._sendDataToUI.mock.calls.length).toBe(1);
+    });
+
+    it('dispatches reset messages', async function () {
+      // Mock the URL of the options page.
+      const TEST_OPTIONS_URL = "install.sample.html";
+      browser.runtime.getURL.returns(TEST_OPTIONS_URL);
+      attention._reset = jest.fn();
+      await attention._handleMessage(
+        { type: "reset" }
+      );
+
+      expect(attention._reset.mock.calls.length).toBe(1);
+    });
+  })
+
+  describe('._sendDataToUI', function() {
+    it('sends the current events to the port', async function() {
+      const events = [
+        { elapsed: 1023, url: "https://example.biz" }
+      ]
+      attention.storage.get = jest.fn(() => Promise.resolve(events));
+      attention._connectionPort = { postMessage: jest.fn() }
+      await attention._sendDataToUI();
+      expect(attention._connectionPort.postMessage.mock.calls.length).toBe(1);
+      expect(attention._connectionPort.postMessage.mock.calls[0][0]).toEqual({type: "receive-data", data: events });
+      expect(attention.storage.get.mock.calls.length).toBe(1);
+    })
+  })
+
+  describe('._reset', function() {
+    it('sends the current events to the port', async function() {
+      const events = [
+        { elapsed: 1023, url: "https://example.biz" }
+      ]
+      attention.storage.reset = jest.fn(() => Promise.resolve());
+      attention._connectionPort = { postMessage: jest.fn() };
+      await attention._reset();
+      expect(attention._connectionPort.postMessage.mock.calls.length).toBe(1);
+      expect(attention._connectionPort.postMessage.mock.calls[0][0]).toEqual({ type: "reset-finished" });
+      expect(attention.storage.reset.mock.calls.length).toBe(1);
+    })
+  })
+
    describe('.onChange()', function () {
      it('adds an onChange callback', function() {
       attention.onChange(jest.fn());

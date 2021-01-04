@@ -1,8 +1,6 @@
-
 const getPageURL = require('./get-page-url');
 const EventStreamStorage = require('./EventStreamStorage');
 const OPTIONS_PAGE_PATH = "public/index.html";
-
 
 module.exports = class AttentionStream {
     constructor() {
@@ -10,8 +8,6 @@ module.exports = class AttentionStream {
         this._current = { firstRun: true };
         this.storage = new EventStreamStorage();
         this.initialize();
-        // set up the local storage once
-        // supported patterns are full URI, URI minus qs, domain, TLD+1?
     }
 
     initialize() {
@@ -41,7 +37,6 @@ module.exports = class AttentionStream {
     
         this._connectionPort.onMessage.addListener(
           m => this._handleMessage(m));
-    
         // The onDisconnect event is fired if there's no receiving
         // end or in case of any other error. Log an error and clear
         // the port in that case.
@@ -51,17 +46,15 @@ module.exports = class AttentionStream {
         });
       }
 
-      // FIXME: tests
-      _handleMessage(message) {
+      async _handleMessage(message) {
         // We only expect messages coming from the embedded options page
-        // at this time. We check for the sender in `_onPortConnected`.
-    
+        // at this time. We check for the sender in `_onPortConnected`.    
         switch (message.type) {
           case "get-data":
             this._sendDataToUI();
             break;
           case "reset":
-            this.reset();
+            this._reset();
             break;
           default:
             return Promise.reject(
@@ -69,7 +62,6 @@ module.exports = class AttentionStream {
         }
       }
     
-      // FIXME: tests
       async _sendDataToUI() {
         // Send a message to the UI to update the list of studies.
         const events = await this.storage.get();
@@ -77,8 +69,7 @@ module.exports = class AttentionStream {
           {type: "receive-data", data: events });
       }
 
-    // FIXME: needs tests
-    async reset() {
+    async _reset() {
         this._resetCurrentEvent();
         await this.storage.reset();
         this._connectionPort.postMessage(
@@ -87,12 +78,11 @@ module.exports = class AttentionStream {
         this._current.firstRun = true;
     }
 
-    // registers a change.
     onChange(fcn) {
         this._onChangeHandlers.push(fcn);
     }
 
-    // FIXME: needs tests
+    // FIXME: tests
     _finishEventAndStartNew({ reason, url }) {
         this._setEnd();
         const evt = { ...this._current };
@@ -108,46 +98,54 @@ module.exports = class AttentionStream {
         return evt;
     }
 
+    // FIXME: tests
     _addReason(reason) {
         this._current.reason = reason;
     }
 
+    // FIXME: tests
     async _submitEvent() {
-        // fill in details here.
-        // store this as a kv pair
         await this.storage.push({...this._current});
       }
       
+    // FIXME: tests
     _setDomain(domain) {
         this._current.domain = domain;
     }
-    
+
+    // FIXME: tests
     _setStart() {
         this._current.start = new Date();
     }
 
+    // FIXME: tests
     _setURL(url) {
         this._current.url = url;
     }
-    
+
+    // FIXME: tests
     _setEnd() {
         this._current.end = new Date();
         this._current.elapsed = this._current.end - this._current.start;
     }
-    
+
+    // FIXME: tests
     _resetCurrentEvent() {
         this._current = { };
     }
 
+    // FIXME: tests
     _handleChange(event) {
         this._onChangeHandlers.forEach(fcn => { fcn(event); } );
     }
 
+    // FIXME: tests
     _urlIsNew(url) {
         // MOCK
         return url !== this._current.url;
     }
 
+    // FIXME: tests
     _createGenericHandlerCase(reason) {
         // this is the case that most of these functions use.
         return async function() {
@@ -161,6 +159,7 @@ module.exports = class AttentionStream {
         }
     }
 
+    // FIXME: tests
     async _handleUpdate(_, changeInfo, everything = {}) {
         // skip this update if it is not in an active tab.
         if (everything.active === false) return;
