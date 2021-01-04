@@ -46,21 +46,21 @@ module.exports = class AttentionStream {
         });
       }
 
-      async _handleMessage(message) {
+    async _handleMessage(message) {
         // We only expect messages coming from the embedded options page
         // at this time. We check for the sender in `_onPortConnected`.    
         switch (message.type) {
-          case "get-data":
+            case "get-data":
             this._sendDataToUI();
             break;
-          case "reset":
+            case "reset":
             this._reset();
             break;
-          default:
+            default:
             return Promise.reject(
-              new Error(`Rally Study - unexpected message type ${message.type}`));
+                new Error(`Rally Study - unexpected message type ${message.type}`));
         }
-      }
+    }
     
       async _sendDataToUI() {
         // Send a message to the UI to update the list of studies.

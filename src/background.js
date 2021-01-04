@@ -8,8 +8,8 @@ attention.onChange((event) => {
     console.info("elapsed:", event.elapsed);
 });
 
-browser.tabs.create({ url: "https://news.ycombinator.com", active: true});
-browser.tabs.create({ url: "https://www.newyorker.com/magazine/1996/10/21/the-outsider-9", active: true});
+// browser.tabs.create({ url: "https://news.ycombinator.com", active: true});
+// browser.tabs.create({ url: "https://www.newyorker.com/magazine/1996/10/21/the-outsider-9", active: true});
 
 function openPage() {
   browser.runtime.openOptionsPage().catch(e => {
