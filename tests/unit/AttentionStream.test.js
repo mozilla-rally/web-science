@@ -4,6 +4,7 @@
 
  jest.mock('webextension-polyfill', () => require('sinon-chrome/webextensions'));
  const browser = require("webextension-polyfill");
+ const sinon = require('sinon');
 
  jest.mock('../../src/get-page-url');
  const getPageURL = require('../../src/get-page-url');
@@ -60,16 +61,47 @@ async function updatePage(title, url, active=true, incognito=false) {
     getPageURL.mockReset();
     attention = new AttentionStream();
    });
-
-
  
    describe('.initialize()', function () {
-     it('listens for web extension tab events', function () {
+     it('listens for web extension tab, window, and connection events', function () {
        expect(browser.tabs.onActivated.addListener.calledOnce).toBeTruthy();
        expect(browser.tabs.onUpdated.addListener.calledOnce).toBeTruthy();
        expect(browser.tabs.onRemoved.addListener.calledOnce).toBeTruthy();
+       expect(browser.runtime.onConnect.addListener.calledOnce).toBeTruthy();
      });
    });
+
+   describe('_onPortConnected()', function () {
+    it('rejects unknown sender addon', function () {
+      const fakePort = {
+         sender: {
+          id: "unknown-addon",
+         },
+         disconnect: sinon.spy(),
+      };
+      attention._onPortConnected(fakePort);
+      expect(fakePort.disconnect.calledOnce).toBeTruthy();
+    });
+
+    it('rejects unknown sender url', function () {
+      // Mock the URL of the options page.
+      const TEST_OPTIONS_URL = "install.sample.html";
+      browser.runtime.getURL.returns(TEST_OPTIONS_URL);
+
+      const fakePort = {
+         sender: {
+          id: "~~~~~~",
+          url: "unknown-url.html"
+         },
+         disconnect: sinon.spy(),
+      };
+
+      // Provide an unknown message type and a valid origin:
+      // it should fail due to the unexpected type.
+      attention._onPortConnected(fakePort);
+      expect(fakePort.disconnect.calledOnce).toBeTruthy();
+    });
+  });
 
    describe('.onChange()', function () {
      it('adds an onChange callback', function() {

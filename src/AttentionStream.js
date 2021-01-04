@@ -1,10 +1,8 @@
-// const browser = require("webextension-polyfill");
 
-// export function matchURL(url, method) {
-//     //
-// }
 const getPageURL = require('./get-page-url');
-const EventStreamStorage = require('./EventStreamStorage')
+const EventStreamStorage = require('./EventStreamStorage');
+const OPTIONS_PAGE_PATH = "public/index.html";
+
 
 module.exports = class AttentionStream {
     constructor() {
@@ -30,15 +28,14 @@ module.exports = class AttentionStream {
             p => this._onPortConnected(p));
     }
 
-    // FIXME: tests!
     _onPortConnected(port) {
-        // const sender = port.sender;
-        // if ((sender.id != browser.runtime.id)
-        //   || (sender.url != browser.runtime.getURL(OPTIONS_PAGE_PATH))) {
-        //   console.error("Core - received message from unexpected sender");
-        //   port.disconnect();
-        //   return;
-        // }
+        const sender = port.sender;
+        if ((sender.id != browser.runtime.id)
+          || (sender.url != browser.runtime.getURL(OPTIONS_PAGE_PATH))) {
+          console.error("Rally Study - received message from unexpected sender");
+          port.disconnect();
+          return;
+        }
     
         this._connectionPort = port;
     
@@ -49,7 +46,7 @@ module.exports = class AttentionStream {
         // end or in case of any other error. Log an error and clear
         // the port in that case.
         this._connectionPort.onDisconnect.addListener(e => {
-          console.error("Core - there was an error connecting to the page", e);
+          console.error("Rally Study - there was an error connecting to the page", e);
           this._connectionPort = null;
         });
       }
@@ -68,7 +65,7 @@ module.exports = class AttentionStream {
             break;
           default:
             return Promise.reject(
-              new Error(`Core - unexpected message type ${message.type}`));
+              new Error(`Rally Study - unexpected message type ${message.type}`));
         }
       }
     

@@ -49,7 +49,7 @@ async function _handleMessage(message) {
       }
       default:
         return Promise.reject(
-          new Error(`Rally - unexpected message type ${message.type}`));
+          new Error(`Rally Study - unexpected message type ${message.type}`));
     }
   }
 
@@ -69,7 +69,7 @@ async function initialize() {
     // end or in case of any other error. Log an error and clear
     // the port in that case.
     _connectionPort.onDisconnect.addListener(e => {
-      console.error("Rally - there was an error connecting to the background script", e);
+      console.error("Rally Study - there was an error connecting to the background script", e);
       _connectionPort = null;
     });
   }
