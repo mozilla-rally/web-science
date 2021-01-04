@@ -1,9 +1,9 @@
 <script>
+  import browser from 'webextension-polyfill';
   import { onMount } from 'svelte';
     import Main from "./Main.svelte";
 
 async function sendToCore(port, type, payload) {
-
   const msg = {
     type,
     data: payload
@@ -41,6 +41,7 @@ async function _handleMessage(message) {
     switch (message.type) {
       case "receive-data": {
         // update the UI.
+        console.log('data received by the frontend', message.data)
         _stateChangeCallbacks.forEach(callback => callback(message.data));
       } break;
       case "reset-finished": {

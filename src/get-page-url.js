@@ -1,4 +1,6 @@
 module.exports = async function getPageURL() {
-    const [tab] = await browser.tabs.query({currentWindow: true, active:true});
+    const [tab] = await browser.tabs.query({ currentWindow: true, active:true });
+    // some active windows do not have urls, eg browser multiprocess consoles
+    if (!tab.url) return undefined;
     return tab.url;
 }

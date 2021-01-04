@@ -51,6 +51,7 @@ module.exports = class AttentionStream {
         // at this time. We check for the sender in `_onPortConnected`.    
         switch (message.type) {
             case "get-data":
+            console.log('requesting data');
             this._sendDataToUI();
             break;
             case "reset":
@@ -105,7 +106,10 @@ module.exports = class AttentionStream {
 
     // FIXME: tests
     async _submitEvent() {
-        await this.storage.push({...this._current});
+        const nextEvent = {...this._current};
+        nextEvent.start = nextEvent.start.toISOString();
+        nextEvent.end = nextEvent.end.toISOString();
+        await this.storage.push(nextEvent);
       }
       
     // FIXME: tests
