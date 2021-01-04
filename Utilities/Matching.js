@@ -26,7 +26,7 @@ export function escapeRegExpString(string) {
  * @constant
  * @type {RegExp}
  */
-const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|file|ftp|\\*)://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$)|(^file:///.*$)|(^resource://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$|^about:)");
+const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|file|ftp|\\*)://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$)|(^file:///.*$)|(^resource://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$|^about:)", "i");
 
 /**
  * A Set of URL schemes permitted in WebExtensions match patterns.
@@ -165,7 +165,7 @@ export function matchPatternsToRegExpString(matchPatterns) {
  * @returns {RegExp} The regular expression RegExp object.
  */
 export function matchPatternsToRegExp(matchPatterns) {
-    return new RegExp(matchPatternsToRegExpString(matchPatterns));
+    return new RegExp(matchPatternsToRegExpString(matchPatterns), "i");
 }
 
 /** 
@@ -180,7 +180,7 @@ export class UrlMatcher {
      * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
      */
     constructor(domains, matchSubdomains = true) {
-        this.regExp = new RegExp(createUrlRegexString(domains, matchSubdomains), "i");
+        this.regExp = new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
     }
 
     /**
@@ -194,17 +194,29 @@ export class UrlMatcher {
 
 /**
  * Generate a regular expression string for matching a URL against a set of domains.
- * Will match http and https protocols. Currently case sensitive.
+ * Will match http and https protocols.
  * @param {string[]} domains - The set of domains to match against.
  * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
- * @returns {string} A regular expression string.
+ * @returns {string} A regular expression string for matching a URL against the set of domains
  */
-export function createUrlRegexString(domains, matchSubdomains = true) {
-    var urlMatchRE = "^(?:http|https)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
-    for (const domain of domains)
-        urlMatchRE = urlMatchRE + domain.replace(/\./g, "\\.") + "|";
-    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|(/|\\?).*)";  ")(?:$|/.*)";
-    return urlMatchRE;
+export function domainsToRegExpString(domains, matchSubdomains = true) {
+    let matchPatterns = [ ];
+    for (const domain of domains) {
+        matchPatterns.push(`http://${matchSubdomains ? "*." : ""}${domain}/*`);
+        matchPatterns.push(`https://${matchSubdomains ? "*." : ""}${domain}/*`);
+    }
+    return matchPatternsToRegExpString(matchPatterns);
+}
+
+/**
+ * Generate a RegExp object for matching a URL against a set of domains.
+ * Will match http and https protocols.
+ * @param {string[]} domains - The set of domains to match against.
+ * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
+ * @returns {RegExp} A RegExp object for matching a URL against the set of domains.
+ */
+export function domainsToRegExp(domains, matchSubdomains = true) {
+    return new RegExp(domainsToRegExpString(domains, matchSubdomains), "i")
 }
 
 /**

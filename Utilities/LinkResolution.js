@@ -2,16 +2,11 @@
  * Module for resolving a short url
  * @module WebScience.Utilities.LinkResolution
  */
-import {
-  getDebuggingLog
-} from './Debugging.js';
-import {
-  shortDomains
-} from '/WebScience/dependencies/shortdomains.js';
-import {
-  ampCacheDomains
-} from '/WebScience/dependencies/ampcachedomains.js';
-const debugLog = getDebuggingLog("Utilities.LinkResolution");
+import * as Debugging from "./Debugging.js";
+import * as Matching from "./Matching.js";
+import { shortDomains } from "/WebScience/dependencies/shortdomains.js";
+import { ampCacheDomains } from "/WebScience/dependencies/ampcachedomains.js";
+const debugLog = Debugging.getDebuggingLog("Utilities.LinkResolution");
 
 
 const fetchTimeoutMs = 5000;
@@ -23,6 +18,21 @@ let trackedUrls = new Set();
 // urlByRedirectedUrl is a mapping from a redirected url to url that redirected to it
 // recursively traversing this mapping will get the redirect chain associated with an initial url
 let urlByRedirectedUrl = new Map();
+
+/**
+ * A RegExp that matches and parses AMP cache URLs. If there is a match, the RegExp provides several
+ * named capture groups.
+ *   * `subdomain` - The AMP cache subdomain, which is either a reformatted version of the URL domain or a hash of the domain. If there is no subdomain, this capture group is missing.
+ *   * `ampCacheDomain` - The domain for the AMP cache.
+ *   * `contentType` - The content type, which is either `c` for an HTML document, `i` for an image, or `r` for another resource.
+ *   * `isSecure` - Whether the AMP cache loads the resource via HTTPS. If it does, this capture group has the value `s`. If it doesn't, this capture group is missing.
+ *   * `url` - The URL that the AMP cache loads, without a specified scheme (i.e., `http://` or `https://`). The scheme is specified by the `isSecure` capture group.
+ * @see {@link https://developers.google.com/amp/cache/overview}
+ * @see {@link https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/}
+ * @constant
+ * @type {RegExp}
+ */
+export const ampCacheRegExp = new RegExp(`^https?://(?:(?<subdomain>[a-zA-Z0-9\\-\\.]*)\\.)?(?<ampCacheDomain>${shortDomains.map(Matching.escapeRegExpString).join("|")})/(?<contentType>c|i|r)/(?<isSecure>s/)?(?<url>.*)$`, "i");
 
 /**
  * Function to resolve a given url to the final url that it points to

@@ -1,1 +1,1 @@
-export const ampCacheDomains = ["cdn.ampproject.org", "amp.cloudflare.com", "bing-amp.com"];
+export const ampCacheDomains = ["cdn.ampproject.org", "amp.cloudflare.com", "www.bing-amp.com"];

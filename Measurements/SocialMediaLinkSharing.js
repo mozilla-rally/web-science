@@ -88,7 +88,7 @@ export async function runStudy({
     urlMatcher = new Matching.UrlMatcher(domains);
     //var sdrs = await browser.storage.local.get("shortDomainRegexString");
     var shortDomains = LinkResolution.getShortDomains();
-    var shortDomainPattern = Matching.createUrlRegexString(shortDomains);
+    var shortDomainPattern = Matching.domainsToRegExpString(shortDomains);
     shortDomainMatcher = new RegExp(shortDomainPattern);
 
     // Make this available to content scripts

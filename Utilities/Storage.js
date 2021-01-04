@@ -153,10 +153,27 @@ export class Counter {
         return this.counterValue;
     }
 
-    async incrementByAndGet(incValue) {
-        var currentCounterValue = (this.counterValue = this.counterValue + incValue);
+    /**
+     * Increment the value of the counter by a number and return the incremented value.
+     * The cached counter value is synchronously incremented; the stored
+     * counter value is asynchronously incremented.
+     * @param {number} incrementValue - The amount to increment the counter.
+     * @returns {Promise<number>} - The counter value after incrementing.
+     */
+    async incrementByAndGet(incrementValue) {
+        var currentCounterValue = (this.counterValue = this.counterValue + incrementValue);
         await Counter.storage.set(this.counterName, this.counterValue);
         return currentCounterValue;
+    }
+
+    /**
+     * Increment the value of the counter, ignoring the value. Identical to
+     * the Promise returned by `counter.incrementByAndGet.then(value => return)`.
+     * @param {number} incrementValue - The amount to increment the counter.
+     */
+    async incrementBy(incrementValue) {
+        await this.incrementByAndGet(incrementValue);
+        return;
     }
 
     /**
@@ -189,7 +206,8 @@ export class Counter {
      * the Promise returned by `counter.incrementAndGet.then(value => return)`.
      */
     async increment() {
-        return await this.incrementAndGet();
+        await this.incrementAndGet();
+        return;
     }
 
     async getAndReset() {
