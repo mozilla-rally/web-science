@@ -53,11 +53,11 @@ export async function startMeasurement({
     // Store the RegExps in browser.storage.local so the content script can retrieve them
     // without recompilation
     const linkRegExp = Matching.matchPatternsToRegExp(linkMatchPatterns);
-    const urlShortenerRegExp = Matching.domainsToRegExp(LinkResolution.getShortDomains(), true);
+    const urlShortenerRegExp = LinkResolution.urlShortenerRegExp;
     await browser.storage.local.set({
         "WebScience.Measurements.LinkExposure.linkRegExp": linkRegExp,
         "WebScience.Measurements.LinkExposure.urlShortenerRegExp": urlShortenerRegExp,
-        "WebScience.Measurements.LinkExposure.ampCacheRegExp": LinkResolution.ampCacheRegExp
+        "WebScience.Measurements.LinkExposure.ampRegExp": LinkResolution.ampRegExp
     });
 
     // Add the content script for checking links on pages

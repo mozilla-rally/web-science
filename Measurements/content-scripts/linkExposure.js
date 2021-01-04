@@ -94,17 +94,17 @@
     const storedRegExps = await browser.storage.local.get([
         "WebScience.Measurements.LinkExposure.linkRegExp",
         "WebScience.Measurements.LinkExposure.urlShortenerRegExp",
-        "WebScience.Measurements.LinkExposure.ampCacheRegExp"
+        "WebScience.Measurements.LinkExposure.ampRegExp"
     ]);
     if(!("WebScience.Measurements.LinkExposure.linkRegExp" in storedRegExps) || 
        !("WebScience.Measurements.LinkExposure.urlShortenerRegExp" in storedRegExps) || 
-       !("WebScience.Measurements.LinkExposure.ampCacheRegExp" in storedRegExps)) {
+       !("WebScience.Measurements.LinkExposure.ampRegExp" in storedRegExps)) {
         console.debug("Error: LinkExposure content script cannot load RegExps from browser.storage.local.");
         return;
     }
     const linkRegExp = storedRegExps["WebScience.Measurements.LinkExposure.linkRegExp"];
     const urlShortenerRegExp = storedRegExps["WebScience.Measurements.LinkExposure.urlShortenerRegExp"];
-    const ampCacheRegExp = storedRegExps["WebScience.Measurements.LinkExposure.ampCacheRegExp"];
+    const ampRegExp = storedRegExps["WebScience.Measurements.LinkExposure.ampRegExp"];
 
     /**
      * A RegExp for matching URLs that have had Facebook's link shim applied.
@@ -131,18 +131,22 @@
     }
 
     /**
-     * Parse the underlying URL from an AMP cache URL, if the URL is an AMP cache URL.
-     * @param {string} url - A URL that may be an AMP cache URL.
-     * @returns {string} If the URL is an AMP cache URL, the parsed underlying URL. Otherwise, just the URL.
+     * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.
+     * @param {string} url - A URL that may be an AMP cache or viewer URL.
+     * @returns {string} If the URL is an AMP cache or viewer URL, the parsed underlying URL. Otherwise, just the URL.
      */
-    function parseAmpCacheUrl(url) {
-        if(!ampCacheRegExp.test(url))
+    function parseAmpUrl(url) {
+        if(!ampRegExp.test(url))
             return url;
-        let parsedAmpCacheUrl = ampCacheRegExp.exec(url);
-        return "http" +
-               ((("isSecure" in parsedAmpCacheUrl.groups) && (parsedAmpCacheUrl.groups.isSecure === "s")) ? "s" : "") +
+        let parsedAmpUrl = ampRegExp.exec(url);
+        // Reconstruct AMP cache URLs
+        if(parsedAmpUrl.groups.ampCacheUrl !== undefined)
+            return "http" +
+               ((parsedAmpUrl.groups.ampCacheIsSecure === "s") ? "s" : "") +
                "://" +
-               parsedAmpCacheUrl.groups.url;
+               parsedAmpUrl.groups.ampCacheUrl;
+        // Reconstruct AMP viewer URLs, assuming the protocol is HTTPS
+        return "https://" + parsedAmpUrl.groups.ampViewerUrl;
     }
 
     /**
@@ -241,7 +245,7 @@
             if (linkInfo === undefined) {
                 let url = linkUrlToAbsoluteUrl(element.href);
                 url = parseFacebookLinkShim(url);
-                url = parseAmpCacheUrl(url);
+                url = parseAmpUrl(url);
 
                 // Check if the link hostname matches the page hostname,
                 // ignore if configured to ignore these self-links

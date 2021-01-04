@@ -4,10 +4,9 @@
  */
 import * as Debugging from "./Debugging.js";
 import * as Matching from "./Matching.js";
-import { shortDomains } from "/WebScience/dependencies/shortdomains.js";
-import { ampCacheDomains } from "/WebScience/dependencies/ampcachedomains.js";
+import { urlShortenerMatchPatterns } from "/WebScience/dependencies/urlShorteners.js";
+import { ampCacheDomains, ampViewerDomainsAndPaths } from "/WebScience/dependencies/ampCachesAndViewers.js";
 const debugLog = Debugging.getDebuggingLog("Utilities.LinkResolution");
-
 
 const fetchTimeoutMs = 5000;
 let initialized = false;
@@ -20,19 +19,33 @@ let trackedUrls = new Set();
 let urlByRedirectedUrl = new Map();
 
 /**
- * A RegExp that matches and parses AMP cache URLs. If there is a match, the RegExp provides several
+ * A RegExp that matches and parses AMP cache and viewer URLs. If there is a match, the RegExp provides several
  * named capture groups.
- *   * `subdomain` - The AMP cache subdomain, which is either a reformatted version of the URL domain or a hash of the domain. If there is no subdomain, this capture group is missing.
- *   * `ampCacheDomain` - The domain for the AMP cache.
- *   * `contentType` - The content type, which is either `c` for an HTML document, `i` for an image, or `r` for another resource.
- *   * `isSecure` - Whether the AMP cache loads the resource via HTTPS. If it does, this capture group has the value `s`. If it doesn't, this capture group is missing.
- *   * `url` - The URL that the AMP cache loads, without a specified scheme (i.e., `http://` or `https://`). The scheme is specified by the `isSecure` capture group.
+ *   * AMP Cache Matches
+ *     * `ampCacheSubdomain` - The subdomain, which should be either a reformatted version of the
+ *       URL domain or a hash of the domain. If there is no subdomain, this capture group
+ *       is `undefined`.
+ *     * `ampCacheDomain` - The domain for the AMP cache.
+ *     * `ampCacheContentType` - The content type, which is either `c` for an HTML document, `i` for
+ *        an image, or `r` for another resource. 
+ *     * `ampCacheIsSecure` - Whether the AMP cache loads the resource via HTTPS. If it does, this
+ *        capture group has the value `s/`. If it doesn't, this capture group is `undefined`.
+ *     * `ampCacheUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
+ *  * AMP Viewer Matches
+ *     * `ampViewerDomainAndPath` - The domain and path for the AMP viewer.
+ *     * `ampViewerUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
  * @see {@link https://developers.google.com/amp/cache/overview}
  * @see {@link https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/}
  * @constant
  * @type {RegExp}
  */
-export const ampCacheRegExp = new RegExp(`^https?://(?:(?<subdomain>[a-zA-Z0-9\\-\\.]*)\\.)?(?<ampCacheDomain>${shortDomains.map(Matching.escapeRegExpString).join("|")})/(?<contentType>c|i|r)/(?<isSecure>s/)?(?<url>.*)$`, "i");
+export const ampRegExp = new RegExp(
+  // AMP cache regular expression
+  `(?:^https?://(?:(?<ampCacheSubdomain>[a-zA-Z0-9\\-\\.]*)\\.)?(?<ampCacheDomain>${ampCacheDomains.map(Matching.escapeRegExpString).join("|")})/(?<ampCacheContentType>c|i|r)/(?<ampCacheIsSecure>s/)?(?<ampCacheUrl>.*)$)`
+  + `|` +
+  // AMP viewer regular expression
+  `(?:^https?://(?<ampViewerDomainAndPath>${ampViewerDomainsAndPaths.map(Matching.escapeRegExpString).join("|")})/(?<ampViewerUrl>.*)$)`
+  , "i");
 
 /**
  * Function to resolve a given url to the final url that it points to
@@ -149,29 +162,27 @@ function trackError(responseDetails) {
  */
 export function initialize() {
   initialized = true;
-  let headerListener = browser.webRequest.onHeadersReceived.addListener(responseHeaderListener, {
+  browser.webRequest.onHeadersReceived.addListener(responseHeaderListener, {
     urls: ["<all_urls>"]
   }, ["responseHeaders"]);
-  let errorListener = browser.webRequest.onErrorOccurred.addListener(trackError, {
+  browser.webRequest.onErrorOccurred.addListener(trackError, {
     urls: ["<all_urls>"]
   });
 }
 
 /**
- * Returns a list of short domains that the link resolution module can resolve
- * @returns {String[]} Array of domains
+ * An array of match patterns for known URL shorteners, loaded from `urlShortenerMatchPatterns.js`.
+ * @constant
+ * @type{Array<string>}
  */
-export function getShortDomains() {
-  return shortDomains;
-}
+export { urlShortenerMatchPatterns };
 
 /**
- * Returns a list of amp cache domains
- * @returns {String[]} Array of domains
+ * A RegExp for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
+ * @constant
+ * @type{RegExp}
  */
-export function getAmpCacheDomains() {
-  return ampCacheDomains;
-}
+export const urlShortenerRegExp = Matching.matchPatternsToRegExp(urlShortenerMatchPatterns);
 
 /**
  * Fetch API doesn't provide a native timeout option. This function uses AbortController to

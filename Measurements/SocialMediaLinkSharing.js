@@ -32,13 +32,6 @@ var storage = null;
 var urlMatcher = null;
 
 /**
- * A regular expression object for testing urls
- * @type {RegExp}
- * @private
- */
-var shortDomainMatcher = null;
-
-/**
  * A counter to give each record a unique ID
  * @type {Object}
  * @private
@@ -87,9 +80,6 @@ export async function runStudy({
         "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesTwitter")).initialize();
     urlMatcher = new Matching.UrlMatcher(domains);
     //var sdrs = await browser.storage.local.get("shortDomainRegexString");
-    var shortDomains = LinkResolution.getShortDomains();
-    var shortDomainPattern = Matching.domainsToRegExpString(shortDomains);
-    shortDomainMatcher = new RegExp(shortDomainPattern);
 
     // Make this available to content scripts
     await browser.storage.local.set({ "SocialMediaLinkSharing.privateWindows": privateWindows });
@@ -422,7 +412,7 @@ function deduplicateUrls(urls) {
  * @return {Object} - {`result`: whether `url` was a resolveable short url, `resolvedUrl`: the full url, if available}
  */
 async function checkShortUrl(url) {
-    if (shortDomainMatcher.test(url)) {
+    if (LinkResolution.urlShortenerRegExp.test(url)) {
         var resolvedUrlObj = await LinkResolution.resolveUrl(url);
         if (urlMatcher.testUrl(resolvedUrlObj.dest)) {
             return {result: true, resolvedUrl: resolvedUrlObj.dest}
