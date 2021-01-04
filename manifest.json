@@ -1,14 +1,14 @@
 {
-  "description": "A basic template for a Mozilla Rally Study.",
+  "description": "The first Rally study",
   "author": "Mozilla",
   "manifest_version": 2,
-  "name": "Rally Basic Study Template",
+  "name": "Rally Study 01",
   "version": "0.3.0",
-  "homepage_url": "https://github.com/mozilla-ion/ion-basic-study",
+  "homepage_url": "https://github.com/mozilla-rally/rally-study-01",
 
   "applications": {
     "gecko": {
-      "id": "ion-basic-study@mozilla.org",
+      "id": "rally-study-01@mozilla.org",
       "strict_min_version": "77.0a1"
     }
   },
