@@ -43,6 +43,10 @@ async function _handleMessage(message) {
         // update the UI.
         _stateChangeCallbacks.forEach(callback => callback(message.data));
       } break;
+      case "reset-finished": {
+        data = [];
+        break;
+      }
       default:
         return Promise.reject(
           new Error(`Rally - unexpected message type ${message.type}`));
@@ -78,8 +82,19 @@ async function initialize() {
       return await response;
     } catch(err) {
       console.error(err);
-    }
-    
+    } 
+  }
+
+  async function resetData() {
+    try {
+      let response =
+        waitForCoreResponse(_connectionPort, "reset-finished");
+
+      await sendToCore(_connectionPort, "reset", {});
+      return await response;
+    } catch(err) {
+      console.error(err);
+    } 
   }
 
   let data = [];
@@ -99,4 +114,4 @@ onMount(async () => {
 
 <svelte:window on:focus={update} />
 
-<Main {data} />
+<Main {data} on:reset-data={resetData} />

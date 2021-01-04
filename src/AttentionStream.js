@@ -4,13 +4,15 @@
 //     //
 // }
 const getPageURL = require('./get-page-url');
+const EventStreamStorage = require('./EventStreamStorage')
 
 module.exports = class AttentionStream {
     constructor() {
-        this._events = [];
         this._onChangeHandlers = [];
         this._current = { firstRun: true };
+        this.storage = new EventStreamStorage();
         this.initialize();
+        // set up the local storage once
         // supported patterns are full URI, URI minus qs, domain, TLD+1?
     }
 
@@ -62,7 +64,7 @@ module.exports = class AttentionStream {
             this._sendDataToUI();
             break;
           case "reset":
-            this._reset();
+            this.reset();
             break;
           default:
             return Promise.reject(
@@ -71,16 +73,19 @@ module.exports = class AttentionStream {
       }
     
       // FIXME: tests
-      _sendDataToUI() {
+      async _sendDataToUI() {
         // Send a message to the UI to update the list of studies.
+        const events = await this.storage.get();
         this._connectionPort.postMessage(
-          {type: "receive-data", data: this._events});
+          {type: "receive-data", data: events });
       }
 
     // FIXME: needs tests
-    reset() {
-        this._events = [];
+    async reset() {
         this._resetCurrentEvent();
+        await this.storage.reset();
+        this._connectionPort.postMessage(
+            { type: "reset-finished" });
         // set the firstRun event to true.
         this._current.firstRun = true;
     }
@@ -93,10 +98,8 @@ module.exports = class AttentionStream {
     // FIXME: needs tests
     _finishEventAndStartNew({ reason, url }) {
         this._setEnd();
-        // console.info('Site', currentlyFocusedTab);
         const evt = { ...this._current };
         if (!this._current.firstRun) {
-            this._appendToHistory();
             this._submitEvent();
         }
         this._resetCurrentEvent();
@@ -112,8 +115,10 @@ module.exports = class AttentionStream {
         this._current.reason = reason;
     }
 
-    _submitEvent() {
+    async _submitEvent() {
         // fill in details here.
+        // store this as a kv pair
+        await this.storage.push({...this._current});
       }
       
     _setDomain(domain) {
@@ -131,10 +136,6 @@ module.exports = class AttentionStream {
     _setEnd() {
         this._current.end = new Date();
         this._current.elapsed = this._current.end - this._current.start;
-    }
-    
-    _appendToHistory() {
-        this._events.push({...this._current});
     }
     
     _resetCurrentEvent() {

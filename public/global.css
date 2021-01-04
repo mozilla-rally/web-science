@@ -6,6 +6,7 @@
   --button-bg-disabled: hsl(var(--h), 20%, 95%);
   --button-text-disabled: hsl(var(--h), 10%, 55%);
   --button-text: white;
+  --border-color: var(--button-bg);
 
   --app-bg: hsl(var(--h), 90%, 98%);
   --surface-bg: white;
@@ -20,9 +21,22 @@ body {
   /* background-color: var(--app-bg); */
 } /* Rectangle 1 */
 
+.btn {
+  font-size: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 150ms, transform 50ms;
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  grid-column-gap: 0.5em;
+  text-transform: uppercase;
+  border: 1px solid var(--border-color);
+}
+
 .btn-primary {
   background-color: var(--button-bg);
-  border: none;
   font-size: 0.75rem;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
@@ -36,22 +50,48 @@ body {
   text-transform: uppercase;
 }
 
-.btn-primary:hover {
+.btn:hover {
   background-color: var(--button-bg-hover);
 }
 
-.btn-primary:active {
+.btn:active {
   background-color: var(--button-bg-active);
   transform: translateY(2px);
 }
 
-.btn-primary:disabled {
+.btn:disabled {
+  border-color: var(--button-bg-disabled);
   background-color: var(--button-bg-disabled);
   color: var(--button-text-disabled);
 }
 
+.btn-secondary {
+  --button-bg: transparent;
+  --button-bg-hover: hsl(var(--h), 10%, 90%);
+  --button-bg-active: hsl(var(--h), 80%, 30%);
+  --button-bg-disabled: hsl(var(--h), 20%, 95%);
+  --button-text-disabled: hsl(var(--h), 10%, 55%);
+  --button-text: #555;
+  --border-color: var(--button-text);
+
+  background: none;
+  border: none;
+  color: #555;
+}
+
+.btn-text {
+  --button-bg: transparent;
+  --button-bg-hover: hsl(var(--h), 10%, 90%);
+  --button-bg-active: hsl(var(--h), 80%, 30%);
+  --button-bg-disabled: hsl(var(--h), 20%, 95%);
+  --button-text-disabled: hsl(var(--h), 10%, 55%);
+  --button-text: #555;
+  background: none;
+  border: none;
+}
+
 .admin {
-  max-width: 600px;
+  max-width: 800px;
   margin: auto;
   margin-top: 2rem;
   background-color: var(--surface-bg);

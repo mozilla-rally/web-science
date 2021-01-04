@@ -13,7 +13,7 @@
     }
   },
 
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "storage", "unlinmitedStorage"],
 
   "options_ui": {
     "page": "public/index.html",

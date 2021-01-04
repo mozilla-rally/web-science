@@ -27,9 +27,28 @@ async function updatePage(title, url, active=true, incognito=false) {
 }
 
  describe('Core', function () {
-    beforeAll(function() {
-      global.browser = browser;
-    })
+   let webExtensionStorage = {};
+
+  beforeAll(function() {
+    global.browser = browser;
+    global.browser.storage = {};
+    global.browser.storage.local = {
+      async get(key) {
+        if (key === null) {
+          return webExtensionStorage;
+        }
+        const value = webExtensionStorage[key];
+        return { [key]: value };
+      },
+      async set(obj) {
+        const [key, value] = Object.entries(obj)[0];
+        webExtensionStorage[key] = value;
+      },
+      async clear() {
+        webExtensionStorage = {};
+      },
+    };
+  });
 
     afterAll(function() {
       browser.flush();
@@ -37,6 +56,7 @@ async function updatePage(title, url, active=true, incognito=false) {
     })
   let attention;
    beforeEach(function () {
+    webExtensionStorage = {};
     getPageURL.mockReset();
     attention = new AttentionStream();
    });
@@ -82,7 +102,7 @@ async function updatePage(title, url, active=true, incognito=false) {
       getPageURL.mockResolvedValue("https://socialmedia.com/test/path?q=test");
       await updatePage('Social Media Site', "https://socialmedia.com/test/path?q=test");
 
-      const [firstEvent, secondEvent] = attention._events;
+      const [firstEvent, secondEvent] = await attention.storage.get();
       expect(firstEvent.url).toBe('https://example.com/');
       expect(firstEvent.reason).toBe('tab-updated');
       expect(firstEvent.status).toBe('complete');
@@ -113,12 +133,13 @@ async function updatePage(title, url, active=true, incognito=false) {
       getPageURL.mockResolvedValue("https://socialmedia.com/test/path?q=test");
       await updatePage('Social Media Site', "https://socialmedia.com/test/path?q=test");
 
-      const [firstEvent] = attention._events;
+      const events = await attention.storage.get();
+      const [firstEvent] = events;
       expect(firstEvent.url).toBe('https://example.com/');
       expect(firstEvent.reason).toBe('tab-updated');
       expect(firstEvent.status).toBe('complete');
 
-      expect(attention._events.length).toBe(1);
+      expect(events.length).toBe(1);
 
       expect(attention._current.url).toBe("https://socialmedia.com/test/path?q=test");
       expect(attention._current.reason).toBe('tab-updated');
@@ -145,7 +166,7 @@ async function updatePage(title, url, active=true, incognito=false) {
       browser.tabs.onActivated.dispatch();
       await delay(0);
 
-      const [event1, event2] = attention._events;
+      const [event1, event2] = await attention.storage.get();
       expect(event1.url).toBe('https://example.com/');
       expect(event1.reason).toBe('tab-updated');
       expect(event1.status).toBe('complete');
@@ -171,7 +192,7 @@ async function updatePage(title, url, active=true, incognito=false) {
       getPageURL.mockResolvedValue("https://example3.com/");
       await updatePage('Example1.com', "https://example3.com/");
       
-      const [event1, event2] = attention._events;
+      const [event1, event2] = await attention.storage.get();
       expect(event1.url).toBe('https://example1.com/');
       expect(event1.reason).toBe('tab-updated');
       expect(event1.status).toBe('complete');

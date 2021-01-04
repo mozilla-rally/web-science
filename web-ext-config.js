@@ -11,7 +11,7 @@
     },
     run: {
       firefox: "nightly",
-      pref: ["extensions.experiments.enabled=true"],
+      pref: ["extensions.experiments.enabled=true"]
     },
     ignoreFiles: [
       "bin",

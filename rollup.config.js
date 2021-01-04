@@ -85,7 +85,7 @@ export default [
       }),
       // we'll extract any component CSS out into
       // a separate file - better for performance
-      css({ output: 'public/build/bundle.css' }),
+      css({ output: 'bundle.css' }),
   
       // If you have external dependencies installed from
       // npm, you'll most likely need these plugins. In
