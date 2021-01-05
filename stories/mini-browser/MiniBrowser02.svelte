@@ -26,16 +26,20 @@
 		{name: "search", id: 0, icon: Search, url: `<span></span> :// <span></span> . <span style="--w: 2;"></span> . <span style="--w:.75"></span>`, content: SearchBody},
 		{name: "social media", id: 1, icon: SocialMedia, url: `<span></span> :// <span></span> . <span style="--w: 2.3"></span> . <span style="--w:.75"></span> / <span style="--w:1"></span>`, content: SocialMediaBody},
 		{name: "news", id: 2, icon: News, url: `<span></span> :// <span></span> . <span style="--w: 1.8;"></span> . <span style="--w:.75"></span> / <span style="--w:1.2"></span> / <span style="--w:.7"></span> / <span style="--w:1.2"></span> ? <span style="--w:.8"></span> = <span style="--w:1.2"></span>`, content: NewsBody},
-	];
+    ];
+    
+    let availableTabs = tabs;
 	
 	let which = tabs[0];
 	let timer;
-	let events = [];
+    let events = [];
+    
+    let key = Math.random();
 	
-	function setActiveTab(w) {
+	function setActiveTab(w, moveMouse = true) {
 		// move the mouse
-		const nextTab = tabs.find(t=> t.id === w);
-		setCoords(nextTab.container);
+        const nextTab = tabs.find(t=> t.id === w);
+		if (moveMouse) setCoords(nextTab.container);
 		// clear any timer.
 		if (timer) clearTimeout(timer);
 		timer = setTimeout(() => { 
@@ -51,7 +55,7 @@
 			}
 			events = events;
 			startElapsedTimer();
-		}, CURSOR_TIME);
+		}, moveMouse ? CURSOR_TIME : 0);
 	}
 
 	let elapsedTimer;
@@ -80,7 +84,7 @@
 	
 	function closeTab(tabID) {
 			if (which.id === tabID) {
-				const ind = tabs.findIndex(t=> t.id === tabID);
+				const ind = availableTabs.findIndex(t=> t.id === tabID);
 				let nextIndex;
 				if (ind === tabs.length - 1) {
 					nextIndex = tabs.length - 1;
@@ -89,16 +93,17 @@
 				} else {
 					nextIndex = ind - 1;
 				}
-				setActiveTab(nextIndex);
+				setActiveTab(nextIndex, false);
 			}
-			tabs = tabs.filter(t => t.id !== tabID).map(t => ({...t}));
+			availableTabs = availableTabs.filter(t => t.id !== tabID).map(t => ({...t}));
 	}
 
 	onMount(() => {
-		setActiveTab(0);
-		setTab();
+		setActiveTab(1);
+        //setTab();
+        closeTabs();
 	})
-	let coords = {x: 300, y: 300};
+    let coords = {x: 300, y: 300};
 
 	function setCoords(tab) {
 		if (tab) {
@@ -106,18 +111,23 @@
 			coords.x = (coords.left + coords.right) / 2;
 			coords.y = (coords.bottom + coords.top) / 2;
 		}
-	}
-
-	function setTab() {
-		setTimeout(() => {
-			if (which.id === 0) {
-				setActiveTab(2);
-			} else {
-				setActiveTab(0);
-			}
-			setTab();
-		}, CURSOR_TIME * 4 + Math.random());
-	}
+    }
+    
+    function closeTabs() {
+        setTimeout(() => {
+            if (availableTabs.length === 3) {
+                setCoords(which.close);
+                setTimeout(() => closeTab(which.id), CURSOR_TIME);
+            } else if (availableTabs.length === 2) {
+                events = [];
+                setActiveTab(1, false);
+                availableTabs = tabs;
+                key = Math.random();
+                coords = {x: 300, y: 300};
+            }
+            closeTabs();
+        }, CURSOR_TIME * 4 + Math.random());
+    }
 
 </script>
 
@@ -129,15 +139,17 @@
 }
 </style>
 
+{#key key}
 <Container>
 	<div class='container'>
 		<MiniBrowser>
 			<div style='display:contents;' slot='tabs'>
-				{#each tabs as tab (tab.id)}
+				{#each availableTabs as tab (tab.id)}
 					<Tab active={which.id===tab.id} 
 							on:click={() => setActiveTab(tab.id)}
 							on:close={() => closeTab(tab.id)}
-							bind:container={tab.container}
+                            bind:container={tab.container}
+                            bind:close={tab.close}
 					>
 						<div slot=icon style='display: contents;'>
 						{#if tab.icon}
@@ -170,3 +182,4 @@
 		{/each}
 	</EventContainer>
 </Container>
+{/key}

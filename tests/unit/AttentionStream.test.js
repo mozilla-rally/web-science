@@ -27,7 +27,7 @@ async function updatePage(title, url, active=true, incognito=false) {
   await delay(1);
 }
 
- describe('Core', function () {
+ describe('AttentionStream', function () {
    let webExtensionStorage = {};
 
   beforeAll(function() {
@@ -113,7 +113,7 @@ async function updatePage(title, url, active=true, incognito=false) {
       // it should fail due to the unexpected type.
       expect(() => attention._handleMessage({type: "test-unknown-type", data: {}})).rejects.toThrowError();
     });
-    
+
     it('dispatches get-data messages', async function () {
       // Mock the URL of the options page.
       const TEST_OPTIONS_URL = "install.sample.html";

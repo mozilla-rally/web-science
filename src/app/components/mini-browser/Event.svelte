@@ -22,7 +22,7 @@ div {
 }
 </style>
 
-<div class:active transition:fade={{ duration: duration * 1.5 }}>
+<div class:active transition:fade|local={{ duration: duration * 1.5 }}>
 {"{"}
   elapsed: {elapsed},
   start: "{start}",
