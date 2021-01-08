@@ -4,22 +4,98 @@
  * @module WebScience.Measurements.PageNavigation
  */
 
-import * as Storage from "../Utilities/Storage.js"
+import * as Events from "../Utilities/Events.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as Messaging from "../Utilities/Messaging.js"
 import * as PageManager from "../Utilities/PageManager.js"
 
 /**
- * The storage space for page navigation measurements.
- * @type {WebScience.Utilities.Storage.KeyValueStorage|null}
+ * Additional information about the page data event.
+ * @typedef {Object} PageDataDetails
+ * @property {number} pageId - The ID for the page, unique across browsing sessions.
+ * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session.
+ * @property {number} windowId - The ID for the window containing the page, unique to the browsing session.
+ * Note that tabs can subsequently move between windows.
+ * @property {string} url - The URL of the page loading in the tab, without any hash.
+ * @property {string} referrer - The referrer URL for the page loading in the tab, or `""` if
+ * there is no referrer.
+ * @property {number} pageVisitStartTime - The time when the underlying event fired.
+ * @property {boolean} privateWindow - Whether the page is in a private window.
+ * @interface
  */
-let storage = null;
+
+/**
+ * A callback function for the page data event.
+ * @callback pageDataCallback
+ * @param {PageDataDetails} details - Additional information about the page data event.
+ */
+
+/**
+ * Options when adding a page data event listener.
+ * @typedef {Object} PageDataOptions
+ * @property {Array<string>} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {boolean} [privateWindows=false] - Whether to measure pages in private windows.
+ */
+
+/**
+ * An extension of Events.EventSingleton for the page data event.
+ * @extends {Events.EventSingleton} 
+ */
+class PageDataEvent extends Events.EventSingleton {
+    addListener(listener, options) {
+        super.addListener(listener, options);
+        startMeasurement(options);
+    };
+
+    removeListener(listener) {
+        stopMeasurement();
+        super.removeListener(listener);
+    }
+}
+
+/**
+ * @type {Events.EventSingleton<pageDataCallback, PageDataOptions>}
+ */
+export const onPageData = new PageDataEvent();
+
+/**
+ * A RegExp for the page match patterns.
+ * @type {RegExp|null}
+ */
+let matchPatternsRegExp = null;
+
+/**
+ * The registered page navigation content script.
+ * @type {RegisteredContentScript|null} 
+ */
+let registeredContentScript = null;
+
+/**
+ * Whether to notify the page data listener about private windows.
+ */
+let notifyAboutPrivateWindows = false;
+
+/**
+ * A function that is called when the content script sends a page data event message.
+ * @param {PageData} pageData - Information about the page.
+ */
+function pageDataListener(pageData) {
+    // If the page is in a private window and the module should not measure private windows,
+    // ignore the page
+    if(!notifyAboutPrivateWindows && pageData.privateWindow)
+        return;
+    
+    // Delete the type string from the content script message
+    // There isn't (yet) a good way to document this in JSDoc, because there isn't support
+    // for object inheritance
+    delete pageData.type;
+
+    onPageData.notifyListeners([ pageData ]);
+}
 
 /**
  * Start a navigation measurement. Note that only one measurement is currently supported per extension.
- * @param {Object} options - A set of options for the measurement.
- * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
- * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
+ * @param {PageDataOptions} options - A set of options for the measurement.
  */
 export async function startMeasurement({
     matchPatterns = [ ],
@@ -27,21 +103,11 @@ export async function startMeasurement({
 }) {
     await PageManager.initialize();
 
-    storage = await (new Storage.KeyValueStorage("WebScience.Measurements.PageNavigation")).initialize();
+    matchPatternsRegExp = Matching.matchPatternsToRegExp(matchPatterns);
 
-    /**
-     * A counter for page visits that are not for pages of interest.
-     * @type {Storage.Counter}
-     */
-    let untrackedPageVisits = await (new Storage.Counter("WebScience.Measurements.PageNavigation.untrackedPageVisits")).initialize();
+    notifyAboutPrivateWindows = privateWindows;
 
-    /**
-     * A RegExp for the match patterns.
-     * @type {RegExp}
-     */
-    let matchPatternsRegExp = Matching.matchPatternsToRegExp(matchPatterns);
-
-    await browser.contentScripts.register({
+    registeredContentScript = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
             file: "/WebScience/Measurements/content-scripts/pageNavigation.js"
@@ -49,21 +115,8 @@ export async function startMeasurement({
         runAt: "document_start"
     });
 
-    // If the user completes a page visit and the page doesn't match a match pattern,
-    // increment the untracked page visit counter
-    PageManager.onPageVisitStop.addListener((pageVisitStopDetails) => {
-        if (!matchPatternsRegExp.test(pageVisitStopDetails.url))
-            untrackedPageVisits.increment();
-    });
-
-    Messaging.registerListener("WebScience.Measurements.PageNavigation.PageData", (pageData) => {
-        // If the page is in a private window and the module should not measure private windows,
-        // ignore the page
-        if(!privateWindows && pageData.privateWindow)
-            return;
-        
-        storage.set(pageData.pageId, pageData);
-    }, {
+    Messaging.registerListener("WebScience.Measurements.PageNavigation.PageData", pageDataListener,
+    {
         pageId: "string",
         url: "string",
         referrer: "string",
@@ -77,16 +130,13 @@ export async function startMeasurement({
     });
 }
 
-/* Utilities */
-
 /**
- * Retrieve the study data as an object. Note that this could be very
- * slow if there is a large volume of study data.
- * @returns {(Object|null)} - The study data, or `null` if no data
- * could be retrieved.
+ * Stop a navigation measurement.
  */
-export async function getStudyDataAsObject() {
-    if(storage != null)
-        return await storage.getContentsAsObject();
-    return null;
+function stopMeasurement() {
+    Messaging.unregisterListener("WebScience.Measurements.PageNavigation.PageData", pageDataListener)
+    registeredContentScript.unregister();
+    registeredContentScript = null;
+    notifyAboutPrivateWindows = false;
+    matchPatternsRegExp = null;
 }

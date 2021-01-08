@@ -166,6 +166,23 @@ export function registerListener(messageType, messageListener, messageSchema) {
 }
 
 /**
+ * Unregisters a message listener.
+ * @param {string} messageType - The type of message that triggers the listener function.
+ * @param {function} messageListener - The listener function.
+ * @param {boolean} [unregisterSchema=true] - Whether to unregister the schema for the message type, if there is one.
+ */
+export function unregisterListener(messageType, messageListener, unregisterSchema) {
+    var messageListeners = messageRouter.get(messageType);
+    if(messageListeners !== undefined) {
+        messageListeners.delete(messageListener);
+        if(messageListeners.size === 0)
+            messageRouter.delete(messageType);
+    }
+    if(unregisterSchema)
+        messageSchemas.delete(messageType);
+}
+
+/**
  * Registers a message schema.
  * @param {string} messageType - The type of message that must follow the schema.
  * @param {Object} messageSchema - An object where each field has a value that is

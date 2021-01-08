@@ -162,7 +162,7 @@ export class EventWithoutOptions extends Event {
 }
 
 /** 
- * An extension of the Event class that only permits one listener at a time.
+ * An extension of the Event class that permits only one listener at a time.
  * @template EventCallbackFunction
  * @template EventOptions
  * @extends {Event<EventCallbackFunction, EventOptions>}
