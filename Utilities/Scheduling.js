@@ -120,7 +120,7 @@ var timeoutId = -1;
 /**
  * An event that fires about once a day, when the browser is idle.
  * @constant
- * @type {Events.Event}
+ * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
 export const onIdleDaily = new Events.Event({
     addListenerCallback: function() { initialize(); }
@@ -129,7 +129,7 @@ export const onIdleDaily = new Events.Event({
 /**
  * An event that fires about once a week, when the browser is idle.
  * @constant
- * @type {Events.Event}
+ * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
 export const onIdleWeekly = new Events.Event({
     addListenerCallback: function() { initialize(); }

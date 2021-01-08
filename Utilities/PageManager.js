@@ -168,19 +168,19 @@ const considerUserInputForAttention = true;
 
 /**
  * Additional information about a page visit start event listener function.
- * @typedef {Object} PageVisitStartListenerDetails
+ * @typedef {Object} PageVisitStartListenerOptions
  * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
  */
 
 /**
  * An event that is fired when a page visit starts.
- * @type {Events.Event}
+ * @type {Events.Event<pageVisitStartListener, PageVisitStartListenerOptions>}
  * @const
  */
 export const onPageVisitStart = new Events.Event({
     // Filter notifications for events in private windows
-    pageVisitStartCallback: ([ details ], listenerOptions) => {
-        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
+    notifyListenersCallback: (listener, [ details ], options) => {
+        if(!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
             return true;
         return false;
     }
@@ -215,19 +215,19 @@ function pageVisitStart(details) {
 
 /**
  * Additional information about a page visit start stop listener function.
- * @typedef {Object} PageVisitStopListenerDetails
+ * @typedef {Object} PageVisitStopListenerOptions
  * @property {boolean} privateWindows - Whether to notify the listener function for events in private windows.
  */
 
 /**
  * An event that is fired when a page visit starts.
- * @type {Events.Event}
+ * @type {Events.Event<pageVisitStopListener, PageVisitStartListenerOptions>}
  * @const
  */
 export const onPageVisitStop = new Events.Event({
     // Filter notifications for events in private windows
-    pageVisitStopListenerCallback: ([ details ], listenerOptions) => {
-        if(!details.privateWindow || (("privateWindows" in listenerOptions) && listenerOptions.privateWindows))
+    notifyListenersCallback: (listener, [ details ], options) => {
+        if(!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
             return true;
         return false;
     }
