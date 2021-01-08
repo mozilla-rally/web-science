@@ -32,6 +32,10 @@
  * Event listeners receive an object with the following property.
  *   * timeStamp - The time that the underlying browser event fired.
  * 
+ * Listeners for the page visit start event receive an object with the following
+ * additional property.
+ *   * isHistoryChange - Whether the page visit was caused by a change via the History API.
+ * 
  * Example usage:
  * ```
  * PageManager.onPageVisitStop.addListener(({timeStamp}) => {
