@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
- module.exports = class EventStreamStorage {
+ export default class EventStreamStorage {
     /**
      * Gets the stored value from the local browser storage.
      *
@@ -44,5 +44,5 @@
     async _initialize() {
         await browser.storage.local.set({ index: 0 });
     }
-  };
+  }
   

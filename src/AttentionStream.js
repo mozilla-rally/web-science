@@ -1,33 +1,71 @@
-const getPageURL = require('./get-page-url');
-const EventStreamStorage = require('./EventStreamStorage');
-const OPTIONS_PAGE_PATH = "public/index.html";
 
-module.exports = class AttentionStream {
+import browser from 'webextension-polyfill';
+import getPageURL from './get-page-url';
+import { getTitle } from './page-info'
+import EventStreamStorage from "./EventStreamStorage";
+
+import {
+    registerPageAttentionStartListener,
+    registerPageAttentionStopListener  
+  } from './PageEvents';
+
+  export default class AttentionStream {
     constructor() {
-        this._onChangeHandlers = [];
+        this._connectionPort = {};
+        this._onAttentionStartHandlers = [];
+        this._onAttentionEndHandlers = [];
         this._current = { firstRun: true };
         this.storage = new EventStreamStorage();
         this.initialize();
     }
 
     initialize() {
-        browser.tabs.onActivated.addListener(this._createGenericHandlerCase('tab-activated').bind(this))
-        browser.tabs.onUpdated.addListener(this._handleUpdate.bind(this));
-        browser.tabs.onRemoved.addListener(this._createGenericHandlerCase('tab-removed').bind(this));
-        browser.tabs.onCreated.addListener(this._createGenericHandlerCase('tab-created').bind(this));
+        browser.runtime.onMessage.addListener(this._handlePageContent);
 
-        browser.windows.onCreated.addListener(this._createGenericHandlerCase('window-created').bind(this));
-        browser.windows.onRemoved.addListener(this._createGenericHandlerCase('window-removed').bind(this));
-        browser.windows.onFocusChanged.addListener(this._createGenericHandlerCase('window-focus-changed').bind(this));
+        // this will create a new event.
+        registerPageAttentionStartListener(async event => {
+            // create the new event.
+            // send to currently active tab.
+            //browser.tabs.sendMessage(event.tabId, {type: "page-details"});
+            const { inboundReason } = event;
+            const url = await getPageURL();
+            const title = await getTitle();
+            this._resetCurrentEvent();
+            this._setURL(url);
+            this._setStart();
+            this._current.tabTitle = title;
+            this._current.inboundReason = inboundReason;
+            const newEvent = { ...this._current };
+            this._onAttentionStartHandlers.forEach(fcn => { fcn(newEvent, this); } );
+        });
 
+
+        // this will emit the finished event along with
+        // a timestamp.
+        registerPageAttentionStopListener(event => {
+            // this is where we tie things off.
+            const { outboundReason } = event;
+            this._setEnd();
+            this._current.outboundReason = outboundReason;
+            const finishedEvent = {... this._current };
+            this._submitEvent();
+            this._onAttentionEndHandlers.forEach(fcn => { fcn(finishedEvent); } );
+        });
         browser.runtime.onConnect.addListener(
             p => this._onPortConnected(p));
     }
 
+    _handlePageContent(message) {
+        if (message.type === 'page-details') {
+            this._current.description = message.description;
+            this._current.ogType = message.ogType;
+            this._current.headerTitle = message.title;
+        }
+    }
+
     _onPortConnected(port) {
         const sender = port.sender;
-        if ((sender.id != browser.runtime.id)
-          || (sender.url != browser.runtime.getURL(OPTIONS_PAGE_PATH))) {
+        if ((sender.id != browser.runtime.id)) {
           console.error("Rally Study - received message from unexpected sender");
           port.disconnect();
           return;
@@ -36,7 +74,7 @@ module.exports = class AttentionStream {
         this._connectionPort = port;
     
         this._connectionPort.onMessage.addListener(
-          m => this._handleMessage(m));
+          m => this._handleMessage(m, sender));
         // The onDisconnect event is fired if there's no receiving
         // end or in case of any other error. Log an error and clear
         // the port in that case.
@@ -46,12 +84,20 @@ module.exports = class AttentionStream {
         });
       }
 
-    async _handleMessage(message) {
+    async _handleMessage(message, sender) {
         // We only expect messages coming from the embedded options page
-        // at this time. We check for the sender in `_onPortConnected`.    
+        // at this time. We check for the sender in `_onPortConnected`.
         switch (message.type) {
+            case "page-details": {
+                const activeWindow = await browser.windows.getCurrent();
+                // console.log(activeWindow, sender.tab);
+                if (sender.tab.active && sender.tab.windowId === activeWindow.id) {
+                    this._current.description = message.description;
+                    this._current.ogType = message.ogType;
+                }
+                break;
+            }
             case "get-data":
-            console.log('requesting data');
             this._sendDataToUI();
             break;
             case "reset":
@@ -79,23 +125,14 @@ module.exports = class AttentionStream {
         this._current.firstRun = true;
     }
 
-    onChange(fcn) {
-        this._onChangeHandlers.push(fcn);
-    }
-
     // FIXME: tests
-    _finishEventAndStartNew({ reason, url }) {
+    _finishEventAndStartNew(event) {
         this._setEnd();
         const evt = { ...this._current };
         if (!this._current.firstRun) {
             this._submitEvent();
         }
         this._resetCurrentEvent();
-        // set the start time.
-        this._setStart();
-        this._setURL(url);
-        // add the reason the new event has been created.
-        this._addReason(reason);
         return evt;
     }
 
@@ -130,7 +167,7 @@ module.exports = class AttentionStream {
     // FIXME: tests
     _setEnd() {
         this._current.end = new Date();
-        this._current.elapsed = this._current.end - this._current.start;
+        this._current.elapsedMS = this._current.end - this._current.start;
     }
 
     // FIXME: tests
@@ -139,40 +176,17 @@ module.exports = class AttentionStream {
     }
 
     // FIXME: tests
-    _handleChange(event) {
-        this._onChangeHandlers.forEach(fcn => { fcn(event); } );
-    }
-
-    // FIXME: tests
     _urlIsNew(url) {
         // MOCK
         return url !== this._current.url;
     }
 
-    // FIXME: tests
-    _createGenericHandlerCase(reason) {
-        // this is the case that most of these functions use.
-        return async function() {
-            const url = await getPageURL();
-            if (this._urlIsNew(url)) {
-                const finishedEvent = this._finishEventAndStartNew({ reason, url });
-                if (!finishedEvent.firstRun) {
-                    this._handleChange(finishedEvent);
-                }
-            }
-        }
+    onAttentionStart(fcn) {
+        this._onAttentionStartHandlers.push(fcn);
     }
 
-    // FIXME: tests
-    async _handleUpdate(_, changeInfo, everything = {}) {
-        // skip this update if it is not in an active tab.
-        if (everything.active === false) return;
-        // reset on the loading event.
-        if (changeInfo.status === 'loading' && changeInfo.url) {
-            const fcn = this._createGenericHandlerCase('tab-updated').bind(this);
-            await fcn('tab-updated');
-        }
-        if (changeInfo.status) this._current.status = changeInfo.status;
-        if (changeInfo.title) this._current.title = changeInfo.title;
+    onAttentionEnd(fcn) {
+        this._onAttentionEndHandlers.push(fcn);
     }
+
 }

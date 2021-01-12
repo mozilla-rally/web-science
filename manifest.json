@@ -13,7 +13,7 @@
     }
   },
 
-  "permissions": ["tabs", "storage", "unlinmitedStorage"],
+  "permissions": ["tabs", "storage", "unlinmitedStorage", "idle", "webRequest"],
 
   "options_ui": {
     "page": "public/index.html",
@@ -29,5 +29,12 @@
 
   "background": {
     "scripts": ["dist/background.js"]
-  }
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"]
+    }
+  ]
 }
