@@ -20,17 +20,16 @@ import {
     }
 
     initialize() {
-        browser.runtime.onMessage.addListener(this._handlePageContent);
+        browser.runtime.onMessage.addListener((message) => this._handlePageContent(message));
 
         // this will create a new event.
+        let activePort;
         registerPageAttentionStartListener(async event => {
-            // create the new event.
-            // send to currently active tab.
-            //browser.tabs.sendMessage(event.tabId, {type: "page-details"});
+            const activePort = browser.tabs.connect(event.tabId);
+            activePort.onMessage.addListener((msg) => this._handlePageContent(msg));
             const { inboundReason } = event;
             const url = await getPageURL();
             const title = await getTitle();
-            this._resetCurrentEvent();
             this._setURL(url);
             this._setStart();
             this._current.tabTitle = title;
@@ -39,23 +38,29 @@ import {
             this._onAttentionStartHandlers.forEach(fcn => { fcn(newEvent, this); } );
         });
 
-
         // this will emit the finished event along with
         // a timestamp.
         registerPageAttentionStopListener(event => {
             // this is where we tie things off.
+            if (activePort) activePort.disconnect();
             const { outboundReason } = event;
             this._setEnd();
             this._current.outboundReason = outboundReason;
             const finishedEvent = {... this._current };
             this._submitEvent();
             this._onAttentionEndHandlers.forEach(fcn => { fcn(finishedEvent); } );
+            this._resetCurrentEvent();
         });
+
         browser.runtime.onConnect.addListener(
-            p => this._onPortConnected(p));
+            p => {
+                console.log('onConnect', p);
+                this._onPortConnected(p);
+            });
     }
 
     _handlePageContent(message) {
+        console.log('_handlePageContent', message);
         if (message.type === 'page-details') {
             this._current.description = message.description;
             this._current.ogType = message.ogType;
@@ -75,11 +80,8 @@ import {
     
         this._connectionPort.onMessage.addListener(
           m => this._handleMessage(m, sender));
-        // The onDisconnect event is fired if there's no receiving
-        // end or in case of any other error. Log an error and clear
-        // the port in that case.
         this._connectionPort.onDisconnect.addListener(e => {
-          console.error("Rally Study - there was an error connecting to the page", e);
+          console.log("Rally Study - disconnect or error", e);
           this._connectionPort = null;
         });
       }

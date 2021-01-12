@@ -13,12 +13,6 @@ function delay(time = 0) {
   return new Promise((resolve) => { setTimeout(resolve, time) } );
 }
 
-// attention.onAttentionStart((event, tab, stream) => {
-
-// })
-
-// browser.runtime.onMessage.addListener(console.log);
-
 attention.onAttentionEnd(event => {
   console.log("END", event);
 })
@@ -28,10 +22,4 @@ function openPage() {
     console.error(`Study Add-On - Unable to open the control panel`, e);
   });
 }
-
-// browse(
-//   ["https://news.ycombinator.com", 500],
-//   ["https://newyorker.com", 100,]
-// )
-
 browser.browserAction.onClicked.addListener(openPage);

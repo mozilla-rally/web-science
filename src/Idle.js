@@ -38,6 +38,8 @@
  * @module WebScience.Utilities.Idle
  */
 
+import browser from 'webextension-polyfill';
+
 /**
  * The minimum idle state detection interval (in seconds) supported by
  * the `idle` API.

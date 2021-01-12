@@ -12,7 +12,7 @@ export let data = [];
 </style>
 
 <div class='summary'>
-    <div>total elapsed time: {~~(data.reduce((acc,v) => acc + v.elapsed, 0) / 1000)} sec</div>
+    <div>total elapsed time: {~~(data.reduce((acc,v) => acc + v.elapsedMS, 0) / 1000)} sec</div>
 </div>
 <div class='data'>
 {#each data as datum}

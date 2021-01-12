@@ -46,7 +46,7 @@ export default [
     ],
   },
   {
-    input: "src/content-script.js",
+    input: "src/content.js",
     output: {
       file: "dist/content-script.js"
     },

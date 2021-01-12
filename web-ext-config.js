@@ -4,7 +4,7 @@
 
  module.exports = {
     // Global options:
-    // verbose: true,
+    verbose: true,
     // Command options:
     build: {
       overwriteDest: true,
