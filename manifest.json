@@ -13,7 +13,14 @@
     }
   },
 
-  "permissions": ["tabs", "storage", "unlinmitedStorage", "idle", "webRequest"],
+  "permissions": [
+    "tabs",
+    "storage",
+    "unlimitedStorage",
+    "idle",
+    "webRequest",
+    "<all_urls>"
+  ],
 
   "options_ui": {
     "page": "public/index.html",

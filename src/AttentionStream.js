@@ -6,7 +6,9 @@ import EventStreamStorage from "./EventStreamStorage";
 
 import {
     registerPageAttentionStartListener,
-    registerPageAttentionStopListener  
+    registerPageAttentionStopListener,  
+    registerPageVisitStartListener,
+    registerPageVisitStopListener
   } from './PageEvents';
 
   export default class AttentionStream {
@@ -23,6 +25,11 @@ import {
         browser.runtime.onMessage.addListener((message) => this._handlePageContent(message));
 
         // this will create a new event.
+        const referrers = {};
+        registerPageVisitStartListener((event) => {
+            // save referrer information here.
+            referrers[`${event.windowId}.${event.tabId}`] = event.referrer;
+        });
         let activePort;
         registerPageAttentionStartListener(async event => {
             const activePort = browser.tabs.connect(event.tabId);
@@ -30,6 +37,7 @@ import {
             const { inboundReason } = event;
             const url = await getPageURL();
             const title = await getTitle();
+            this._current.referrer = referrers[`${event.windowId}.${event.tabId}`];
             this._setURL(url);
             this._setStart();
             this._current.tabTitle = title;
@@ -51,6 +59,10 @@ import {
             this._onAttentionEndHandlers.forEach(fcn => { fcn(finishedEvent); } );
             this._resetCurrentEvent();
         });
+
+        registerPageVisitStopListener((event) => {
+            delete referrers[`${event.windowId}.${event.tabId}`];
+        })
 
         browser.runtime.onConnect.addListener(
             p => {
