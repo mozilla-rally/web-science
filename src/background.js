@@ -29,9 +29,9 @@ function openPage() {
   });
 }
 
-browse(
-  ["https://news.ycombinator.com", 500],
-  ["https://newyorker.com", 100,]
-)
+// browse(
+//   ["https://news.ycombinator.com", 500],
+//   ["https://newyorker.com", 100,]
+// )
 
 browser.browserAction.onClicked.addListener(openPage);
