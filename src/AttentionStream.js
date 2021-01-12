@@ -1,6 +1,7 @@
 
 import browser from 'webextension-polyfill';
 import getPageURL from './get-page-url';
+import { getTitle } from './page-info'
 import EventStreamStorage from "./EventStreamStorage";
 
 import {
@@ -8,9 +9,9 @@ import {
     registerPageAttentionStopListener  
   } from './PageEvents';
 
-const OPTIONS_PAGE_PATH = "public/index.html";
-export default class AttentionStream {
+  export default class AttentionStream {
     constructor() {
+        this._connectionPort = {};
         this._onAttentionStartHandlers = [];
         this._onAttentionEndHandlers = [];
         this._current = { firstRun: true };
@@ -19,18 +20,25 @@ export default class AttentionStream {
     }
 
     initialize() {
+        browser.runtime.onMessage.addListener(this._handlePageContent);
+
         // this will create a new event.
         registerPageAttentionStartListener(async event => {
             // create the new event.
+            // send to currently active tab.
+            //browser.tabs.sendMessage(event.tabId, {type: "page-details"});
             const { inboundReason } = event;
             const url = await getPageURL();
+            const title = await getTitle();
             this._resetCurrentEvent();
             this._setURL(url);
             this._setStart();
+            this._current.tabTitle = title;
             this._current.inboundReason = inboundReason;
             const newEvent = { ...this._current };
-            this._onAttentionStartHandlers.forEach(fcn => { fcn(newEvent); } );
-        }); 
+            this._onAttentionStartHandlers.forEach(fcn => { fcn(newEvent, this); } );
+        });
+
 
         // this will emit the finished event along with
         // a timestamp.
@@ -47,10 +55,17 @@ export default class AttentionStream {
             p => this._onPortConnected(p));
     }
 
+    _handlePageContent(message) {
+        if (message.type === 'page-details') {
+            this._current.description = message.description;
+            this._current.ogType = message.ogType;
+            this._current.headerTitle = message.title;
+        }
+    }
+
     _onPortConnected(port) {
         const sender = port.sender;
-        if ((sender.id != browser.runtime.id)
-          || (sender.url != browser.runtime.getURL(OPTIONS_PAGE_PATH))) {
+        if ((sender.id != browser.runtime.id)) {
           console.error("Rally Study - received message from unexpected sender");
           port.disconnect();
           return;
@@ -59,7 +74,7 @@ export default class AttentionStream {
         this._connectionPort = port;
     
         this._connectionPort.onMessage.addListener(
-          m => this._handleMessage(m));
+          m => this._handleMessage(m, sender));
         // The onDisconnect event is fired if there's no receiving
         // end or in case of any other error. Log an error and clear
         // the port in that case.
@@ -69,10 +84,19 @@ export default class AttentionStream {
         });
       }
 
-    async _handleMessage(message) {
+    async _handleMessage(message, sender) {
         // We only expect messages coming from the embedded options page
-        // at this time. We check for the sender in `_onPortConnected`.    
+        // at this time. We check for the sender in `_onPortConnected`.
         switch (message.type) {
+            case "page-details": {
+                const activeWindow = await browser.windows.getCurrent();
+                // console.log(activeWindow, sender.tab);
+                if (sender.tab.active && sender.tab.windowId === activeWindow.id) {
+                    this._current.description = message.description;
+                    this._current.ogType = message.ogType;
+                }
+                break;
+            }
             case "get-data":
             this._sendDataToUI();
             break;
