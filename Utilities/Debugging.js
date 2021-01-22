@@ -30,3 +30,9 @@ export function getDebuggingLog(moduleName) {
         console.debug("WebScience." + moduleName + ": " + text);
     });
 }
+
+export function getExtensionVersion() {
+    let manifest = browser.runtime.getManifest();
+    if ("version" in manifest) return manifest.version;
+    return "";
+}
