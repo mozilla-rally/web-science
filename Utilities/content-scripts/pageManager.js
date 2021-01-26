@@ -141,6 +141,23 @@
             return window.location.href.slice(-1 * window.location.hash.length);
         }
 
+        // Debugging output
+        // This should be kept in sync with the Debugging module, removing only export statements
+        
+        /**
+         * Create a debugging logger, a function that logs debugging events (as strings).
+         * @param {string} moduleName - A name that uniquely identifies the module
+         * generating the debugging events.
+         * @returns {function(string)} - A debugging logger.
+         */
+        function getDebuggingLog(moduleName) {
+            return ((text) => {
+                console.debug("WebScience." + moduleName + ": " + text);
+            });
+        }
+
+        const debugLog = getDebuggingLog("Utilities.content-scripts.pageManager");
+
         // Event management types and classes
         // This should be kept in sync with the Events module, removing only export statements
 
