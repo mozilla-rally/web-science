@@ -388,7 +388,8 @@
                 url: PageManager.url,
                 referrer: PageManager.referrer,
                 timeStamp: PageManager.pageVisitStartTime,
-                privateWindow: browser.extension.inIncognitoContext
+                privateWindow: browser.extension.inIncognitoContext,
+                isHistoryChange
             });
 
             // Notify the page visit start event listeners in the content script environment

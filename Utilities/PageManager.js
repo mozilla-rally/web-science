@@ -158,6 +158,7 @@ const considerUserInputForAttention = true;
  * there is no referrer.
  * @param {number} pageVisitStartTime - The time when the underlying event fired.
  * @param {boolean} privateWindow - Whether the page is in a private window.
+ * @property {boolean} isHistoryChange - Whether the page visit was caused by a change via the History API.
  */
 
 /**
@@ -377,14 +378,16 @@ export async function initialize() {
             url: pageVisitStartInfo.url,
             referrer: pageVisitStartInfo.referrer,
             pageVisitStartTime: pageVisitStartInfo.timeStamp,
-            privateWindow: pageVisitStartInfo.privateWindow
+            privateWindow: pageVisitStartInfo.privateWindow,
+            isHistoryChange: pageVisitStartInfo.isHistoryChange
         });
     }, {
         pageId: "string",
         url: "string",
         referrer: "string",
         timeStamp: "number",
-        privateWindow: "boolean"
+        privateWindow: "boolean",
+        isHistoryChange: "boolean"
     });
 
     // The content script sends a WebScience.Utilities.PageManger.pageVisitStop message when
