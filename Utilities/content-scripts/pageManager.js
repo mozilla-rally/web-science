@@ -141,22 +141,13 @@
             return window.location.href.slice(-1 * window.location.hash.length);
         }
 
-        // Debugging output
-        // This should be kept in sync with the Debugging module, removing only export statements
-        
         /**
-         * Create a debugging logger, a function that logs debugging events (as strings).
-         * @param {string} moduleName - A name that uniquely identifies the module
-         * generating the debugging events.
-         * @returns {function(string)} - A debugging logger.
+         * Log a debugging message to `console.debug` in a standardized format.
+         * @param {string} message - The debugging message.
          */
-        function getDebuggingLog(moduleName) {
-            return ((text) => {
-                console.debug("WebScience." + moduleName + ": " + text);
-            });
+        function debugLog(message) {
+            console.debug(`WebScience.Utilities.PageManager (Content Script): ${message}`);
         }
-
-        const debugLog = getDebuggingLog("Utilities.content-scripts.pageManager");
 
         // Event management types and classes
         // This should be kept in sync with the Events module, removing only export statements
@@ -260,7 +251,7 @@
                             listener.apply(null, listenerArguments);
                     }
                     catch(error) {
-                        debugLog(`Error in listener notification: ${error}`);
+                        debugLog(`Error in content script listener notification: ${error}`);
                     }
                 });
             }
@@ -366,11 +357,11 @@
         PageManager.sendMessage = function(message) {
             try {
                 browser.runtime.sendMessage(message).catch((reason) => {
-                    console.debug(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
+                    debugLog(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
                 });
             }
             catch(error) {
-                console.debug(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
+                debugLog(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
             }
         };
         
@@ -417,7 +408,7 @@
 
             PageManager.pageVisitStarted = true;
 
-            console.debug(`Page visit start: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page visit start: ${JSON.stringify(PageManager)}`);
         };
 
         /**
@@ -444,7 +435,7 @@
                 timeStamp
             }]);
 
-            console.debug(`Page visit stop: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page visit stop: ${JSON.stringify(PageManager)}`);
         };
 
         /**
@@ -466,7 +457,7 @@
                 timeStamp
             }]);
 
-            console.debug(`Page attention update: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page attention update: ${JSON.stringify(PageManager)}`);
         }
 
         /**
@@ -488,7 +479,7 @@
                 timeStamp
             }]);
 
-            console.debug(`Page audio update: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page audio update: ${JSON.stringify(PageManager)}`);
         }
 
         // Handle events sent from the background page
@@ -527,7 +518,7 @@
                             callback();
                         }
                         catch(error) {
-                            console.debug(`Error in callback for PageManager load: ${error}`);
+                            debugLog(`Error in callback for PageManager load: ${error}`);
                         }
                     }
             delete window.pageManagerHasLoaded;
