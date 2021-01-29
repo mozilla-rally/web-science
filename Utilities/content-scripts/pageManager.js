@@ -511,8 +511,8 @@
         // If there are any other content scripts that are waiting for the API to load,
         // execute the callbacks for those content scripts        
         if("pageManagerHasLoaded" in window) {
-            if(typeof window.pageManagerHasLoaded === "array")
-                for(let callback of window.pageManagerHasLoaded)
+            if(Array.isArray(window.pageManagerHasLoaded))
+                for(const callback of window.pageManagerHasLoaded)
                     if(typeof callback === "function") {
                         try {
                             callback();
