@@ -141,6 +141,14 @@
             return window.location.href.slice(-1 * window.location.hash.length);
         }
 
+        /**
+         * Log a debugging message to `console.debug` in a standardized format.
+         * @param {string} message - The debugging message.
+         */
+        function debugLog(message) {
+            console.debug(`WebScience.Utilities.PageManager (Content Script): ${message}`);
+        }
+
         // Event management types and classes
         // This should be kept in sync with the Events module, removing only export statements
 
@@ -243,7 +251,7 @@
                             listener.apply(null, listenerArguments);
                     }
                     catch(error) {
-                        debugLog(`Error in listener notification: ${error}`);
+                        debugLog(`Error in content script listener notification: ${error}`);
                     }
                 });
             }
@@ -349,11 +357,11 @@
         PageManager.sendMessage = function(message) {
             try {
                 browser.runtime.sendMessage(message).catch((reason) => {
-                    console.debug(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
+                    debugLog(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
                 });
             }
             catch(error) {
-                console.debug(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
+                debugLog(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
             }
         };
         
@@ -388,7 +396,8 @@
                 url: PageManager.url,
                 referrer: PageManager.referrer,
                 timeStamp: PageManager.pageVisitStartTime,
-                privateWindow: browser.extension.inIncognitoContext
+                privateWindow: browser.extension.inIncognitoContext,
+                isHistoryChange
             });
 
             // Notify the page visit start event listeners in the content script environment
@@ -399,7 +408,7 @@
 
             PageManager.pageVisitStarted = true;
 
-            console.debug(`Page visit start: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page visit start: ${JSON.stringify(PageManager)}`);
         };
 
         /**
@@ -426,7 +435,7 @@
                 timeStamp
             }]);
 
-            console.debug(`Page visit stop: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page visit stop: ${JSON.stringify(PageManager)}`);
         };
 
         /**
@@ -448,7 +457,7 @@
                 timeStamp
             }]);
 
-            console.debug(`Page attention update: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page attention update: ${JSON.stringify(PageManager)}`);
         }
 
         /**
@@ -470,7 +479,7 @@
                 timeStamp
             }]);
 
-            console.debug(`Page audio update: ${JSON.stringify(PageManager)}`);
+            debugLog(`Page audio update: ${JSON.stringify(PageManager)}`);
         }
 
         // Handle events sent from the background page
@@ -502,14 +511,14 @@
         // If there are any other content scripts that are waiting for the API to load,
         // execute the callbacks for those content scripts        
         if("pageManagerHasLoaded" in window) {
-            if(typeof window.pageManagerHasLoaded === "array")
-                for(let callback of window.pageManagerHasLoaded)
+            if(Array.isArray(window.pageManagerHasLoaded))
+                for(const callback of window.pageManagerHasLoaded)
                     if(typeof callback === "function") {
                         try {
                             callback();
                         }
                         catch(error) {
-                            console.debug(`Error in callback for PageManager load: ${error}`);
+                            debugLog(`Error in callback for PageManager load: ${error}`);
                         }
                     }
             delete window.pageManagerHasLoaded;

@@ -356,7 +356,7 @@
     // On page visit stop, clear the timer and intersection observer
     let pageVisitStopListener = function() {
         if(timerId !== 0)
-            clearInterval(timer);
+            clearInterval(timerId);
         timerId = 0;
         observer.disconnect();
     };
