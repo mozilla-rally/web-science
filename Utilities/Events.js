@@ -1,7 +1,7 @@
 /**
  * This module provides functionality for constructing events similar to
  * WebExtensions `events.Event` objects.
- * 
+ *
  * @module WebScience.Utilities.Events
  */
 
@@ -14,8 +14,8 @@ const debugLog = Debugging.getDebuggingLog("Utilities.Events");
  * @callback callbackWithoutParameters
  */
 
-/** 
- * A class that provides an event API similar to WebExtensions `events.Event` objects. 
+/**
+ * A class that provides an event API similar to WebExtensions `events.Event` objects.
  * @template EventCallbackFunction
  * @template EventOptions
  */
@@ -119,7 +119,7 @@ export class Event {
     }
 }
 
-/** 
+/**
  * An extension of the Event class that omits options when adding a listener.
  * @template EventCallbackFunction
  * @extends {Event<EventCallbackFunction, undefined>}
@@ -161,7 +161,7 @@ export class EventWithoutOptions extends Event {
     }
 }
 
-/** 
+/**
  * An extension of the Event class that permits only one listener at a time.
  * @template EventCallbackFunction
  * @template EventOptions
@@ -184,3 +184,4 @@ export class EventSingleton extends Event {
         super.addListener(listener, options);
     }
 }
+

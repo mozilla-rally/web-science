@@ -3,6 +3,7 @@
  * @module WebScience.Measurements.LinkExposure
  */
 
+import * as Events from "../Utilities/Events.js"
 import * as Debugging from "../Utilities/Debugging.js"
 import * as Storage from "../Utilities/Storage.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
@@ -12,16 +13,37 @@ import * as PageManager from "../Utilities/PageManager.js"
 
 const debugLog = Debugging.getDebuggingLog("Measurements.LinkExposure");
 
+class LinkExposureEvent extends Events.EventSingleton {
+    addListener(listener, options) {
+        super.addListener(listener, options);
+        startMeasurement(options);
+    }
+
+    removeListener(listener) {
+        stopMeasurement();
+        super.removeListener(listener);
+    }
+}
+
+export const onLinkExposure = new LinkExposureEvent();
+
 /**
  * A KeyValueStorage object for data associated with the study.
  * @type {Object}
  * @private
  */
-let storage = null;
+//let storage = null;
 
 let numUntrackedUrls = null;
 
 let initialized = false;
+
+/**
+ * A RegisteredContentScript object that can be used to unregister the CS
+ * @type {RegisteredContentScript}
+ * @private
+ */
+let registeredCS = null;
 
 /**
  * Start a link exposure measurement. Note that only one measurement is currently supported per extension.
@@ -30,22 +52,21 @@ let initialized = false;
  * @param {string[]} [options.pageMatchPatterns=[]] - The pages where links should be measured, specified with WebExtensions match patterns.
  * @param {boolean} [options.privateWindows=false] - Whether to measure on pages in private windows.
  */
-export async function startMeasurement({
+async function startMeasurement({
     linkMatchPatterns = [],
     pageMatchPatterns = [],
     privateWindows = false
 }) {
     if(initialized)
         return;
+    debugLog("Starting link exposure measurement");
 
     LinkResolution.initialize();
 
     await PageManager.initialize();
- 
-    storage = await (new Storage.KeyValueStorage("WebScience.Measurements.LinkExposure")).initialize();
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
-    var nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.LinkExposure.nextLinkExposureId")).initialize();
+    const nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.LinkExposure.nextLinkExposureId")).initialize();
 
     numUntrackedUrls = await (new Storage.Counter("WebScience.Measurements.LinkExposure.numUntrackedUrls")).initialize();
 
@@ -61,7 +82,7 @@ export async function startMeasurement({
     });
 
     // Add the content script for checking links on pages
-    await browser.contentScripts.register({
+    registeredCS = await browser.contentScripts.register({
         matches: pageMatchPatterns,
         js: [{
                 file: "/WebScience/Measurements/content-scripts/linkExposure.js"
@@ -89,7 +110,7 @@ export async function startMeasurement({
             // resolvedUrl is valid only for shortened URLs
             linkExposure.resolvedUrl = undefined;
             if (linkExposure.isShortenedUrl) {
-                let promise = LinkResolution.resolveUrl(linkExposure.originalUrl);
+                const promise = LinkResolution.resolveUrl(linkExposure.originalUrl);
                 promise.then(async function (result) {
                     if (linkRegExp.test(result.dest)) {
                         linkExposure.resolvedUrl = result.dest;
@@ -120,6 +141,10 @@ export async function startMeasurement({
     initialized = true;
 }
 
+function stopMeasurement() {
+    if (registeredCS) registeredCS.unregister();
+}
+
 /* Utilities */
 
 /**
@@ -128,14 +153,16 @@ export async function startMeasurement({
  * @returns {(Object|null)} - The study data, or `null` if no data
  * could be retrieved.
  */
+/*
 export async function getStudyDataAsObject() {
     if(storage != null)
         return await storage.getContentsAsObject();
     return null;
 }
+*/
 
 /**
- * 
+ *
  * @param {Object} exposureEvent link exposure event to store
  * @param {string} exposureEvent.originalUrl - link exposed to
  * @param {string} exposureEvent.resolvedUrl - optional field which is set if the isShortenedUrl and resolutionSucceeded are true
@@ -153,9 +180,7 @@ async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter
                          Storage.normalizeUrl(exposureEvent.originalUrl));
     exposureEvent.laterVisited = false;
     exposureEvent.laterShared = false;
-    //debugLog("storing " + JSON.stringify(exposureEvent));
-    var key = exposureEvent.url + " " + await nextLinkExposureIdCounter.getAndIncrement();
-    storage.set(key, exposureEvent);
+    onLinkExposure.notifyListeners(exposureEvent);
 }
 
 /*
@@ -173,6 +198,7 @@ export async function storeAndResetUntrackedExposuresCount() {
 }
 */
 
+/*
 export async function logVisit(url) {
     var prevExposures = await storage.startsWith(url);
     var hasPrevExposures = false;
@@ -194,3 +220,4 @@ export async function logShare(url) {
     }
     return hasPrevExposures;
 }
+*/

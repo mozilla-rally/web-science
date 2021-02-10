@@ -54,7 +54,7 @@ const hostLocatorMatchPatternSchemes = new Set(["http", "https", "ws", "wss", "f
  */
 export function matchPatternToRegExpString(matchPattern) {
     if(!matchPatternValidationRegExp.test(matchPattern))
-        throw new Error(`Invalid match pattern: {$matchPattern}`);
+        throw new Error(`Invalid match pattern: ${matchPattern}`);
     
     let tail = matchPattern.repeat(1);
 
@@ -66,7 +66,7 @@ export function matchPatternToRegExpString(matchPattern) {
     // Parse the scheme
     let index = matchPattern.indexOf(":");
     if(index <= 0)
-        throw new Error(`Invalid match pattern: {$matchPattern}`);
+        throw new Error(`Invalid match pattern: ${matchPattern}`);
     let scheme = matchPattern.substr(0, index);
     let hostLocatorScheme = false;
     // The special "*" wildcard scheme should match the "http", "https", "ws", and "wss" schemes
@@ -76,7 +76,7 @@ export function matchPatternToRegExpString(matchPattern) {
     }
     else {
         if(!permittedMatchPatternSchemes.has(scheme))
-            throw new Error(`Invalid match pattern: {$matchPattern}`);
+            throw new Error(`Invalid match pattern: ${matchPattern}`);
         hostLocatorScheme = hostLocatorMatchPatternSchemes.has(scheme);
     }
 
@@ -86,7 +86,7 @@ export function matchPatternToRegExpString(matchPattern) {
     let escapedDomain = "";
     if(hostLocatorScheme) {
         if(!tail.startsWith("//"))
-            throw new Error(`Invalid match pattern: {$matchPattern}`);
+            throw new Error(`Invalid match pattern: ${matchPattern}`);
         
         offset += 2;
         tail = matchPattern.substr(offset);
@@ -96,7 +96,7 @@ export function matchPatternToRegExpString(matchPattern) {
         
         let host = tail.substring(0, index);
         if((host === "") && (scheme !== "file"))
-            throw new Error(`Invalid match pattern: {$matchPattern}`);
+            throw new Error(`Invalid match pattern: ${matchPattern}`);
 
         offset += index;
         tail = matchPattern.substring(offset);
@@ -124,7 +124,7 @@ export function matchPatternToRegExpString(matchPattern) {
     let path = tail;
     let escapedPath = "";
     if(path === "")
-        throw new Error(`Invalid match pattern: {$matchPattern}`);
+        throw new Error(`Invalid match pattern: ${matchPattern}`);
     
     // If the path is / or /*, allow a URL with no path specified to match
     if(path === "/" )
@@ -253,6 +253,7 @@ export function getStudyPaths() {
         pages: new UrlMatcher(twPages)
     };
     studyPaths.destinationPaths = destinationDomains.concat(fbPages).concat(ytPages).concat(twPages);
+    console.log(studyPaths);
     return studyPaths;
 }
 

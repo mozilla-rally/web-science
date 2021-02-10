@@ -8,17 +8,17 @@ import * as Messaging from "./Messaging.js"
 
 const debugLog = Debugging.getDebuggingLog("SocialMediaSharing");
 
-var privateWindows = false;
+let privateWindows = false;
 
-var tweetContentSetUp = false;
-var twitter_x_csrf_token = "";
-var twitter_authorization = "";
-var twitter_tabid = "";
+let tweetContentSetUp = false;
+let twitter_x_csrf_token = "";
+let twitter_authorization = "";
+let twitter_tabid = "";
 
-var fbPostContentSetUp = false;
-var facebookTabId = -1;
+let fbPostContentSetUp = false;
+let facebookTabId = -1;
 
-var processedRequestIds = {};
+let processedRequestIds = {};
 
 /**
  * Configure listeners to run in private windows.
@@ -36,8 +36,9 @@ export function enablePrivateWindows() {
  * @param callback - the client function to call when the event occurs
  */
 function registerPlatformListener(platform, eventType, blockingType, callback) {
-    var blocking = blockingType == "blocking";
-    var handler = platformHandlers[platform][eventType];
+    debugLog("Registering listener for " + platform + eventType);
+    let blocking = blockingType == "blocking";
+    let handler = platformHandlers[platform][eventType];
 
     if (handler.registeredListener == null ||
         (blockingType == "blocking" && handler.registeredBlockingType != "blocking")) {
@@ -47,8 +48,8 @@ function registerPlatformListener(platform, eventType, blockingType, callback) {
         if (handler.registeredListener != null && handler.registeredBlockingType == "nonblocking") {
             browser.webRequest[handler.stage].removeListener(handler.registeredListener);
         }
-        var stage = handler.stage;
-        var urls = handler.urls;
+        let stage = handler.stage;
+        let urls = handler.urls;
         handler.registeredListener = ((requestDetails) => {
             return handleGenericEvent({requestDetails: requestDetails, platform: platform,
                                 eventType: eventType, blockingType: blockingType});
@@ -153,11 +154,11 @@ export function registerRedditActivityTracker(
 async function handleGenericEvent({requestDetails = null,
                              platform = null, eventType = null,
                              blockingType = null}) {
-    var handler = platformHandlers[platform][eventType];
+    let handler = platformHandlers[platform][eventType];
     return new Promise(async (resolve, reject) => {
-        var eventTime = Date.now();
-        var verified = null;
-        for (var verifier of handler.verifiers) {
+        let eventTime = Date.now();
+        let verified = null;
+        for (let verifier of handler.verifiers) {
             verified = await verifier({requestDetails: requestDetails, platform: platform,
                                        eventType: eventType, blockingType: blockingType,
                                        eventTime: eventTime});
@@ -169,17 +170,17 @@ async function handleGenericEvent({requestDetails = null,
         if (platform == "facebook") {
             facebookTabId = requestDetails.tabId;
         }
-        var details = {};
-        for (var extractor of handler.extractors) {
+        let details = {};
+        for (let extractor of handler.extractors) {
             details = await extractor({requestDetails: requestDetails, details: details,
                                        verified: verified, platform: platform, eventType: eventType,
                                        blockingType: blockingType, eventTime: eventTime});
             if (!details) {
-                resolve({});;
+                resolve({});
                 return;
             }
         }
-        var blockingResult;
+        let blockingResult;
         if (blockingType == "blocking") {
             blockingResult = await clientCallbacks[platform][eventType][blockingType][0](details);
             if (blockingResult && "cancel" in blockingResult) {
@@ -193,10 +194,10 @@ async function handleGenericEvent({requestDetails = null,
         } else {
             resolve({});
         }
-        for (var userListener of clientCallbacks[platform][eventType]["nonblocking"]) {
+        for (let userListener of clientCallbacks[platform][eventType]["nonblocking"]) {
             userListener(details);
         }
-        for (var completer of handler.completers) {
+        for (let completer of handler.completers) {
         completer({requestDetails: requestDetails, verified: verified, details: details,
                            platform: platform, eventType: eventType, blockingType: blockingType});
         }
@@ -243,7 +244,7 @@ function verifyNewRequest({requestDetails = null}) {
 /**
  * Stores the callback functions the client has registered.
  */
-var clientCallbacks = {
+let clientCallbacks = {
     twitter: {
         tweet: {blocking: [], nonblocking: []},
         retweet: {blocking: [], nonblocking: []},
@@ -266,7 +267,7 @@ var clientCallbacks = {
 /**
  * Holds the configuration for each type of handler.
  */
-var platformHandlers = {
+let platformHandlers = {
     twitter: {
         tweet: null, retweet: null, favorite: null
     },
@@ -405,10 +406,10 @@ function verifyTwitterTweet({requestDetails = null}) {
  * @returns {Object} - the tweet info extracted into an object
  */
 function extractTwitterTweet({requestDetails = null}) {
-    var details = {};
+    let details = {};
     details.eventType = "tweet";
     details.eventTime = requestDetails.timeStamp;
-    var tweetText = requestDetails.requestBody.formData["status"][0];
+    let tweetText = requestDetails.requestBody.formData["status"][0];
     details.postText = tweetText;
     if (requestDetails.requestBody.formData.attachment_url &&
         requestDetails.requestBody.formData.attachment_url.length > 0) {
@@ -438,8 +439,8 @@ function verifyTwitterRetweet({requestDetails = null}) {
  * @returns {Object} - the retweet info extracted into an object
  */
 function extractTwitterRetweet({requestDetails = null, eventTime = null}) {
-    var tweetId = requestDetails.requestBody.formData.id[0];
-    var details = {};
+    let tweetId = requestDetails.requestBody.formData.id[0];
+    let details = {};
     details.eventType = "retweet";
     details.eventTimestamp = requestDetails.timeStamp;
     details.retweetedId = tweetId;
@@ -470,7 +471,7 @@ function extractTwitterFavorite({requestDetails = null,
                                  details = null, verified = null,
                                  platform = null, eventType = null,
                                  blockingType = null, eventTime = null}) {
-    var tweetId = requestDetails.requestBody.formData.id[0];
+    let tweetId = requestDetails.requestBody.formData.id[0];
     details.eventType = "favorite";
     details.eventTimestamp = requestDetails.timeStamp;
     details.favoritedId = tweetId;
@@ -514,7 +515,7 @@ function tweetContentInit() {
         runAt: "document_idle"
     });
     browser.webRequest.onBeforeSendHeaders.addListener((details) => {
-        for (var header of details.requestHeaders) {
+        for (let header of details.requestHeaders) {
             if (header.name == "x-csrf-token") {
                 twitter_x_csrf_token = header.value;
             }
@@ -558,23 +559,23 @@ async function fbPostContentInit() {
  * @returns - the parsed event
  */
 function extractFacebookReact({requestDetails = null, eventTime = null, verified = null}) {
-    var reactionRequest = verified.reactionRequest;
-    var postId = "";
-    var groupId = "";
-    var ownerId = "";
+    let reactionRequest = verified.reactionRequest;
+    let postId = "";
+    let groupId = "";
+    let ownerId = "";
     try {
-        var tracking = findFieldFacebook(reactionRequest, "tracking");
+        let tracking = findFieldFacebook(reactionRequest, "tracking");
         postId = findFieldFacebook(tracking, "top_level_post_id");
         groupId = findFieldFacebook(tracking, "group_id");
         ownerId = findFieldFacebook(tracking, "content_owner_id_new");
     } catch(error) {
-        var feedbackId = findFieldFacebook(reactionRequest, "feedback_id");
+        let feedbackId = findFieldFacebook(reactionRequest, "feedback_id");
         if (feedbackId.startsWith("feedback:")) {
             postId = feedbackId.substring(9);
         }
     }
-    var reaction = findFieldFacebook(reactionRequest, "feedback_reaction");
-    var reactionType = "unknown";
+    let reaction = findFieldFacebook(reactionRequest, "feedback_reaction");
+    let reactionType = "unknown";
     if (reaction == 0) { // removing reaction
         reactionType = "remove";
     } else if (reaction == 1) {
@@ -592,7 +593,7 @@ function extractFacebookReact({requestDetails = null, eventTime = null, verified
     } else if (reaction == 8) {
         reactionType = "angry";
     }
-    var details = {eventType: "react", eventTime: eventTime,
+    let details = {eventType: "react", eventTime: eventTime,
         postId: postId, groupId: groupId,
         ownerId: ownerId, reactionType: reactionType};
     return details;
@@ -605,12 +606,12 @@ function extractFacebookReact({requestDetails = null, eventTime = null, verified
  */
 function verifyFacebookReact({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
-    var friendlyName = findFieldFacebook(requestDetails, "fb_api_req_friendly_name");
+    let friendlyName = findFieldFacebook(requestDetails, "fb_api_req_friendly_name");
     if (!(friendlyName.includes("UFI2FeedbackReactMutation") ||
           friendlyName.includes("CometUFIFeedbackReactMutation"))) {
         return null;
     }
-    var reactionRequest = findFieldFacebook(requestDetails.requestBody.formData, "variables");
+    let reactionRequest = findFieldFacebook(requestDetails.requestBody.formData, "variables");
     return {reactionRequest};
 }
 
@@ -622,7 +623,7 @@ function verifyFacebookReact({requestDetails = null}) {
 function verifyFacebookPost({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.variables)) { return null; }
     if (requestDetails.url.includes("api/graphql")) {
-        var friendlyName = findFieldFacebook(requestDetails.requestBody.formData, "fb_api_req_friendly_name");
+        let friendlyName = findFieldFacebook(requestDetails.requestBody.formData, "fb_api_req_friendly_name");
         if (!(friendlyName.includes("ComposerStoryCreateMutation"))) { return null; }
     }
     if (isThisPostAReshare(requestDetails)) { return null; }
@@ -635,36 +636,34 @@ function verifyFacebookPost({requestDetails = null}) {
  * @returns - the parsed event
  */
 function extractFacebookPost({requestDetails = null, eventTime = null}) {
-    var postText = "";
-    var postUrls = [];
-    var audience = "unknown";
-    var composerType = "unknown";
-    var variables = findFieldFacebook(requestDetails.requestBody.formData, "variables", false);
+    let postText = "";
+    let postUrls = [];
+    let audience = "unknown";
+    let variables = findFieldFacebook(requestDetails.requestBody.formData, "variables", false);
     if (!Array.isArray(variables)) variables = [variables];
-    for (var variable of variables) {
-        var parsedVar;
+    for (let variable of variables) {
+        let parsedVar;
         try {
             parsedVar = JSON.parse(variable);
         } catch {
             parsedVar = variable;
         }
         variable = parsedVar;
-        composerType = findFieldFacebook(variable, "composer_type");
 
         // Check for urls in the post text itself
-        var messageText = findFieldFacebook(findFieldFacebook(variable, "message"), "text");
+        let messageText = findFieldFacebook(findFieldFacebook(variable, "message"), "text");
         postText = postText.concat(messageText);
-        var audience = checkFacebookPostAudience(requestDetails);
+        audience = checkFacebookPostAudience(requestDetails);
 
         // Check for urls that are attachments instead of post text
-        var attachments = findFieldFacebook(variable, "attachments", false);
+        let attachments = findFieldFacebook(variable, "attachments", false);
         if (!(Array.isArray(attachments))) attachments = [attachments];
-        for (var attachment of attachments) {
-            var url = findFieldFacebook(findFieldFacebook(attachment, "share_params"), "canonical");
+        for (let attachment of attachments) {
+            let url = findFieldFacebook(findFieldFacebook(attachment, "share_params"), "canonical");
             postUrls.push(url);
         }
     }
-    var details = {postTime: eventTime, postText: postText, audience: audience,
+    let details = {postTime: eventTime, postText: postText, audience: audience,
         postUrls: postUrls, eventType: "post", eventTime: eventTime};
     return details;
 }
@@ -675,16 +674,16 @@ function extractFacebookPost({requestDetails = null, eventTime = null}) {
  * @returns - the parsed event
  */
 function extractFacebookComment({requestDetails = null, eventTime = null}) {
-    var commentRequest = findFieldFacebook(requestDetails.requestBody.formData, "variables");
-    var tracking = findFieldFacebook(variables, "tracking");
-    var postId = "";
-    var groupId = "";
-    var ownerId = "";
+    let variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
+    let tracking = findFieldFacebook(variables, "tracking");
+    let postId = "";
+    let groupId = "";
+    let ownerId = "";
     postId = findFieldFacebook(tracking, "top_level_post_id");
     groupId = findFieldFacebook(tracking, "group_id");
     ownerId = findFieldFacebook(tracking, "content_owner_id_new");
-    var commentText = findFieldFacebook(findFieldFacebook(commentRequest, "message"), "text");
-    var details = {
+    let commentText = findFieldFacebook(findFieldFacebook(variables, "message"), "text");
+    let details = {
         eventType: "comment",
         postId: postId,
         groupId: groupId,
@@ -701,25 +700,25 @@ function extractFacebookComment({requestDetails = null, eventTime = null}) {
  */
 function verifyFacebookComment({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
-    var friendlyName = findFieldFacebook(requestDetails, "fb_api_req_friendly_name");
+    let friendlyName = findFieldFacebook(requestDetails, "fb_api_req_friendly_name");
     if (!(friendlyName.includes("UFI2CreateCommentMutation"))) { return null; }
 
     return {};
 }
 
 function checkFacebookPostAudience(requestDetails) {
-    var base_state = "unknown";
-    var audience = "unknown";
+    let base_state = "unknown";
+    let audience = "unknown";
 
     if (!(requestDetails && requestDetails.requestBody &&
         requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return audience; }
 
-    var variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
-    var friendlyName = findFieldFacebook(requestDetails.requestBody.formData,
+    let variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
+    let friendlyName = findFieldFacebook(requestDetails.requestBody.formData,
                                          "fb_api_req_friendly_name");
     if (friendlyName.includes("ComposerStoryCreateMutation")) {
         // this is a "post"-type event
-        var base_state =
+        base_state =
             findFieldFacebook(
                 findFieldFacebook(
                     findFieldFacebook(variables, "audience"),
@@ -750,8 +749,8 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
     if (recurseLevel <= 0) return null;
     if (object == null) return null;
     // if we're lucky, the field is here -- might be an array type, though
-    if (object.hasOwnProperty(fieldName)) {
-        var result = null;
+    if ("fieldName" in object) {
+        let result = null;
         if (enterArray && Array.isArray(object[fieldName])){
             result = object[fieldName][0];
         }
@@ -759,7 +758,7 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
 
         //nobody wants straight JSON back
         try {
-            var parsed = JSON.parse(result)
+            let parsed = JSON.parse(result)
             return parsed;
         } catch {
             return result;
@@ -768,14 +767,14 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
 
     // maybe it's JSON?
     try {
-        var parsed = JSON.parse(object);
+        let parsed = JSON.parse(object);
         return findFieldFacebook(parsed, fieldName, enterArray, recurseLevel - 1);
     } catch {
     }
 
     // if that fails, start checking children
-    for (var subObject in object) {
-        var result = findFieldFacebook(object[subObject], fieldName, enterArray, recurseLevel - 1);
+    for (let subObject in object) {
+        let result = findFieldFacebook(object[subObject], fieldName, enterArray, recurseLevel - 1);
         if (result != null) return result;
     }
 
@@ -792,21 +791,19 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
 async function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
     // New FB
     if (requestDetails.url.includes("api/graphql")) {
-        var details = {};
-        var composerType = "unknown";
-        var variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
-        composerType = findFieldFacebook(variables, "composerType");
-        var message = findFieldFacebook(variables, "message");
+        let details = {};
+        let variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
+        let message = findFieldFacebook(variables, "message");
         details.newPostMessage = message ? findFieldFacebook(message, "text") : "";
         details.attachedUrls = [];
         try {
-            var attachments = findFieldFacebook(variables, "attachments");
-            var link = findFieldFacebook(attachments, "link");
-            var canonical = findFieldFacebook(link, "canonical");
+            let attachments = findFieldFacebook(variables, "attachments");
+            let link = findFieldFacebook(attachments, "link");
+            let canonical = findFieldFacebook(link, "canonical");
             details.attachedUrls.push(canonical);
         } catch { }
-        var audience = checkFacebookPostAudience(requestDetails);
-        var source = await getReshareInfo();
+        let audience = checkFacebookPostAudience(requestDetails);
+        let source = await getReshareInfo();
         details.audience = audience;
         details.source = source;
         details.eventType = "reshare";
@@ -822,11 +819,11 @@ async function getReshareInfo() {
 }
 
 function isThisPostAReshare(requestDetails) {
-    var friendlyName = findFieldFacebook(requestDetails.requestBody.formData,
+    let friendlyName = findFieldFacebook(requestDetails.requestBody.formData,
         "fb_api_req_friendly_name");
     if (friendlyName.includes( "ComposerStoryCreateMutation")) {
         // sometimes things that look like posts are secretly reshares
-        var composerType = findFieldFacebook(requestDetails.requestBody.formData,
+        let composerType = findFieldFacebook(requestDetails.requestBody.formData,
             "composer_type");
         if (composerType == "share") {
             return true;
@@ -855,9 +852,9 @@ function verifyFacebookReshare({requestDetails = null }) {
         }
         return null;
     }
-    var sharedFromPostId = null // the ID of the original post that's being shared
-    var ownerId = null; // we need this if the main method of getting the contents doesn't work
-    var newPostMessage = null // any content the user adds when sharing
+    let sharedFromPostId = null // the ID of the original post that's being shared
+    let ownerId = null; // we need this if the main method of getting the contents doesn't work
+    let newPostMessage = null // any content the user adds when sharing
     if (requestDetails.requestBody.formData &&
         "shared_from_post_id" in requestDetails.requestBody.formData &&
         requestDetails.requestBody.formData.shared_from_post_id.length > 0 &&
@@ -868,7 +865,7 @@ function verifyFacebookReshare({requestDetails = null }) {
         return {sharedFromPostId: sharedFromPostId, ownerId: ownerId};
     }
     else {
-        var parsedUrl = new URL(requestDetails.url);
+        let parsedUrl = new URL(requestDetails.url);
         if (parsedUrl.searchParams.has("shared_from_post_id")) {
             sharedFromPostId = parsedUrl.searchParams.get("shared_from_post_id");
         }
@@ -915,14 +912,14 @@ function verifyRedditPost({requestDetails = null}) {
  * @returns - the parsed object
  */
 function extractRedditPost({requestDetails = null}) {
-    var shareTime = Date.now();
-    var details = {};
+    let shareTime = Date.now();
+    let details = {};
     details.eventTime = shareTime;
     details.postBody = [];
     details.attachment = "";
     details.subredditName = "";
 
-    var subredditName = "";
+    let subredditName = "";
     if ("submit_type" in requestDetails.requestBody.formData &&
         requestDetails.requestBody.formData.submit_type.length > 0 &&
         requestDetails.requestBody.formData.submit_type[0] == "subreddit" &&
@@ -935,7 +932,7 @@ function extractRedditPost({requestDetails = null}) {
     // Handle if there's a URL attached to the post
     if (("url" in requestDetails.requestBody.formData) &&
         (requestDetails.requestBody.formData["url"].length == 1)) {
-        var postUrl = requestDetails.requestBody.formData["url"][0];
+        let postUrl = requestDetails.requestBody.formData["url"][0];
         details.attachment = postUrl;
     }
 
@@ -955,10 +952,10 @@ function extractRedditPost({requestDetails = null}) {
      *  (sometimes there are more attributes besides e and t -- but those are the ones that seem relevant)
      */
     if ("richtext_json" in requestDetails.requestBody.formData) {
-        var postObject = JSON.parse(requestDetails.requestBody.formData["richtext_json"]);
+        let postObject = JSON.parse(requestDetails.requestBody.formData["richtext_json"]);
         if ("document" in postObject) {
             details.postBody = [];
-            for (var paragraph of postObject.document) {
+            for (let paragraph of postObject.document) {
                 if ("c" in paragraph) {
                     details.postBody.push(paragraph.c);
                 }
@@ -986,7 +983,7 @@ function verifyRedditComment({requestDetails = null}) {
  * @returns - the parsed object
  */
 function extractRedditComment({requestDetails = null, eventTime = null}) {
-    var details = {};
+    let details = {};
     details.eventTime = eventTime;
     details.eventType = "comment";
     details.postId = requestDetails.requestBody.formData.thing_id;
@@ -1015,7 +1012,7 @@ function verifyRedditPostVote({requestDetails = null}) {
  * @returns - the parsed object
  */
 function extractRedditPostVote({requestDetails = null, eventTime = null}) {
-    var details = {};
+    let details = {};
     details.eventTime = eventTime;
     details.eventType = "postVote";
     details.vote = requestDetails.requestBody.formData.dir[0];
@@ -1044,13 +1041,13 @@ function verifyRedditCommentVote({requestDetails = null}) {
  */
 function extractRedditCommentVote({requestDetails = null, eventTime = null}) {
     return new Promise(async (resolve, reject) => {
-        var details = {};
+        let details = {};
         details.eventTime = eventTime;
         details.eventType = "commentVote";
         details.vote = requestDetails.requestBody.formData.dir[0];
         details.commentId = requestDetails.requestBody.formData.id[0];
 
-        var hydratedComment = await getRedditThingContents(details.commentId);
+        let hydratedComment = await getRedditThingContents(details.commentId);
         details.postId = hydratedComment.data.children[0].data.link_id;
         details.commentContents = hydratedComment;
         resolve(details);
@@ -1062,7 +1059,7 @@ export function checkSubredditStatus(subredditName) {
     return new Promise((resolve, reject) => {
         fetch(`https://www.reddit.com/r/${subredditName}/about.json`).then(responseFF => {
             responseFF.text().then(response => {
-                var subredditInfo = JSON.parse(response);
+                let subredditInfo = JSON.parse(response);
                 if ("error" in subredditInfo && subredditInfo.error == 403 &&
                     "reason" in subredditInfo && subredditInfo.reason == "private") {
                     resolve("private");
@@ -1085,7 +1082,7 @@ export function checkSubredditStatus(subredditName) {
  */
 export function getRedditThingContents(thingId) {
     return new Promise((resolve, reject) => {
-        var reqString = `https://www.reddit.com/api/info.json?id=${thingId}`;
+        let reqString = `https://www.reddit.com/api/info.json?id=${thingId}`;
         fetch(reqString).then((responseFF) => {
             responseFF.text().then((response) => {
                 resolve(JSON.parse(response))

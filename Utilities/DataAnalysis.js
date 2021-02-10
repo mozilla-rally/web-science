@@ -99,9 +99,9 @@ function createMessageReceiver(listeners) {
  * @private
  */
 export async function triggerAnalysisScripts() {
-    await SocialMediaLinkSharing.storeAndResetUntrackedShareCounts();
-    await LinkExposure.storeAndResetUntrackedExposuresCount();
-    await PageNavigation.storeAndResetUntrackedVisitsCount();
+    //await SocialMediaLinkSharing.storeAndResetUntrackedShareCounts();
+    //await LinkExposure.storeAndResetUntrackedExposuresCount();
+    //await PageNavigation.storeAndResetUntrackedVisitsCount();
     let storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
     let toSend = {
         studyDomains: studyDomains,

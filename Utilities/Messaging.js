@@ -46,7 +46,7 @@ const messageSchemas = new Map();
  * @type {boolean}
  * @default
  */
-var initialized = false;
+let initialized = false;
 
 /**
  * Validates that a message is an object with a type string.
@@ -131,7 +131,7 @@ function browserRuntimeListener(message, sender, sendResponse) {
     }
 
     for (const messageListener of messageListeners) {
-        var messageListenerReturnValue = messageListener(message, sender, sendResponse);
+        let messageListenerReturnValue = messageListener(message, sender, sendResponse);
         if ((messageListenerReturnValue !== undefined) && (browserRuntimeReturnValue !== undefined))
             debugLog(`Multiple listener return values for message type: ${message.type}`);
         browserRuntimeReturnValue = messageListenerReturnValue;
@@ -154,7 +154,7 @@ export function registerListener(messageType, messageListener, messageSchema) {
         browser.runtime.onMessage.addListener(browserRuntimeListener);
     }
 
-    var messageListeners = messageRouter.get(messageType);
+    let messageListeners = messageRouter.get(messageType);
     if (messageListeners === undefined) {
         messageListeners = new Set();
         messageRouter.set(messageType, messageListeners);
@@ -172,7 +172,7 @@ export function registerListener(messageType, messageListener, messageSchema) {
  * @param {boolean} [unregisterSchema=true] - Whether to unregister the schema for the message type, if there is one.
  */
 export function unregisterListener(messageType, messageListener, unregisterSchema) {
-    var messageListeners = messageRouter.get(messageType);
+    let messageListeners = messageRouter.get(messageType);
     if(messageListeners !== undefined) {
         messageListeners.delete(messageListener);
         if(messageListeners.size === 0)
@@ -217,3 +217,4 @@ export function sendMessageToTab(tabId, message) {
         return false;
     });
 }
+

@@ -266,7 +266,7 @@ function sendPageAttentionUpdate(tabId, pageHasAttention, timeStamp = Date.now()
  * @type {number}
  * @default
  */
-var currentActiveTab = -1;
+let currentActiveTab = -1;
 
 /**
  * The currently focused browsing window. Has the value -1 if there is no such window. 
@@ -274,7 +274,7 @@ var currentActiveTab = -1;
  * @type {number}
  * @default
  */
-var currentFocusedWindow = -1;
+let currentFocusedWindow = -1;
 
 /**
  * Checks for the following conditions:
@@ -332,7 +332,7 @@ function updateWindowState(windowId, { activeTab }) {
  * @type {boolean}
  * @default
  */
-var browserIsActive = false;
+let browserIsActive = false;
 
 /**
  * Whether the module is in the process of configuring browser event handlers
@@ -340,7 +340,7 @@ var browserIsActive = false;
  * @private
  * @type {boolean}
  */
-var initializing = false;
+let initializing = false;
 
 /**
  * Whether the module has started configuring browser event handlers and caching
@@ -348,7 +348,7 @@ var initializing = false;
  * @private
  * @type {boolean}
  */
-var initialized = false;
+let initialized = false;
 
 /**
  * Configure message passing between the background script and content script, register browser
@@ -482,7 +482,7 @@ export async function initialize() {
     browser.tabs.onActivated.addListener(activeInfo => {
         if(!initialized)
             return;
-        var timeStamp = Date.now();
+        let timeStamp = Date.now();
 
         // If this is a non-browser tab, ignore it
         if((activeInfo.tabId === browser.tabs.TAB_ID_NONE) || (activeInfo.tabId < 0) ||
@@ -523,7 +523,7 @@ export async function initialize() {
     browser.windows.onFocusChanged.addListener(windowId => {
         if(!initialized)
             return;
-        var timeStamp = Date.now();
+        let timeStamp = Date.now();
 
         // If the browser is active or (optionally) we are not considering user input, and if
         // if there is an active tab in a focused window, notify the current page with attention
@@ -544,7 +544,7 @@ export async function initialize() {
         }
 
         // Get information about the focused window from the cached window state
-        var focusedWindowDetails = windowState.get(windowId);
+        let focusedWindowDetails = windowState.get(windowId);
 
         // If we haven't seen this window before, that means it's not a browser window,
         // so remember tab ID = -1 and window ID -1, and do not notify any page that it has attention
@@ -574,7 +574,7 @@ export async function initialize() {
         await Idle.registerIdleStateListener(newState => {
             if(!initialized)
                 return;
-            var timeStamp = Date.now();
+            let timeStamp = Date.now();
 
             // If the browser is not transitioning between active and inactive states, ignore the event
             if((browserIsActive) === (newState === "active"))
@@ -609,7 +609,7 @@ export async function initialize() {
             continue;
         // Iterate the tabs in the window to cache tab state
         // and find the active tab in the window
-        var activeTabInOpenWindow = -1;
+        let activeTabInOpenWindow = -1;
         if("tabs" in openWindow)
             for(const tab of openWindow.tabs) {
                 if(tab.active)

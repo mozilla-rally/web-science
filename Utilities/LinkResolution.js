@@ -4,8 +4,8 @@
  */
 import * as Debugging from "./Debugging.js";
 import * as Matching from "./Matching.js";
-import { urlShortenerMatchPatterns } from "/WebScience/dependencies/urlShorteners.js";
-import { ampCacheDomains, ampViewerDomainsAndPaths } from "/WebScience/dependencies/ampCachesAndViewers.js";
+import { urlShortenerMatchPatterns } from "../dependencies/urlShorteners.js";
+import { ampCacheDomains, ampViewerDomainsAndPaths } from "../dependencies/ampCachesAndViewers.js";
 const debugLog = Debugging.getDebuggingLog("Utilities.LinkResolution");
 
 const fetchTimeoutMs = 5000;
