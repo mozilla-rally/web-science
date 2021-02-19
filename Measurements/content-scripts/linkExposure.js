@@ -32,7 +32,7 @@
      * @constant
      * @type {number}
      */
-    let linkVisibilityDuration = 5000;
+    const linkVisibilityDuration = 5000;
 
     /**
      * The minimum width (in pixels from `Element.getBoundingClientRect()`) that a link must have to treat it as an exposure.
@@ -91,20 +91,30 @@
 
     // Complete loading RegExps from storage before setting up event handlers
     // to avoid possible race conditions
-    const storedRegExps = await browser.storage.local.get([
+    // Haunted. Don't combine into one call.
+    const storedLinkRegExp = await browser.storage.local.get([
         "WebScience.Measurements.LinkExposure.linkRegExp",
+    ]);
+    const storedDomainRegExpSimple = await browser.storage.local.get([
+        "WebScience.Measurements.LinkExposure.domainRegExpSimple",
+    ]);
+    const storedUrlShortenerRegExp = await browser.storage.local.get([
         "WebScience.Measurements.LinkExposure.urlShortenerRegExp",
+    ]);
+    const storedAmpRegExp = await browser.storage.local.get([
         "WebScience.Measurements.LinkExposure.ampRegExp"
     ]);
-    if(!("WebScience.Measurements.LinkExposure.linkRegExp" in storedRegExps) || 
-       !("WebScience.Measurements.LinkExposure.urlShortenerRegExp" in storedRegExps) || 
-       !("WebScience.Measurements.LinkExposure.ampRegExp" in storedRegExps)) {
+    if(!("WebScience.Measurements.LinkExposure.linkRegExp" in storedLinkRegExp) || 
+       !("WebScience.Measurements.LinkExposure.urlShortenerRegExp" in storedUrlShortenerRegExp) || 
+       !("WebScience.Measurements.LinkExposure.domainRegExpSimple" in storedDomainRegExpSimple) ||
+       !("WebScience.Measurements.LinkExposure.ampRegExp" in storedAmpRegExp)) {
         console.debug("Error: LinkExposure content script cannot load RegExps from browser.storage.local.");
         return;
     }
-    const linkRegExp = storedRegExps["WebScience.Measurements.LinkExposure.linkRegExp"];
-    const urlShortenerRegExp = storedRegExps["WebScience.Measurements.LinkExposure.urlShortenerRegExp"];
-    const ampRegExp = storedRegExps["WebScience.Measurements.LinkExposure.ampRegExp"];
+    const linkRegExp = storedDomainRegExpSimple["WebScience.Measurements.LinkExposure.domainRegExpSimple"];
+    //const linkRegExp = storedLinkRegExp["WebScience.Measurements.LinkExposure.linkRegExp"];
+    const urlShortenerRegExp = storedUrlShortenerRegExp["WebScience.Measurements.LinkExposure.urlShortenerRegExp"];
+    const ampRegExp = storedAmpRegExp["WebScience.Measurements.LinkExposure.ampRegExp"];
 
     /**
      * A RegExp for matching URLs that have had Facebook's link shim applied.
@@ -264,7 +274,9 @@
 
                 // Flag a link as matched if either it matches the link match patterns or it is a shortened URL
                 // Start observing the link with the IntersectionObserver
+                let startTime = new Date();
                 let isMatched = linkRegExp.test(url);
+
                 let isShortenedUrl = urlShortenerRegExp.test(url);
                 isMatched = isMatched || isShortenedUrl;
 

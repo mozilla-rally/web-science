@@ -6,6 +6,7 @@
 import * as Messaging from "../Utilities/Messaging.js";
 import * as Debugging from "../Utilities/Debugging.js";
 import * as Storage from "../Utilities/Storage.js";
+import * as Matching from "../Utilities/Matching.js";
 
 const debugLog = Debugging.getDebuggingLog("Measurements.PageClassification");
 
@@ -15,19 +16,19 @@ const debugLog = Debugging.getDebuggingLog("Measurements.PageClassification");
  * @type {boolean}
  * @default
  */
-var initialized = false;
+let initialized = false;
 /**
  * Counter for storing classification results
  * @type {Storage.Counter}
  * @private
  */
-var nextPageClassificationIdCounter = null;
+//let nextPageClassificationIdCounter = null;
 /**
  * A KeyValueStorage object for data associated with the study.
  * @type {Object}
  * @private
  */
-var storage = null;
+let storage = null;
 /**
  * Store worker objects keyed by classifier id
  * 
@@ -36,7 +37,7 @@ var storage = null;
  */
 const workers = new Map();
 
-var firstRegistered = null;
+let firstRegistered = null;
 
 /**
  * Setup storage and counter objects.
@@ -45,7 +46,7 @@ var firstRegistered = null;
 async function initialize() {
     if(initialized) return;
     storage = await (new Storage.KeyValueStorage("WebScience.Measurements.PageClassification")).initialize();
-    nextPageClassificationIdCounter = await (new Storage.Counter("WebScience.Measurements.PageClassification.nextPageId")).initialize();
+    //nextPageClassificationIdCounter = await (new Storage.Counter("WebScience.Measurements.PageClassification.nextPageId")).initialize();
     initialized = true;
 }
 /**
@@ -62,13 +63,13 @@ async function registerContentScript(matchPatterns, workerId) {
     //var injectWorkerId = ['/* Inject worker id: */ let workerId =  "' + workerId +'";',
     //'// code ----->'].join('\n');
     let workerString = "";
-    for (let key of workers.keys()) {
+    for (const key of workers.keys()) {
         workerString = workerString.concat('"');
         workerString = workerString.concat(key);
         workerString = workerString.concat('",');
     }
 
-    var injectWorkerId = `workerIds = [${workerString}];`;
+    const injectWorkerId = `workerIds = [${workerString}];`;
 
     if (firstRegistered) {
         firstRegistered.unregister();
@@ -114,14 +115,14 @@ function listenForContentScriptMessages(workerId, resultListener) {
             debugLog(err.message + err.filename + err.lineno);
         }
         async function resultReceiver(result) {
-            let data = result.data;
-            data.url = Storage.normalizeUrl(data.url);
-            let classificationStorageObj = {...data, ...pageContent.context};
+            const data = result.data;
+            data.url = Matching.normalizeUrl(data.url);
+            const classificationStorageObj = {...data, ...pageContent.context};
             storage.set(classificationStorageObj.url, classificationStorageObj);
             resultListener({...data, ...pageContent.context});
         }
         // fetch worker associated with this
-        let worker = workers.get(workerId);
+        const worker = workers.get(workerId);
         // send page content as a message to the classifier script
         worker.postMessage({
             type: "classify",
@@ -142,15 +143,15 @@ export function messageWorker(workerId, pageContent, callback) {
         debugLog(err.message + err.filename + err.lineno);
     }
     async function resultReceiver(result) {
-        let data = result.data;
-        let classificationStorageObj = {...data, ...pageContent.context};
+        const data = result.data;
+        const classificationStorageObj = {...data, ...pageContent.context};
         debugLog("storing " + JSON.stringify(classificationStorageObj));
         //storage.set("" + nextPageClassificationIdCounter.get(), classificationStorageObj);
         storage.set(classificationStorageObj.url, classificationStorageObj);
         //await nextPageClassificationIdCounter.increment();
         callback({...data, ...pageContent.context});
     }
-    let worker = workers.get(workerId);
+    const worker = workers.get(workerId);
     worker.postMessage({
         type: "classify",
         payload: pageContent,
@@ -161,7 +162,7 @@ export function messageWorker(workerId, pageContent, callback) {
 
 export async function lookupClassificationResult(url, workerId) {
     initialize();
-    var result = await storage.get(url);
+    const result = await storage.get(url);
     if (result && result.type == workerId) return result;
     return null;
 }
@@ -202,7 +203,7 @@ export async function registerPageClassifier(matchPatterns, classifierFilePath, 
  * @param {Object} initArgs initialization data for the classifier
  */
 function setupClassifier(workerId, classifierFilePath, initArgs) {
-    let worker = new Worker(classifierFilePath);
+    const worker = new Worker(classifierFilePath);
     worker.postMessage({
         type: "init",
         name: workerId,

@@ -1,13 +1,8 @@
 /**
  * This module provides utilities for matching URLs against domain names.
- * 
+ *
  * @module WebScience.Utilities.Matching
  */
-import { destinationDomains } from "../../study/paths/destinationDomains.js"
-import { referrerDomains } from "../../study/paths/referrerDomains.js"
-import { fbPages } from "../../study/paths/pages-fb.js"
-import { ytPages } from "../../study/paths/pages-yt.js"
-import { twPages } from "../../study/paths/pages-tw.js"
 
 /**
  * A function that escapes regular expression special characters in a string.
@@ -55,7 +50,7 @@ const hostLocatorMatchPatternSchemes = new Set(["http", "https", "ws", "wss", "f
 export function matchPatternToRegExpString(matchPattern) {
     if(!matchPatternValidationRegExp.test(matchPattern))
         throw new Error(`Invalid match pattern: ${matchPattern}`);
-    
+
     let tail = matchPattern.repeat(1);
 
     // The special "<all_urls>" match pattern should match the "http", "https", "ws", "wss", "ftp", "file", and "data" schemes
@@ -87,13 +82,13 @@ export function matchPatternToRegExpString(matchPattern) {
     if(hostLocatorScheme) {
         if(!tail.startsWith("//"))
             throw new Error(`Invalid match pattern: ${matchPattern}`);
-        
+
         offset += 2;
         tail = matchPattern.substr(offset);
         index = tail.indexOf("/");
         if(index < 0)
             index = tail.length;
-        
+
         let host = tail.substring(0, index);
         if((host === "") && (scheme !== "file"))
             throw new Error(`Invalid match pattern: ${matchPattern}`);
@@ -119,21 +114,21 @@ export function matchPatternToRegExpString(matchPattern) {
         if(scheme !== "file")
             escapedDomain = escapedDomain + "(?::[0-9]+)?";
     }
-    
+
     // Parse the path
-    let path = tail;
+    const path = tail;
     let escapedPath = "";
     if(path === "")
         throw new Error(`Invalid match pattern: ${matchPattern}`);
-    
+
     // If the path is / or /*, allow a URL with no path specified to match
     if(path === "/" )
         escapedPath = "/?";
     else if(path === "/*")
         escapedPath = "(?:/.*)?";
     else {
-        let escapedPathArray = [ ];
-        for(let c of path) {
+        const escapedPathArray = [ ];
+        for(const c of path) {
             if(c === "*")
                 escapedPathArray.push(".*");
             else
@@ -146,14 +141,29 @@ export function matchPatternToRegExpString(matchPattern) {
 }
 
 /**
+ * Generate a regular expression string for matching a URL against a set of domains.
+ * Will match http and https protocols. Currently case sensitive.
+ * @param {string[]} domains - The set of domains to match against.
+ * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
+ * @returns {string} A regular expression string.
+ */
+export function createUrlRegexString(domains, matchSubdomains = true) {
+    var urlMatchRE = "^(?:http|https)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
+    for (const domain of domains)
+        urlMatchRE = urlMatchRE + domain.replace(/\./g, "\\.") + "|";
+    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|(/|\\?).*)";  ")(?:$|/.*)";
+    return urlMatchRE;
+}
+
+/**
  * Converts an array of match patterns into a regular expression string.
  * @throws {Throws an error if a match pattern is not valid.}
  * @param {Array<string>} matchPatterns - The match patterns.
  * @returns {string} The regular expression.
  */
 export function matchPatternsToRegExpString(matchPatterns) {
-    let regExpArray = [ ];
-    for(let matchPattern of matchPatterns)
+    const regExpArray = [ ];
+    for(const matchPattern of matchPatterns)
         regExpArray.push("(?:" + matchPatternToRegExpString(matchPattern) + ")");
     return regExpArray.join("|");
 }
@@ -168,7 +178,7 @@ export function matchPatternsToRegExp(matchPatterns) {
     return new RegExp(matchPatternsToRegExpString(matchPatterns), "i");
 }
 
-/** 
+/**
  * Class for testing whether a URL matches a set of domains.
  * Currently implemented with the native RegExp over the full URL, which gives good performance.
  * We might be able to speed this up by parsing the URL and then only matching domains.
@@ -180,7 +190,8 @@ export class UrlMatcher {
      * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
      */
     constructor(domains, matchSubdomains = true) {
-        this.regExp = new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
+        //this.regExp = new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
+        this.regExp = new RegExp(domains, "i");
     }
 
     /**
@@ -200,7 +211,7 @@ export class UrlMatcher {
  * @returns {string} A regular expression string for matching a URL against the set of domains
  */
 export function domainsToRegExpString(domains, matchSubdomains = true) {
-    let matchPatterns = [ ];
+    const matchPatterns = [ ];
     for (const domain of domains) {
         matchPatterns.push(`http://${matchSubdomains ? "*." : ""}${domain}/*`);
         matchPatterns.push(`https://${matchSubdomains ? "*." : ""}${domain}/*`);
@@ -216,7 +227,7 @@ export function domainsToRegExpString(domains, matchSubdomains = true) {
  * @returns {RegExp} A RegExp object for matching a URL against the set of domains.
  */
 export function domainsToRegExp(domains, matchSubdomains = true) {
-    return new RegExp(domainsToRegExpString(domains, matchSubdomains), "i")
+    return new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
 }
 
 /**
@@ -227,16 +238,18 @@ export function domainsToRegExp(domains, matchSubdomains = true) {
  * @returns {string[]} An array of match patterns.
  */
 export function createUrlMatchPatternArray(domains, matchSubdomains = true) {
-    var matchPatterns = [ ];
+    const matchPatterns = [ ];
     for (const domain of domains) {
+        //matchPatterns.push("*://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
         matchPatterns.push("http://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
         matchPatterns.push("https://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
     }
     return matchPatterns;
 }
 
+/*
 export function getStudyPaths() {
-    var studyPaths = {};
+    const studyPaths = {};
     studyPaths.domains = new UrlMatcher(destinationDomains);
     studyPaths.referrerOnlyDomains = new UrlMatcher(referrerDomains);
     studyPaths.paths = {}
@@ -253,7 +266,19 @@ export function getStudyPaths() {
         pages: new UrlMatcher(twPages)
     };
     studyPaths.destinationPaths = destinationDomains.concat(fbPages).concat(ytPages).concat(twPages);
-    console.log(studyPaths);
     return studyPaths;
 }
+*/
 
+/**
+ * Given a url, strip it to only the protocol (using https if none previously exists), hostname, and path.
+ * @param {string} url - the raw url to normalize
+ * @return {string} the normalized url
+ */
+export function normalizeUrl(url) {
+    const urlObj = new URL(url);
+    const normalizedUrl = (urlObj.protocol ? urlObj.protocol : "https:") +
+                        "//" + urlObj.hostname +
+                        (urlObj.pathname ? urlObj.pathname : "");
+    return normalizedUrl;
+}

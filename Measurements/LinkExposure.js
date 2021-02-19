@@ -13,19 +13,63 @@ import * as PageManager from "../Utilities/PageManager.js"
 
 const debugLog = Debugging.getDebuggingLog("Measurements.LinkExposure");
 
-class LinkExposureEvent extends Events.EventSingleton {
-    addListener(listener, options) {
-        super.addListener(listener, options);
-        startMeasurement(options);
-    }
+// TODO: significant documentation updates
+/**
+ * Additional information about the link exposure event.
+ * @typedef {Object} LinkExposureDetails
+ * @property {number} pageId - The ID for the page, unique across browsing sessions.
+ * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session.
+ * @property {number} windowId - The ID for the window containing the page, unique to the browsing session.
+ * Note that tabs can subsequently move between windows.
+ * @property {string} url - The URL of the page loading in the tab, without any hash.
+ * @property {string} referrer - The referrer URL for the page loading in the tab, or `""` if
+ * there is no referrer.
+ * @property {number} pageVisitStartTime - The time when the underlying event fired.
+ * @property {boolean} privateWindow - Whether the page is in a private window.
+ * @interface
+ */
 
-    removeListener(listener) {
+/**
+ * A callback function for the page data event.
+ * @callback LinkExposureCallback
+ * @param {LinkExposureDetails} details - Additional information about the page data event.
+ */
+
+
+/**
+ * Options when adding a link exposure event listener.
+ * @typedef {Object} LinkExposureOptions
+ * @property {Array<string>} [linkMatchPatterns=[]] - The links of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {Array<string>} [pageMatchPatterns=[]] - The pages (on which links occur) of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {boolean} [privateWindows=false] - Whether to measure links in private windows.
+ */
+
+/**
+ * Function to start measurement when a listener is added
+ * TODO: deal with multiple listeners with different match patterns
+ * @param {EventCallbackFunction} listener - new listener being added
+ * @param {LinkExposureOptions} options - configuration for the events to be sent to this listener
+ */
+function addListener(listener, options) {
+    startMeasurement(options);
+}
+
+/**
+ * Function to end measurement when the last listener is removed
+ * @param {EventCallbackFunction} listener - listener that was just removed
+ */
+function removeListener(listener) {
+    if (!this.hasAnyListeners()) {
         stopMeasurement();
-        super.removeListener(listener);
     }
 }
 
-export const onLinkExposure = new LinkExposureEvent();
+/**
+ * @type {Events.Event<LinkExposureCallback, LinkExposureOptions>}
+ */
+export const onLinkExposure = new Events.Event({
+    addListenerCallback: addListener,
+    removeListenerCallback: removeListener});
 
 /**
  * A KeyValueStorage object for data associated with the study.
@@ -55,6 +99,7 @@ let registeredCS = null;
 async function startMeasurement({
     linkMatchPatterns = [],
     pageMatchPatterns = [],
+    domains = [],
     privateWindows = false
 }) {
     if(initialized)
@@ -74,9 +119,11 @@ async function startMeasurement({
     // Store the RegExps in browser.storage.local so the content script can retrieve them
     // without recompilation
     const linkRegExp = Matching.matchPatternsToRegExp(linkMatchPatterns);
+    const domainRegExpSimple = new RegExp(Matching.createUrlRegexString(domains));
     const urlShortenerRegExp = LinkResolution.urlShortenerRegExp;
     await browser.storage.local.set({
         "WebScience.Measurements.LinkExposure.linkRegExp": linkRegExp,
+        "WebScience.Measurements.LinkExposure.domainRegExpSimple": domainRegExpSimple,
         "WebScience.Measurements.LinkExposure.urlShortenerRegExp": urlShortenerRegExp,
         "WebScience.Measurements.LinkExposure.ampRegExp": LinkResolution.ampRegExp
     });
@@ -143,6 +190,7 @@ async function startMeasurement({
 
 function stopMeasurement() {
     if (registeredCS) registeredCS.unregister();
+    registeredCS = null;
 }
 
 /* Utilities */
@@ -176,11 +224,11 @@ export async function getStudyDataAsObject() {
 async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter) {
     exposureEvent.type = "linkExposure";
     exposureEvent.url = (exposureEvent.isShortenedUrl && exposureEvent.resolutionSucceded ?
-                         Storage.normalizeUrl(exposureEvent.resolvedUrl) :
-                         Storage.normalizeUrl(exposureEvent.originalUrl));
+                         Matching.normalizeUrl(exposureEvent.resolvedUrl) :
+                         Matching.normalizeUrl(exposureEvent.originalUrl));
     exposureEvent.laterVisited = false;
     exposureEvent.laterShared = false;
-    onLinkExposure.notifyListeners(exposureEvent);
+    onLinkExposure.notifyListeners([ exposureEvent ]);
 }
 
 /*

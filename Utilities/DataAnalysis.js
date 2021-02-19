@@ -7,12 +7,14 @@
 import {
   getDebuggingLog
 } from './Debugging.js';
-import * as Idle from "./Idle.js"
 import * as StorageManager from "./StorageManager.js"
+import * as Idle from "./Idle.js"
+/*
 import * as SocialMediaLinkSharing from "../Measurements/SocialMediaLinkSharing.js"
 import * as LinkExposure from "../Measurements/LinkExposure.js"
 import * as PageNavigation from "../Measurements/PageNavigation.js"
 import * as Matching from "../Utilities/Matching.js"
+*/
 import * as Scheduling from "../Utilities/Scheduling.js"
 
 const debugLog = getDebuggingLog("Utilities.DataAnalysis");
@@ -37,9 +39,15 @@ const secondsPerDay = 86400;
  * @private
  * @type {boolean}
  */
-var initialized = false;
+let initialized = false;
 
-var studyDomains = null;
+let studyDomains = null;
+
+/**
+ * The end of the time range that the last aggregation run considered.
+ * @private
+ */
+let lastAnalysisRangeEndTime = 0;
 
 /**
  * Setup for the module. Runs only once.
@@ -50,8 +58,8 @@ async function initialize() {
         return;
     initialized = true;
     debugLog("registering idle state listener for data analysis");
-    //Idle.registerIdleStateListener(idleStateListener, 1); // for testing
-    Scheduling.onIdleDaily.addListener(idleStateListener);
+    Idle.registerIdleStateListener(idleStateListener, 1); // for testing
+    //Scheduling.onIdleDaily.addListener(idleStateListener);
 }
 
 /**
@@ -62,7 +70,18 @@ async function initialize() {
  * @private
  */
 async function idleStateListener() {
-    await triggerAnalysisScripts();
+    const currentTime = new Date();
+    const analysisStartTime = lastAnalysisRangeEndTime;
+    const analysisEndTime = roundTimeDown(currentTime)
+    if (lastAnalysisRangeEndTime - analysisEndTime != 0) {
+        lastAnalysisRangeEndTime = analysisEndTime;
+        await triggerAnalysisScripts(analysisStartTime, analysisEndTime);
+    } else {
+        // TODO this is useful for testing but should be removed before launch
+        console.log("I would have pulled analysis results in this range",
+                    analysisStartTime, analysisEndTime);
+        await triggerAnalysisScripts(currentTime - secondsPerDay * 1000, currentTime);
+    }
 }
 
 /**
@@ -83,9 +102,9 @@ function workerError(err) {
  */
 function createMessageReceiver(listeners) {
     function messageReceiver(result) {
-        let data = result.data;
+        const data = result.data;
         debugLog("received message from worker script {"+ JSON.stringify(data) + "}. Now passing it to listeners");
-        for(let listener of listeners) {
+        for(const listener of listeners) {
             listener(data.data);
         }
     }
@@ -98,18 +117,19 @@ function createMessageReceiver(listeners) {
  * registered listener function
  * @private
  */
-export async function triggerAnalysisScripts() {
+export async function triggerAnalysisScripts(startTime, endTime) {
     //await SocialMediaLinkSharing.storeAndResetUntrackedShareCounts();
     //await LinkExposure.storeAndResetUntrackedExposuresCount();
     //await PageNavigation.storeAndResetUntrackedVisitsCount();
-    let storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
-    let toSend = {
+    const storageObjs = await StorageManager.getEventsByRange(startTime, endTime);
+    //const storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
+    const toSend = {
         studyDomains: studyDomains,
         fromStorage: storageObjs
     };
 
-    for(let [scriptPath, listeners] of resultRouter) {
-        let worker = new Worker(scriptPath);
+    for(const [scriptPath, listeners] of resultRouter) {
+        const worker = new Worker(scriptPath);
         worker.postMessage(toSend);
         worker.addEventListener('message', createMessageReceiver(listeners));
         worker.addEventListener('error', workerError);
@@ -124,12 +144,18 @@ export async function triggerAnalysisScripts() {
  */
 async function registerAnalysisResultListener(workerScriptPath, listener) {
     await initialize();
-    var resultListeners = resultRouter.get(workerScriptPath);
+    let resultListeners = resultRouter.get(workerScriptPath);
     if (resultListeners === undefined) {
         resultListeners = new Set();
         resultRouter.set(workerScriptPath, resultListeners);
     }
     resultListeners.add(listener);
+}
+
+function roundTimeDown(timeStamp) {
+    const endHour = Math.floor(timeStamp.getHours() / 4) * 4;
+    return new Date(timeStamp.getFullYear(), timeStamp.getMonth(),
+                    timeStamp.getDay(), endHour);
 }
 
 /**
@@ -146,8 +172,9 @@ async function registerAnalysisResultListener(workerScriptPath, listener) {
  */
 export async function runStudy(scripts, studyDomainsParam) {
     studyDomains = studyDomainsParam;
-    for (let [scriptName, scriptParameters] of Object.entries(scripts)) {
+    for (const [, scriptParameters] of Object.entries(scripts)) {
         await registerAnalysisResultListener(scriptParameters.path, scriptParameters.resultListener);
     }
-    await triggerAnalysisScripts();
+    lastAnalysisRangeEndTime = roundTimeDown(new Date());
+    //await triggerAnalysisScripts(); // TODO handle startup after long inactive
 }

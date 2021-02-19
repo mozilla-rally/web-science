@@ -46,7 +46,7 @@ export class Event {
     }
 
     /**
-     * A callback function that is called when a new listener function is added.
+     * A callback function that is called immediately before a new listener function is added.
      * @callback addListenerCallback
      * @param {EventCallbackFunction} listener - The new listener function.
      * @param {EventOptions} options - The options for the new listener function.
@@ -61,13 +61,14 @@ export class Event {
      * The supported option(s) depend on the event type.
      */
     addListener(listener, options) {
-        if(this.addListenerCallback !== null)
+        if(this.addListenerCallback !== null) {
             this.addListenerCallback(listener, options);
+        }
         this.listeners.set(listener, options);
     }
 
     /**
-     * A callback function that is called when a listener function is removed.
+     * A callback function that is called immediately after a listener function is removed.
      * @callback removeListenerCallback
      * @param {EventCallbackFunction} listener - The listener function to remove.
      */
@@ -77,18 +78,27 @@ export class Event {
      * @param {EventCallbackFunction} listener - The listener function to remove.
      */
     removeListener(listener) {
-        if(this.removeListenerCallback !== null)
-            this.removeListenerCallback(listener);
         this.listeners.delete(listener);
+        if(this.removeListenerCallback !== null) {
+            this.removeListenerCallback(listener);
+        }
     }
 
     /**
-     * A function that checks whether an event listener has been added.
+     * A function that checks whether a particular event listener has been added.
      * @param {EventCallbackFunction} listener - The listener function to check.
      * @return {boolean} Whether the listener function has been added.
      */
     hasListener(listener) {
         return this.listeners.has(listener);
+    }
+
+    /**
+     * Checks whether there are any listeners registered.
+     * @return {boolean} Whether there are any listeners
+     */
+    hasAnyListeners() {
+        return this.listeners.size > 0;
     }
 
     /**

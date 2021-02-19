@@ -1,6 +1,6 @@
 /**
  * This module measures properties of webpage navigation.
- * 
+ *
  * @module WebScience.Measurements.PageNavigation
  */
 
@@ -38,25 +38,31 @@ import * as PageManager from "../Utilities/PageManager.js"
  */
 
 /**
- * An extension of Events.EventSingleton for the page data event.
- * @extends {Events.EventSingleton} 
+ * Function to start measurement when a listener is added
+ * TODO: deal with multiple listeners with different match patterns
+ * @param {EventCallbackFunction} listener - new listener being added
+ * @param {PageDataOptions} options - configuration for the events to be sent to this listener
  */
-class PageDataEvent extends Events.EventSingleton {
-    addListener(listener, options) {
-        super.addListener(listener, options);
-        startMeasurement(options);
-    }
+function addListener(listener, options) {
+    startMeasurement(options);
+}
 
-    removeListener(listener) {
+/**
+ * Function to end measurement when the last listener is removed
+ * @param {EventCallbackFunction} listener - listener that was just removed
+ */
+function removeListener(listener) {
+    if (!this.hasAnyListeners()) {
         stopMeasurement();
-        super.removeListener(listener);
     }
 }
 
 /**
- * @type {Events.EventSingleton<pageDataCallback, PageDataOptions>}
+ * @type {Events.Event<pageDataCallback, PageDataOptions>}
  */
-export const onPageData = new PageDataEvent();
+export const onPageData = new Events.Event({
+    addListenerCallback: addListener,
+    removeListenerCallback: removeListener});
 
 /**
  * A RegExp for the page match patterns.
@@ -66,7 +72,7 @@ export const onPageData = new PageDataEvent();
 
 /**
  * The registered page navigation content script.
- * @type {RegisteredContentScript|null} 
+ * @type {RegisteredContentScript|null}
  */
 let registeredContentScript = null;
 
@@ -84,7 +90,7 @@ function pageDataListener(pageData) {
     // ignore the page
     if(!notifyAboutPrivateWindows && pageData.privateWindow)
         return;
-    
+
     // Delete the type string from the content script message
     // There isn't (yet) a good way to document this in JSDoc, because there isn't support
     // for object inheritance

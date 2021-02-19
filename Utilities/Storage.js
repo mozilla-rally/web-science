@@ -11,7 +11,7 @@
 // Currently implemented with localforage
 import { localforageKeysStartingWith, localforage } from "../dependencies/localforage-startswith.js"
 
-export var storageInstances = [];
+export const storageInstances = [];
 /**
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types.
@@ -77,7 +77,7 @@ export class KeyValueStorage {
      * @returns {Promise<Object>} An object that reflects the content in the storage area.
      */
     async getContentsAsObject() {
-        var output = { };
+        const output = { };
         await this.storageInstance.iterate((value, key, iterationNumber) => {
             output[key] = value;
         });
@@ -136,7 +136,7 @@ export class Counter {
     async initialize() {
         if(Counter.storage == null)
             Counter.storage = await (new KeyValueStorage("WebScience.Utilities.Storage.Counter")).initialize();
-        var initialCounterValue = await Counter.storage.get(this.counterName);
+        const initialCounterValue = await Counter.storage.get(this.counterName);
         if(initialCounterValue != null)
             this.counterValue = initialCounterValue;
         else
@@ -161,7 +161,7 @@ export class Counter {
      * @returns {Promise<number>} - The counter value after incrementing.
      */
     async incrementByAndGet(incrementValue) {
-        var currentCounterValue = (this.counterValue = this.counterValue + incrementValue);
+        const currentCounterValue = (this.counterValue = this.counterValue + incrementValue);
         await Counter.storage.set(this.counterName, this.counterValue);
         return currentCounterValue;
     }
@@ -185,7 +185,7 @@ export class Counter {
     async incrementAndGet() {
         // Saving the current counter value to avoid race conditions during
         // the asynchronous save to storage
-        var currentCounterValue = (this.counterValue = this.counterValue + 1);
+        const currentCounterValue = (this.counterValue = this.counterValue + 1);
         await Counter.storage.set(this.counterName, this.counterValue);
         return currentCounterValue;
     }
@@ -197,7 +197,7 @@ export class Counter {
      * @returns {Promise<number>} - The counter value before incrementing.
      */
     async getAndIncrement() {
-        var ret = await this.increment() - 1;
+        const ret = await this.incrementAndGet() - 1;
         return ret;
     }
 
@@ -211,7 +211,7 @@ export class Counter {
     }
 
     async getAndReset() {
-        var currentCounterValue = this.counterValue;
+        const currentCounterValue = this.counterValue;
         this.counterValue = 0;
         await Counter.storage.set(this.counterName, this.counterValue);
         return currentCounterValue;
@@ -224,14 +224,6 @@ export class Counter {
     static async getContentsAsObject() {
         return await Counter.storage.getContentsAsObject();
     }
-}
-
-export function normalizeUrl(url) {
-    var urlObj = new URL(url);
-    var normalizedUrl = (urlObj.protocol ? urlObj.protocol : "https:") + 
-                        "//" + urlObj.hostname + 
-                        (urlObj.pathname ? urlObj.pathname : "");
-    return normalizedUrl;
 }
 
 // Workaround for static class variable

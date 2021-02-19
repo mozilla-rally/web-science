@@ -11,8 +11,10 @@ import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as SocialMediaActivity from "../Utilities/SocialMediaActivity.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
+/*
 import * as PageClassification from "../Measurements/PageClassification.js"
 import * as Readability from "../Utilities/Readability.js"
+*/
 
 const debugLog = Debugging.getDebuggingLog("SocialMediaLinkSharing");
 
@@ -35,19 +37,44 @@ const numUntrackedShares = {type: "numUntrackedShares", facebook: null, twitter:
 
 let twitterPrivacySetting = "unknown";
 
-class SocialMediaSharingEvent extends Events.EventSingleton {
-    addListener(listener, options) {
-        super.addListener(listener, options);
-        startMeasurement(options);
-    }
+/**
+ * A callback function for the social media share event.
+ * @callback socialMediaShareCallback
+ * @param {SocialMediaShareDetails} details - Additional information about the social media share event.
+ */
 
-    removeListener(listener) {
+/**
+ * Options when adding a social media share event listener.
+ * @typedef {Object} SocialMediaShareOptions
+ * @property {Array<string>} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ */
+
+/**
+ * Function to start measurement when a listener is added
+ * TODO: deal with multiple listeners with different match patterns
+ * @param {EventCallbackFunction} listener - new listener being added
+ * @param {SocialMediaShareOptions} options - configuration for the events to be sent to this listener
+ */
+function addListener(listener, options) {
+    startMeasurement(options);
+}
+
+/**
+ * Function to end measurement when the last listener is removed
+ * @param {EventCallbackFunction} listener - listener that was just removed
+ */
+function removeListener(listener) {
+    if (!this.hasAnyListeners()) {
         stopMeasurement();
-        super.removeListener(listener);
     }
 }
 
-export const onShare = new SocialMediaSharingEvent();
+/**
+ * @type {Events.Event<socialMediaShareCallback, SocialMediaShareOptions>}
+ */
+export const onShare = new Events.Event({
+    addListenerCallback: addListener,
+    removeListenerCallback: removeListener});
 
 /**
  * Start a social media sharing study. Note that only one study is supported per extension.
@@ -56,16 +83,13 @@ export const onShare = new SocialMediaSharingEvent();
  * @param {boolean} [options.facebook=false] - Whether to track URL shares on Facebook.
  * @param {boolean} [options.twitter=false] - Whether to track URL shares on Twitter.
  * @param {boolean} [options.reddit=false] - Whether to track URL shares on Reddit.
- * @param {boolean} [options.privateWindows=false] - Whether to track URL shares made in private windows.
  */
 async function startMeasurement({
     domains = [],
     facebook = false,
     twitter = false,
-    reddit = false,
-    privateWindows = false
+    reddit = false
 }) {
-    if (privateWindows) SocialMediaActivity.enablePrivateWindows();
     if (facebook) {
         SocialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare"]);
     }
@@ -85,7 +109,7 @@ async function startMeasurement({
     urlMatcher = new Matching.UrlMatcher(domains);
 
     // Make this available to content scripts
-    await browser.storage.local.set({ "SocialMediaLinkSharing.privateWindows": privateWindows });
+    //await browser.storage.local.set({ "SocialMediaLinkSharing.privateWindows": privateWindows });
     // Use a unique identifier for each URL the user shares
 }
 
@@ -114,13 +138,17 @@ async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets
     try {
         await extractRelevantUrlsFromTokens(quoteTweetedTweet.full_text.split(/\s+/),
             urlsToSave, urlsNotToSave);
-    } catch {}
+    } catch {
+        debugLog("failed extracting relevant urls from quote tweet");
+    }
     try {
     for (let url of quoteTweetedTweet.entities.urls) {
         url = parseTwitterUrlObject(url);
         await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
     }
-    } catch {}
+    } catch {
+        debugLog("Failed parsing/extracting urls from quote-tweeted object");
+    }
 }
 
 function parseTwitterUrlObject(urlObject) {
@@ -149,15 +177,21 @@ async function twitterLinks(details) {
         try {
             await extractRelevantUrlsFromTokens(details.postText.split(/\s+/),
                 urlsToSave, urlsNotToSave);
-        } catch {}
+        } catch {
+            debugLog("Failed extracting urls from twitter tweet");
+        }
         try {
             await parsePossibleTwitterQuoteTweet(details.postAttachments,
                 urlsToSave, urlsNotToSave);
-        } catch {}
+        } catch {
+            debugLog("failed parsing possible quote tweet");
+        }
         try {
             await extractRelevantUrlsFromTokens([details.postAttachments],
                 urlsToSave, urlsNotToSave);
-        } catch {}
+        } catch {
+            debugLog("failed extracting urls from tweet attachment");
+        }
 
     } else if (details.eventType == "retweet") {
         const retweetedTweets = await SocialMediaActivity.getTweetContent(details.retweetedId);
@@ -165,17 +199,23 @@ async function twitterLinks(details) {
         try {
             await extractRelevantUrlsFromTokens(retweetedTweet.full_text.split(/\s+/),
                 urlsToSave, urlsNotToSave);
-        } catch {}
+        } catch {
+            debugLog("failed extracting relevant urls from retweet");
+        }
         try {
             for (let url of retweetedTweet.entities.urls) {
                 url = parseTwitterUrlObject(url);
                 await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
             }
-        } catch {}
+        } catch {
+            debugLog("failed parsing/extracting urls from retweet");
+        }
         try {
             await parseTwitterQuoteTweet(retweetedTweet["quoted_status_id_str"],
                 urlsToSave, urlsNotToSave, retweetedTweets);
-        } catch {}
+        } catch {
+            debugLog("failed parsing quote tweet from retweet");
+        }
 
     } else if (details.eventType == "favorite") {
         let favoritedTweets = await SocialMediaActivity.getTweetContent(details.favoritedId);
@@ -190,21 +230,29 @@ async function twitterLinks(details) {
                     favoritedTweet = favoritedTweets[favoritedTweet["retweeted_status_id_str"]];
                 }
             }
-        } catch {}
+        } catch {
+            debugLog("failed finding favorited tweet");
+        }
         try {
             await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/),
                 urlsToSave, urlsNotToSave);
-        } catch {}
+        } catch {
+            debugLog("failed extracting relevant urls from favorited tweet");
+        }
         try {
             for (let url of favoritedTweet.entities.urls) {
                 url = parseTwitterUrlObject(url);
                 await extractRelevantUrlsFromTokens([url], urlsToSave, urlsNotToSave);
             }
-        } catch {}
+        } catch {
+            debugLog("failed parsing/extracting urls from favorited tweet");
+        }
         try {
             await parseTwitterQuoteTweet(favoritedTweet["quoted_status_id_str"],
                 urlsToSave, urlsNotToSave, favoritedTweets);
-        } catch {}
+        } catch {
+            debugLog("failed parsing quote tweet from favorite");
+        }
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (const urlToSave of urlsToSave) {
@@ -215,7 +263,7 @@ async function twitterLinks(details) {
             audience: twitterPrivacySetting,
             eventType: details.eventType
         });
-        onShare.notifyListeners([ shareRecord ]);
+        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Twitter: " + JSON.stringify(shareRecord));
     }
     for (const urlNotToSave of urlsNotToSave) {
@@ -223,6 +271,9 @@ async function twitterLinks(details) {
             await numUntrackedShares.twitter.increment();
         }
     }
+    onShare.notifyListeners([ {
+        "type": "untrackedTwitter",
+        "value": await numUntrackedShares.twitter.get()} ]);
 }
 
 /**
@@ -269,10 +320,13 @@ async function facebookLinks(details) {
                                                    url: urlToSave,
                                                    eventType: details.eventType,
                                                    source: details.source});
-        onShare.notifyListeners([ shareRecord ]);
+        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Facebook: " + JSON.stringify(shareRecord));
     }
     await numUntrackedShares.facebook.incrementBy(urlsNotToSave.size);
+    onShare.notifyListeners([ {
+        "type": "untrackedFacebook",
+        "value": await numUntrackedShares.facebook.get()} ]);
 }
 
 
@@ -304,10 +358,13 @@ async function redditLinks(details) {
                                                    url: urlToSave,
                                                    audience: audience,
                                                    eventType: details.eventType});
-        onShare.notifyListeners([ shareRecord ]);
+        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Reddit: " + JSON.stringify(shareRecord));
     }
     await numUntrackedShares.reddit.incrementBy(urlsNotToSave.size);
+    onShare.notifyListeners([ {
+        "type": "untrackedReddit",
+        "value": await numUntrackedShares.reddit.get()} ]);
 }
 
 /* Utilities */
@@ -332,15 +389,18 @@ async function createShareRecord({shareTime = "",
     //let prevVisitReferrers = await PageNavigation.logShare(url);
     //let prevExposed = await LinkExposure.logShare(url);
     const historyVisits = await browser.history.search({text: url});
+    /*
     const polClassification = await getClassificationResult(url, "pol-page-classifier");
     const covClassification = await getClassificationResult(url, "covid-page-classifier");
     const classifierResults = {'pol-page-classifier': polClassification,
                                'cov-page-classifier': covClassification};
+                               */
     const type = "linkShare";
-    return { type, shareTime, platform, url, eventType, classifierResults,
+    return { type, shareTime, platform, url, eventType,/* classifierResults,*/
              audience, source, historyVisits };
 }
 
+/*
 function getClassificationResult(urlToSave, workerId) {
     return new Promise((resolve, reject) => {
         PageClassification.lookupClassificationResult(urlToSave, workerId).then((result) => {
@@ -377,6 +437,7 @@ function fetchClassificationResult(urlToSave, workerId) {
         });
     });
 }
+*/
 
 /**
  * Normalize urls by stripping url parameters and then remove duplicates
@@ -386,7 +447,7 @@ function fetchClassificationResult(urlToSave, workerId) {
 function deduplicateUrls(urls) {
     const uniqueUrls = new Set();
     for (const url of urls) {
-        uniqueUrls.add(Storage.normalizeUrl(url));
+        uniqueUrls.add(Matching.normalizeUrl(url));
     }
     return uniqueUrls;
 }
@@ -454,13 +515,14 @@ function checkTwitterAccountStatus() {
 }
 
 /*
-export async function storeAndResetUntrackedShareCounts() {
+async function storeUntrackedShareCounts() {
     if (initialized) {
+        onShare.notifyListeners(
         await storage.set("WebScience.Measurements.SocialMediaLinkSharing.untrackedShareCounts",
             {type: "numUntrackedShares",
-             facebook: await numUntrackedShares.facebook.getAndReset(),
-             reddit: await numUntrackedShares.reddit.getAndReset(),
-             twitter: await numUntrackedShares.twitter.getAndReset()
+             facebook: await numUntrackedShares.facebook.get(),
+             reddit: await numUntrackedShares.reddit.get(),
+             twitter: await numUntrackedShares.twitter.get()
             });
     }
 }

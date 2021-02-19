@@ -90,7 +90,7 @@ const shortenedIdleIntervalThresholdInSeconds = secondsPerDay;
  * @private
  * @type {number}
  */
-var lastIdleDailyTime;
+let lastIdleDailyTime;
 
 /**
  * The time (in milleconds since the epoch) when the module
@@ -98,7 +98,7 @@ var lastIdleDailyTime;
  * @private
  * @type {number}
  */
-var lastIdleWeeklyTime;
+let lastIdleWeeklyTime;
 
 /**
  * A Storage.KeyValueStorage instance for persisting state on the most
@@ -107,7 +107,7 @@ var lastIdleWeeklyTime;
  * @type {(Object|null)}
  * @default
  */
-var storage = null;
+let storage = null;
 
 /**
  * The timeout ID (from `setTimeout`) for the most recent
@@ -115,7 +115,7 @@ var storage = null;
  * @private
  * @type {number}
  */
-var timeoutId = -1;
+let timeoutId = -1;
 
 /**
  * An event that fires about once a day, when the browser is idle.
@@ -159,7 +159,7 @@ function setIdleStateDetectionTimeout() {
     // recent idle daily event. Thresholded with a delay of 0 (fire
     // immediately) since the time could be in the past (e.g., if the
     // browser has not been open for a day).
-    var timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) - Date.now(), 0);
+    let timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) - Date.now(), 0);
     timeoutId = setTimeout(function() {
         // If the browser is already in an idle state with the ordinary
         // idle state detection interval, fire the idle events.
@@ -251,7 +251,7 @@ async function shortenedIdleStateListener(newState) {
  * @private
  * @type {boolean}
  */
-var initialized = false;
+let initialized = false;
 
 /**
  * Setup for the module. Runs only once.
@@ -266,7 +266,7 @@ async function initialize() {
     // from persistent storage. If there are no stored times, that
     // means the extension has just been installed, and we should
     // use the current time.
-    var currentTime = Date.now();
+    const currentTime = Date.now();
     storage = await (new Storage.KeyValueStorage("WebScience.Utilities.Scheduling")).initialize();
 
     lastIdleDailyTime = await storage.get("lastIdleDailyTime");

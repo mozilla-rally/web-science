@@ -54,7 +54,7 @@ const minimumIdleStateDetectionIntervalInSeconds = 15;
  * @type {boolean}
  * @default
  */
-var initialized = false;
+let initialized = false;
 
 /**
  * An estimate of the time (in milliseconds since the epoch) when the
@@ -65,7 +65,7 @@ var initialized = false;
  * @type {boolean}
  * @default
  */
-var lastIdleTime = -1;
+let lastIdleTime = -1;
 
 /**
  * A cached copy of the browser's current idle state. This caching enables
@@ -74,7 +74,7 @@ var lastIdleTime = -1;
  * @type {string}
  * @default
  */
-var currentIdleState = "active";
+let currentIdleState = "active";
 
 /**
  * A Map that stores browser idle state listeners. The keys are
@@ -170,8 +170,8 @@ function idleOnStateChangedListener(newState) {
 function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds) {
     // Determine how long to delay before firing the listeners
     // If the delay is negative, set it to 0 (i.e., fire as soon as possible)
-    var delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - Date.now(), 0);
-    var timeoutId = setTimeout(function() {
+    let delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - Date.now(), 0);
+    let timeoutId = setTimeout(function() {
         for(const idleStateListener of idleStateListenersWithDetectionInterval)
             idleStateListener("idle");
     }, delayTime);
@@ -196,7 +196,7 @@ export async function registerIdleStateListener(idleStateListener, detectionInte
     // If we already have at least one idle state listener with this
     // detection interval, add the new listener to the Set of listeners
     // and we're done
-    var idleStateListenersWithDetectionInterval = idleStateListeners.get(detectionIntervalInSeconds);
+    let idleStateListenersWithDetectionInterval = idleStateListeners.get(detectionIntervalInSeconds);
     if(idleStateListenersWithDetectionInterval !== undefined) {
         idleStateListenersWithDetectionInterval.add(idleStateListener);
         return;
