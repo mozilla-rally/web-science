@@ -1,4 +1,4 @@
-var ngramExports = {};
+const ngramExports = {};
 
 // eslint-disable-next-line no-extra-semi
 ;(() => {

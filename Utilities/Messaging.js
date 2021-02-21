@@ -92,7 +92,7 @@ export function validateMessageAgainstSchema(message, messageSchema)
     }
 
     // Check the message against the schema.
-    for(let field in messageSchema) {
+    for(const field in messageSchema) {
         if (!(field in message) || (typeof message[field] !== messageSchema[field])) {
             debugLog(`Mismatch between message and schema: ${JSON.stringify(message)}`);
             return false;
@@ -131,7 +131,7 @@ function browserRuntimeListener(message, sender, sendResponse) {
     }
 
     for (const messageListener of messageListeners) {
-        let messageListenerReturnValue = messageListener(message, sender, sendResponse);
+        const messageListenerReturnValue = messageListener(message, sender, sendResponse);
         if ((messageListenerReturnValue !== undefined) && (browserRuntimeReturnValue !== undefined))
             debugLog(`Multiple listener return values for message type: ${message.type}`);
         browserRuntimeReturnValue = messageListenerReturnValue;
@@ -172,7 +172,7 @@ export function registerListener(messageType, messageListener, messageSchema) {
  * @param {boolean} [unregisterSchema=true] - Whether to unregister the schema for the message type, if there is one.
  */
 export function unregisterListener(messageType, messageListener, unregisterSchema) {
-    let messageListeners = messageRouter.get(messageType);
+    const messageListeners = messageRouter.get(messageType);
     if(messageListeners !== undefined) {
         messageListeners.delete(messageListener);
         if(messageListeners.size === 0)

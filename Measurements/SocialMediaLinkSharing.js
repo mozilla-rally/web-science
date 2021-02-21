@@ -107,10 +107,6 @@ async function startMeasurement({
     numUntrackedShares.twitter = await (new Storage.Counter(
         "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesTwitter")).initialize();
     urlMatcher = new Matching.UrlMatcher(domains);
-
-    // Make this available to content scripts
-    //await browser.storage.local.set({ "SocialMediaLinkSharing.privateWindows": privateWindows });
-    // Use a unique identifier for each URL the user shares
 }
 
 function stopMeasurement() {
@@ -231,14 +227,14 @@ async function twitterLinks(details) {
                 }
             }
         } catch {
-            debugLog("failed finding favorited tweet");
+            debugLog("failed finding retweeted tweet inside favorited tweet");
         }
-        try {
+        //try {
             await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/),
                 urlsToSave, urlsNotToSave);
-        } catch {
-            debugLog("failed extracting relevant urls from favorited tweet");
-        }
+        //} /*catch {
+        //    debugLog("failed extracting relevant urls from favorited tweet");
+        //}*/
         try {
             for (let url of favoritedTweet.entities.urls) {
                 url = parseTwitterUrlObject(url);

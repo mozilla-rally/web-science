@@ -71,13 +71,6 @@ export const onLinkExposure = new Events.Event({
     addListenerCallback: addListener,
     removeListenerCallback: removeListener});
 
-/**
- * A KeyValueStorage object for data associated with the study.
- * @type {Object}
- * @private
- */
-//let storage = null;
-
 let numUntrackedUrls = null;
 
 let initialized = false;

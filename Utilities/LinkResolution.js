@@ -11,12 +11,12 @@ const debugLog = Debugging.getDebuggingLog("Utilities.LinkResolution");
 const fetchTimeoutMs = 5000;
 let initialized = false;
 // promisesByUrl is a mapping from a url to resolve and the resolve objects associated with it
-let promisesByUrl = new Map();
+const promisesByUrl = new Map();
 // trackedUrls is a set for which the headers are observed
-let trackedUrls = new Set();
+const trackedUrls = new Set();
 // urlByRedirectedUrl is a mapping from a redirected url to url that redirected to it
 // recursively traversing this mapping will get the redirect chain associated with an initial url
-let urlByRedirectedUrl = new Map();
+const urlByRedirectedUrl = new Map();
 
 /**
  * A RegExp that matches and parses AMP cache and viewer URLs. If there is a match, the RegExp provides several
@@ -56,10 +56,10 @@ export function resolveUrl(url) {
   if (!initialized) {
     return Promise.reject("module not initialized");
   }
-  let urlResolutionPromise = new Promise(function (resolve, reject) {
+  const urlResolutionPromise = new Promise(function (resolve, reject) {
     // store the resolve function in promisesByUrl. This function will be invoked when the 
     // url is resolved
-    let resolves = promisesByUrl.get(url) || [];
+    const resolves = promisesByUrl.get(url) || [];
     if (!resolves || !resolves.length) {
       promisesByUrl.set(url, resolves);
     }
@@ -95,13 +95,13 @@ function responseHeaderListener(details) {
   // The location field in response header indicates the redirected URL
   // The response header from onHeadersReceived is an array of objects, one of which possibly
   // contains a field with name location (case insensitive).
-  let redirectedURLLocation = details.responseHeaders.find(obj => {
+  const redirectedURLLocation = details.responseHeaders.find(obj => {
     return obj.name.toUpperCase() === "LOCATION";
   });
 
   // if the location field in response header contains a new url
   if (redirectedURLLocation != null && (redirectedURLLocation.value != details.url)) {
-    let nexturl = redirectedURLLocation.value;
+    const nexturl = redirectedURLLocation.value;
     // Create a link between the next url and the initial url
     urlByRedirectedUrl.set(nexturl, details.url);
     // Add the next url so that we process it during the next onHeadersReceived
@@ -118,20 +118,20 @@ function responseHeaderListener(details) {
       // backtrack urlByRedirectedUrl to get to the promise object that corresponds to this
       let url = details.url;
       while (urlByRedirectedUrl.has(url)) {
-        let temp = url;
+        const temp = url;
         url = urlByRedirectedUrl.get(url);
         urlByRedirectedUrl.delete(temp);
         trackedUrls.delete(temp);
       }
       // url now contains the initial url. Now, resolve the corresponding promises
       if (url && promisesByUrl.has(url)) {
-        let resolves = promisesByUrl.get(url) || [];
-        let resolveObj = {
+        const resolves = promisesByUrl.get(url) || [];
+        const resolveObj = {
           source: url,
           dest: details.url
         };
-        for (var i = 0; i < resolves.length; i++) {
-          var r = resolves[i].resolve;
+        for (let i = 0; i < resolves.length; i++) {
+          const r = resolves[i].resolve;
           r(resolveObj);
         }
         promisesByUrl.delete(url);
@@ -145,11 +145,11 @@ function responseHeaderListener(details) {
  * @param {Object} responseDetails - Contains details of the error
  */
 function trackError(responseDetails) {
-  let url = responseDetails.url;
+  const url = responseDetails.url;
   if (promisesByUrl.has(url)) {
-    let resolves = promisesByUrl.get(url) || [];
+    const resolves = promisesByUrl.get(url) || [];
     for (let i = 0; i < resolves.length; i++) {
-      let r = resolves[i].reject;
+      const r = resolves[i].reject;
       r(responseDetails.error);
     }
     promisesByUrl.delete(url);

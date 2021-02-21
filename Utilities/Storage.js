@@ -8,10 +8,37 @@
  * @module WebScience.Utilities.Storage
  */
 
-// Currently implemented with localforage
-import { localforageKeysStartingWith, localforage } from "../dependencies/localforage-startswith.js"
+import Dexie from 'dexie';
 
 export const storageInstances = [];
+
+export class IndexedStorage {
+    constructor(storageAreaName, stores, defaultStore="") {
+        this.storageAreaName = storageAreaName;
+        this.defaultStore = defaultStore == "" ? Object.keys(stores)[0] : defaultStore;
+
+        this.storageInstance = new Dexie(this.storageAreaName);
+        this.storageInstance.version(1).stores(stores);
+    }
+
+    async set(item, store="") {
+        await this.storageInstance[store === "" ? this.defaultStore : store].put(item);
+    }
+
+    async get(key, store="") {
+        const result = await this.storageInstance[store == "" ? this.defaultStore : store].get(key);
+        return result;
+    }
+
+    async getEventsByRange(startTime, endTime, timeKey, store=""){
+        const result = await this.storageInstance[store=="" ? this.defaultStore : store].where(timeKey)
+            .inAnyRange([[startTime, endTime]])
+            .toArray();
+        return result;
+    }
+
+}
+
 /**
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types.
@@ -24,39 +51,50 @@ export class KeyValueStorage {
      * @param {string} storageAreaName - A name that uniquely identifies the storage area.
      * @example var exampleStorage = await (new KeyValueStorage("exampleName")).initialize();
      */
-    constructor(storageAreaName) {
+    constructor(storageAreaName, storeNames=["default"], defaultStore = "") {
         this.storageAreaName = storageAreaName;
-        this.storageInstance = null;
+        const stores = {};
+        for (const storeName in storeNames) stores[storeNames[storeName]] = "key";
+
+        this.defaultStore = defaultStore === "" ? Object.keys(stores)[0] : defaultStore;
+
+        this.storageInstance = new Dexie(this.storageAreaName);
+        this.storageInstance.version(1).stores(stores);
+        return this;
     }
 
     /**
      * Complete creation of the storage area. Returns itself for convenience.
+     * @param {list<string>} storeNames An optional list of stores within the storage area
+     * @param {string} The name of a default store within the stores in storeNames
      * @returns {Object} The key-value storage area.
      */
     async initialize() {
-        if(!KeyValueStorage.localForageInitialized) {
-            await localforage.config({
-                driver: [localforage.INDEXEDDB,
-                        localforage.WEBSQL,
-                        localforage.LOCALSTORAGE],
-            });
-            KeyValueStorage.localForageInitialized = true;
-        }
-        this.storageInstance = localforage.createInstance( { name: this.storageAreaName } );
-        storageInstances.push(this);
+        /*
+        const stores = {};
+        for (const storeName in storeNames) stores[storeNames[storeName]] = "key";
+
+        this.defaultStore = defaultStore === "" ? Object.keys(stores)[0] : defaultStore;
+
+        this.storageInstance = new Dexie(this.storageAreaName);
+        this.storageInstance.version(1).stores(stores);
+        */
         return this;
     }
 
     /**
      * Get a value from storage.
      * @param {string} key - The key to use in the storage area.
+     * @param {string} store - The name of the store from which to access the key
      * @returns {Promise<Array>|Promise<ArrayBuffer>|Promise<Blob>|Promise<Float32Array>|Promise<Float64Array>|
      * Promise<Int8Array>|Promise<Int16Array>|Promise<Int32Array>|Promise<Number>|Promise<Object>|Promise<Uint8Array>|
      * Promise<Uint8ClampedArray>|Promise<Uint16Array>|Promise<Uint32Array>|Promise<string>} The value in the
      * storage area for the key, or `null` if the key is not in storage.
      */
-    async get(key) {
-        return await this.storageInstance.getItem(key);
+    async get(key, store="") {
+        const result = await this.storageInstance[store == "" ? this.defaultStore : store].get(key);
+        if (result) return result.value;
+        return null;
     }
 
     /**
@@ -65,55 +103,29 @@ export class KeyValueStorage {
      * @param {(Array|ArrayBuffer|Blob|Float32Array|Float64Array|Int8Array|Int16Array|Int32Array|
      * Number|Object|Uint8Array|Uint8ClampedArray|Uint16Array|Uint32Array|string)} value - The value
      * to store in the storage area for the key.
+     * @param {string} store - The name of the store where the pair should be placed
      */
-    async set(key, value) {
-        await this.storageInstance.setItem(key, value);
+    async set(key, value, store="") {
+        await this.storageInstance[store == "" ? this.defaultStore : store].put({key: key, value: value});
     }
 
     /**
      * Create an object where with a property-value pair for each key-value pair in the storage area.
      * Note that this could be slow and consume excessive memory if the storage area contains a lot
      * of data.
+     * @param {string} The store whose contents to return
      * @returns {Promise<Object>} An object that reflects the content in the storage area.
      */
-    async getContentsAsObject() {
+    async getContentsAsObject(store="") {
+        const storeToAccess = this.storageInstance[store == "" ? this.defaultStore : store];
         const output = { };
-        await this.storageInstance.iterate((value, key, iterationNumber) => {
-            output[key] = value;
+        storeToAccess.each(async (object) => {
+            output[object.key] = object.value;
         });
+
         return output;
     }
-
-    /**
-     * @callback iterator
-     * @param {(Array|ArrayBuffer|Blob|Float32Array|Float64Array|Int8Array|Int16Array|Int32Array|
-     * Number|Object|Uint8Array|Uint8ClampedArray|Uint16Array|Uint32Array|string)} value
-     * @param {string} key
-     * @param {number} iterationNumber
-     */
-    /**
-     * Iterate over all the entries in the storage area. Note that iteration
-     * will stop if `callback` returns anything non-`undefined`.
-     *
-     * As long as we're using LocalForage, this is easy and presumably not
-     * memory-intensive, as long as the callback isn't storing all of the entires.
-     * @param {iterator} callback - function called on each key-value pair
-     * @returns {Promise}
-     */
-    iterate(callback) {
-        return this.storageInstance.iterate(callback);
-    }
-
-    async keysStartingWith(keyPrefix) {
-        return this.storageInstance.keysStartingWith(keyPrefix);
-    }
-
-    async startsWith(keyPrefix) {
-        return this.storageInstance.startsWith(keyPrefix);
-    }
 }
-
-KeyValueStorage.localForageInitialized = false; // workaround for static class variable
 
 /** Class for maintaining persistent counters (e.g., unique IDs). */
 export class Counter {

@@ -4,7 +4,10 @@
  */
 // Function encapsulation to maintain unique variable scope for each content script
 
-// workerIds is defined by injected code
+// workerIds and Readbility are defined by injected code, tell eslint not to worry
+/* global workerIds */
+/* global Readability */
+
 
 (
   async function () {
@@ -28,10 +31,10 @@
     }
 
     // Parse (a clone of) the document using the injected readability script
-    let documentClone = document.cloneNode(true);
-    let pageContent = new Readability(documentClone).parse();
+    const documentClone = document.cloneNode(true);
+    const pageContent = new Readability(documentClone).parse();
 
-    for (let workerId of workerIds) {
+    for (const workerId of workerIds) {
         sendPageContentToBackground(workerId, pageContent);
     }
   }

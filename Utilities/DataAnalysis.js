@@ -43,6 +43,8 @@ let initialized = false;
 
 let studyDomains = null;
 
+let storageInstances = null;
+
 /**
  * The end of the time range that the last aggregation run considered.
  * @private
@@ -70,7 +72,7 @@ async function initialize() {
  * @private
  */
 async function idleStateListener() {
-    const currentTime = new Date();
+    const currentTime = Date.now();
     const analysisStartTime = lastAnalysisRangeEndTime;
     const analysisEndTime = roundTimeDown(currentTime)
     if (lastAnalysisRangeEndTime - analysisEndTime != 0) {
@@ -121,7 +123,7 @@ export async function triggerAnalysisScripts(startTime, endTime) {
     //await SocialMediaLinkSharing.storeAndResetUntrackedShareCounts();
     //await LinkExposure.storeAndResetUntrackedExposuresCount();
     //await PageNavigation.storeAndResetUntrackedVisitsCount();
-    const storageObjs = await StorageManager.getEventsByRange(startTime, endTime);
+    const storageObjs = await StorageManager.getEventsByRange(startTime, endTime, storageInstances);
     //const storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
     const toSend = {
         studyDomains: studyDomains,
@@ -153,9 +155,10 @@ async function registerAnalysisResultListener(workerScriptPath, listener) {
 }
 
 function roundTimeDown(timeStamp) {
-    const endHour = Math.floor(timeStamp.getHours() / 4) * 4;
-    return new Date(timeStamp.getFullYear(), timeStamp.getMonth(),
-                    timeStamp.getDay(), endHour);
+    const timeStampObj = new Date(timeStamp);
+    const endHour = Math.floor(timeStampObj.getUTCHours() / 4) * 4;
+    return Date.UTC(timeStampObj.getUTCFullYear(), timeStampObj.getUTCMonth(),
+                    timeStampObj.getUTCDay(), endHour);
 }
 
 /**
@@ -170,11 +173,12 @@ function roundTimeDown(timeStamp) {
  * @param {Object.any.resultListener} path - Listener function for processing
  * the result from analysis script
  */
-export async function runStudy(scripts, studyDomainsParam) {
+export async function runStudy(scripts, studyDomainsParam, storageInstancesParam) {
     studyDomains = studyDomainsParam;
+    storageInstances = storageInstancesParam;
     for (const [, scriptParameters] of Object.entries(scripts)) {
         await registerAnalysisResultListener(scriptParameters.path, scriptParameters.resultListener);
     }
-    lastAnalysisRangeEndTime = roundTimeDown(new Date());
+    lastAnalysisRangeEndTime = roundTimeDown(Date.now());
     //await triggerAnalysisScripts(); // TODO handle startup after long inactive
 }

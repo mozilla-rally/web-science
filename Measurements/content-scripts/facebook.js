@@ -6,7 +6,7 @@
 (async function() {
 
     // stop running if this is an incognito window and we're not supposed to run there
-    var privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaLinkSharing.privateWindows");
+    const privateWindowResults = await browser.storage.local.get("WebScience.Measurements.SocialMediaLinkSharing.privateWindows");
     if (("WebScience.Measurements.SocialMediaLinkSharing.privateWindows" in privateWindowResults)
         && !privateWindowResults["WebScience.Measurements.SocialMediaLinkSharing.privateWindows"]
         && browser.extension.inIncognitoContext) { return; }
@@ -16,20 +16,20 @@
                                  platform: "facebook"});
 
 
-    var trackedReshares = []
-    var mostRecentReshare = null;
+    const trackedReshares = []
+    let mostRecentReshare = null;
 
     function logReshareClick(clicked) {
-        var node = clicked.srcElement;
+        const node = clicked.srcElement;
         mostRecentReshare = node;
-        var profile = null;
-        var type = null;
-        var posts = document.querySelectorAll('div[role="article"]');
-        for (var post of posts) {
+        let profile = null;
+        let type = null;
+        const posts = document.querySelectorAll('div[role="article"]');
+        for (const post of posts) {
             if (post.contains(mostRecentReshare)) {
-                var internal = /https:\/\/www.facebook.com\//;
-                var links = post.querySelectorAll("a[href]");
-                for (var link of links) {
+                const internal = /https:\/\/www.facebook.com\//;
+                const links = post.querySelectorAll("a[href]");
+                for (const link of links) {
                     if (internal.test(link.getAttribute("href"))) {
                         profile = link;
                         break;
@@ -37,8 +37,8 @@
                 }
                 fetch(profile.getAttribute("href"), {"credentials":"omit"}).then((rFF) => {
                     rFF.text().then((text) => {
-                        var u0 = /u0040type":"([a-zA-Z0-9]*)"/;
-                        var uType = u0.exec(text);
+                        const u0 = /u0040type":"([a-zA-Z0-9]*)"/;
+                        const uType = u0.exec(text);
                         if (uType == null || (uType.length > 1 && uType[1] == "Person")) {
                             type = "person";
                         } else type = "page";
@@ -50,8 +50,8 @@
     }
 
     function reshareSourceTracking() {
-        var reshareButtons = document.querySelectorAll("div[aria-label*='Send this to friends']");
-        for (var reshareButton of reshareButtons) {
+        const reshareButtons = document.querySelectorAll("div[aria-label*='Send this to friends']");
+        for (const reshareButton of reshareButtons) {
             if (!(trackedReshares.includes(reshareButton))) {
                 trackedReshares.push(reshareButton);
                 reshareButton.addEventListener("click", logReshareClick);
@@ -59,7 +59,7 @@
         }
     }
 
-    let timer = setInterval(() => reshareSourceTracking(), 3000);
+    setInterval(() => reshareSourceTracking(), 3000);
 
 
     /**
@@ -74,16 +74,16 @@
         // When a post contains one link and it's at the end of the post, the url
         //  isn't included in the post text, so we have to find it here instead.
 
-        var mediaBoxes = node.querySelectorAll("a[class=_52c6]")
-        for (var mediaBox of mediaBoxes) {
-            var rawUrl = mediaBox.getAttribute("href");
-            var parsedUrl = removeShim(rawUrl).url;
+        const mediaBoxes = node.querySelectorAll("a[class=_52c6]")
+        for (const mediaBox of mediaBoxes) {
+            const rawUrl = mediaBox.getAttribute("href");
+            const parsedUrl = removeShim(rawUrl).url;
             response.attachedUrls.push(parsedUrl);
         }
 
-        var postBodies = node.querySelectorAll("div[data-testid=post_message]");
-        for (var postBody of postBodies) {
-            for (var elem of postBody.childNodes[0].childNodes) {
+        const postBodies = node.querySelectorAll("div[data-testid=post_message]");
+        for (const postBody of postBodies) {
+            for (const elem of postBody.childNodes[0].childNodes) {
                 if (elem.nodeName == "A") {
                     response.content.push(removeShim(elem.href).url);
                 }
@@ -94,28 +94,28 @@
         }
     }
 
-    function parseFacebookUrl(url) {
-        var oldGroupRegex = /facebook\.com\/groups\/([^\/]*)\/permalink\/([0-9]*)/;
-        var newGroupRegex = /facebook\.com\/groups\/([^\/]*)\/\?post_id=([0-9]*)/;
-        var userIdRegex = /facebook\.com\/permalink\.php\?story_fbid=([0-9]*)&id=([0-9]*)/;
-        var usernameRegex = /facebook\.com\/([^\/]*)\/posts\/([0-9]*)/;
-        var username = ""; var groupName = ""; var newUrl = ""; var userId = "";
-        var oldGroupResult = oldGroupRegex.exec(url);
+    function parseFacebookUrl(url, request) {
+        const oldGroupRegex = /facebook\.com\/groups\/([^/]*)\/permalink\/([0-9]*)/;
+        const newGroupRegex = /facebook\.com\/groups\/([^/]*)\/\?post_id=([0-9]*)/;
+        const userIdRegex = /facebook\.com\/permalink\.php\?story_fbid=([0-9]*)&id=([0-9]*)/;
+        const usernameRegex = /facebook\.com\/([^/]*)\/posts\/([0-9]*)/;
+        let username = ""; let groupName = ""; let newUrl = ""; let userId = "";
+        const oldGroupResult = oldGroupRegex.exec(url);
         if (oldGroupResult) {
             groupName = oldGroupResult[1];
             newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
         }
-        var newGroupResult = newGroupRegex.exec(url);
+        const newGroupResult = newGroupRegex.exec(url);
         if (newGroupResult) {
             groupName = newGroupResult[1];
             newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
         }
-        var idResult = userIdRegex.exec(url);
+        const idResult = userIdRegex.exec(url);
         if (idResult) {
             userId = idResult[2];
             newUrl = idResult[0];
         }
-        var nameResult = usernameRegex.exec(url);
+        const nameResult = usernameRegex.exec(url);
         if (nameResult) {
             username = nameResult[1];
             newUrl = nameResult[0];
@@ -130,10 +130,10 @@
      */
     async function getFullUrl(request) {
         return new Promise((resolve, reject) => {
-            var reqString = `https://www.facebook.com/${request.postId}`;
+            const reqString = `https://www.facebook.com/${request.postId}`;
             fetch(reqString, {credentials: 'include'}).then((responseFromFetch) => {
-                var redir = responseFromFetch.url;
-                resolve(parseFacebookUrl(redir));
+                const redir = responseFromFetch.url;
+                resolve(parseFacebookUrl(redir, request));
                 /*
                 var oldGroupRegex = /facebook\.com\/groups\/([^\/]*)\/permalink\/([0-9]*)/;
                 var newGroupRegex = /facebook\.com\/groups\/([^\/]*)\/\?post_id=([0-9]*)/;
@@ -166,22 +166,9 @@
         });
     }
 
-    function findContent(wantedPost, newUrl) {
-        var counter = 0
-        while (true){
-            if (counter > 10) return wantedPost;
-            counter += 1;
-            if (wantedPost.childNodes && wantedPost.childNodes.length == 1) {
-                wantedPost = wantedPost.childNodes[0];
-            }
-            else return wantedPost;
-        }
-        return wantedPost;
-    }
-
     function recStructure(node) {
-        var links = [];//node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
-        var ret;
+        let links = [];//node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
+        let ret;
         if (node.textContent == "") {
             links = node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
             links = Array.prototype.map.call(links, link => link.href ? removeShim(link.href).url : null);
@@ -201,9 +188,9 @@
             ret = {"text": node.textContent, "links": links};
             return ret;
         }
-        var children = [];
-        for (var child of node.childNodes) {
-            var childContent = recStructure(child);
+        const children = [];
+        for (const child of node.childNodes) {
+            const childContent = recStructure(child);
             if (childContent != null) children.push(childContent);
         }
         if (children.length == 0) {
@@ -215,14 +202,14 @@
 
     function isComments(structure) {
         if (structure == null) return false;
-        if (structure.hasOwnProperty("text")) return false;
+        if ("text" in structure) return false;
         if (structure.length >= 2) {
-            if (structure[0].hasOwnProperty("text") && structure[0].text == "Like" &&
-                structure[1].hasOwnProperty("text") && structure[1].text == "Comment") {
+            if ("text" in structure[0] && structure[0].text == "Like" &&
+                "text" in structure[1] && structure[1].text == "Comment") {
                 return true;
             }
         }
-        for (var child of structure) {
+        for (const child of structure) {
             if (isComments(child)) {
                 return true;
             }
@@ -231,9 +218,9 @@
     }
 
     function removeComments(structure) {
-        var index = 0;
-        for (var child of structure) {
-            var childIsComments = isComments(child);
+        let index = 0;
+        for (const child of structure) {
+            const childIsComments = isComments(child);
             if (childIsComments) {
                 structure.splice(index, 1);
                 return;
@@ -248,76 +235,130 @@
             console.log("ERROR", structure, text, links);
             return;
         }
-        if (structure.hasOwnProperty("text") && structure.hasOwnProperty("links")) {
+        if ("text" in structure && "links" in structure) {
             if (structure.text != null) text.push(structure.text);
-            for (var link of structure.links) {
+            for (const link of structure.links) {
                 links.push(link);
             }
             return;
         }
-        for (var child of structure) {
+        for (const child of structure) {
             condenseContent(child, text, links);
         }
     }
+    /**
+     * Regular expression for matching urls shimmed by facebook
+     * @constant
+     * @type {RegExp}
+     * @default
+     */
+    const facebookUrlRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/;
+
+    /**
+     * Function to retrieve original url from a url shimmed by facebook
+     * @see facebookUrlRegex
+     * The shimmed url contains key-value pairs. Original url is stored under
+     * key 'u'
+     * @param {string} url - inner url if the format follows the above description empty otherwise
+     */
+    function removeFacebookShim(url) {
+        const urlObject = new URL(url);
+        // this is for facebook posts
+        const searchParamValue = urlObject.searchParams.get('u');
+        if (searchParamValue != null) {
+            return searchParamValue.split('?')[0];
+        }
+        return "";
+    }
+
+    function removeFacebookfbclid(url) {
+        const fbclidRegex = /(.*)(\?fbclid=.*)/;
+        const urlResult = fbclidRegex.exec(url);
+        if (urlResult) {
+            return urlResult[1];
+        }
+        return url;
+    }
+
+    /**
+     * Removes url shim. Currently supports only facebook urls
+     * @param {string} url
+     * @returns {Object} url property whose value is same as input or deshimmed url depending on whether the input is
+     * matches facebook shim format. A boolean isShim property that is true if the format matches
+     */
+    function removeShim(url) {
+        // check if the url matches shim
+        if (facebookUrlRegex.test(url)) {
+            return {
+                url: removeFacebookfbclid(removeFacebookShim(url)),
+                isShim: true
+            };
+        }
+        return {
+            url: url,
+            isShim: false
+        };
+    }
 
     browser.runtime.onMessage.addListener(async (request) => {
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             if ("recentReshare" in request) {
                 resolve(mostRecentReshare);
                 return;
             }
-            var response = {};
+            const response = {};
             response.content = [];
             response.attachedUrls = [];
 
             // Try to find the post on the page (should be in view)
-            var requestedPost = document.body.querySelector(`a[href*="${request.postId}"]`);
-            var detailsObj = await getFullUrl(request);
-            var newUrl = detailsObj.newUrl;
-            var username = detailsObj.username;
-            var groupName = detailsObj.groupName;
-            response.username = username;
-            response.groupName = groupName;
-            var node = requestedPost;
+            const requestedPost = document.body.querySelector(`a[href*="${request.postId}"]`);
+            getFullUrl(request).then((detailsObj) => {
+                const newUrl = detailsObj.newUrl;
+                const username = detailsObj.username;
+                const groupName = detailsObj.groupName;
+                response.username = username;
+                response.groupName = groupName;
+                let node = requestedPost;
 
-            // New FB
-            try {
-                var posts = document.querySelectorAll('div[role="article"]');
-                var wantedPost;
-                for (var post of posts) {
-                    if (post.hasAttribute("aria-label")) continue;
-                    if (post.querySelector(`a[href*="${newUrl}"]`)) {
-                        wantedPost = post;
-                        break;
+                // New FB
+                try {
+                    const posts = document.querySelectorAll('div[role="article"]');
+                    let wantedPost;
+                    for (const post of posts) {
+                        if (post.hasAttribute("aria-label")) continue;
+                        if (post.querySelector(`a[href*="${newUrl}"]`)) {
+                            wantedPost = post;
+                            break;
+                        }
                     }
+                    const recStructureWanted = recStructure(wantedPost);
+                    const textRet = [];
+                    const linksRet = [];
+                    removeComments(recStructureWanted);
+                    condenseContent(recStructureWanted, textRet, linksRet);
+                    response.content = textRet;
+                    response.attachedUrls = linksRet;
+                    resolve(response);
+                    return;
+                } catch (error) {
+                    while (node.parentElement != null) {
+                        node = node.parentElement;
+                        if (node.hasAttribute("class") &&
+                            node.getAttribute("class").includes("userContentWrapper")) {
+                            searchFacebookPost(node, response);
+                        }
+                        // when the user is sharing something from an existing reshare post,
+                        //  the media box isn't inside the userContentWrapper (it's at the top of
+                        //  the reshare post, above the share buttons).
+                        // To find it, we look for this clearfix class which encloses the media box.
+                        if (node.hasAttribute("class") &&
+                            node.getAttribute("class").includes("_5pcr clearfix")) {
+                            searchFacebookPost(node, response);
+                        }
+                    }
+                    resolve(response);
                 }
-                var recStructureWanted = recStructure(wantedPost);
-                var textRet = [];
-                var linksRet = [];
-                removeComments(recStructureWanted);
-                condenseContent(recStructureWanted, textRet, linksRet);
-                response.content = textRet;
-                response.attachedUrls = linksRet;
-                resolve(response);
-                return;
-            } catch (error) {
-                while (node.parentElement != null) {
-                    node = node.parentElement;
-                    if (node.hasAttribute("class") &&
-                        node.getAttribute("class").includes("userContentWrapper")) {
-                        searchFacebookPost(node, response);
-                    }
-                    // when the user is sharing something from an existing reshare post,
-                    //  the media box isn't inside the userContentWrapper (it's at the top of
-                    //  the reshare post, above the share buttons).
-                    // To find it, we look for this clearfix class which encloses the media box.
-                    if (node.hasAttribute("class") &&
-                        node.getAttribute("class").includes("_5pcr clearfix")) {
-                        searchFacebookPost(node, response);
-                    }
-                }
-                resolve(response);
-            }
+            });
         });
     });
 })();

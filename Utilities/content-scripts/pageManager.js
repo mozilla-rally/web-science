@@ -20,33 +20,33 @@
  *     * `pageVisitStarted` - Whether the page visit start event has completed firing,
  *     such that all listeners have been notified.
  *     * `pageVisitStartTime` - The time that the page visit started.
- * 
+ *
  * # Events
  * See the documentation in the PageManager module for detail on the event types.
- * 
+ *
  * Each event implements the standard WebExtensions event features.
  *   * addListener
  *   * removeListener
  *   * hasListener
- * 
+ *
  * Event listeners receive an object with the following property.
  *   * timeStamp - The time that the underlying browser event fired.
- * 
+ *
  * Listeners for the page visit start event receive an object with the following
  * additional property.
  *   * isHistoryChange - Whether the page visit was caused by a change via the History API.
- * 
+ *
  * Example usage:
  * ```
  * PageManager.onPageVisitStop.addListener(({timeStamp}) => {
  *     console.log(`Page visit stopped at ${timeStamp} with page ID ${PageManager.pageId}`);
  * });
- * 
+ *
  * PageManager.onPageAttentionUpdate.addListener(({timeStamp}) => {
  *     console.log(`Page attention update at ${timeStamp} with attention state ${PageManager.pageHasAttention}.`);
  * });
  * ```
- * 
+ *
  * # Content Script Load Ordering
  * ## Executing a Content Script After the PageManager API Has Loaded
  * Note that the WebExtensions content script model does not guarantee execution
@@ -55,13 +55,13 @@
  * content script checks the global `pageManagerHasLoaded` for an array of
  * functions to call after the content script has executed, but before the content
  * script has fired the page visit start event.
- * 
+ *
  * Example usage:
  * ```
  * function main() {
  *     // Content script logic goes here
  * }
- * 
+ *
  * if("PageManager" in window)
  *     main();
  * else {
@@ -70,7 +70,7 @@
  *     window.pageManagerHasLoaded.push(main);
  * }
  * ```
- * 
+ *
  * ## Listening for the Page Visit Start Event
  * Because the order of content script execution is not guaranteed, a content
  * script that uses the PageManager API might miss a page visit start event. For
@@ -81,7 +81,7 @@
  * already completed firing (i.e., all listeners have been notified). Content scripts
  * that use the page visit start event will commonly want to call their own page visit
  * start listener if `pageVisitStarted` is `true`.
- * 
+ *
  * Example usage:
  * ```
  * function pageVisitStartListener({timeStamp}) {
@@ -91,7 +91,7 @@
  * if(PageManager.pageVisitStarted)
  *     pageVisitStartListener({ timeStamp: PageManager.pageVisitStartTime });
  * ```
- * 
+ *
  * # Known Issues
  *   * When sending a page visit stop message to the background script, sometimes
  *     Firefox generates an error ("Promise resolved while context is inactive")
@@ -101,6 +101,9 @@
  *     page visit stop message).
  * @module WebScience.Utilities.content-scripts.pageManager
  */
+// Tell eslint that PageManager isn't actually undefined
+/* global PageManager */
+
 
 // Function encapsulation to maintain content script isolation
 (
@@ -122,7 +125,7 @@
         * @returns {string} The new page ID.
         */
         function generatePageId() {
-            let pageIdBytes = window.crypto.getRandomValues(new Uint8Array(16));
+            const pageIdBytes = window.crypto.getRandomValues(new Uint8Array(16));
             return Array.from(pageIdBytes, (byte) => {
                 if(byte < 16)
                     return "0" + byte.toString(16);
@@ -135,7 +138,7 @@
          * hash at the end. We canonicalize URLs without the hash because jumping
          * between parts of a page (as indicated by a hash) should not be considered page
          * navigation.
-         * @returns {string} 
+         * @returns {string}
          */
         function locationHrefWithoutHash() {
             return window.location.href.slice(-1 * window.location.hash.length);
@@ -152,8 +155,8 @@
         // Event management types and classes
         // This should be kept in sync with the Events module, removing only export statements
 
-        /** 
-         * A class that provides an event API similar to WebExtensions `events.Event` objects. 
+        /**
+         * A class that provides an event API similar to WebExtensions `events.Event` objects.
          * @template EventCallbackFunction
          * @template EventOptions
          */
@@ -257,7 +260,7 @@
             }
         }
 
-        /** 
+        /**
          * An extension of the Event class that omits options when adding a listener.
          * @template EventCallbackFunction
          * @extends {Event<EventCallbackFunction, undefined>}
@@ -333,7 +336,7 @@
         /**
          * An event that is fired when a page visit stops.
          * @type {EventWithoutOptions<callbackWithTimeStamp>}
-         */        
+         */
         PageManager.onPageVisitStop = new EventWithoutOptions();
 
         /**
@@ -364,14 +367,14 @@
                 debugLog(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
             }
         };
-        
+
         /**
          * The function for firing the page visit start event, which runs whenever a new page
          * loads. A page load might be because of ordinary web navigation (i.e., loading a new
          * HTML document with a base HTTP(S) request) or because the URL changed via the History
          * API.
          * @private
-         * @param {number} timeStamp - The time when the underlying event fired. 
+         * @param {number} timeStamp - The time when the underlying event fired.
          * @param {boolean} [isHistoryChange=false] - Whether this page load was caused by the
          * History API.
          */
@@ -409,14 +412,14 @@
             PageManager.pageVisitStarted = true;
 
             debugLog(`Page visit start: ${JSON.stringify(PageManager)}`);
-        };
+        }
 
         /**
          * The function for firing the page visit stop event, which runs whenever a page closes.
          * That could be because of browser exit, tab closing, tab navigation to a new page, or
          * a new page loading via the History API.
          * @private
-         * @param {number} timeStamp - The time when the underlying event fired. 
+         * @param {number} timeStamp - The time when the underlying event fired.
          */
         function pageVisitStop(timeStamp) {
             // Send the page visit stop event to the background page
@@ -436,7 +439,7 @@
             }]);
 
             debugLog(`Page visit stop: ${JSON.stringify(PageManager)}`);
-        };
+        }
 
         /**
          * The function for firing the page attention update event, which runs whenever the
@@ -449,7 +452,7 @@
         function pageAttentionUpdate(timeStamp, pageHasAttention) {
             if(PageManager.pageHasAttention === pageHasAttention)
                 return;
-            
+
             PageManager.pageHasAttention = pageHasAttention;
 
             // Notify the page attention update event listeners in the content script environment
@@ -495,7 +498,7 @@
             // We can distinguish these two scenarios by checking whether the URL
             // visible to the user (`window.location.href`) has changed since the
             // page visit start
-            if((message.type === "WebScience.Utilities.PageManager.urlChanged") && 
+            if((message.type === "WebScience.Utilities.PageManager.urlChanged") &&
                (locationHrefWithoutHash() !== PageManager.url)) {
                 pageVisitStop(message.timeStamp);
                 pageVisitStart(message.timeStamp, true);
@@ -509,7 +512,7 @@
         });
 
         // If there are any other content scripts that are waiting for the API to load,
-        // execute the callbacks for those content scripts        
+        // execute the callbacks for those content scripts
         if("pageManagerHasLoaded" in window) {
             if(Array.isArray(window.pageManagerHasLoaded))
                 for(const callback of window.pageManagerHasLoaded)

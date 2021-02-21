@@ -1,6 +1,6 @@
 /**
  * Content script for the PageNavigation module.
- * 
+ *
  * # Known Issues
  *   * When sending page data during a page visit stop event, sometimes
  *     Firefox generates an error ("Promise resolved while context is inactive")
@@ -10,12 +10,14 @@
  *     page visit stop message).
  * @module WebScience.Measurements.content-scripts.pageNavigation
  */
+// Tell eslint that PageManager isn't actually undefined
+/* global PageManager */
 
 // Outer function encapsulation to maintain unique variable scope for each content script
 (function () {
 
     // Inner function encapsulation to wait for PageManager load
-    let pageNavigation = function () {
+    const pageNavigation = function () {
         /**
          * How long the page has had the user's attention.
          * @type {number}
@@ -105,7 +107,7 @@
          */
         let scrollDepthIntervalId = 0;
 
-        let pageVisitStart = function ({ timeStamp }) {
+        const pageVisitStart = function ({ timeStamp }) {
             // Reset page attention and page audio tracking
             attentionDuration = 0;
             lastAttentionUpdateTime = timeStamp;
@@ -137,7 +139,7 @@
                 audioDuration += timeStamp - lastAudioUpdateTime;
             if(PageManager.pageHasAttention && PageManager.pageHasAudio)
                 attentionAndAudioDuration += timeStamp - Math.max(lastAttentionUpdateTime, lastAudioUpdateTime);
-            
+
             // Clear the interval timer for checking scroll depth
             clearInterval(scrollDepthIntervalId);
 

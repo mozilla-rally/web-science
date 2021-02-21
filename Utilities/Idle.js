@@ -170,8 +170,8 @@ function idleOnStateChangedListener(newState) {
 function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds) {
     // Determine how long to delay before firing the listeners
     // If the delay is negative, set it to 0 (i.e., fire as soon as possible)
-    let delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - Date.now(), 0);
-    let timeoutId = setTimeout(function() {
+    const delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - Date.now(), 0);
+    const timeoutId = setTimeout(function() {
         for(const idleStateListener of idleStateListenersWithDetectionInterval)
             idleStateListener("idle");
     }, delayTime);

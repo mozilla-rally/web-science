@@ -6,7 +6,7 @@ import * as Storage from "./Storage.js"
 import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
 
-var storage = null;
+let storage = null;
 
 /**
  * Logger object
@@ -35,7 +35,7 @@ const surveyRemindPeriodDays = 3;
 
 const surveyCompletionUrl = "https://citpsurveys.cs.princeton.edu/thankyou";
 
-var surveyUrlBase = "";
+let surveyUrlBase = "";
 
 /**
  * Generates a RFC4122 compliant ID
@@ -50,7 +50,7 @@ var surveyUrlBase = "";
  */
 function generateUUID(seed) {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        var r = Math.random() * 16;
+        let r = Math.random() * 16;
         r = (seed + r) % 16 | 0;
         return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
     });
@@ -62,9 +62,9 @@ async function openSurveyTab(useSameTab = false) {
         browser.tabs.update({url: surveyUrlBase + "?surveyId=" + surveyId });
         return;
     }
-    var creating = browser.tabs.create({
+    browser.tabs.create({
         active: true,
-        url: surveyUrlBase + "?surveyId=" + surveyId
+        url: surveyUrlBase + "?surveyId=" + surveyId + "&timezoneOffset=" + new Date().getTimezoneOffset()
     });
 }
 
@@ -130,7 +130,7 @@ async function checkSurveyCompletionInHistory() {
 export async function runStudy({
     surveyUrl
 }) {
-    var currentTime = Date.now();
+    const currentTime = Date.now();
     surveyUrlBase = surveyUrl;
 
     storage = await(new Storage.KeyValueStorage("WebScience.Utilities.UserSurvey")).initialize();
@@ -139,9 +139,9 @@ export async function runStudy({
      * Open a tab with the survey, and save this time as the most recent
      * request for participation.
      */
-    var lastSurveyRequest = await storage.get("lastSurveyRequest");
-    var surveyCompleted = await storage.get("surveyCompleted");
-    var noRequestSurvey = await storage.get("noRequestSurvey");
+    let lastSurveyRequest = await storage.get("lastSurveyRequest");
+    let surveyCompleted = await storage.get("surveyCompleted");
+    const noRequestSurvey = await storage.get("noRequestSurvey");
     console.log(surveyCompleted);
     if (!surveyCompleted) { surveyCompleted = await checkSurveyCompletionInHistory(); }
     console.log(surveyCompleted);
@@ -178,7 +178,7 @@ export async function runStudy({
 
     /* If the user tells us to never ask them again, we catch it with this message */
     Messaging.registerListener("WebScience.Utilities.UserSurvey.cancelSurveyRequest", cancelSurveyRequest);
-    Messaging.registerListener("WebScience.Utilities.UserSurvey.openSurveyTab",  () => { openSurveyTab(false); });
+    Messaging.registerListener("WebScience.Utilities.UserSurvey.openSurveyTab", () => { openSurveyTab(false); });
 }
 
 export async function getSurveyId() {

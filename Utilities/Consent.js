@@ -8,9 +8,9 @@ import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
 import * as Scheduling from "./Scheduling.js"
 
-var storage = null;
+let storage = null;
 
-var callback = null;
+let callback = null;
 
 const secondsPerDay = 86400;
 const millisecondsPerSecond = 1000;
@@ -32,7 +32,7 @@ function openConsentTab() {
 }
 
 async function gainConsent() {
-    var hasConsent = await storage.get("hasConsent");
+    const hasConsent = await storage.get("hasConsent");
     if (!hasConsent) {
         await storage.set("hasConsent", true);
         callback()
@@ -44,8 +44,8 @@ function consentRefused() {
 }
 
 async function dayListener() {
-    var hasConsent = await storage.get("hasConsent");
-    var installTime = await storage.get("installTime");
+    const hasConsent = await storage.get("hasConsent");
+    const installTime = await storage.get("installTime");
     if (!hasConsent && installTime + (secondsPerDay * millisecondsPerSecond) <= Date.now()){
         consentRefused();
     }
@@ -58,7 +58,7 @@ async function dayListener() {
  * @param {string} surveyUrl - survey URL
  */
 export async function runStudy(callbackAfterConsent) {
-    var currentTime = Date.now();
+    const currentTime = Date.now();
     callback = callbackAfterConsent;
 
     storage = await(new Storage.KeyValueStorage("WebScience.Utilities.Consent")).initialize();
@@ -70,14 +70,15 @@ export async function runStudy(callbackAfterConsent) {
     Messaging.registerListener("WebScience.Utilities.Consent.agree", gainConsent);
     Messaging.registerListener("WebScience.Utilities.Consent.disagree", consentRefused);
     Messaging.registerListener("WebScience.Utilities.Consent.openNotice", openConsentTab);
-    var hasConsent = await storage.get("hasConsent");
+    const hasConsent = await storage.get("hasConsent");
     if (hasConsent == null) {
         await storage.set("hasConsent", false);
-        await storage.set("installTime", Date.now());
+        await storage.set("installTime", currentTime);
         // If we make it to 24 hours with no consent, assume they don't consent and uninstall
         Scheduling.onIdleDaily.addListener(dayListener);
         openConsentTab();
     } else if (hasConsent) {
+        debugLog("Starting study from Consent");
         callback();
         return;
     } else {

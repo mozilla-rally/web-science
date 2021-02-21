@@ -3,7 +3,14 @@
  * @module WebScience.Measurements.AggregateStatistics
  */
 
-let studyDomains = null;
+const fbRegex = /(facebook.com\/pages\/[0-9|a-z|A-Z|-]*\/[0-9]*(\/|$))|(facebook\.com\/[0-9|a-z|A-Z|.]*(\/|$))/i;
+const ytRegex = /(youtube.com\/(user|channel)\/[0-9|a-z|A-Z|_|-]*(\/videos)?)(\/|$)|(youtube\.com\/[0-9|A-Z|a-z]*)(\/|$)|(youtube\.com\/profile\?user=[0-9|A-Z|a-z]*)(\/|$)/i;
+const twRegex = /(twitter\.com\/[0-9|a-z|A-Z|_]*(\/|$))/;
+let fbPages;
+let twPages;
+let ytPages;
+let referrerOnlyDomains;
+let destinationDomains;
 
 /**
  * Event handler for messages from the main thread
@@ -16,7 +23,12 @@ let studyDomains = null;
 onmessage = async event => {
     const data = event.data;
     const stats = {};
-    studyDomains = data.studyDomains;
+    const studyDomains = data.studyDomains;
+    fbPages = new RegExp(studyDomains.fbPages, "i");
+    ytPages = new RegExp(studyDomains.ytPages, "i");
+    twPages = new RegExp(studyDomains.twPages, "i");
+    referrerOnlyDomains = new RegExp(studyDomains.referrerOnlyDomains, "i");
+    destinationDomains = new RegExp(studyDomains.destinationDomains, "i");
     Object.entries(data.fromStorage).forEach(entry => {
         const key = entry[0];
         const storageObj = entry[1];
@@ -77,7 +89,7 @@ StorageStatistics.prototype.computeStats = function (storageInstance) {
  * @const {number}
  * @default
  */
-const _MS_PER_DAY = 1000 * 60 * 60 * 24;
+//const _MS_PER_DAY = 1000 * 60 * 60 * 24;
 /**
  * Maximum date supported. Used in computing the earliest
  * date from a list of date objects.
@@ -85,7 +97,7 @@ const _MS_PER_DAY = 1000 * 60 * 60 * 24;
  * @const {number}
  * @default
  */
-const _MAX_DATE = 8640000000000000;
+//const _MAX_DATE = 8640000000000000;
 
 /**
  * Object that maps the type of data and the stats function to apply on
@@ -126,8 +138,8 @@ function pageNavigationStats(pageNavigationStorage) {
                 }
 
                 const date = new Date(navObj.visitStart);
-                const dayOfWeek = date.getDay();
-                const hourOfDay = date.getHours();
+                const dayOfWeek = date.getUTCDay();
+                const hourOfDay = date.getUTCHours();
                 const timeOfDay = Math.floor(hourOfDay / 4) * 4;
 
                 const index = JSON.stringify({
@@ -204,12 +216,12 @@ function linkExposureStats(linkExposureStorage) {
             const exposureObj = entry[1];
             if (exposureObj.type == "linkExposure") {
                 const date = new Date(exposureObj.firstSeen);
-                const hourOfDay = date.getHours();
+                const hourOfDay = date.getUTCHours();
                 const timeOfDay = Math.floor(hourOfDay / 4) * 4;
                 const index = JSON.stringify({
-                    sourceDomain: getTrackedPathSource(exposureObj.metadata.location),
+                    sourceDomain: getTrackedPathSource(exposureObj.pageUrl),
                     destinationDomain: getTrackedPathDest(exposureObj.url),
-                    dayOfWeek: (new Date(exposureObj.firstSeen)).getDay(),
+                    dayOfWeek: (date).getUTCDay(),
                     timeOfDay: timeOfDay,
                     visThreshold: exposureObj.visThreshold
                 });
@@ -292,8 +304,8 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                     visitReferrer = getTrackedPathSource(prevVisitReferrers[0]);
                 }
                 const date = new Date(val.shareTime);
-                const dayOfWeek = date.getDay();
-                const hourOfDay = date.getHours();
+                const dayOfWeek = date.getUTCDay();
+                const hourOfDay = date.getUTCHours();
                 const timeOfDay = Math.floor(hourOfDay / 4) * 4;
 
                 const index = JSON.stringify({
@@ -370,25 +382,25 @@ function getDomain(url) {
 
 function getTrackedPathDest(url) {
     // if this is a dest, it must have passed a destination check already
-    const fbResult = studyDomains.paths.fb.regex.exec(url);
-    if (fbResult && studyDomains.paths.fb.pages.regExp.exec(url)) { return fbResult[0]; }
+    const fbResult = fbRegex.exec(url);
+    if (fbResult && fbPages.test(url)) { return fbResult[0]; }
     /*
-    let twResult = studyDomains.paths.tw.regex.exec(url);
-    if (twResult && studyDomains.paths.tw.pages.regExp.exec(url)) { return twResult[0]; }
+    let twResult = twRegex.exec(url);
+    if (twResult && twPages.test(url)) { return twResult[0]; }
     */
-    const ytResult = studyDomains.paths.yt.regex.exec(url);
-    if (ytResult && studyDomains.paths.yt.pages.regExp.exec(url)) { return ytResult[0]; }
+    const ytResult = ytRegex.exec(url);
+    if (ytResult && ytPages.test(url)) { return ytResult[0]; }
     return getDomain(url);
 }
 
 function getTrackedPathSource(url) {
-    const fbResult = studyDomains.paths.fb.regex.exec(url);
-    if (fbResult && studyDomains.paths.fb.pages.regExp.exec(url)) { return fbResult[0]; }
-    const twResult = studyDomains.paths.tw.regex.exec(url);
-    if (twResult && studyDomains.paths.tw.pages.regExp.exec(url)) { return twResult[0]; }
-    const ytResult = studyDomains.paths.yt.regex.exec(url);
-    if (ytResult && studyDomains.paths.yt.pages.regExp.exec(url)) { return ytResult[0]; }
-    if (studyDomains.referrerOnlyDomains.regExp.exec(url)) { return getDomain(url); }
-    if (studyDomains.domains.regExp.exec(url)) { return getDomain(url); }
+    const fbResult = fbRegex.exec(url);
+    if (fbResult && fbPages.test(url)) { return fbResult[0]; }
+    const twResult = twRegex.exec(url);
+    if (twResult && twPages(url)) { return twResult[0]; }
+    const ytResult = ytRegex.test(url);
+    if (ytResult && ytPages(url)) { return ytResult[0]; }
+    if (referrerOnlyDomains.test(url)) { return getDomain(url); }
+    if (destinationDomains.test(url)) { return getDomain(url); }
     return "other";
 }

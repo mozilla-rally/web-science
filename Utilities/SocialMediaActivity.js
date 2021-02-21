@@ -1043,17 +1043,18 @@ function verifyRedditCommentVote({requestDetails = null}) {
  * @returns - the parsed object
  */
 function extractRedditCommentVote({requestDetails = null, eventTime = null}) {
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
         const details = {};
         details.eventTime = eventTime;
         details.eventType = "commentVote";
         details.vote = requestDetails.requestBody.formData.dir[0];
         details.commentId = requestDetails.requestBody.formData.id[0];
 
-        const hydratedComment = await getRedditThingContents(details.commentId);
-        details.postId = hydratedComment.data.children[0].data.link_id;
-        details.commentContents = hydratedComment;
-        resolve(details);
+        getRedditThingContents(details.commentId).then((hydratedComment) => {
+            details.postId = hydratedComment.data.children[0].data.link_id;
+            details.commentContents = hydratedComment;
+            resolve(details);
+        });
     });
 }
 

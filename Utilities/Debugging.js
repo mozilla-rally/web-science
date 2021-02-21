@@ -12,7 +12,7 @@
  * @type {boolean}
  * @default
  */
-var debug = false;
+let debug = false;
 
 /** Enable logging for debugging events. */
 export function enableDebugging() {
@@ -32,7 +32,7 @@ export function getDebuggingLog(moduleName) {
 }
 
 export function getExtensionVersion() {
-    let manifest = browser.runtime.getManifest();
+    const manifest = browser.runtime.getManifest();
     if ("version" in manifest) return manifest.version;
     return "";
 }

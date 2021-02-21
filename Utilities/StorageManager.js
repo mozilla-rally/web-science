@@ -10,29 +10,23 @@ import {
     getDebuggingLog
 } from './Debugging.js';
 
-import {
-    storageInstances
-} from "./Storage.js"
 const debugLog = getDebuggingLog("Utilities.StorageManager");
+
 
 /**
  * An object that stores the timestamp field for the storage modules.
  * @private
  * @constant
  */
-const timePropertyMapping = {
-    "NewsAndDisinfo.Measurements.LinkExposure": "firstSeen",
-    "NewsAndDisinfo.Measurements.PageNavigation": "pageVisitStartTime",
-    "NewsAndDisinfo.Measurements.SocialMediaLinkSharing": "shareTime"
-}
 
 /**
  * Extracts a snapshot of the current storage across the study.
  * Modifications to the snapshot will not affect the underlying persisted storage.
- * 
+ *
  * @returns {Object} an object with module name as key and copy of current
  * storage as value
  */
+/*
 async function getStorageObjs() {
     const stats = {};
     await Promise.all(storageInstances.map(async instance => {
@@ -42,10 +36,12 @@ async function getStorageObjs() {
     }));
     return stats;
 }
+*/
 
 /**
  * Inclusive on start, exclusive on end
  */
+/*
 function filterEventsByRange(obj, timeProperty, startTime, endTime) {
     return Object.keys(obj).reduce((acc, val) => {
         if (!(timeProperty in obj[val])) {
@@ -59,15 +55,17 @@ function filterEventsByRange(obj, timeProperty, startTime, endTime) {
         return acc;
     }, {});
 }
+*/
 
 /**
  * Modify the snapshot to include only the most recent data
  * Uses time property defined in `timePropertyMapping`.
- * 
+ *
  * @param {Object} storageObjs Snapshot of storage
  * @param {number} msInInterval Width of interval measured in milliseconds
  * @param {number} nIntervals number of intervals to look back
  */
+/*
 function filterStorageObjs(storageObjs, startTime, endTime) {
     Object.entries(storageObjs).forEach(entry => {
         const key = entry[0];
@@ -78,11 +76,17 @@ function filterStorageObjs(storageObjs, startTime, endTime) {
         }
     });
 }
+*/
 
-export async function getEventsByRange(startTime, endTime) {
-    const storageObjs = await getStorageObjs();
-    filterStorageObjs(storageObjs, startTime, endTime);
-    return storageObjs;
+export async function getEventsByRange(startTime, endTime, instances) {
+    const events = {};
+    for (const instance of instances) {
+        const storage = instance.storage;
+        const store = instance.store;
+        const timeKey = instance.timeKey;
+        events[instance.storage.storageAreaName] = await storage.getEventsByRange(startTime, endTime, timeKey, store);
+    }
+    return events;
 }
 
 /**

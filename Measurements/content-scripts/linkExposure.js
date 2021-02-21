@@ -2,6 +2,9 @@
  * Content script for the LinkExposure module.
  * @module WebScience.Measurements.content-scripts.linkExposure
  */
+// Tell eslint that PageManager isn't actually undefined
+/* global PageManager */
+
 
 // Outer function encapsulation to maintain unique variable scope for each content script
 (async function () {
@@ -133,8 +136,8 @@
             return url;
 
         // Extract the original URL from the "u" parameter
-        let urlObject = new URL(url);
-        let uParamValue = urlObject.searchParams.get('u');
+        const urlObject = new URL(url);
+        const uParamValue = urlObject.searchParams.get('u');
         if(uParamValue === null)
             return url;
         return uParamValue;
@@ -148,7 +151,7 @@
     function parseAmpUrl(url) {
         if(!ampRegExp.test(url))
             return url;
-        let parsedAmpUrl = ampRegExp.exec(url);
+        const parsedAmpUrl = ampRegExp.exec(url);
         // Reconstruct AMP cache URLs
         if(parsedAmpUrl.groups.ampCacheUrl !== undefined)
             return "http" +
@@ -247,7 +250,7 @@
 
         // Iterate all the links currently on the page (i.e., anchor elements with an href attribute)
         document.body.querySelectorAll("a[href]").forEach(element => {
-            let linkInfo = anchorElements.get(element)
+            const linkInfo = anchorElements.get(element)
 
             // If we haven't seen this link before, check the URL and dimensions
             // If the URL is a match (or possible match) and the dimensions aren't too small, start
@@ -274,10 +277,9 @@
 
                 // Flag a link as matched if either it matches the link match patterns or it is a shortened URL
                 // Start observing the link with the IntersectionObserver
-                let startTime = new Date();
                 let isMatched = linkRegExp.test(url);
 
-                let isShortenedUrl = urlShortenerRegExp.test(url);
+                const isShortenedUrl = urlShortenerRegExp.test(url);
                 isMatched = isMatched || isShortenedUrl;
 
                 anchorElements.set(element, {
@@ -355,7 +357,7 @@
      */
     const observer = new IntersectionObserver(anchorObserverCallback, { threshold: linkMinimumVisibility });
 
-    let pageVisitStartListener = function ({ timeStamp }) {
+    const pageVisitStartListener = function ({ timeStamp }) {
         // Reset page-specific data
         lastLostAttention = -1;
         currentHostname = (new URL(PageManager.url)).hostname;
@@ -366,14 +368,14 @@
     };
 
     // On page visit stop, clear the timer and intersection observer
-    let pageVisitStopListener = function() {
+    const pageVisitStopListener = function() {
         if(timerId !== 0)
             clearInterval(timerId);
         timerId = 0;
         observer.disconnect();
     };
 
-    let pageAttentionUpdateListener = function({ timeStamp }) {
+    const pageAttentionUpdateListener = function({ timeStamp }) {
         const currentAnchorElements = document.body.querySelectorAll("a[href]");
         if(PageManager.pageHasAttention) {
             for(const anchorElement of currentAnchorElements) {
@@ -393,7 +395,7 @@
     }
 
     // Wait for PageManager load
-    let pageManagerLoaded = function () {
+    const pageManagerLoaded = function () {
         PageManager.onPageVisitStart.addListener(pageVisitStartListener);
         if(PageManager.pageVisitStarted)
             pageVisitStartListener({timeStamp: PageManager.pageVisitStartTime});

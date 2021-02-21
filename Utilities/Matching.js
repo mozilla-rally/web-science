@@ -148,10 +148,10 @@ export function matchPatternToRegExpString(matchPattern) {
  * @returns {string} A regular expression string.
  */
 export function createUrlRegexString(domains, matchSubdomains = true) {
-    var urlMatchRE = "^(?:http|https)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
+    let urlMatchRE = "^(?:http|https)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
     for (const domain of domains)
         urlMatchRE = urlMatchRE + domain.replace(/\./g, "\\.") + "|";
-    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|(/|\\?).*)";  ")(?:$|/.*)";
+    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|(/|\\?).*)";
     return urlMatchRE;
 }
 
@@ -190,8 +190,8 @@ export class UrlMatcher {
      * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
      */
     constructor(domains, matchSubdomains = true) {
-        //this.regExp = new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
-        this.regExp = new RegExp(domains, "i");
+        this.regExp = new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
+        //this.regExp = new RegExp(domains, "i");
     }
 
     /**
