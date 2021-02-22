@@ -39,6 +39,7 @@ export class Event {
         removeListenerCallback: null,
         notifyListenersCallback: null
     }) {
+        console.log(addListenerCallback, removeListenerCallback, notifyListenersCallback);
         this.addListenerCallback = addListenerCallback;
         this.removeListenerCallback = removeListenerCallback;
         this.notifyListenersCallback = notifyListenersCallback;
