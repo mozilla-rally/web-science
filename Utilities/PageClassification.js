@@ -38,6 +38,7 @@ class ClassificationEvent extends Events.Event {
             workerObj: new Worker(options.filePath),
             initialArgs: options.initArgs
         };
+        this.workers[options.workerId] = newWorker;
         newWorker.workerObj.onmessage = this.resultReceiver.bind(this);
         newWorker.workerObj.onerror = (e) => {console.log(e);};
 
@@ -47,7 +48,6 @@ class ClassificationEvent extends Events.Event {
             args: options.initArgs
         });
 
-        this.workers[options.workerId] = newWorker;
 
     }
 
