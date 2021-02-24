@@ -243,127 +243,23 @@ function combineRegExpStrings(regExpStrings) {
 /**
  * Converts an array of match patterns into a regular expression string.
  * @throws {Throws an error if a match pattern is not valid.}
- * @param {Array<string>} matchPatterns - The match patterns.
- * @param {boolean} optimize - Whether to attempt to optimize the regular
- * expression string, by minimizing backtracking.
- * @returns {string} The regular expression.
+ * @param {string[]} matchPatterns - The match patterns.
+ * @returns {string} The regular expression string.
  */
-export function matchPatternsToRegExpString(matchPatterns, optimize = true) {
-    // Without optimization, just generate the individual regular expression strings
-    // and combine them as alternatives
-    // This approach is perfectly fine for a small number of match patterns, but performance
-    // degrades when there are a large number of match patterns that include subdomain matching
-    if(!optimize) {
-        const regExpArray = [ ];
-        for(const matchPattern of matchPatterns)
-            regExpArray.push("(?:" + matchPatternToRegExpString(matchPattern) + ")");
-        return regExpArray.join("|");
-    }
-
-    // With optimization, parse the match patterns into intermediate representations,
-    // insert them into a data structure that combines prefixes to minimize backtracking,
-    // then generate regular expression strings and combine them as alternatives
-    // Effectively, we are creating an automaton based on a directed acyclic graph, then
-    // converting that automaton into a regular expression string with depth-first search
-    const schemeMap = new Map();
-    const regExpStrings = [ ];
-    for(const matchPattern of matchPatterns) {
-        const parsedMatchPattern = parseMatchPattern(matchPattern);
-        if(parsedMatchPattern.allUrls)
-            regExpStrings.append(allUrlsRegExpString);
-        // Not currently optimizing match patterns with a non-host scheme
-        else if(!hostLocatorMatchPatternSchemes.has(parsedMatchPattern.scheme))
-            regExpStrings.append(parsedMatchPatternToRegExpString(parsedMatchPattern));
-        else {
-            // In this data structure of nested maps, the first level is the scheme, the next
-            // level is whether to match subdomains, the next level is the host, and the final
-            // level is the path
-            let matchSubdomainsMap = schemeMap.get(parsedMatchPattern.scheme);
-            if(matchSubdomainsMap === undefined) {
-                matchSubdomainsMap = new Map();
-                schemeMap.set(parsedMatchPattern.scheme, matchSubdomainsMap);
-            }
-            let hostMap = matchSubdomainsMap.get(parsedMatchPattern.matchSubdomains);
-            if(hostMap === undefined) {
-                hostMap = new Map();
-                matchSubdomainsMap.set(parsedMatchPattern.matchSubdomains, hostMap);
-            }
-            let pathSet = hostMap.get(parsedMatchPattern.host);
-            if(pathSet === undefined) {
-                pathSet = new Set();
-                hostMap.set(parsedMatchPattern.host, pathSet);
-            }
-            pathSet.add(parsedMatchPattern.path);
-        }
-    }
-
-    // Convert the data structure into regular expression strings 
-    const schemeRegExpStrings = [ ];
-    for(const [scheme, matchSubdomainsMap] of schemeMap) {
-        let schemeRegExpString = scheme; 
-        // The special "*" wildcard scheme should match the "http", "https", "ws", and "wss" schemes
-        if(scheme === "*")
-            schemeRegExpString = "(?:https?|wss?)";
-        
-        const matchSubdomainsRegExpStrings = [ ];
-        for(const [matchSubdomains, hostMap] of matchSubdomainsMap) {
-            let matchSubdomainsRegExpString = "";
-            if(matchSubdomains)
-                matchSubdomainsRegExpString = "(?:[a-zA-Z0-9\\-]+\\.)*";
-            
-            const hostRegExpStrings = [ ];
-            for(const [host, pathSet] of hostMap) {
-                let hostRegExpString = "";
-                if(host === "*")
-                    hostRegExpString = "\\[?[a-zA-Z0-9\\-\\.]+\\]?";
-                else {
-                    hostRegExpString = escapeRegExpString(host);
-                    // If this is a scheme that requires "://" and isn't "file", there might be a port specified
-                    //if(scheme !== "file")
-                    //    hostRegExpString = hostRegExpString + "(?::[0-9]+)?";
-                }
-                const pathRegExpStrings = [ ];
-                for(const path of pathSet) {
-                    let pathRegExpString = "";
-                    // If the path is / or /*, allow a URL with no path specified to match
-                    if(path === "/" )
-                        pathRegExpString = "/?";
-                    else if(path === "/*")
-                        pathRegExpString = "(?:/.*)?";
-                    else {
-                        const escapedPathArray = [ ];
-                        for(const c of path) {
-                            if(c === "*")
-                                escapedPathArray.push(".*");
-                            else
-                                escapedPathArray.push(escapeRegExpString(c))
-                        }
-                        pathRegExpString = escapedPathArray.join("");
-                    }
-                    pathRegExpStrings.push(pathRegExpString);
-                }
-                hostRegExpStrings.push(hostRegExpString + combineRegExpStrings(pathRegExpStrings))
-            }
-            matchSubdomainsRegExpStrings.push(matchSubdomainsRegExpString + combineRegExpStrings(hostRegExpStrings));
-        }
-        schemeRegExpStrings.push(schemeRegExpString + "://" + combineRegExpStrings(matchSubdomainsRegExpStrings));
-    }
-
-    const combinedRegExpStrings = ["^" + combineRegExpStrings(schemeRegExpStrings) + "$"].concat(regExpStrings); 
-
-    return combineRegExpStrings(combinedRegExpStrings);
+export function matchPatternsToRegExpString(matchPatterns) {
+    return combineRegExpStrings(matchPatterns.map(matchPattern => { return matchPatternToRegExpString(matchPattern); }));
 }
 
 /**
  * Converts an array of match patterns into a RegExp object.
  * @throws {Throws an error if a match pattern is not valid.}
- * @param {Array<string>} matchPatterns - The match patterns.
- * @param {boolean} optimize - Whether to attempt to optimize the regular
- * expression string, by minimizing backtracking.
+ * @param {string[]} matchPatterns - The match patterns.
  * @returns {RegExp} The regular expression RegExp object.
  */
-export function matchPatternsToRegExp(matchPatterns, optimize) {
-    return new RegExp(matchPatternsToRegExpString(matchPatterns, optimize), "i");
+export function matchPatternsToRegExp(matchPatterns) {
+    // Set the entire regular expression to case insensitive, because JavaScript regular expressions
+    // do not (currently) support partial case insensitivity
+    return new RegExp(matchPatternsToRegExpString(matchPatterns), "i");
 }
 
 // TODO: remove the legacy UrlMatcher class, which is only used in the SocialMediaLinkSharing module
@@ -428,6 +324,8 @@ export function domainsToRegExpString(domains, matchSubdomains = true) {
  * @returns {RegExp} A RegExp object for matching a URL against the set of domains.
  */
 export function domainsToRegExp(domains, matchSubdomains = true) {
+    // Set the entire regular expression to case insensitive, because JavaScript regular expressions
+    // do not (currently) support partial case insensitivity
     return new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
 }
 
