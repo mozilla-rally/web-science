@@ -349,15 +349,20 @@ export function createUrlMatchPatternArray(domains, matchSubdomains = true) {
 }
 
 /**
- * Normalize a URL string to only the protocol (using HTTPS if no protocol is specified), hostname, and path.
- * The normalized URL does not include any query string or fragment.
+ * Normalize a URL string for subsequent comparison. Normalization includes the following steps:
+ *   * Parse the string as a `URL` object, which will (among other normalization) lowercase the
+ *     scheme and hostname.
+ *   * Remove the port number, if any. For example, https://www.mozilla.org:443/ becomes https://www.mozilla.org/.
+ *   * Remove query parameters, if any. For example, https://www.mozilla.org/?foo becomes https://www.mozilla.org/.
+ *   * Remove the fragment identifier, if any. For example, https://www.mozilla.org/#foo becomes https://www.mozilla.org/.
  * @param {string} url - The URL string to normalize.
  * @return {string} The normalized URL string.
+ * @throws {Throws an error if the URL string is not a valid, absolute URL.}
  */
 export function normalizeUrl(url) {
     const urlObj = new URL(url);
-    const normalizedUrl = (urlObj.protocol ? urlObj.protocol : "https:") +
-                        "//" + urlObj.hostname +
-                        (urlObj.pathname ? urlObj.pathname : "");
-    return normalizedUrl;
+    urlObj.port = "";
+    urlObj.search = "";
+    urlObj.hash = "";
+    return urlObj.href;
 }
