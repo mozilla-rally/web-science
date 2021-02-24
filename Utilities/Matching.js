@@ -181,7 +181,6 @@ function parsedMatchPatternToRegExpString(parsedMatchPattern) {
     }
 
     // Path
-    // TODO: implement support for query strings and fragments
     let pathRegExpString = "";
     // If the path is / or /*, allow a URL with no path specified to match
     if(parsedMatchPattern.path === "/" )
@@ -198,6 +197,8 @@ function parsedMatchPatternToRegExpString(parsedMatchPattern) {
         }
         pathRegExpString = escapedPathArray.join("");
     }
+    // Allow arbitrary parameters or an arbitrary fragment identifier
+    pathRegExpString += "(?:\\?.*)?(?:#.*)?";
     return "^" + schemeRegExpString + (hostLocatorScheme ? "://" : ":") + hostRegExpString + pathRegExpString + "$";
 }
 
