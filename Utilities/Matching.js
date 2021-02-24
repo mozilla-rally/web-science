@@ -1,8 +1,56 @@
 /**
- * This module provides utilities for matching URLs against domain names.
+ * This module provides utilities for matching URLs against criteria.
+ * 
+ * The module supports two types of criteria:
+ *   * Match Patterns (preferred) - a syntax used in the WebExtensions API for expressing possible URL matches.
+ *     See: {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns}.
+ *   * Domains - a simple list of domain names, which are converted into match patterns.
+ * 
+ * The module supports two types of output for matching URLs:
+ *   * Regular Expressions - `RegExp` objects that compare a URL against the criteria.
+ *   * Regular Expression Strings - strings expressing regular expressions for comparing a URL against the criteria.
  *
  * @module WebScience.Utilities.Matching
  */
+
+/**
+ * A RegExp for validating WebExtensions match patterns, using the same regular expressions for manifest
+ * validation as Firefox.
+ * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/schemas/manifest.json}
+ * @constant
+ * @type {RegExp}
+ * @private
+ */
+const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|file|ftp|\\*)://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$)|(^file:///.*$)|(^resource://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$|^about:)", "i");
+
+/**
+ * A Set of URL schemes permitted in WebExtensions match patterns.
+ * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
+ * @constant
+ * @type {Set<string>}
+ * @private
+ */
+const permittedMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "data", "file"]);
+
+/**
+ * A Set of URL schemes that require a host locator (i.e., are followed by `://` rather than `:`).
+ * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
+ * @constant
+ * @type {Set<string>}
+ * @private
+ */
+const hostLocatorMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "moz-extension", "chrome", "resource", "moz", "moz-icon", "moz-gio"]);
+
+/**
+ * A regular expression string for the special "<all_urls>" wildcard match pattern, which matches
+ * "http", "https", "ws", "wss", "ftp", "file", and "data" schemes with any hostname and path.
+ * This regular expression includes a little sanity checking: hostnames are limited to alphanumerics,
+ * hyphen, period, and brackets at the start and end (for IPv6 literals).
+ * @constant
+ * @type {string}
+ * @private
+ */
+const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\\-\\.]+\\]?(?::[0-9]+)?(?:(?:)|(?:/.*))|(?:file:///.*)|(?:data:.*)$";
 
 /**
  * An internal object that represents a parsed match pattern.
@@ -18,52 +66,8 @@
  * @property {string} path - The path for the match pattern. The special wildcard value "/*" matches all
  * paths.
  * @see {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns}
+ * @private
  */
-
-/**
- * A function that escapes regular expression special characters in a string.
- * @param {string} string - The input string.
- * @returns {string} The input string with regular expression special characters escaped.
- * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions}
- */
-export function escapeRegExpString(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * A RegExp for validating WebExtensions match patterns, using the same regular expressions for manifest
- * validation as Firefox.
- * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/schemas/manifest.json}
- * @constant
- * @type {RegExp}
- */
-const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|file|ftp|\\*)://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$)|(^file:///.*$)|(^resource://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$|^about:)", "i");
-
-/**
- * A Set of URL schemes permitted in WebExtensions match patterns.
- * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
- * @constant
- * @type {Set<string>}
- */
-const permittedMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "data", "file"]);
-
-/**
- * A Set of URL schemes that require a host locator (i.e., are followed by `://` rather than `:`).
- * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
- * @constant
- * @type {Set<string>}
- */
-const hostLocatorMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "moz-extension", "chrome", "resource", "moz", "moz-icon", "moz-gio"]);
-
-/**
- * A regular expression string for the special "<all_urls>" wildcard match pattern, which matches
- * "http", "https", "ws", "wss", "ftp", "file", and "data" schemes with any hostname and path.
- * This regular expression includes a little sanity checking: hostnames are limited to alphanumerics,
- * hyphen, period, and brackets at the start and end (for IPv6 literals).
- * @constant
- * @type {string}
- */
-const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\\-\\.]+\\]?(?::[0-9]+)?(?:(?:)|(?:/.*))|(?:file:///.*)|(?:data:.*)$";
 
 /**
  * Parses a match pattern string into an object that represents the match pattern. We use this internal,
@@ -77,7 +81,7 @@ const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\
  */
 function parseMatchPattern(matchPattern) {
     if(!matchPatternValidationRegExp.test(matchPattern))
-        throw new Error(`Invalid match pattern: ${matchPattern}`);
+        throw new Error(`Invalid match pattern, failed validation: ${matchPattern}`);
 
     const parsedMatchPattern = {
         allUrls: false,
@@ -97,10 +101,10 @@ function parseMatchPattern(matchPattern) {
     // Parse the scheme
     let index = matchPattern.indexOf(":");
     if(index <= 0)
-        throw new Error(`Invalid match pattern: ${matchPattern}`);
+        throw new Error(`Invalid match pattern, missing colon: ${matchPattern}`);
     const scheme = matchPattern.substr(0, index);
     if(!permittedMatchPatternSchemes.has(scheme))
-        throw new Error(`Invalid match pattern: ${matchPattern}`);
+        throw new Error(`Invalid match pattern, unsupported scheme: ${matchPattern}`);
     const hostLocatorScheme = hostLocatorMatchPatternSchemes.has(scheme);
     parsedMatchPattern.scheme = scheme;
 
@@ -109,7 +113,7 @@ function parseMatchPattern(matchPattern) {
     tail = matchPattern.substr(offset);
     if(hostLocatorScheme) {
         if(!tail.startsWith("//"))
-            throw new Error(`Invalid match pattern: ${matchPattern}`);
+            throw new Error(`Invalid match pattern, missing // required by scheme: ${matchPattern}`);
 
         offset += 2;
         tail = matchPattern.substr(offset);
@@ -119,7 +123,7 @@ function parseMatchPattern(matchPattern) {
 
         let host = tail.substring(0, index);
         if((host === "") && (scheme !== "file"))
-            throw new Error(`Invalid match pattern: ${matchPattern}`);
+            throw new Error(`Invalid match pattern, missing host required by scheme: ${matchPattern}`);
 
         offset += index;
         tail = matchPattern.substring(offset);
@@ -128,7 +132,7 @@ function parseMatchPattern(matchPattern) {
             if(host.startsWith("*.")) {
                 host = host.substring(2);
                 if(host === "*")
-                    throw new Error(`Invalid match pattern: ${matchPattern}`);
+                    throw new Error(`Invalid match pattern, subdomain wildcard with host wildcard: ${matchPattern}`);
                 parsedMatchPattern.matchSubdomains = true;
             }
         }
@@ -138,10 +142,20 @@ function parseMatchPattern(matchPattern) {
     // Parse the path
     const path = tail;
     if(path === "")
-        throw new Error(`Invalid match pattern: ${matchPattern}`);
+        throw new Error(`Invalid match pattern, missing path: ${matchPattern}`);
     parsedMatchPattern.path = path;
 
     return parsedMatchPattern;
+}
+
+/**
+ * Escapes regular expression special characters in a string.
+ * @param {string} string - The input string.
+ * @returns {string} The input string with regular expression special characters escaped.
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions}
+ */
+export function escapeRegExpString(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
@@ -207,38 +221,20 @@ function parsedMatchPatternToRegExpString(parsedMatchPattern) {
  * @throws {Throws an error if the match pattern is not valid.}
  * @param {string} matchPattern - The match pattern.
  * @returns {string} The regular expression.
+ * @private
  */
-export function matchPatternToRegExpString(matchPattern) {
-    const parsedMatchPattern = parseMatchPattern(matchPattern);
-    return parsedMatchPatternToRegExpString(parsedMatchPattern);
-}
-
-// TODO: remove the legacy createUrlRegexString function, which is superseded by
-// the domainsToRegExpString function and only used in LinkExposure
-/**
- * Generate a regular expression string for matching a URL against a set of domains.
- * Will match http and https protocols. Currently case sensitive.
- * @param {string[]} domains - The set of domains to match against.
- * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
- * @returns {string} A regular expression string.
- */
-export function createUrlRegexString(domains, matchSubdomains = true) {
-    let urlMatchRE = "^(?:https?)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
-    for (const domain of domains)
-        urlMatchRE = urlMatchRE + domain.replace(/\./g, "\\.") + "|";
-    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|(/|\\?).*)";
-    return urlMatchRE;
+function matchPatternToRegExpString(matchPattern) {
+    return parsedMatchPatternToRegExpString(parseMatchPattern(matchPattern));
 }
 
 /**
  * Combines an array of regular expression strings into one regular expression string, encapsulated as
  * a non-capturing group, where each input string is an alternative.
  * @param {string[]} regExpStrings - An array of regular expression strings.
+ * @private
  */
 function combineRegExpStrings(regExpStrings) {
-    if(regExpStrings.length === 1)
-        return "(?:" + regExpStrings[0] + ")";
-    return "(?:" + (regExpStrings.map((regExpString) => { return `(?:${regExpString})`; })).join("|") + ")";
+    return "(?:" + (regExpStrings.map((regExpString) => { return regExpStrings.length > 1 ? `(?:${regExpString})` : regExpString; })).join("|") + ")";
 }
 
 /**
@@ -261,6 +257,98 @@ export function matchPatternsToRegExp(matchPatterns) {
     // Set the entire regular expression to case insensitive, because JavaScript regular expressions
     // do not (currently) support partial case insensitivity
     return new RegExp(matchPatternsToRegExpString(matchPatterns), "i");
+}
+
+/**
+ * Generate a set of match patterns for a set of domains. The match patterns will use the special
+ * "*" wildcard scheme (matching "http", "https", "ws", and "wss") and the special "/*" wildcard
+ * path (matching any path).
+ * @param {string[]} domains - The set of domains to match against.
+ * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
+ * @returns {string[]} Match patterns for the domains in the set.
+ */
+export function domainsToMatchPatterns(domains, matchSubdomains = true) {
+    return domains.map(domain => { return `*://${matchSubdomains ? "*." : ""}${domain}/*` });
+}
+
+/**
+ * Generate a regular expression string for a set of domains. The regular expression is based on
+ * match patterns generated by `domainsToMatchPatterns` and has the same matching properties.
+ * @param {string[]} domains - The set of domains to match against.
+ * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
+ * @returns {string} A regular expression string for matching a URL against the set of domains.
+ */
+export function domainsToRegExpString(domains, matchSubdomains = true) {
+    return matchPatternsToRegExpString(domainsToMatchPatterns(domains, matchSubdomains));
+}
+
+/**
+ * Generate a RegExp object for matching a URL against a set of domains. The regular expression
+ * is based on match patterns generated by `domainsToMatchPatterns` and has the same matching
+ * properties.
+ * @param {string[]} domains - The set of domains to match against.
+ * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
+ * @returns {RegExp} A RegExp object for matching a URL against the set of domains.
+ */
+export function domainsToRegExp(domains, matchSubdomains = true) {
+    // Set the entire regular expression to case insensitive, because JavaScript regular expressions
+    // do not (currently) support partial case insensitivity
+    return new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
+}
+
+/**
+ * Normalize a URL string for subsequent comparison. Normalization includes the following steps:
+ *   * Parse the string as a `URL` object, which will (among other normalization) lowercase the
+ *     scheme and hostname.
+ *   * Remove the port number, if any. For example, https://www.mozilla.org:443/ becomes https://www.mozilla.org/.
+ *   * Remove query parameters, if any. For example, https://www.mozilla.org/?foo becomes https://www.mozilla.org/.
+ *   * Remove the fragment identifier, if any. For example, https://www.mozilla.org/#foo becomes https://www.mozilla.org/.
+ * @param {string} url - The URL string to normalize.
+ * @return {string} The normalized URL string.
+ * @throws {Throws an error if the URL string is not a valid, absolute URL.}
+ */
+export function normalizeUrl(url) {
+    const urlObj = new URL(url);
+    urlObj.port = "";
+    urlObj.search = "";
+    urlObj.hash = "";
+    return urlObj.href;
+}
+
+// TODO: remove the legacy createUrlRegexString function, which is superseded by
+// the domainsToRegExpString function and only used in LinkExposure
+/**
+ * Generate a regular expression string for matching a URL against a set of domains.
+ * Will match http and https protocols. Currently case sensitive.
+ * @param {string[]} domains - The set of domains to match against.
+ * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
+ * @returns {string} A regular expression string.
+ */
+export function createUrlRegexString(domains, matchSubdomains = true) {
+    let urlMatchRE = "^(?:https?)://" + (matchSubdomains ? "(?:[A-Za-z0-9\\-]+\\.)*" : "") + "(?:";
+    for (const domain of domains)
+        urlMatchRE = urlMatchRE + domain.replace(/\./g, "\\.") + "|";
+    urlMatchRE = urlMatchRE.substring(0, urlMatchRE.length - 1) + ")(?:$|(/|\\?).*)";
+    return urlMatchRE;
+}
+
+// TODO: remove the legacy createUrlMatchPatternArray function, which is superseded by
+// the domainsToMatchPatterns function and only used in EventHandling
+/**
+ * Generate an array of match patterns for matching a URL against a set of domains.
+ * Will match http and https protocols.
+ * @param {string[]} domains - The set of domains to match against.
+ * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
+ * @returns {string[]} An array of match patterns.
+ */
+export function createUrlMatchPatternArray(domains, matchSubdomains = true) {
+    const matchPatterns = [ ];
+    for (const domain of domains) {
+        //matchPatterns.push("*://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
+        matchPatterns.push("http://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
+        matchPatterns.push("https://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
+    }
+    return matchPatterns;
 }
 
 // TODO: remove the legacy UrlMatcher class, which is only used in the SocialMediaLinkSharing module
@@ -287,83 +375,4 @@ export class UrlMatcher {
     testUrl(url) {
         return this.regExp.test(url);
     }
-}
-
-/**
- * Generate a set of match patterns for a set of domains. The match patterns will use the special
- * "*" wildcard scheme (matching "http", "https", "ws", and "wss") and the special "/*" wildcard
- * path (matching any path).
- * @param {string[]} domains - The set of domains to match against.
- * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
- * @returns {string[]} Match patterns for the domains in the set.
- */
-export function domainsToMatchPatterns(domains, matchSubdomains = true) {
-    const matchPatterns = [ ];
-    for (const domain of domains)
-        matchPatterns.push(`*://${matchSubdomains ? "*." : ""}${domain}/*`);
-    return matchPatterns;
-}
-
-/**
- * Generate a regular expression string for a set of domains. The regular expression is based on
- * match patterns generated by `domainsToMatchPatterns` and has the same matching properties.
- * @param {string[]} domains - The set of domains to match against.
- * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
- * @returns {string} A regular expression string for matching a URL against the set of domains.
- */
-export function domainsToRegExpString(domains, matchSubdomains = true) {
-    const matchPatterns = domainsToMatchPatterns(domains, matchSubdomains);
-    return matchPatternsToRegExpString(matchPatterns);
-}
-
-/**
- * Generate a RegExp object for matching a URL against a set of domains. The regular expression
- * is based on match patterns generated by `domainsToMatchPatterns` and has the same matching
- * properties.
- * @param {string[]} domains - The set of domains to match against.
- * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
- * @returns {RegExp} A RegExp object for matching a URL against the set of domains.
- */
-export function domainsToRegExp(domains, matchSubdomains = true) {
-    // Set the entire regular expression to case insensitive, because JavaScript regular expressions
-    // do not (currently) support partial case insensitivity
-    return new RegExp(domainsToRegExpString(domains, matchSubdomains), "i");
-}
-
-// TODO: remove the legacy createUrlMatchPatternArray function, which is superseded by
-// the domainsToMatchPatterns function and only used in EventHandling
-/**
- * Generate an array of match patterns for matching a URL against a set of domains.
- * Will match http and https protocols.
- * @param {string[]} domains - The set of domains to match against.
- * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
- * @returns {string[]} An array of match patterns.
- */
-export function createUrlMatchPatternArray(domains, matchSubdomains = true) {
-    const matchPatterns = [ ];
-    for (const domain of domains) {
-        //matchPatterns.push("*://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
-        matchPatterns.push("http://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
-        matchPatterns.push("https://" + ( matchSubdomains ? "*." : "" ) + domain + "/*");
-    }
-    return matchPatterns;
-}
-
-/**
- * Normalize a URL string for subsequent comparison. Normalization includes the following steps:
- *   * Parse the string as a `URL` object, which will (among other normalization) lowercase the
- *     scheme and hostname.
- *   * Remove the port number, if any. For example, https://www.mozilla.org:443/ becomes https://www.mozilla.org/.
- *   * Remove query parameters, if any. For example, https://www.mozilla.org/?foo becomes https://www.mozilla.org/.
- *   * Remove the fragment identifier, if any. For example, https://www.mozilla.org/#foo becomes https://www.mozilla.org/.
- * @param {string} url - The URL string to normalize.
- * @return {string} The normalized URL string.
- * @throws {Throws an error if the URL string is not a valid, absolute URL.}
- */
-export function normalizeUrl(url) {
-    const urlObj = new URL(url);
-    urlObj.port = "";
-    urlObj.search = "";
-    urlObj.hash = "";
-    return urlObj.href;
 }
