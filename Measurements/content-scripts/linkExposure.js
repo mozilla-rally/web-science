@@ -82,8 +82,8 @@
      * @returns {string} If the `url` is relative, an absolute version of `url`. Otherwise just `url`.
      */
     function linkUrlToAbsoluteUrl(url) {
-        // Note that if the url is already absolute, the URL constructor will ignore the specified base domain
-        return (new URL(url, window.location.origin)).toString();
+        // Note that if the url is already absolute, the URL constructor will ignore the specified base URL
+        return (new URL(url, PageManager.url)).href;
     }
 
     /**
