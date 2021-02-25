@@ -7,6 +7,7 @@
  *   * Domains - a simple list of domain names, which are converted into match patterns.
  * 
  * The module supports two types of output for matching URLs:
+ *   * Match Pattern Sets (preferred) - optimized objects that compare a URL against the criteria.
  *   * Regular Expressions - `RegExp` objects that compare a URL against the criteria.
  *   * Regular Expression Strings - strings expressing regular expressions for comparing a URL against the criteria.
  *
@@ -101,7 +102,7 @@ function parseMatchPattern(matchPattern) {
     // Parse the scheme
     let index = matchPattern.indexOf(":");
     if(index <= 0)
-        throw new Error(`Invalid match pattern, missing colon: ${matchPattern}`);
+        throw new Error(`Invalid match pattern, missing : after scheme: ${matchPattern}`);
     const scheme = matchPattern.substr(0, index);
     if(!permittedMatchPatternSchemes.has(scheme))
         throw new Error(`Invalid match pattern, unsupported scheme: ${matchPattern}`);
@@ -146,6 +147,179 @@ function parseMatchPattern(matchPattern) {
     parsedMatchPattern.path = path;
 
     return parsedMatchPattern;
+}
+
+/**
+ * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
+ * a significant performance improvement in comparison to `RegExp`s, in some instances
+ * greater than 100x. A `MatchPatternSet` can also be exported to an object that uses only
+ * built-in types, so it can be persisted or passed to content scripts in extension storage.
+ * 
+ * There are several key optimizations in `MatchPatternSet`:
+ *   * URLs are parsed with the `URL` class, which has native implementation.
+ *   * Match patterns are indexed by hostname in a hash map. Lookups are much faster than
+ *     iteratively advancing and backtracking through a complex regular expression, which
+ *     is how domain matching currently occurs with the `Irregexp` regular expression
+ *     engine in Firefox and Chrome.
+ *   * Match patterns with identical scheme, subdomain matching, and host (i.e., that
+ *     differ only in path) are combined.
+ *   * The only remaining use of regular expressions is in path matching, where expressions
+ *     can be (relatively) uncomplicated.
+ * 
+ * Future performance improvements could include:
+ *   * Replacing the path matching implementation to eliminate regular expressions entirely.
+ *   * Replacing the match pattern index, such as by implementing a trie.
+ */
+export class MatchPatternSet {
+    /**
+     * Creates a match pattern set from an array of match patterns.
+     * @param {string[]} matchPatterns - The match patterns for the set.
+     */
+    constructor(matchPatterns) {
+        // Defining the special sets of `<all_url>` and wildcard schemes inside the class so
+        // keeping content scripts in sync with this implementation will be easier
+        this.allUrls = false;
+        this.allUrlsSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+        this.wildcardSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+        this.patternsByHost = { };
+        for(const matchPattern of matchPatterns) {
+            const parsedMatchPattern = parseMatchPattern(matchPattern);
+            if(parsedMatchPattern.allUrls)
+                this.allUrls = true;
+            else {
+                let hostPatterns = this.patternsByHost[parsedMatchPattern.host];
+                if(hostPatterns === undefined) {
+                    hostPatterns = [ ];
+                    this.patternsByHost[parsedMatchPattern.host] = hostPatterns;
+                }
+                let addedToHostPattern = false;
+                for(const hostPattern of hostPatterns) {
+                    if((hostPattern.scheme === parsedMatchPattern.scheme) && (hostPattern.matchSubdomains === parsedMatchPattern.matchSubdomains)) {
+                        addedToHostPattern = true;
+                        hostPattern.paths.push(parsedMatchPattern.path);
+                        break;
+                    }
+                }
+                if(!addedToHostPattern)
+                    hostPatterns.push({
+                        scheme: parsedMatchPattern.scheme,
+                        matchSubdomains: parsedMatchPattern.matchSubdomains,
+                        paths: [ parsedMatchPattern.path ]
+                    });
+            }
+        }
+
+        for(const host of Object.keys(this.patternsByHost)) {
+            const hostPatterns = this.patternsByHost[host];
+            for(const hostPattern of hostPatterns) {
+                let wildcardPath = false;
+                const pathRegExps = hostPattern.paths.map(path => {
+                    if(path === "/")
+                        return "/";
+                    else if(path === "/*") {
+                        wildcardPath = true;
+                        return "/.*";
+                    }
+                    else {
+                        // Including regular expression special character escaping in
+                        // the constructor so keeping content scripts in sync with this
+                        // implementation will be easier
+                        const escapedPathArray = [ ];
+                        for(const c of path) {
+                            if(c === "*")
+                                escapedPathArray.push(".*");
+                            else
+                                escapedPathArray.push(c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+                        }
+                        return escapedPathArray.join("");
+                    }
+                });
+                if(wildcardPath) {
+                    hostPattern.wildcardPath = true;
+                }
+                else {
+                    hostPattern.wildcardPath = false;
+                    hostPattern.pathRegExp = new RegExp("^(?:" + pathRegExps.join("|") + ")$");
+                }
+                delete hostPattern.paths;
+            }
+        }
+    }
+
+    /**
+     * Compares a URL string to the match patterns in the set.
+     * @param {string} url - The URL string to compare.
+     * @returns {boolean} Whether the URL string matches a pattern in the set.
+     */
+    matches(url) {
+        const parsedUrl = new URL(url);
+        // Remove the trailing : from the parsed protocol
+        const scheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1);
+        const host = parsedUrl.hostname;
+        const path = parsedUrl.pathname;
+
+        // Check the special `<all_urls>` match pattern
+        if(this.allUrls && this.allUrlsSchemeSet.has(scheme))
+            return true;
+
+        // Identify candidate match patterns
+        let candidatePatterns = [ ];
+        // Check each component suffix of the hostname for candidate match patterns
+        const hostComponents = parsedUrl.hostname.split(".");
+        let hostSuffix = "";
+        for(let i = hostComponents.length - 1; i >= 0; i--) {
+            hostSuffix = hostComponents[i] + (i < hostComponents.length - 1 ? "." : "") + hostSuffix;
+            const hostSuffixPatterns = this.patternsByHost[hostSuffix];
+            if(hostSuffixPatterns !== undefined)
+                candidatePatterns = candidatePatterns.concat(hostSuffixPatterns);
+        }
+
+        // Add match patterns with a wildcard host to the set of candidates
+        const hostWildcardPatterns = this.patternsByHost["*"];
+        if(hostWildcardPatterns !== undefined)
+        candidatePatterns = candidatePatterns.concat(hostWildcardPatterns);
+
+        // Check the scheme, then the host, then the path for a match
+        for(const candidatePattern of candidatePatterns) {
+            if((candidatePattern.scheme === scheme) ||
+               ((candidatePattern.scheme === "*") && this.wildcardSchemeSet.has(scheme))) {
+                   if(candidatePattern.matchSubdomains ||
+                      (candidatePattern.host === "*") ||
+                      (candidatePattern.host === host)) {
+                          if(candidatePattern.wildcardPath ||
+                             candidatePattern.pathRegExp.test(path))
+                             return true;
+                      }
+               }
+        }
+
+        return false;
+    }
+
+    /**
+     * Exports the internals of the match pattern set for purposes of saving to extension
+     * local storage.
+     * @returns {object} - An opaque object representing the match pattern set internals.
+     */
+    export() {
+        return {
+            allUrls: this.allUrls,
+            patternsByHost: this.patternsByHost
+        };
+    }
+
+    /**
+     * Imports the match pattern set from an opaque object previously generated by `export`.
+     * @param {exportedInternals} - The previously exported internals for the match pattern set.
+     * @example <caption>Example usage of import.</caption>
+     * // const matchPatternSet1 = new MatchPatternSet([ "*://example.com/*" ]);
+     * // const exportedInternals = matchPatternSet.export();
+     * // const matchPatternSet2 = (new MatchPatternSet([])).import(exportedInternals);
+     */
+    import(exportedInternals) {
+        this.allUrls = exportedInternals.allUrls;
+        this.patternsByHost = exportedInternals.patternsByHost;
+    }
 }
 
 /**
@@ -260,7 +434,7 @@ export function matchPatternsToRegExp(matchPatterns) {
 }
 
 /**
- * Generate a set of match patterns for a set of domains. The match patterns will use the special
+ * Generates a set of match patterns for a set of domains. The match patterns will use the special
  * "*" wildcard scheme (matching "http", "https", "ws", and "wss") and the special "/*" wildcard
  * path (matching any path).
  * @param {string[]} domains - The set of domains to match against.
@@ -272,7 +446,7 @@ export function domainsToMatchPatterns(domains, matchSubdomains = true) {
 }
 
 /**
- * Generate a regular expression string for a set of domains. The regular expression is based on
+ * Generates a regular expression string for a set of domains. The regular expression is based on
  * match patterns generated by `domainsToMatchPatterns` and has the same matching properties.
  * @param {string[]} domains - The set of domains to match against.
  * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
@@ -283,7 +457,7 @@ export function domainsToRegExpString(domains, matchSubdomains = true) {
 }
 
 /**
- * Generate a RegExp object for matching a URL against a set of domains. The regular expression
+ * Generates a RegExp object for matching a URL against a set of domains. The regular expression
  * is based on match patterns generated by `domainsToMatchPatterns` and has the same matching
  * properties.
  * @param {string[]} domains - The set of domains to match against.
@@ -297,7 +471,7 @@ export function domainsToRegExp(domains, matchSubdomains = true) {
 }
 
 /**
- * Normalize a URL string for subsequent comparison. Normalization includes the following steps:
+ * Normalizes a URL string for subsequent comparison. Normalization includes the following steps:
  *   * Parse the string as a `URL` object, which will (among other normalization) lowercase the
  *     scheme and hostname.
  *   * Remove the port number, if any. For example, https://www.mozilla.org:443/ becomes https://www.mozilla.org/.
