@@ -94,13 +94,11 @@ function responseHeaderListener(details) {
         // url against the one we requested. Check for a returned url that has
         // an s and matches against a non-https url we're looking for, and link
         // them if one exists.
-        // TODO you can't leave this variable name anne
-        const noFuckingS = details.url.replace("https", "http");
-        if (!trackedUrls.has(noFuckingS)) {
+        const httpVersion = details.url.replace("https", "http");
+        if (!trackedUrls.has(httpVersion)) {
             return;
         }
-        console.log("would you believe it had a FUCKING s", details);
-        urlByRedirectedUrl.set(details.url, noFuckingS);
+        urlByRedirectedUrl.set(details.url, httpVersion);
     }
 
   // The location field in response header indicates the redirected URL
