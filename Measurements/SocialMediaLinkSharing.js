@@ -7,7 +7,7 @@
 
 import * as Events from "../Utilities/Events.js"
 import * as Debugging from "../Utilities/Debugging.js"
-import * as Storage from "../Utilities/Storage.js"
+//import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as SocialMediaActivity from "../Utilities/SocialMediaActivity.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
@@ -24,7 +24,7 @@ const debugLog = Debugging.getDebuggingLog("SocialMediaLinkSharing");
  * @type {Object}
  * @private
  */
-let urlMatcher = null;
+let destinationMatcher = null;
 
 /**
  * A counter to give each record a unique ID
@@ -33,7 +33,7 @@ let urlMatcher = null;
  */
 //let shareIdCounter = null;
 
-const numUntrackedShares = {type: "numUntrackedShares", facebook: null, twitter: null, reddit: null};
+//const numUntrackedShares = {type: "numUntrackedShares", facebook: null, twitter: null, reddit: null};
 
 let twitterPrivacySetting = "unknown";
 
@@ -85,7 +85,7 @@ export const onShare = new Events.Event({
  * @param {boolean} [options.reddit=false] - Whether to track URL shares on Reddit.
  */
 async function startMeasurement({
-    domains = [],
+    destinationMatchPatterns = [],
     facebook = false,
     twitter = false,
     reddit = false
@@ -100,13 +100,15 @@ async function startMeasurement({
         SocialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet", "favorite"]);
     }
 
+    /*
     numUntrackedShares.facebook = await (new Storage.Counter(
         "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesFacebook")).initialize();
     numUntrackedShares.reddit = await (new Storage.Counter(
         "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesReddit")).initialize();
     numUntrackedShares.twitter = await (new Storage.Counter(
         "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesTwitter")).initialize();
-    urlMatcher = new Matching.UrlMatcher(domains);
+        */
+    destinationMatcher = new Matching.MatchPatternSet(destinationMatchPatterns);
 }
 
 function stopMeasurement() {
@@ -229,12 +231,8 @@ async function twitterLinks(details) {
         } catch {
             debugLog("failed finding retweeted tweet inside favorited tweet");
         }
-        //try {
-            await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/),
-                urlsToSave, urlsNotToSave);
-        //} /*catch {
-        //    debugLog("failed extracting relevant urls from favorited tweet");
-        //}*/
+        await extractRelevantUrlsFromTokens(favoritedTweet.full_text.split(/\s+/),
+            urlsToSave, urlsNotToSave);
         try {
             for (let url of favoritedTweet.entities.urls) {
                 url = parseTwitterUrlObject(url);
@@ -262,14 +260,21 @@ async function twitterLinks(details) {
         onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Twitter: " + JSON.stringify(shareRecord));
     }
+    let newUntracked = 0;
     for (const urlNotToSave of urlsNotToSave) {
         if (!(isTwitterLink(urlNotToSave))) {
-            await numUntrackedShares.twitter.increment();
+            newUntracked++;
+            //await numUntrackedShares.twitter.increment();
         }
     }
     onShare.notifyListeners([ {
         "type": "untrackedTwitter",
+        "value": newUntracked }]);
+    /*
+    onShare.notifyListeners([ {
+        "type": "untrackedTwitter",
         "value": await numUntrackedShares.twitter.get()} ]);
+        */
 }
 
 /**
@@ -319,10 +324,10 @@ async function facebookLinks(details) {
         onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Facebook: " + JSON.stringify(shareRecord));
     }
-    await numUntrackedShares.facebook.incrementBy(urlsNotToSave.size);
+    //await numUntrackedShares.facebook.incrementBy(urlsNotToSave.size);
     onShare.notifyListeners([ {
         "type": "untrackedFacebook",
-        "value": await numUntrackedShares.facebook.get()} ]);
+        "value": urlsNotToSave.size }]);//await numUntrackedShares.facebook.get()} ]);
 }
 
 
@@ -357,10 +362,10 @@ async function redditLinks(details) {
         onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Reddit: " + JSON.stringify(shareRecord));
     }
-    await numUntrackedShares.reddit.incrementBy(urlsNotToSave.size);
+    //await numUntrackedShares.reddit.incrementBy(urlsNotToSave.size);
     onShare.notifyListeners([ {
         "type": "untrackedReddit",
-        "value": await numUntrackedShares.reddit.get()} ]);
+        "value": urlsNotToSave.size }]);//await numUntrackedShares.reddit.get()} ]);
 }
 
 /* Utilities */
@@ -451,19 +456,20 @@ function deduplicateUrls(urls) {
 /**
  * Check whether a given token is a known short url, and resolve if so.
  * @param {string} url - a token that might be a short url
- * @return {Object} - {`result`: whether `url` was a resolveable short url, `resolvedUrl`: the full url, if available}
+ * @return {string} - the resolved short url, or the original token if it was not a short url
  */
-async function checkShortUrl(url) {
-    if (LinkResolution.urlShortenerRegExp.test(url)) {
-        const resolvedUrlObj = await LinkResolution.resolveUrl(url);
-        if (urlMatcher.testUrl(resolvedUrlObj.dest)) {
-            return {result: true, resolvedUrl: resolvedUrlObj.dest}
-        } else {
-            return {result: false, resolvedUrl: resolvedUrlObj.dest}
+async function expandShortUrl(token) {
+    try {
+        if (LinkResolution.urlShortenerRegExp.test(token)) {
+            const resolved = await LinkResolution.resolveUrl(token)
+            if (resolved && resolved.dest) return resolved.dest;
         }
+        return token;
+    } catch {
+        return token;
     }
-    return {result:false, resolvedUrl : null};
 }
+
 
 function isUrl(token) {
     let url;
@@ -478,21 +484,17 @@ function isUrl(token) {
  * @param {String[]} urlsToSave - an array to add the relevant urls to
  */
 async function extractRelevantUrlsFromTokens(unfilteredTokens, urlsToSave, urlsNotToSave) {
-    for (const unfilteredToken of unfilteredTokens) {
-        if (urlMatcher.testUrl(unfilteredToken)) {
-            urlsToSave.push(unfilteredToken);
-        } else {
-            const resolved = await checkShortUrl(unfilteredToken);
-            if (resolved.result) {
-                urlsToSave.push(resolved.resolvedUrl);
-            } else if (resolved.resolvedUrl) {
-                urlsNotToSave.push(resolved.resolvedUrl);
-            } else {
-                if (isUrl(unfilteredToken)) {
-                    urlsNotToSave.push(unfilteredToken);
-                }
-            }
+    for (let unfilteredToken of unfilteredTokens) {
+        unfilteredToken = stripToken(unfilteredToken);
+        if (!isUrl(unfilteredToken)) {
+            continue;
         }
+        unfilteredToken = await expandShortUrl(unfilteredToken);
+        if (destinationMatcher.matches(unfilteredToken)) {
+            urlsToSave.push(unfilteredToken);
+            continue;
+        }
+        urlsNotToSave.push(unfilteredToken);
     }
 }
 
@@ -508,6 +510,21 @@ function checkTwitterAccountStatus() {
             else if (isProtected.indexOf("false") > -1) twitterPrivacySetting = "public";
         });
     });
+}
+
+/**
+ * Remove leading and trailing punctuation from a potential url.
+ * Note: most punctuation is technically legal in urls. However, we parse potential
+ * URLs out of free-form text, where they are often followed by commas or periods,
+ * or enclosed in quotes or parantheses. Most URLs don't end in such punctuation,
+ * and we will fail to match these URLs without stripping the extraneous characters.
+ * @param {string} token - text to have punctuation stripped
+ * @return {string} - the token with leading and trailing punctuation stripped.
+ */
+function stripToken(token) {
+    token = token.replace(/[.,'")(]+$/, "");
+    token = token.replace(/^[.,'")(]+/, "");
+    return token;
 }
 
 /*

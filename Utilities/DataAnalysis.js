@@ -45,6 +45,8 @@ let studyDomains = null;
 
 let storageInstances = null;
 
+let callback = null;
+
 /**
  * The end of the time range that the last aggregation run considered.
  * @private
@@ -124,10 +126,12 @@ export async function triggerAnalysisScripts(startTime, endTime) {
     //await LinkExposure.storeAndResetUntrackedExposuresCount();
     //await PageNavigation.storeAndResetUntrackedVisitsCount();
     const storageObjs = await StorageManager.getEventsByRange(startTime, endTime, storageInstances);
+    const extraInfo = callback == null ? null : await callback();
     //const storageObjs = await StorageManager.getRecentSnapshot(1000*60, 60*24);
     const toSend = {
         studyDomains: studyDomains,
-        fromStorage: storageObjs
+        fromStorage: storageObjs,
+        extraInfo: extraInfo
     };
 
     for(const [scriptPath, listeners] of resultRouter) {

@@ -6,11 +6,11 @@
 const fbRegex = /(facebook.com\/pages\/[0-9|a-z|A-Z|-]*\/[0-9]*(\/|$))|(facebook\.com\/[0-9|a-z|A-Z|.]*(\/|$))/i;
 const ytRegex = /(youtube.com\/(user|channel)\/[0-9|a-z|A-Z|_|-]*(\/videos)?)(\/|$)|(youtube\.com\/[0-9|A-Z|a-z]*)(\/|$)|(youtube\.com\/profile\?user=[0-9|A-Z|a-z]*)(\/|$)/i;
 const twRegex = /(twitter\.com\/[0-9|a-z|A-Z|_]*(\/|$))/;
-let fbPages;
-let twPages;
-let ytPages;
-let referrerOnlyDomains;
-let destinationDomains;
+let referrerMatcher;
+let destinationMatcher;
+let fbMatcher;
+let twMatcher;
+let ytMatcher;
 
 /**
  * Event handler for messages from the main thread
@@ -23,12 +23,14 @@ let destinationDomains;
 onmessage = async event => {
     const data = event.data;
     const stats = {};
+    console.log(data);
     const studyDomains = data.studyDomains;
-    fbPages = new RegExp(studyDomains.fbPages, "i");
-    ytPages = new RegExp(studyDomains.ytPages, "i");
-    twPages = new RegExp(studyDomains.twPages, "i");
-    referrerOnlyDomains = new RegExp(studyDomains.referrerOnlyDomains, "i");
-    destinationDomains = new RegExp(studyDomains.destinationDomains, "i");
+    destinationMatcher = studyDomains.destinationMatcher;
+    referrerMatcher = studyDomains.referrerMatcher;
+    console.log(referrerMatcher);
+    fbMatcher = studyDomains.fbMatcher;
+    ytMatcher = studyDomains.ytMatcher;
+    twMatcher = studyDomains.twMatcher;
     Object.entries(data.fromStorage).forEach(entry => {
         const key = entry[0];
         const storageObj = entry[1];
@@ -167,9 +169,9 @@ function pageNavigationStats(pageNavigationStorage) {
                     specificObj.prevExposedCount = navObj.prevExposed ? 1 : 0;
                     domainObj.visitsByReferrer[index] = specificObj;
                 }
-            } else if (navObj.type == "untrackedVisitCount") {
+            } /*else if (navObj.type == "untrackedVisitCount") {
                 stats.numUntrackedVisits = navObj.numUntrackedVisits;
-            }
+            }*/
         },
         (r) => {
             for (const domain in r.trackedVisitsByDomain) {
@@ -207,7 +209,7 @@ function linkExposureStats(linkExposureStorage) {
     const statsObj = new StorageStatistics(
         () => {
             const stats = {};
-            stats.untrackedLinkExposures = {};
+            //stats.untrackedLinkExposures = {};
             stats.linkExposures = {};
 
             return stats;
@@ -239,13 +241,13 @@ function linkExposureStats(linkExposureStorage) {
                         laterSharedCount: current.laterSharedCount + exposureObj.laterShared ? 1 : 0
                     }
                 }
-            } else if (exposureObj.type == "numUntrackedUrls") {
+            } /*else if (exposureObj.type == "numUntrackedUrls") {
                 for (const threshold in exposureObj.untrackedCounts) {
                     const thresholdObj = exposureObj.untrackedCounts[threshold];
                     stats.untrackedLinkExposures[thresholdObj.threshold] =
                         thresholdObj.numUntracked;
                 }
-            }
+            }*/
         },
         (r) => {
             const exposuresArray = Object.entries(r.linkExposures).map((pair) => {
@@ -280,13 +282,14 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
         },
         (entry, stats) => {
             const val = entry[1];
+            /*
             if (val.type == "numUntrackedSharesTwitter") {
                 stats.linkSharesByPlatform[twIndex].numUntrackedShares += val.twitter;
             } else if (val.type == "numUntrackedSharesFacebook") {
                 stats.linkSharesByPlatform[fbIndex].numUntrackedShares += val.facebook;
             } else if (val.type == "numUntrackedSharesReddit") {
                 stats.linkSharesByPlatform[rdIndex].numUntrackedShares += val.reddit;
-            } else if (val.type == "linkShare") {
+            } else */if (val.type == "linkShare") {
                 let platformIndex = "";
                 if (val.platform == "facebook") platformIndex = fbIndex;
                 if (val.platform == "twitter") platformIndex = twIndex;
@@ -383,24 +386,24 @@ function getDomain(url) {
 function getTrackedPathDest(url) {
     // if this is a dest, it must have passed a destination check already
     const fbResult = fbRegex.exec(url);
-    if (fbResult && fbPages.test(url)) { return fbResult[0]; }
+    if (fbResult && fbMatcher.test(url)) { return fbResult[0]; }
     /*
     let twResult = twRegex.exec(url);
     if (twResult && twPages.test(url)) { return twResult[0]; }
     */
     const ytResult = ytRegex.exec(url);
-    if (ytResult && ytPages.test(url)) { return ytResult[0]; }
+    if (ytResult && ytMatcher.test(url)) { return ytResult[0]; }
     return getDomain(url);
 }
 
 function getTrackedPathSource(url) {
     const fbResult = fbRegex.exec(url);
-    if (fbResult && fbPages.test(url)) { return fbResult[0]; }
+    if (fbResult && fbMatcher.test(url)) { return fbResult[0]; }
     const twResult = twRegex.exec(url);
-    if (twResult && twPages(url)) { return twResult[0]; }
-    const ytResult = ytRegex.test(url);
-    if (ytResult && ytPages(url)) { return ytResult[0]; }
-    if (referrerOnlyDomains.test(url)) { return getDomain(url); }
-    if (destinationDomains.test(url)) { return getDomain(url); }
+    if (twResult && twMatcher.test(url)) { return twResult[0]; }
+    const ytResult = ytRegex.exec(url);
+    if (ytResult && ytMatcher.test(url)) { return ytResult[0]; }
+    if (referrerMatcher.test(url)) { return getDomain(url); }
+    if (destinationMatcher.test(url)) { return getDomain(url); }
     return "other";
 }

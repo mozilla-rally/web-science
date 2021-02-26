@@ -88,9 +88,20 @@ export function resolveUrl(url) {
  */
 function responseHeaderListener(details) {
   // Continue only if this url is relevant for link resolution
-  if (!trackedUrls.has(details.url)) {
-    return;
-  }
+    if (!trackedUrls.has(details.url)) {
+        // When a site has HSTS enabled, the browser silently upgrades
+        // http requests to https, which means we won't match the returned
+        // url against the one we requested. Check for a returned url that has
+        // an s and matches against a non-https url we're looking for, and link
+        // them if one exists.
+        // TODO you can't leave this variable name anne
+        const noFuckingS = details.url.replace("https", "http");
+        if (!trackedUrls.has(noFuckingS)) {
+            return;
+        }
+        console.log("would you believe it had a FUCKING s", details);
+        urlByRedirectedUrl.set(details.url, noFuckingS);
+    }
 
   // The location field in response header indicates the redirected URL
   // The response header from onHeadersReceived is an array of objects, one of which possibly
@@ -195,5 +206,7 @@ function fetchWithTimeout(url, init, timeout) {
   const controller = new AbortController();
   init.signal = controller.signal;
   fetch(url, init);
-  setTimeout(() => controller.abort(), timeout);
+  setTimeout(() => {
+      controller.abort()
+  }, timeout);
 }

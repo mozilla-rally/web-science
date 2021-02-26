@@ -5,7 +5,6 @@
  */
 
 import * as Events from "../Utilities/Events.js"
-//import * as Matching from "../Utilities/Matching.js"
 import * as Messaging from "../Utilities/Messaging.js"
 import * as PageManager from "../Utilities/PageManager.js"
 
@@ -65,12 +64,6 @@ export const onPageData = new Events.Event({
     removeListenerCallback: removeListener});
 
 /**
- * A RegExp for the page match patterns.
- * @type {RegExp|null}
- */
-//let matchPatternsRegExp = null;
-
-/**
  * The registered page navigation content script.
  * @type {RegisteredContentScript|null}
  */
@@ -97,6 +90,7 @@ function pageDataListener(pageData) {
     delete pageData.type;
 
     onPageData.notifyListeners([ pageData ]);
+    console.log("notifying about page visit", pageData);
 }
 
 /**
@@ -108,8 +102,6 @@ export async function startMeasurement({
     privateWindows = false
 }) {
     await PageManager.initialize();
-
-    //matchPatternsRegExp = Matching.matchPatternsToRegExp(matchPatterns);
 
     notifyAboutPrivateWindows = privateWindows;
 
@@ -144,6 +136,5 @@ function stopMeasurement() {
     registeredContentScript.unregister();
     registeredContentScript = null;
     notifyAboutPrivateWindows = false;
-    //matchPatternsRegExp = null;
 }
 

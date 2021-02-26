@@ -92,7 +92,6 @@ let registeredCS = null;
 async function startMeasurement({
     linkMatchPatterns = [],
     pageMatchPatterns = [],
-    domains = [],
     privateWindows = false
 }) {
     if(initialized)
@@ -111,14 +110,13 @@ async function startMeasurement({
     // Generate RegExps for matching links, link shortener URLs, and AMP cache URLs
     // Store the RegExps in browser.storage.local so the content script can retrieve them
     // without recompilation
-    const linkRegExp = Matching.matchPatternsToRegExp(linkMatchPatterns);
-    const domainRegExpSimple = new RegExp(Matching.createUrlRegexString(domains));
+    const linkMatcher = new Matching.MatchPatternSet(linkMatchPatterns);
     const urlShortenerRegExp = LinkResolution.urlShortenerRegExp;
+    const ampRegExp = LinkResolution.ampRegExp;
     await browser.storage.local.set({
-        "WebScience.Measurements.LinkExposure.linkRegExp": linkRegExp,
-        "WebScience.Measurements.LinkExposure.domainRegExpSimple": domainRegExpSimple,
+        "WebScience.Measurements.LinkExposure.linkMatcher": linkMatcher,
         "WebScience.Measurements.LinkExposure.urlShortenerRegExp": urlShortenerRegExp,
-        "WebScience.Measurements.LinkExposure.ampRegExp": LinkResolution.ampRegExp
+        "WebScience.Measurements.LinkExposure.ampRegExp": ampRegExp
     });
 
     // Add the content script for checking links on pages
@@ -152,7 +150,7 @@ async function startMeasurement({
             if (linkExposure.isShortenedUrl) {
                 const promise = LinkResolution.resolveUrl(linkExposure.originalUrl);
                 promise.then(async function (result) {
-                    if (linkRegExp.test(result.dest)) {
+                    if (linkMatcher.matches(result.dest)) {
                         linkExposure.resolvedUrl = result.dest;
                     }
                 }, function (error) {
@@ -220,6 +218,7 @@ async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter
                          Matching.normalizeUrl(exposureEvent.resolvedUrl) :
                          Matching.normalizeUrl(exposureEvent.originalUrl));
     onLinkExposure.notifyListeners([ exposureEvent ]);
+    console.log("notifying about exposure", exposureEvent);
 }
 
 /*

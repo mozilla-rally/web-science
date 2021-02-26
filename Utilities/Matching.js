@@ -1,11 +1,11 @@
 /**
  * This module provides utilities for matching URLs against criteria.
- * 
+ *
  * The module supports two types of criteria:
  *   * Match Patterns (preferred) - a syntax used in the WebExtensions API for expressing possible URL matches.
  *     See: {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns}.
  *   * Domains - a simple list of domain names, which are converted into match patterns.
- * 
+ *
  * The module supports two types of output for matching URLs:
  *   * Match Pattern Sets (preferred) - optimized objects that compare a URL against the criteria.
  *   * Regular Expressions - `RegExp` objects that compare a URL against the criteria.
@@ -57,9 +57,9 @@ const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\
  * An internal object that represents a parsed match pattern.
  * @typedef {Object} ParsedMatchPattern
  * @property {boolean} allUrls - Whether the match pattern is the special all URLs match pattern.
- * @property {string} scheme - The scheme for the match pattern. Must be one of: "http", "https", "ws", 
+ * @property {string} scheme - The scheme for the match pattern. Must be one of: "http", "https", "ws",
  * wss", "file", "ftp", "data", "file", or "*". The special wildcard value "*" matches "http", "https",
- * "ws", or "wss".                            
+ * "ws", or "wss".
  * @property {boolean} matchSubdomains - If this scheme involves a hostname, and the hostname is not the
  * special wildcard value, whether to match any subdomains of the domain.
  * @property {boolean} host - If this scheme involves a hostname, either the hostname for the match pattern
@@ -91,7 +91,7 @@ function parseMatchPattern(matchPattern) {
         host: "",
         path: ""
     };
-    
+
     let tail = matchPattern.repeat(1);
 
     if(matchPattern === "<all_urls>") {
@@ -154,7 +154,7 @@ function parseMatchPattern(matchPattern) {
  * a significant performance improvement in comparison to `RegExp`s, in some instances
  * greater than 100x. A `MatchPatternSet` can also be exported to an object that uses only
  * built-in types, so it can be persisted or passed to content scripts in extension storage.
- * 
+ *
  * There are several key optimizations in `MatchPatternSet`:
  *   * URLs are parsed with the `URL` class, which has native implementation.
  *   * Match patterns are indexed by hostname in a hash map. Lookups are much faster than
@@ -165,7 +165,7 @@ function parseMatchPattern(matchPattern) {
  *     differ only in path) are combined.
  *   * The only remaining use of regular expressions is in path matching, where expressions
  *     can be (relatively) uncomplicated.
- * 
+ *
  * Future performance improvements could include:
  *   * Replacing the path matching implementation to eliminate regular expressions entirely.
  *   * Replacing the match pattern index, such as by implementing a trie.
@@ -252,7 +252,13 @@ export class MatchPatternSet {
      * @returns {boolean} Whether the URL string matches a pattern in the set.
      */
     matches(url) {
-        const parsedUrl = new URL(url);
+        let parsedUrl; 
+        try {
+            parsedUrl = new URL(url);
+        } catch {
+            // If the target isn't a true URL, it certainly doesn't match
+            return false;
+        }
         // Remove the trailing : from the parsed protocol
         const scheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1);
         const host = parsedUrl.hostname;
@@ -341,14 +347,14 @@ export function escapeRegExpString(string) {
 function parsedMatchPatternToRegExpString(parsedMatchPattern) {
     if(parsedMatchPattern.allUrls)
         return allUrlsRegExpString.repeat(1);
-    
+
     // Scheme
     const hostLocatorScheme = hostLocatorMatchPatternSchemes.has(parsedMatchPattern.scheme);
     let schemeRegExpString = parsedMatchPattern.scheme;
     // The special "*" wildcard scheme should match the "http", "https", "ws", and "wss" schemes
     if(parsedMatchPattern.scheme === "*")
         schemeRegExpString = "(?:https?|wss?)";
-    
+
     // Host
     let hostRegExpString = "";
     if(hostLocatorScheme) {
