@@ -225,6 +225,7 @@
                 const elementRect = anchorElement.getBoundingClientRect();
                 exposureEvents.push({
                     originalUrl: linkInfo.url,
+                    firstSeen: linkInfo.firstSeen,
                     width: elementRect.width,
                     height: elementRect.height,
                     isShortenedUrl: linkInfo.isShortenedUrl
@@ -288,8 +289,7 @@
                     isMatched,
                     isShortenedUrl,
                     totalTimeSeen: 0,
-                    firstSeen: -1,
-                    lastSeenStart: -1,
+                    firstSeen: timeStamp,
                     lastEnteredViewport: -1,
                     inViewport: false,
                     lastEnteredViewportAndPageHadAttention: -1

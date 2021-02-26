@@ -219,8 +219,6 @@ async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter
     exposureEvent.url = (exposureEvent.isShortenedUrl && exposureEvent.resolutionSucceded ?
                          Matching.normalizeUrl(exposureEvent.resolvedUrl) :
                          Matching.normalizeUrl(exposureEvent.originalUrl));
-    exposureEvent.laterVisited = false;
-    exposureEvent.laterShared = false;
     onLinkExposure.notifyListeners([ exposureEvent ]);
 }
 
