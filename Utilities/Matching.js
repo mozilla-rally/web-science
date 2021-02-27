@@ -22,7 +22,7 @@
  * @type {RegExp}
  * @private
  */
-const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|file|ftp|\\*)://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$)|(^file:///.*$)|(^resource://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$|^about:)", "i");
+const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|file|ftp|\\*)://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$)|(^file:///.*$)|(^resource://(\\*|\\*\\.[^*/]+|[^*/]+)/.*$|^about:|^data:)", "i");
 
 /**
  * A Set of URL schemes permitted in WebExtensions match patterns.
@@ -51,7 +51,7 @@ const hostLocatorMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss
  * @type {string}
  * @private
  */
-const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\\-\\.]+\\]?(?::[0-9]+)?(?:(?:)|(?:/.*))|(?:file:///.*)|(?:data:.*)$";
+const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\\-\\.]+\\]?(?::[0-9]+)?(?:(?:)|(?:/.*)))|(?:file://[?[a-zA-Z0-9\\-\\.]*\\]?/.*)|(?:data:.*)$";
 
 /**
  * An internal object that represents a parsed match pattern.
@@ -180,7 +180,7 @@ export class MatchPatternSet {
         // keeping content scripts in sync with this implementation will be easier
         this.allUrls = false;
         this.allUrlsSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
-        this.wildcardSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+        this.wildcardSchemeSet = new Set(["http", "https", "ws", "wss"]);
         this.patternsByHost = { };
         for(const matchPattern of matchPatterns) {
             const parsedMatchPattern = parseMatchPattern(matchPattern);
@@ -204,6 +204,7 @@ export class MatchPatternSet {
                     hostPatterns.push({
                         scheme: parsedMatchPattern.scheme,
                         matchSubdomains: parsedMatchPattern.matchSubdomains,
+                        host: parsedMatchPattern.host,
                         paths: [ parsedMatchPattern.path ]
                     });
             }
@@ -283,7 +284,7 @@ export class MatchPatternSet {
         // Add match patterns with a wildcard host to the set of candidates
         const hostWildcardPatterns = this.patternsByHost["*"];
         if(hostWildcardPatterns !== undefined)
-        candidatePatterns = candidatePatterns.concat(hostWildcardPatterns);
+            candidatePatterns = candidatePatterns.concat(hostWildcardPatterns);
 
         // Check the scheme, then the host, then the path for a match
         for(const candidatePattern of candidatePatterns) {
