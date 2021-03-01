@@ -351,8 +351,7 @@ async function redditLinks(details) {
  * @param {string} url - The URL that the user shared.
  * @param {string} event - The type of sharing event.
  * @returns {Object} - An object containing the `shareTime`, `platform`,
- * `url`, and `event` as properties, as well as the Navigation and browser
- * history data for the given url.
+ * `url`, `audience`, `source`, and `event` as properties.
  */
 async function createShareRecord({shareTime = "",
                                   platform = "",
@@ -360,13 +359,16 @@ async function createShareRecord({shareTime = "",
                                   eventType = "",
                                   audience = "",
                                   source = ""}) {
+    // Not currently reported in pings
+    /*
     const historyVisits = await browser.history.search({
         text: url,
         startTime: 0
     });
+    */
     const type = "linkShare";
     return { type, shareTime, platform, url, eventType,/* classifierResults,*/
-             audience, source, historyVisits };
+             audience, source};
 }
 
 /**

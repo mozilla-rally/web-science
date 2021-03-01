@@ -101,19 +101,6 @@ function cancelSurveyRequest() {
     storage.set("noRequestSurvey", true);
 }
 
-function checkHistory(url) {
-    return browser.history.search({
-        text: url,
-        startTime: 0
-    }).then((results) => {
-        return results.length > 0;
-    });
-}
-
-async function checkSurveyCompletionInHistory() {
-    return checkHistory(surveyCompletionUrl);
-}
-
 /**
  * Run a survey at scheduled survey time if it exists otherwise
  * current time + delta
@@ -133,9 +120,8 @@ export async function runStudy({
      * request for participation.
      */
     let lastSurveyRequest = await storage.get("lastSurveyRequest");
-    let surveyCompleted = await storage.get("surveyCompleted");
+    const surveyCompleted = await storage.get("surveyCompleted");
     const noRequestSurvey = await storage.get("noRequestSurvey");
-    if (!surveyCompleted) { surveyCompleted = await checkSurveyCompletionInHistory(); }
     if (surveyCompleted || noRequestSurvey) {
         setPopupSurveyCompleted();
         await storage.set("surveyCompleted", surveyCompleted);
