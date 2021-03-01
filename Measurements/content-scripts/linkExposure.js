@@ -5,10 +5,113 @@
 // Tell eslint that PageManager isn't actually undefined
 /* global PageManager */
 
-
 // Outer function encapsulation to maintain unique variable scope for each content script
 (async function () {
 
+    /**
+     * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
+     * a significant performance improvement in comparison to `RegExp`s, in some instances
+     * greater than 100x. A `MatchPatternSet` can also be exported to an object that uses only
+     * built-in types, so it can be persisted or passed to content scripts in extension storage.
+     *
+     * There are several key optimizations in `MatchPatternSet`:
+     *   * URLs are parsed with the `URL` class, which has native implementation.
+     *   * Match patterns are indexed by hostname in a hash map. Lookups are much faster than
+     *     iteratively advancing and backtracking through a complex regular expression, which
+     *     is how domain matching currently occurs with the `Irregexp` regular expression
+     *     engine in Firefox and Chrome.
+     *   * Match patterns with identical scheme, subdomain matching, and host (i.e., that
+     *     differ only in path) are combined.
+     *   * The only remaining use of regular expressions is in path matching, where expressions
+     *     can be (relatively) uncomplicated.
+     *
+     * Future performance improvements could include:
+     *   * Replacing the path matching implementation to eliminate regular expressions entirely.
+     *   * Replacing the match pattern index, such as by implementing a trie.
+     */
+    class MatchPatternSet {
+        /**
+         * Creates a match pattern set from an array of match patterns.
+         * @param {string[]} matchPatterns - The match patterns for the set.
+         */
+        constructor(matchPatterns) {
+            // Defining the special sets of `<all_url>` and wildcard schemes inside the class so
+            // keeping content scripts in sync with this implementation will be easier
+            this.allUrls = false;
+            this.allUrlsSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+            this.wildcardSchemeSet = new Set(["http", "https", "ws", "wss"]);
+            this.patternsByHost = { };
+        }
+
+        /**
+         * Compares a URL string to the match patterns in the set.
+         * @param {string} url - The URL string to compare.
+         * @returns {boolean} Whether the URL string matches a pattern in the set.
+         */
+        matches(url) {
+            let parsedUrl;
+            try {
+                parsedUrl = new URL(url);
+            } catch {
+                // If the target isn't a true URL, it certainly doesn't match
+                return false;
+            }
+            // Remove the trailing : from the parsed protocol
+            const scheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1);
+            const host = parsedUrl.hostname;
+            const path = parsedUrl.pathname;
+
+            // Check the special `<all_urls>` match pattern
+            if(this.allUrls && this.allUrlsSchemeSet.has(scheme))
+                return true;
+
+            // Identify candidate match patterns
+            let candidatePatterns = [ ];
+            // Check each component suffix of the hostname for candidate match patterns
+            const hostComponents = parsedUrl.hostname.split(".");
+            let hostSuffix = "";
+            for(let i = hostComponents.length - 1; i >= 0; i--) {
+                hostSuffix = hostComponents[i] + (i < hostComponents.length - 1 ? "." : "") + hostSuffix;
+                const hostSuffixPatterns = this.patternsByHost[hostSuffix];
+                if(hostSuffixPatterns !== undefined)
+                    candidatePatterns = candidatePatterns.concat(hostSuffixPatterns);
+            }
+
+            // Add match patterns with a wildcard host to the set of candidates
+            const hostWildcardPatterns = this.patternsByHost["*"];
+            if(hostWildcardPatterns !== undefined)
+                candidatePatterns = candidatePatterns.concat(hostWildcardPatterns);
+
+            // Check the scheme, then the host, then the path for a match
+            for(const candidatePattern of candidatePatterns) {
+                if((candidatePattern.scheme === scheme) ||
+                    ((candidatePattern.scheme === "*") && this.wildcardSchemeSet.has(scheme))) {
+                    if(candidatePattern.matchSubdomains ||
+                        (candidatePattern.host === "*") ||
+                        (candidatePattern.host === host)) {
+                        if(candidatePattern.wildcardPath ||
+                            candidatePattern.pathRegExp.test(path))
+                            return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /**
+         * Imports the match pattern set from an opaque object previously generated by `export`.
+         * @param {exportedInternals} - The previously exported internals for the match pattern set.
+         * @example <caption>Example usage of import.</caption>
+         * // const matchPatternSet1 = new MatchPatternSet([ "*://example.com/*" ]);
+         * // const exportedInternals = matchPatternSet.export();
+         * // const matchPatternSet2 = (new MatchPatternSet([])).import(exportedInternals);
+         */
+        import(exportedInternals) {
+            this.allUrls = exportedInternals.allUrls;
+            this.patternsByHost = exportedInternals.patternsByHost;
+        }
+    }
     /**
      * How often (in milliseconds) to check the page for new links.
      * @constant
@@ -95,11 +198,8 @@
     // Complete loading RegExps from storage before setting up event handlers
     // to avoid possible race conditions
     // Haunted. Don't combine into one call.
-    const storedLinkRegExp = await browser.storage.local.get([
-        "WebScience.Measurements.LinkExposure.linkRegExp",
-    ]);
-    const storedDomainRegExpSimple = await browser.storage.local.get([
-        "WebScience.Measurements.LinkExposure.domainRegExpSimple",
+    const storedLinkMatcher = await browser.storage.local.get([
+        "WebScience.Measurements.LinkExposure.linkMatcher",
     ]);
     const storedUrlShortenerRegExp = await browser.storage.local.get([
         "WebScience.Measurements.LinkExposure.urlShortenerRegExp",
@@ -107,15 +207,17 @@
     const storedAmpRegExp = await browser.storage.local.get([
         "WebScience.Measurements.LinkExposure.ampRegExp"
     ]);
-    if(!("WebScience.Measurements.LinkExposure.linkRegExp" in storedLinkRegExp) || 
-       !("WebScience.Measurements.LinkExposure.urlShortenerRegExp" in storedUrlShortenerRegExp) || 
-       !("WebScience.Measurements.LinkExposure.domainRegExpSimple" in storedDomainRegExpSimple) ||
-       !("WebScience.Measurements.LinkExposure.ampRegExp" in storedAmpRegExp)) {
+    if(!("WebScience.Measurements.LinkExposure.linkMatcher" in storedLinkMatcher) ||
+        !("WebScience.Measurements.LinkExposure.urlShortenerRegExp" in storedUrlShortenerRegExp) ||
+        !("WebScience.Measurements.LinkExposure.ampRegExp" in storedAmpRegExp)) {
         console.debug("Error: LinkExposure content script cannot load RegExps from browser.storage.local.");
         return;
     }
-    const linkRegExp = storedDomainRegExpSimple["WebScience.Measurements.LinkExposure.domainRegExpSimple"];
-    //const linkRegExp = storedLinkRegExp["WebScience.Measurements.LinkExposure.linkRegExp"];
+    const linkMatcher = new MatchPatternSet([]);
+    linkMatcher.import(storedLinkMatcher["WebScience.Measurements.LinkExposure.linkMatcher"]);
+    console.log(linkMatcher);
+    console.log(linkMatcher.matches);
+    console.log(linkMatcher.matches("https://nytimes.com/"));
     const urlShortenerRegExp = storedUrlShortenerRegExp["WebScience.Measurements.LinkExposure.urlShortenerRegExp"];
     const ampRegExp = storedAmpRegExp["WebScience.Measurements.LinkExposure.ampRegExp"];
 
@@ -155,9 +257,9 @@
         // Reconstruct AMP cache URLs
         if(parsedAmpUrl.groups.ampCacheUrl !== undefined)
             return "http" +
-               ((parsedAmpUrl.groups.ampCacheIsSecure === "s") ? "s" : "") +
-               "://" +
-               parsedAmpUrl.groups.ampCacheUrl;
+                ((parsedAmpUrl.groups.ampCacheIsSecure === "s") ? "s" : "") +
+                "://" +
+                parsedAmpUrl.groups.ampCacheUrl;
         // Reconstruct AMP viewer URLs, assuming the protocol is HTTPS
         return "https://" + parsedAmpUrl.groups.ampViewerUrl;
     }
@@ -203,7 +305,7 @@
      * the page has attention and the link is in the viewport. If the link has
      * been viewed for longer than the threshold, queue it for reporting to the
      * background script and stop observing it.
-     * 
+     *
      * @param {number} timeStamp - The time when the underlying event fired.
      * @param {HTMLAnchorElement} anchorElement - The anchor element.
      * @param {LinkInfo} linkInfo - Information about the link.
@@ -244,7 +346,7 @@
      */
     function checkLinksInDom() {
         const timeStamp = Date.now();
-        
+
         // If the page does not have attention and we're confident that the page did not recently have attention, ignore this timer tick
         if (!PageManager.pageHasAttention && ((lastLostAttention < 0) || (lastLostAttention + attentionIdlePeriod < timeStamp)))
             return;
@@ -270,7 +372,7 @@
 
                 // Check if the link is too small, ignore it if it is
                 const elementRect = element.getBoundingClientRect();
-                if ((elementRect.width < linkMinimumWidth) || 
+                if ((elementRect.width < linkMinimumWidth) ||
                     (elementRect.height < linkMinimumHeight)) {
                     anchorElements.set(element, {observing: false});
                     return;
@@ -278,7 +380,7 @@
 
                 // Flag a link as matched if either it matches the link match patterns or it is a shortened URL
                 // Start observing the link with the IntersectionObserver
-                let isMatched = linkRegExp.test(url);
+                let isMatched = linkMatcher.matches(url);
 
                 const isShortenedUrl = urlShortenerRegExp.test(url);
                 isMatched = isMatched || isShortenedUrl;
@@ -309,7 +411,7 @@
             // If the link is not in the browserviewport, move to the next link
             if(!linkInfo.inViewport)
                 return;
-            
+
             updateLinkTimeSeen(timeStamp, element, linkInfo);
         });
         if ((exposureEvents.length > 0) || (numUntrackedUrls > 0)) {
@@ -411,4 +513,5 @@
             window.pageManagerHasLoaded = [];
         window.pageManagerHasLoaded.push(pageManagerLoaded);
     }
+
 })();

@@ -54,12 +54,18 @@ function addListener(listener, options) {
     startMeasurement(options);
 }
 
+function addListenerUntracked(listener, options) {
+    if (!onLinkExposure.hasAnyListeners()) {
+        throw new Error("Cannot register listener for untracked links without listener for tracked");
+    }
+}
+
 /**
  * Function to end measurement when the last listener is removed
  * @param {EventCallbackFunction} listener - listener that was just removed
  */
 function removeListener(listener) {
-    if (!this.hasAnyListeners()) {
+    if (!onLinkExposure.hasAnyListeners() && !onUntracked.hasAnyListeners()) {
         stopMeasurement();
     }
 }
@@ -71,7 +77,9 @@ export const onLinkExposure = new Events.Event({
     addListenerCallback: addListener,
     removeListenerCallback: removeListener});
 
-let numUntrackedUrls = null;
+export const onUntracked = new Events.Event({
+    addListenerCallback: addListenerUntracked,
+    removeListenerCallback: removeListener});
 
 let initialized = false;
 
@@ -105,8 +113,6 @@ async function startMeasurement({
     // Use a unique identifier for each webpage the user visits that has a matching domain
     const nextLinkExposureIdCounter = await (new Storage.Counter("WebScience.Measurements.LinkExposure.nextLinkExposureId")).initialize();
 
-    numUntrackedUrls = await (new Storage.Counter("WebScience.Measurements.LinkExposure.numUntrackedUrls")).initialize();
-
     // Generate RegExps for matching links, link shortener URLs, and AMP cache URLs
     // Store the RegExps in browser.storage.local so the content script can retrieve them
     // without recompilation
@@ -114,7 +120,7 @@ async function startMeasurement({
     const urlShortenerRegExp = LinkResolution.urlShortenerRegExp;
     const ampRegExp = LinkResolution.ampRegExp;
     await browser.storage.local.set({
-        "WebScience.Measurements.LinkExposure.linkMatcher": linkMatcher,
+        "WebScience.Measurements.LinkExposure.linkMatcher": linkMatcher.export(),
         "WebScience.Measurements.LinkExposure.urlShortenerRegExp": urlShortenerRegExp,
         "WebScience.Measurements.LinkExposure.ampRegExp": ampRegExp
     });
@@ -136,7 +142,10 @@ async function startMeasurement({
             return;
 
         if(exposureData.nonmatchingLinkExposures > 0)
-            numUntrackedUrls.incrementBy(exposureData.nonmatchingLinkExposures);
+            onUntracked.notifyListeners([ {
+                count: exposureData.nonmatchingLinkExposures,
+                timeStamp: exposureData.pageVisitStartTime
+            } ]);
 
         exposureData.linkExposures.forEach(async (linkExposure) => {
             linkExposure.pageId = exposureData.pageId;
@@ -187,20 +196,6 @@ function stopMeasurement() {
 /* Utilities */
 
 /**
- * Retrieve the study data as an object. Note that this could be very
- * slow if there is a large volume of study data.
- * @returns {(Object|null)} - The study data, or `null` if no data
- * could be retrieved.
- */
-/*
-export async function getStudyDataAsObject() {
-    if(storage != null)
-        return await storage.getContentsAsObject();
-    return null;
-}
-*/
-
-/**
  *
  * @param {Object} exposureEvent link exposure event to store
  * @param {string} exposureEvent.originalUrl - link exposed to
@@ -218,44 +213,5 @@ async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter
                          Matching.normalizeUrl(exposureEvent.resolvedUrl) :
                          Matching.normalizeUrl(exposureEvent.originalUrl));
     onLinkExposure.notifyListeners([ exposureEvent ]);
-    console.log("notifying about exposure", exposureEvent);
 }
 
-/*
-export async function storeAndResetUntrackedExposuresCount() {
-    if (initialized) {
-        var untrackedObj = { type: "numUntrackedUrls", untrackedCounts: {}};
-        for (var visThreshold of visibilityThresholds) {
-            untrackedObj.untrackedCounts[visThreshold] = {
-                threshold: visThreshold,
-                numUntracked: await numUntrackedUrlsByThreshold[visThreshold].getAndReset()
-            };
-        }
-        await storage.set("WebScience.Measurements.LinkExposure.untrackedUrlsCount", untrackedObj);
-    }
-}
-*/
-
-/*
-export async function logVisit(url) {
-    var prevExposures = await storage.startsWith(url);
-    var hasPrevExposures = false;
-    for (var key in prevExposures) {
-        hasPrevExposures = true;
-        prevExposures[key].laterVisited = true;
-        await storage.set(key, prevExposures[key]);
-    }
-    return (hasPrevExposures);
-}
-
-export async function logShare(url) {
-    var prevExposures = await storage.startsWith(url);
-    var hasPrevExposures = false;
-    for (var key in prevExposures) {
-        hasPrevExposures = true;
-        prevExposures[key].laterShared = true;
-        await storage.set(key, prevExposures[key]);
-    }
-    return hasPrevExposures;
-}
-*/

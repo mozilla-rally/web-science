@@ -58,13 +58,16 @@ function generateUUID(seed) {
 
 async function openSurveyTab(useSameTab = false) {
     const surveyId = await storage.get("surveyId");
+    const surveyUrlFull = surveyUrlBase +
+        "?surveyId=" + surveyId +
+        "&timezone=" + new Date().getTimezoneOffset();
     if (useSameTab) {
-        browser.tabs.update({url: surveyUrlBase + "?surveyId=" + surveyId });
+        browser.tabs.update({url: surveyUrlFull});
         return;
     }
     browser.tabs.create({
         active: true,
-        url: surveyUrlBase + "?surveyId=" + surveyId + "&timezoneOffset=" + new Date().getTimezoneOffset()
+        url: surveyUrlFull
     });
 }
 
@@ -162,7 +165,7 @@ export async function runStudy({
         await storage.set("surveyCompleted", false);
         await storage.set("noRequestSurvey", false);
         await storage.set("surveyId", generateUUID(Date.now()));
-        openSurveyTab(true);
+        openSurveyTab(false);
     }
     /* Set a time to ask the user in three days (we won't actually ask
      * if they end up completing the survey before then).

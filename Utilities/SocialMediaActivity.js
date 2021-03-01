@@ -749,7 +749,7 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
     if (recurseLevel <= 0) return null;
     if (object == null) return null;
     // if we're lucky, the field is here -- might be an array type, though
-    if ("fieldName" in object) {
+    if (typeof(object) == "object" && fieldName in object) {
         let result = null;
         if (enterArray && Array.isArray(object[fieldName])){
             result = object[fieldName][0];
@@ -774,9 +774,11 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
     }
 
     // if that fails, start checking children
-    for (const subObject in object) {
-        const result = findFieldFacebook(object[subObject], fieldName, enterArray, recurseLevel - 1);
-        if (result != null) return result;
+    if (typeof(object) == "object") {
+        for (const subObject in object) {
+            const result = findFieldFacebook(object[subObject], fieldName, enterArray, recurseLevel - 1);
+            if (result != null) return result;
+        }
     }
 
     // not today.
@@ -792,6 +794,7 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
 async function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
     // New FB
     if (requestDetails.url.includes("api/graphql")) {
+        console.log(requestDetails.requestBody);
         const details = {};
         const variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
         const message = findFieldFacebook(variables, "message");
@@ -859,6 +862,7 @@ function verifyFacebookReshare({requestDetails = null }) {
     let ownerId = null; // we need this if the main method of getting the contents doesn't work
     let newPostMessage = null // any content the user adds when sharing
     if (requestDetails.requestBody.formData &&
+        typeof(requestDetails.requestBody.formData) == "object" &&
         "shared_from_post_id" in requestDetails.requestBody.formData &&
         requestDetails.requestBody.formData.shared_from_post_id.length > 0 &&
         "sharer_id" in requestDetails.requestBody.formData &&
@@ -923,7 +927,8 @@ function extractRedditPost({requestDetails = null}) {
     details.subredditName = "";
 
     let subredditName = "";
-    if ("submit_type" in requestDetails.requestBody.formData &&
+    if (typeof(requestDetails.requestBody.formData) == "object" &&
+        "submit_type" in requestDetails.requestBody.formData &&
         requestDetails.requestBody.formData.submit_type.length > 0 &&
         requestDetails.requestBody.formData.submit_type[0] == "subreddit" &&
         "sr" in requestDetails.requestBody.formData &&
@@ -933,7 +938,8 @@ function extractRedditPost({requestDetails = null}) {
     }
 
     // Handle if there's a URL attached to the post
-    if (("url" in requestDetails.requestBody.formData) &&
+    if (typeof(requestDetails.requestBody.formData) == "object" &&
+        ("url" in requestDetails.requestBody.formData) &&
         (requestDetails.requestBody.formData["url"].length == 1)) {
         const postUrl = requestDetails.requestBody.formData["url"][0];
         details.attachment = postUrl;
@@ -954,12 +960,13 @@ function extractRedditPost({requestDetails = null}) {
      *  {"e":"text", "t":" more words"}
      *  (sometimes there are more attributes besides e and t -- but those are the ones that seem relevant)
      */
-    if ("richtext_json" in requestDetails.requestBody.formData) {
+    if (typeof(requestDetails.requestBody.formData) == "object" &&
+        "richtext_json" in requestDetails.requestBody.formData) {
         const postObject = JSON.parse(requestDetails.requestBody.formData["richtext_json"]);
-        if ("document" in postObject) {
+        if (typeof(postObject) == "object" && "document" in postObject) {
             details.postBody = [];
             for (const paragraph of postObject.document) {
-                if ("c" in paragraph) {
+                if (typeof(paragraph) == "object" && "c" in paragraph) {
                     details.postBody.push(paragraph.c);
                 }
             }
@@ -1064,12 +1071,16 @@ export function checkSubredditStatus(subredditName) {
         fetch(`https://www.reddit.com/r/${subredditName}/about.json`).then(responseFF => {
             responseFF.text().then(response => {
                 const subredditInfo = JSON.parse(response);
-                if ("error" in subredditInfo && subredditInfo.error == 403 &&
+                if (typeof(subredditInfo) == "object" &&
+                    "error" in subredditInfo && subredditInfo.error == 403 &&
                     "reason" in subredditInfo && subredditInfo.reason == "private") {
                     resolve("private");
                     return;
                 }
-                if ("data" in subredditInfo && "subreddit_type" in subredditInfo.data) {
+                if (typeof(subredditInfo) == "object" &&
+                    "data" in subredditInfo &&
+                    typeof(subredditInfo.data) == "object" &&
+                    "subreddit_type" in subredditInfo.data) {
                     resolve(subredditInfo.data.subreddit_type);
                     return;
                 }

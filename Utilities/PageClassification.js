@@ -34,10 +34,11 @@ class ClassificationEvent extends Events.Event {
             workerId: options.workerId,
             filePath: options.filePath,
             matchPatterns: options.matchPatterns,
-            matchRegExp: Matching.matchPatternsToRegExp(options.matchPatterns),
+            matcher: new Matching.MatchPatternSet([]),
             workerObj: new Worker(options.filePath),
             initialArgs: options.initArgs
         };
+        newWorker.matcher.import(options.exportedMatcher);
         this.workers[options.workerId] = newWorker;
         newWorker.workerObj.onmessage = this.resultReceiver.bind(this);
         newWorker.workerObj.onerror = (e) => {console.log(e);};
@@ -84,7 +85,7 @@ class ClassificationEvent extends Events.Event {
             // fetch worker associated with this
             for (const workerName in this.workers) {
                 const worker = this.workers[workerName]
-                if (worker.matchRegExp.test(pageContent.url)) {
+                if (worker.matcher.matches(pageContent.url)) {
                     worker.workerObj.postMessage({
                         type: "classify",
                         payload: pageContent,

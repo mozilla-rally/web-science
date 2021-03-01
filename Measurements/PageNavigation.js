@@ -90,7 +90,6 @@ function pageDataListener(pageData) {
     delete pageData.type;
 
     onPageData.notifyListeners([ pageData ]);
-    console.log("notifying about page visit", pageData);
 }
 
 /**

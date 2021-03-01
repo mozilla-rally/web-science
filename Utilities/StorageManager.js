@@ -84,7 +84,7 @@ export async function getEventsByRange(startTime, endTime, instances) {
         const storage = instance.storage;
         const store = instance.store;
         const timeKey = instance.timeKey;
-        events[instance.storage.storageAreaName] = await storage.getEventsByRange(startTime, endTime, timeKey, store);
+        events[instance.storage.storageAreaName + "." + store] = await storage.getEventsByRange(startTime, endTime, timeKey, store);
     }
     return events;
 }

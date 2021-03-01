@@ -25,12 +25,16 @@ onmessage = async event => {
     const stats = {};
     console.log(data);
     const studyDomains = data.studyDomains;
-    destinationMatcher = studyDomains.destinationMatcher;
-    referrerMatcher = studyDomains.referrerMatcher;
-    console.log(referrerMatcher);
-    fbMatcher = studyDomains.fbMatcher;
-    ytMatcher = studyDomains.ytMatcher;
-    twMatcher = studyDomains.twMatcher;
+    destinationMatcher = new MatchPatternSet([]);
+    destinationMatcher.import(studyDomains.destinationMatches);
+    referrerMatcher = new MatchPatternSet([])
+    referrerMatcher.import(studyDomains.referrerMatches);
+    fbMatcher = new MatchPatternSet([])
+    fbMatcher.import(studyDomains.fbMatches);
+    ytMatcher = new MatchPatternSet([])
+    ytMatcher.import(studyDomains.ytMatches);
+    twMatcher = new MatchPatternSet([])
+    twMatcher.import(studyDomains.twMatches);
     Object.entries(data.fromStorage).forEach(entry => {
         const key = entry[0];
         const storageObj = entry[1];
@@ -110,9 +114,9 @@ StorageStatistics.prototype.computeStats = function (storageInstance) {
  * @default
  */
 const functionMapping = {
-    "NewsAndDisinfo.Measurements.PageNavigation": pageNavigationStats,
-    "NewsAndDisinfo.Measurements.LinkExposure": linkExposureStats,
-    "NewsAndDisinfo.Measurements.SocialMediaLinkSharing": socialMediaLinkSharingStats
+    "NewsAndDisinfo.Measurements.PageNavigation.pageVisits": pageNavigationStats,
+    "NewsAndDisinfo.Measurements.LinkExposure.linkExposures": linkExposureStats,
+    "NewsAndDisinfo.Measurements.SocialMediaLinkSharing.linkShares": socialMediaLinkSharingStats,
 }
 
 /**
@@ -124,12 +128,13 @@ function pageNavigationStats(pageNavigationStorage) {
         () => {
             const stats = {};
             stats.trackedVisitsByDomain = {};
-
+            stats.numUntrackedVisits = 0;
             return stats;
         },
         (entry, stats) => {
             const navObj = entry[1];
             if (navObj.type == "pageVisit") {
+                console.log(navObj);
                 const domain = getTrackedPathDest(navObj.url);
                 const domainIndex = JSON.stringify({domain: domain});
                 let domainObj = stats.trackedVisitsByDomain[domainIndex];
@@ -139,7 +144,7 @@ function pageNavigationStats(pageNavigationStorage) {
                     domainObj.visitsByReferrer = {};
                 }
 
-                const date = new Date(navObj.visitStart);
+                const date = new Date(navObj.pageVisitStartTime);
                 const dayOfWeek = date.getUTCDay();
                 const hourOfDay = date.getUTCHours();
                 const timeOfDay = Math.floor(hourOfDay / 4) * 4;
@@ -148,30 +153,28 @@ function pageNavigationStats(pageNavigationStorage) {
                     referrerDomain: getTrackedPathSource(navObj.referrer),
                     dayOfWeek: dayOfWeek,
                     timeOfDay: timeOfDay,
-                    classifierResults: navObj.classification
+                    classifierResults: navObj.classResults
                 });
 
                 let specificObj = domainObj.visitsByReferrer[index];
                 if (specificObj) {
                     specificObj.numVisits += 1;
                     specificObj.totalAttention += navObj.attentionDuration;
-                    specificObj.totalScroll += navObj.scrollDepth == -1 ? 0 :
-                        Math.floor(navObj.scrollDepth * 100);
+                    specificObj.totalScroll += Math.floor(navObj.maxRelativeScrollDepth * 100);
                     specificObj.laterSharedCount += navObj.laterShared ? 1 : 0;
                     specificObj.prevExposedCount += navObj.prevExposed ? 1 : 0;
                 } else {
                     specificObj = {};
                     specificObj.numVisits = 1;
                     specificObj.totalAttention = navObj.attentionDuration;
-                    specificObj.totalScroll = navObj.scrollDepth == -1 ? 0 :
-                        Math.floor(navObj.scrollDepth * 100);
+                    specificObj.totalScroll = Math.floor(navObj.maxRelativeScrollDepth * 100);
                     specificObj.laterSharedCount = navObj.laterShared ? 1 : 0;
                     specificObj.prevExposedCount = navObj.prevExposed ? 1 : 0;
                     domainObj.visitsByReferrer[index] = specificObj;
                 }
-            } /*else if (navObj.type == "untrackedVisitCount") {
-                stats.numUntrackedVisits = navObj.numUntrackedVisits;
-            }*/
+            } else if (navObj.type == "untracked") {
+                stats.numUntrackedVisits += 1;
+            }
         },
         (r) => {
             for (const domain in r.trackedVisitsByDomain) {
@@ -209,14 +212,14 @@ function linkExposureStats(linkExposureStorage) {
     const statsObj = new StorageStatistics(
         () => {
             const stats = {};
-            //stats.untrackedLinkExposures = {};
+            stats.untrackedLinkExposures = {"5": 0};
             stats.linkExposures = {};
 
             return stats;
         },
         (entry, stats) => {
             const exposureObj = entry[1];
-            if (exposureObj.type == "linkExposure") {
+            if (exposureObj.type == "exposure") {
                 const date = new Date(exposureObj.firstSeen);
                 const hourOfDay = date.getUTCHours();
                 const timeOfDay = Math.floor(hourOfDay / 4) * 4;
@@ -241,13 +244,9 @@ function linkExposureStats(linkExposureStorage) {
                         laterSharedCount: current.laterSharedCount + exposureObj.laterShared ? 1 : 0
                     }
                 }
-            } /*else if (exposureObj.type == "numUntrackedUrls") {
-                for (const threshold in exposureObj.untrackedCounts) {
-                    const thresholdObj = exposureObj.untrackedCounts[threshold];
-                    stats.untrackedLinkExposures[thresholdObj.threshold] =
-                        thresholdObj.numUntracked;
-                }
-            }*/
+            } else if (exposureObj.type == "untracked") {
+                stats.untrackedLinkExposures["5"] += exposureObj.count;
+            }
         },
         (r) => {
             const exposuresArray = Object.entries(r.linkExposures).map((pair) => {
@@ -282,14 +281,9 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
         },
         (entry, stats) => {
             const val = entry[1];
-            /*
-            if (val.type == "numUntrackedSharesTwitter") {
-                stats.linkSharesByPlatform[twIndex].numUntrackedShares += val.twitter;
-            } else if (val.type == "numUntrackedSharesFacebook") {
-                stats.linkSharesByPlatform[fbIndex].numUntrackedShares += val.facebook;
-            } else if (val.type == "numUntrackedSharesReddit") {
-                stats.linkSharesByPlatform[rdIndex].numUntrackedShares += val.reddit;
-            } else */if (val.type == "linkShare") {
+            if (val.type == "untracked") {
+                stats.linkSharesByPlatform[JSON.stringify({platform: val.platform})].numUntrackedShares += val.count;
+            } else if (val.type == "share") {
                 let platformIndex = "";
                 if (val.platform == "facebook") platformIndex = fbIndex;
                 if (val.platform == "twitter") platformIndex = twIndex;
@@ -301,11 +295,14 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                 }
 
                 const hostname = getHostName(val.url);
+                const visitReferrer = val.prevVisitReferrer;
+                /*
                 const prevVisitReferrers = val.prevVisitReferrers;
                 let visitReferrer = null;
                 if (prevVisitReferrers && prevVisitReferrers.length > 0) {
                     visitReferrer = getTrackedPathSource(prevVisitReferrers[0]);
                 }
+                */
                 const date = new Date(val.shareTime);
                 const dayOfWeek = date.getUTCDay();
                 const hourOfDay = date.getUTCHours();
@@ -386,24 +383,141 @@ function getDomain(url) {
 function getTrackedPathDest(url) {
     // if this is a dest, it must have passed a destination check already
     const fbResult = fbRegex.exec(url);
-    if (fbResult && fbMatcher.test(url)) { return fbResult[0]; }
-    /*
-    let twResult = twRegex.exec(url);
-    if (twResult && twPages.test(url)) { return twResult[0]; }
-    */
+    if (fbResult && fbMatcher.matches(url)) { return fbResult[0]; }
+    const twResult = twRegex.exec(url);
+    if (twResult && twMatcher.matches(url)) { return twResult[0]; }
     const ytResult = ytRegex.exec(url);
-    if (ytResult && ytMatcher.test(url)) { return ytResult[0]; }
+    if (ytResult && ytMatcher.matches(url)) { return ytResult[0]; }
     return getDomain(url);
 }
 
 function getTrackedPathSource(url) {
+    // a referrer hasn't necessarily passed a check
     const fbResult = fbRegex.exec(url);
-    if (fbResult && fbMatcher.test(url)) { return fbResult[0]; }
+    if (fbResult && fbMatcher.matches(url)) { return fbResult[0]; }
     const twResult = twRegex.exec(url);
-    if (twResult && twMatcher.test(url)) { return twResult[0]; }
+    if (twResult && twMatcher.matches(url)) { return twResult[0]; }
     const ytResult = ytRegex.exec(url);
-    if (ytResult && ytMatcher.test(url)) { return ytResult[0]; }
-    if (referrerMatcher.test(url)) { return getDomain(url); }
-    if (destinationMatcher.test(url)) { return getDomain(url); }
+    if (ytResult && ytMatcher.matches(url)) { return ytResult[0]; }
+    if (referrerMatcher.matches(url)) { return getDomain(url); }
+    if (destinationMatcher.matches(url)) { return getDomain(url); }
     return "other";
 }
+
+/**
+ * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
+ * a significant performance improvement in comparison to `RegExp`s, in some instances
+ * greater than 100x. A `MatchPatternSet` can also be exported to an object that uses only
+ * built-in types, so it can be persisted or passed to content scripts in extension storage.
+ *
+ * There are several key optimizations in `MatchPatternSet`:
+ *   * URLs are parsed with the `URL` class, which has native implementation.
+ *   * Match patterns are indexed by hostname in a hash map. Lookups are much faster than
+ *     iteratively advancing and backtracking through a complex regular expression, which
+ *     is how domain matching currently occurs with the `Irregexp` regular expression
+ *     engine in Firefox and Chrome.
+ *   * Match patterns with identical scheme, subdomain matching, and host (i.e., that
+ *     differ only in path) are combined.
+ *   * The only remaining use of regular expressions is in path matching, where expressions
+ *     can be (relatively) uncomplicated.
+ *
+ * Future performance improvements could include:
+ *   * Replacing the path matching implementation to eliminate regular expressions entirely.
+ *   * Replacing the match pattern index, such as by implementing a trie.
+ */
+class MatchPatternSet {
+    /**
+     * Creates a match pattern set from an array of match patterns.
+     * @param {string[]} matchPatterns - The match patterns for the set.
+     */
+    constructor(matchPatterns) {
+        // Defining the special sets of `<all_url>` and wildcard schemes inside the class so
+        // keeping content scripts in sync with this implementation will be easier
+        this.allUrls = false;
+        this.allUrlsSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+        this.wildcardSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+        this.patternsByHost = { };
+    }
+
+    /**
+     * Compares a URL string to the match patterns in the set.
+     * @param {string} url - The URL string to compare.
+     * @returns {boolean} Whether the URL string matches a pattern in the set.
+     */
+    matches(url) {
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+        } catch {
+            // If the target isn't a true URL, it certainly doesn't match
+            return false;
+        }
+        // Remove the trailing : from the parsed protocol
+        const scheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1);
+        const host = parsedUrl.hostname;
+        const path = parsedUrl.pathname;
+
+        // Check the special `<all_urls>` match pattern
+        if(this.allUrls && this.allUrlsSchemeSet.has(scheme))
+            return true;
+
+        // Identify candidate match patterns
+        let candidatePatterns = [ ];
+        // Check each component suffix of the hostname for candidate match patterns
+        const hostComponents = parsedUrl.hostname.split(".");
+        let hostSuffix = "";
+        for(let i = hostComponents.length - 1; i >= 0; i--) {
+            hostSuffix = hostComponents[i] + (i < hostComponents.length - 1 ? "." : "") + hostSuffix;
+            const hostSuffixPatterns = this.patternsByHost[hostSuffix];
+            if(hostSuffixPatterns !== undefined)
+                candidatePatterns = candidatePatterns.concat(hostSuffixPatterns);
+        }
+
+        // Add match patterns with a wildcard host to the set of candidates
+        const hostWildcardPatterns = this.patternsByHost["*"];
+        if(hostWildcardPatterns !== undefined)
+        candidatePatterns = candidatePatterns.concat(hostWildcardPatterns);
+
+        // Check the scheme, then the host, then the path for a match
+        for(const candidatePattern of candidatePatterns) {
+            if((candidatePattern.scheme === scheme) ||
+               ((candidatePattern.scheme === "*") && this.wildcardSchemeSet.has(scheme))) {
+                   if(candidatePattern.matchSubdomains ||
+                      (candidatePattern.host === "*") ||
+                      (candidatePattern.host === host)) {
+                          if(candidatePattern.wildcardPath ||
+                             candidatePattern.pathRegExp.test(path))
+                             return true;
+                      }
+               }
+        }
+
+        return false;
+    }
+
+    /**
+     * Exports the internals of the match pattern set for purposes of saving to extension
+     * local storage.
+     * @returns {object} - An opaque object representing the match pattern set internals.
+     */
+    export() {
+        return {
+            allUrls: this.allUrls,
+            patternsByHost: this.patternsByHost
+        };
+    }
+
+    /**
+     * Imports the match pattern set from an opaque object previously generated by `export`.
+     * @param {exportedInternals} - The previously exported internals for the match pattern set.
+     * @example <caption>Example usage of import.</caption>
+     * // const matchPatternSet1 = new MatchPatternSet([ "*://example.com/*" ]);
+     * // const exportedInternals = matchPatternSet.export();
+     * // const matchPatternSet2 = (new MatchPatternSet([])).import(exportedInternals);
+     */
+    import(exportedInternals) {
+        this.allUrls = exportedInternals.allUrls;
+        this.patternsByHost = exportedInternals.patternsByHost;
+    }
+}
+

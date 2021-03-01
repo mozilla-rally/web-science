@@ -7,33 +7,19 @@
 
 import * as Events from "../Utilities/Events.js"
 import * as Debugging from "../Utilities/Debugging.js"
-//import * as Storage from "../Utilities/Storage.js"
 import * as Matching from "../Utilities/Matching.js"
 import * as SocialMediaActivity from "../Utilities/SocialMediaActivity.js"
 import * as LinkResolution from "../Utilities/LinkResolution.js"
-/*
-import * as PageClassification from "../Measurements/PageClassification.js"
-import * as Readability from "../Utilities/Readability.js"
-*/
 
 const debugLog = Debugging.getDebuggingLog("SocialMediaLinkSharing");
 
 
 /**
- * A UrlMatcher object for testing urls
+ * A MatchPatternSet object for testing urls
  * @type {Object}
  * @private
  */
 let destinationMatcher = null;
-
-/**
- * A counter to give each record a unique ID
- * @type {Object}
- * @private
- */
-//let shareIdCounter = null;
-
-//const numUntrackedShares = {type: "numUntrackedShares", facebook: null, twitter: null, reddit: null};
 
 let twitterPrivacySetting = "unknown";
 
@@ -100,14 +86,6 @@ async function startMeasurement({
         SocialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet", "favorite"]);
     }
 
-    /*
-    numUntrackedShares.facebook = await (new Storage.Counter(
-        "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesFacebook")).initialize();
-    numUntrackedShares.reddit = await (new Storage.Counter(
-        "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesReddit")).initialize();
-    numUntrackedShares.twitter = await (new Storage.Counter(
-        "WebScience.Measurements.SocialMediaLinkSharing.numUntrackedSharesTwitter")).initialize();
-        */
     destinationMatcher = new Matching.MatchPatternSet(destinationMatchPatterns);
 }
 
@@ -116,7 +94,7 @@ function stopMeasurement() {
 }
 
 function isTwitterLink(url) {
-    const twitterLink = /twitter\.com\/[0-9|a-z|A-Z|_]*\/status\/([0-9]*)\/?$/;
+    const twitterLink = /twitter\.com\/[0-9|a-z|A-Z|_]*\/status\/([0-9]*)\//;
     return twitterLink.exec(url);
 }
 
@@ -170,7 +148,7 @@ async function twitterLinks(details) {
         checkTwitterAccountStatus();
     }
     let urlsToSave = [];
-    const urlsNotToSave = [];
+    let urlsNotToSave = [];
     if (details.eventType == "tweet") {
         try {
             await extractRelevantUrlsFromTokens(details.postText.split(/\s+/),
@@ -261,20 +239,15 @@ async function twitterLinks(details) {
         debugLog("Twitter: " + JSON.stringify(shareRecord));
     }
     let newUntracked = 0;
+    urlsNotToSave = deduplicateUrls(urlsNotToSave);
     for (const urlNotToSave of urlsNotToSave) {
         if (!(isTwitterLink(urlNotToSave))) {
             newUntracked++;
-            //await numUntrackedShares.twitter.increment();
         }
     }
     onShare.notifyListeners([ {
         "type": "untrackedTwitter",
         "value": newUntracked }]);
-    /*
-    onShare.notifyListeners([ {
-        "type": "untrackedTwitter",
-        "value": await numUntrackedShares.twitter.get()} ]);
-        */
 }
 
 /**
@@ -284,7 +257,7 @@ async function twitterLinks(details) {
  */
 async function facebookLinks(details) {
     let urlsToSave = [];
-    const urlsNotToSave = [];
+    let urlsNotToSave = [];
     if (details.eventType == "post") {
         const postTokens = details.postText.split(/\s+/);
         await extractRelevantUrlsFromTokens(postTokens, urlsToSave, urlsNotToSave);
@@ -324,10 +297,10 @@ async function facebookLinks(details) {
         onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Facebook: " + JSON.stringify(shareRecord));
     }
-    //await numUntrackedShares.facebook.incrementBy(urlsNotToSave.size);
+    urlsNotToSave = deduplicateUrls(urlsNotToSave);
     onShare.notifyListeners([ {
         "type": "untrackedFacebook",
-        "value": urlsNotToSave.size }]);//await numUntrackedShares.facebook.get()} ]);
+        "value": urlsNotToSave.size }]);
 }
 
 
@@ -338,7 +311,7 @@ async function facebookLinks(details) {
  */
 async function redditLinks(details) {
     let urlsToSave = [];
-    const urlsNotToSave = [];
+    let urlsNotToSave = [];
     let audience = "unknown";
     if (details.eventType == "post") {
         await extractRelevantUrlsFromTokens([details.attachment], urlsToSave, urlsNotToSave);
@@ -362,10 +335,10 @@ async function redditLinks(details) {
         onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
         debugLog("Reddit: " + JSON.stringify(shareRecord));
     }
-    //await numUntrackedShares.reddit.incrementBy(urlsNotToSave.size);
+    urlsNotToSave = deduplicateUrls(urlsNotToSave);
     onShare.notifyListeners([ {
         "type": "untrackedReddit",
-        "value": urlsNotToSave.size }]);//await numUntrackedShares.reddit.get()} ]);
+        "value": urlsNotToSave.size }]);
 }
 
 /* Utilities */
@@ -387,58 +360,14 @@ async function createShareRecord({shareTime = "",
                                   eventType = "",
                                   audience = "",
                                   source = ""}) {
-    //let prevVisitReferrers = await PageNavigation.logShare(url);
-    //let prevExposed = await LinkExposure.logShare(url);
-    const historyVisits = await browser.history.search({text: url});
-    /*
-    const polClassification = await getClassificationResult(url, "pol-page-classifier");
-    const covClassification = await getClassificationResult(url, "covid-page-classifier");
-    const classifierResults = {'pol-page-classifier': polClassification,
-                               'cov-page-classifier': covClassification};
-                               */
+    const historyVisits = await browser.history.search({
+        text: url,
+        startTime: 0
+    });
     const type = "linkShare";
     return { type, shareTime, platform, url, eventType,/* classifierResults,*/
              audience, source, historyVisits };
 }
-
-/*
-function getClassificationResult(urlToSave, workerId) {
-    return new Promise((resolve, reject) => {
-        PageClassification.lookupClassificationResult(urlToSave, workerId).then((result) => {
-            if (result) {
-                resolve(result.predicted_class);
-            }
-            else {
-                fetchClassificationResult(urlToSave, workerId).then(resolve);
-            }
-        });
-    });
-}
-
-function fetchClassificationResult(urlToSave, workerId) {
-    return new Promise((resolve, reject) => {
-        fetch(urlToSave).then((response) => {
-            response.text().then((resp) => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(resp, 'text/html');
-                const pageContent = new Readability.Readability(doc).parse();
-                const toSend = {
-                    url : urlToSave,
-                    title: pageContent.title,
-                    text : pageContent.textContent,
-                    context : {
-                        timestamp : Date.now(),
-                        referrer : "foo"
-                    }
-                }
-                PageClassification.messageWorker(workerId, toSend, (result) => {
-                    resolve(result.predicted_class);
-                });
-            });
-        });
-    });
-}
-*/
 
 /**
  * Normalize urls by stripping url parameters and then remove duplicates
@@ -526,17 +455,3 @@ function stripToken(token) {
     token = token.replace(/^[.,'")(]+/, "");
     return token;
 }
-
-/*
-async function storeUntrackedShareCounts() {
-    if (initialized) {
-        onShare.notifyListeners(
-        await storage.set("WebScience.Measurements.SocialMediaLinkSharing.untrackedShareCounts",
-            {type: "numUntrackedShares",
-             facebook: await numUntrackedShares.facebook.get(),
-             reddit: await numUntrackedShares.reddit.get(),
-             twitter: await numUntrackedShares.twitter.get()
-            });
-    }
-}
-*/
