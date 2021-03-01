@@ -215,9 +215,6 @@
     }
     const linkMatcher = new MatchPatternSet([]);
     linkMatcher.import(storedLinkMatcher["WebScience.Measurements.LinkExposure.linkMatcher"]);
-    console.log(linkMatcher);
-    console.log(linkMatcher.matches);
-    console.log(linkMatcher.matches("https://nytimes.com/"));
     const urlShortenerRegExp = storedUrlShortenerRegExp["WebScience.Measurements.LinkExposure.urlShortenerRegExp"];
     const ampRegExp = storedAmpRegExp["WebScience.Measurements.LinkExposure.ampRegExp"];
 

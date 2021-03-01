@@ -2,11 +2,9 @@
  * Module for resolving a short url
  * @module WebScience.Utilities.LinkResolution
  */
-import * as Debugging from "./Debugging.js";
 import * as Matching from "./Matching.js";
 import { urlShortenerMatchPatterns } from "../dependencies/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "../dependencies/ampCachesAndViewers.js";
-const debugLog = Debugging.getDebuggingLog("Utilities.LinkResolution");
 
 const fetchTimeoutMs = 5000;
 let initialized = false;

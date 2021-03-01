@@ -3,19 +3,9 @@
  * @module WebScience.Utilities.userSurvey
  */
 import * as Storage from "./Storage.js"
-import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
 
 let storage = null;
-
-/**
- * Logger object
- *
- * @constant
- * @private
- * @type {function(string)}
- */
-const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
 
 /**
  * The fully-qualified URL to Princeton shield image
@@ -145,9 +135,7 @@ export async function runStudy({
     let lastSurveyRequest = await storage.get("lastSurveyRequest");
     let surveyCompleted = await storage.get("surveyCompleted");
     const noRequestSurvey = await storage.get("noRequestSurvey");
-    console.log(surveyCompleted);
     if (!surveyCompleted) { surveyCompleted = await checkSurveyCompletionInHistory(); }
-    console.log(surveyCompleted);
     if (surveyCompleted || noRequestSurvey) {
         setPopupSurveyCompleted();
         await storage.set("surveyCompleted", surveyCompleted);

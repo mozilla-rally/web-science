@@ -1,4 +1,4 @@
-var ngramExports = {};
+self.ngramExports = {};
 
 // eslint-disable-next-line no-extra-semi
 ;(() => {
@@ -106,8 +106,8 @@ var ngramExports = {};
   };
 
   // export!
-  if (Object.keys(ngramExports).length === 0 && ngramExports.constructor === Object){
-    ngramExports.from = from;
-    ngramExports.fromSync = fromSync;
+  if (Object.keys(self.ngramExports).length === 0 && self.ngramExports.constructor === Object){
+    self.ngramExports.from = from;
+    self.ngramExports.fromSync = fromSync;
   }
 })();

@@ -127,9 +127,6 @@ class ClassificationEvent extends Events.Event {
                 },
                 {
                     file: "/WebScience/Utilities/content-scripts/page-content.js"
-                },
-                {
-                    file: "/WebScience/Utilities/Ngrams.js"
                 }
             ],
             runAt: "document_idle"

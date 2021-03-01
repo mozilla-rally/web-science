@@ -27,7 +27,7 @@ export function enableDebugging() {
  */
 export function getDebuggingLog(moduleName) {
     return ((text) => {
-        console.debug("WebScience." + moduleName + ": " + text);
+        if (debug) console.debug("WebScience." + moduleName + ": " + text);
     });
 }
 

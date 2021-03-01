@@ -155,53 +155,42 @@ async function handleGenericEvent({requestDetails = null,
                              platform = null, eventType = null,
                              blockingType = null}) {
     const handler = platformHandlers[platform][eventType];
-    return new Promise(async (resolve, reject) => {
-        const eventTime = Date.now();
-        let verified = null;
-        for (const verifier of handler.verifiers) {
-            verified = await verifier({requestDetails: requestDetails, platform: platform,
-                                       eventType: eventType, blockingType: blockingType,
-                                       eventTime: eventTime});
-            if (!verified) {
-                resolve({});
-                return;
-            }
+    const eventTime = Date.now();
+    let verified = null;
+    for (const verifier of handler.verifiers) {
+        verified = await verifier({requestDetails: requestDetails, platform: platform,
+            eventType: eventType, blockingType: blockingType,
+            eventTime: eventTime});
+        if (!verified) {
+            return {};
         }
-        if (platform == "facebook") {
-            facebookTabId = requestDetails.tabId;
+    }
+    if (platform == "facebook") {
+        facebookTabId = requestDetails.tabId;
+    }
+    let details = {};
+    for (const extractor of handler.extractors) {
+        details = await extractor({requestDetails: requestDetails, details: details,
+            verified: verified, platform: platform, eventType: eventType,
+            blockingType: blockingType, eventTime: eventTime});
+        if (!details) {
+            return {};
         }
-        let details = {};
-        for (const extractor of handler.extractors) {
-            details = await extractor({requestDetails: requestDetails, details: details,
-                                       verified: verified, platform: platform, eventType: eventType,
-                                       blockingType: blockingType, eventTime: eventTime});
-            if (!details) {
-                resolve({});
-                return;
-            }
+    }
+    let blockingResult;
+    if (blockingType == "blocking") {
+        blockingResult = await clientCallbacks[platform][eventType][blockingType][0](details);
+        if (blockingResult && "cancel" in blockingResult) {
+            return blockingResult;
         }
-        let blockingResult;
-        if (blockingType == "blocking") {
-            blockingResult = await clientCallbacks[platform][eventType][blockingType][0](details);
-            if (blockingResult && "cancel" in blockingResult) {
-                resolve(blockingResult);
-                return;
-            } else {
-                resolve({});
-            }
-        // If we have multiple listeners for the same URL and one is blocking,
-            // all become blocking. Resolve to allow blocking to finish.
-        } else {
-            resolve({});
-        }
-        for (const userListener of clientCallbacks[platform][eventType]["nonblocking"]) {
-            userListener(details);
-        }
-        for (const completer of handler.completers) {
+    }
+    for (const userListener of clientCallbacks[platform][eventType]["nonblocking"]) {
+        userListener(details);
+    }
+    for (const completer of handler.completers) {
         completer({requestDetails: requestDetails, verified: verified, details: details,
-                           platform: platform, eventType: eventType, blockingType: blockingType});
-        }
-    });
+            platform: platform, eventType: eventType, blockingType: blockingType});
+    }
 }
 
 /**
@@ -794,7 +783,6 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
 async function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
     // New FB
     if (requestDetails.url.includes("api/graphql")) {
-        console.log(requestDetails.requestBody);
         const details = {};
         const variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
         const message = findFieldFacebook(variables, "message");

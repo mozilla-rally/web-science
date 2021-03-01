@@ -23,7 +23,6 @@ let ytMatcher;
 onmessage = async event => {
     const data = event.data;
     const stats = {};
-    console.log(data);
     const studyDomains = data.studyDomains;
     destinationMatcher = new MatchPatternSet([]);
     destinationMatcher.import(studyDomains.destinationMatches);
@@ -90,22 +89,6 @@ StorageStatistics.prototype.computeStats = function (storageInstance) {
  */
 
 /**
- * The number of seconds in a day.
- * @private
- * @const {number}
- * @default
- */
-//const _MS_PER_DAY = 1000 * 60 * 60 * 24;
-/**
- * Maximum date supported. Used in computing the earliest
- * date from a list of date objects.
- * @private
- * @const {number}
- * @default
- */
-//const _MAX_DATE = 8640000000000000;
-
-/**
  * Object that maps the type of data and the stats function to apply on
  * data object of that type.
  *
@@ -134,7 +117,6 @@ function pageNavigationStats(pageNavigationStorage) {
         (entry, stats) => {
             const navObj = entry[1];
             if (navObj.type == "pageVisit") {
-                console.log(navObj);
                 const domain = getTrackedPathDest(navObj.url);
                 const domainIndex = JSON.stringify({domain: domain});
                 let domainObj = stats.trackedVisitsByDomain[domainIndex];
@@ -296,13 +278,6 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
 
                 const hostname = getHostName(val.url);
                 const visitReferrer = val.prevVisitReferrer;
-                /*
-                const prevVisitReferrers = val.prevVisitReferrers;
-                let visitReferrer = null;
-                if (prevVisitReferrers && prevVisitReferrers.length > 0) {
-                    visitReferrer = getTrackedPathSource(prevVisitReferrers[0]);
-                }
-                */
                 const date = new Date(val.shareTime);
                 const dayOfWeek = date.getUTCDay();
                 const hourOfDay = date.getUTCHours();

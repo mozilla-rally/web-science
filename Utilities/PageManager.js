@@ -122,12 +122,9 @@
  * @module WebScience.Utilities.PageManager
  */
 
-import * as Debugging from "./Debugging.js"
 import * as Events from "./Events.js"
 import * as Idle from "./Idle.js"
 import * as Messaging from "./Messaging.js"
-
-const debugLog = Debugging.getDebuggingLog("Utilities.PageManager");
 
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,
