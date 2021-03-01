@@ -8,7 +8,8 @@ import {
   getDebuggingLog
 } from './Debugging.js';
 import * as StorageManager from "./StorageManager.js"
-import * as Idle from "./Idle.js"
+import * as Storage from "./Storage.js"
+//import * as Idle from "./Idle.js"
 /*
 import * as SocialMediaLinkSharing from "../Measurements/SocialMediaLinkSharing.js"
 import * as LinkExposure from "../Measurements/LinkExposure.js"
@@ -26,13 +27,7 @@ const debugLog = getDebuggingLog("Utilities.DataAnalysis");
  */
 const resultRouter = new Map();
 
-/**
- * The number of seconds in a day.
- * @private
- * @const {number}
- * @default
- */
-const secondsPerDay = 86400;
+let storage;
 
 /**
  * Whether the module has completed setup.
@@ -49,7 +44,7 @@ let storageInstances = null;
  * The end of the time range that the last aggregation run considered.
  * @private
  */
-let lastAnalysisRangeEndTime = 0;
+let lastAnalysisRangeEndTime;
 
 /**
  * Setup for the module. Runs only once.
@@ -60,8 +55,15 @@ async function initialize() {
         return;
     initialized = true;
     debugLog("registering idle state listener for data analysis");
-    Idle.registerIdleStateListener(idleStateListener, 1); // for testing
-    //Scheduling.onIdleDaily.addListener(idleStateListener);
+    storage = new Storage.KeyValueStorage();
+    lastAnalysisRangeEndTime = await storage.get("lastAnalysisRangeEndTime");
+    if (lastAnalysisRangeEndTime == null) {
+        lastAnalysisRangeEndTime = roundTimeUp(Date.now());
+        await storage.set("lastAnalysisRangeEndTime", lastAnalysisRangeEndTime);
+    }
+    console.log(lastAnalysisRangeEndTime);
+    //Idle.registerIdleStateListener(idleStateListener, 1); // for testing
+    Scheduling.onIdleDaily.addListener(idleStateListener);
 }
 
 /**
@@ -75,20 +77,24 @@ async function idleStateListener() {
     const currentTime = Date.now();
     const analysisStartTime = lastAnalysisRangeEndTime;
     const analysisEndTime = roundTimeDown(currentTime)
-    if (lastAnalysisRangeEndTime - analysisEndTime != 0) {
+    if (lastAnalysisRangeEndTime < analysisEndTime) {
         lastAnalysisRangeEndTime = analysisEndTime;
+        await storage.set("lastAnalysisRangeEndTime", lastAnalysisRangeEndTime);
         await triggerAnalysisScripts(analysisStartTime, analysisEndTime);
-    } else {
+    }
+    /*
+    else {
         // TODO this is useful for testing but should be removed before launch
         console.log("I would have pulled analysis results in this range",
                     analysisStartTime, analysisEndTime);
-        await triggerAnalysisScripts(currentTime - secondsPerDay * 1000, currentTime);
+        await triggerAnalysisScripts(currentTime - 86400 * 1000, currentTime);
     }
+    */
 }
 
 /**
  * Handler for errors from worker threads
- * @param {Event} err - error 
+ * @param {Event} err - error
  */
 function workerError(err) {
     debugLog("error :"+ err);
@@ -96,7 +102,7 @@ function workerError(err) {
 
 /**
  * Creates a receiver function for handling results from
- * worker script. The receiver function extracts the data part of the 
+ * worker script. The receiver function extracts the data part of the
  * result and sends it to all the listeners waiting for it.
  * @param {Set<function>} listeners - listeners waiting for the results from
  * worker script
@@ -150,6 +156,13 @@ async function registerAnalysisResultListener(workerScriptPath, listener) {
     resultListeners.add(listener);
 }
 
+function roundTimeUp(timeStamp) {
+    const timeStampObj = new Date(timeStamp);
+    const endHour = Math.ceil(timeStampObj.getUTCHours() / 4) * 4;
+    return Date.UTC(timeStampObj.getUTCFullYear(), timeStampObj.getUTCMonth(),
+                    timeStampObj.getUTCDay(), endHour) - 1;
+}
+
 function roundTimeDown(timeStamp) {
     const timeStampObj = new Date(timeStamp);
     const endHour = Math.floor(timeStampObj.getUTCHours() / 4) * 4;
@@ -163,8 +176,8 @@ function roundTimeDown(timeStamp) {
  * script and listener for the result. The analysis script is scheduled to
  * execute in a worker thread during browser idle time. The results from
  * analysis script are forwarded to the listener function.
- * 
- * @param {Object} scripts 
+ *
+ * @param {Object} scripts
  * @param {Object.any.path} path - path for analysis script
  * @param {Object.any.resultListener} path - Listener function for processing
  * the result from analysis script
@@ -175,6 +188,4 @@ export async function runStudy(scripts, studyDomainsParam, storageInstancesParam
     for (const [, scriptParameters] of Object.entries(scripts)) {
         await registerAnalysisResultListener(scriptParameters.path, scriptParameters.resultListener);
     }
-    lastAnalysisRangeEndTime = roundTimeDown(Date.now());
-    //await triggerAnalysisScripts(); // TODO handle startup after long inactive
 }
