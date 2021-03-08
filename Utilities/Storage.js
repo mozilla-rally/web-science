@@ -13,6 +13,14 @@ import Dexie from 'dexie';
 export const storageInstances = [];
 
 export class IndexedStorage {
+    /**
+     * Create a storage area with indexed fields.
+     * Storage is implemented with Dexie. The `stores` field specifies the Dexie tables to be created
+     * and their indexed fields. See the Dexie documentation for syntax: https://dexie.org/docs/Version/Version.stores().
+     * @param {string} storageAreaName - A name that uniquely identifies the storage area.
+     * @param {Object} stores - The tables to be created, see Dexie documentation linked above.
+     * @param {string} defaultStore - The table to use if one is not specified in future interactions.
+     */
     constructor(storageAreaName, stores, defaultStore="") {
         this.storageAreaName = storageAreaName;
         this.defaultStore = defaultStore == "" ? Object.keys(stores)[0] : defaultStore;
@@ -45,11 +53,15 @@ export class IndexedStorage {
  */
 export class KeyValueStorage {
     /**
-     * Create a key-value storage area. Note that, because creating a storage area
-     * requires asynchronous calls (which cannot happen in a constructor), the
-     * storage area will not be setup until a subsequent call to `initialize()`.
+     * Create a key-value storage area. Only a name for the storage area is required.
+     * Storage is implemented using the Dexie wrapper for IndexedDB. Clients that wish to
+     * have multiple independent Dexie stores within this storage area can specify them with
+     * the `storeNames` parameter. If none are specified, the module will create a default store
+     * and use that store for future interactions.
      * @param {string} storageAreaName - A name that uniquely identifies the storage area.
-     * @example var exampleStorage = await (new KeyValueStorage("exampleName")).initialize();
+     * @param {Array<string>} storeNames - A list of names of stores.
+     * @param {string} defaultStore - If store names are given, which one should be the default in future interactions.
+     * @example var exampleStorage = await (new KeyValueStorage("exampleName"));
      */
     constructor(storageAreaName, storeNames=["default"], defaultStore = "") {
         this.storageAreaName = storageAreaName;
@@ -60,25 +72,6 @@ export class KeyValueStorage {
 
         this.storageInstance = new Dexie(this.storageAreaName);
         this.storageInstance.version(1).stores(stores);
-        return this;
-    }
-
-    /**
-     * Complete creation of the storage area. Returns itself for convenience.
-     * @param {list<string>} storeNames An optional list of stores within the storage area
-     * @param {string} The name of a default store within the stores in storeNames
-     * @returns {Object} The key-value storage area.
-     */
-    async initialize() {
-        /*
-        const stores = {};
-        for (const storeName in storeNames) stores[storeNames[storeName]] = "key";
-
-        this.defaultStore = defaultStore === "" ? Object.keys(stores)[0] : defaultStore;
-
-        this.storageInstance = new Dexie(this.storageAreaName);
-        this.storageInstance.version(1).stores(stores);
-        */
         return this;
     }
 
@@ -147,7 +140,7 @@ export class Counter {
      */
     async initialize() {
         if(Counter.storage == null)
-            Counter.storage = await (new KeyValueStorage("WebScience.Utilities.Storage.Counter")).initialize();
+            Counter.storage = new KeyValueStorage("WebScience.Utilities.Storage.Counter");
         const initialCounterValue = await Counter.storage.get(this.counterName);
         if(initialCounterValue != null)
             this.counterValue = initialCounterValue;
