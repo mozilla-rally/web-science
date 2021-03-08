@@ -99,6 +99,7 @@ function setPopupSurveyCompleted() {
 
 function cancelSurveyRequest() {
     storage.set("noRequestSurvey", true);
+    setPopupSurveyCompleted();
 }
 
 /**
