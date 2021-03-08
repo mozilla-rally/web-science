@@ -231,6 +231,17 @@ export class Counter {
     }
 }
 
+export async function getEventsByRange(startTime, endTime, instances) {
+    const events = {};
+    for (const instance of instances) {
+        const storage = instance.storage;
+        const store = instance.store;
+        const timeKey = instance.timeKey;
+        events[instance.storage.storageAreaName + "." + store] = await storage.getEventsByRange(startTime, endTime, timeKey, store);
+    }
+    return events;
+}
+
 // Workaround for static class variable
 Counter.storage = null;
 

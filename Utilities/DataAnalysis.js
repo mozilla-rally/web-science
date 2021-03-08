@@ -7,15 +7,8 @@
 import {
   getDebuggingLog
 } from './Debugging.js';
-import * as StorageManager from "./StorageManager.js"
 import * as Storage from "./Storage.js"
 //import * as Idle from "./Idle.js"
-/*
-import * as SocialMediaLinkSharing from "../Measurements/SocialMediaLinkSharing.js"
-import * as LinkExposure from "../Measurements/LinkExposure.js"
-import * as PageNavigation from "../Measurements/PageNavigation.js"
-import * as Matching from "../Utilities/Matching.js"
-*/
 import * as Scheduling from "../Utilities/Scheduling.js"
 
 const debugLog = getDebuggingLog("Utilities.DataAnalysis");
@@ -126,7 +119,7 @@ function createMessageReceiver(listeners) {
  * @private
  */
 export async function triggerAnalysisScripts(startTime, endTime) {
-    const storageObjs = await StorageManager.getEventsByRange(startTime, endTime, storageInstances);
+    const storageObjs = await Storage.getEventsByRange(startTime, endTime, storageInstances);
     const toSend = {
         studyDomains: studyDomains,
         fromStorage: storageObjs,
