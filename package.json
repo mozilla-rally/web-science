@@ -36,6 +36,7 @@
     "@mozilla/rally": "0.0.4",
     "@rollup/plugin-commonjs": "^14.0.0",
     "@rollup/plugin-node-resolve": "^10.0.0",
+    "@rollup/plugin-replace": "^2.4.1",
     "@storybook/svelte": "^6.1.11",
     "babel-core": "^7.0.0-bridge.0",
     "babel-loader": "^8.2.2",

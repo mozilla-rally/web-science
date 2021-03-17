@@ -19,7 +19,8 @@
     "unlimitedStorage",
     "idle",
     "webRequest",
-    "<all_urls>"
+    "<all_urls>",
+    "webNavigation"
   ],
 
   "options_ui": {

@@ -1,37 +1,16 @@
-import browser from 'webextension-polyfill';
-import AttentionStream from './AttentionStream';
-const attention = new AttentionStream();
+import * as PageNavigation from "../WebScience/Measurements/PageNavigation";
 
-async function browse(...items) {
-  for (const [url, attention = 0, active = true] of items) {
-    await browser.tabs.create({ url, active});
-    await delay(attention);
-  }
+// do something with the page data output.
+
+function onPageData(data) {
+    console.debug('OUTPUT', data);
 }
 
-function delay(time = 0) {
-  return new Promise((resolve) => { setTimeout(resolve, time) } );
-}
+// what I WANT to do is capture other data points in some way;
+// - from the background script, register other ones.
+// - from the content script, register how the other data is captured.
 
-// attention.onAttentionStart((event, tab, stream) => {
-
-// })
-
-// browser.runtime.onMessage.addListener(console.log);
-
-attention.onAttentionEnd(event => {
-  console.log("END", event);
-})
-
-function openPage() {
-  browser.runtime.openOptionsPage().catch(e => {
-    console.error(`Study Add-On - Unable to open the control panel`, e);
-  });
-}
-
-// browse(
-//   ["https://news.ycombinator.com", 500],
-//   ["https://newyorker.com", 100,]
-// )
-
-browser.browserAction.onClicked.addListener(openPage);
+PageNavigation.onPageData.addListener(onPageData, {
+    matchPatterns: ["<all_urls>"],
+    privateWindows: false
+});
