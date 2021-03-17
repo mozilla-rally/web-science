@@ -40,6 +40,7 @@
 
 import * as Idle from "./Idle.js"
 import * as Storage from "./Storage.js"
+import * as Events from "./Events.js"
 
 /**
  * The number of seconds in a day.
@@ -89,7 +90,7 @@ const shortenedIdleIntervalThresholdInSeconds = secondsPerDay;
  * @private
  * @type {number}
  */
-var lastIdleDailyTime;
+let lastIdleDailyTime;
 
 /**
  * The time (in milleconds since the epoch) when the module
@@ -97,7 +98,7 @@ var lastIdleDailyTime;
  * @private
  * @type {number}
  */
-var lastIdleWeeklyTime;
+let lastIdleWeeklyTime;
 
 /**
  * A Storage.KeyValueStorage instance for persisting state on the most
@@ -106,7 +107,7 @@ var lastIdleWeeklyTime;
  * @type {(Object|null)}
  * @default
  */
-var storage = null;
+let storage = null;
 
 /**
  * The timeout ID (from `setTimeout`) for the most recent
@@ -114,43 +115,25 @@ var storage = null;
  * @private
  * @type {number}
  */
-var timeoutId = -1;
+let timeoutId = -1;
 
 /**
- * A Set containing the idle daily listener functions.
- * @private
- * @const {Set<function>}
- * @default
+ * An event that fires about once a day, when the browser is idle.
+ * @constant
+ * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
-const idleDailyListeners = new Set();
+export const onIdleDaily = new Events.Event({
+    addListenerCallback: function() { initialize(); }
+})
 
 /**
- * A Set containing the idle weekly listener functions.
- * @private
- * @const {Set<function>}
- * @default
+ * An event that fires about once a week, when the browser is idle.
+ * @constant
+ * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
-const idleWeeklyListeners = new Set();
-
-/**
- * Register a listener function that will be notified about once a day,
- * when the browser is idle.
- * @param {function} idleDailyListener - The listener function.
- */
-export async function registerIdleDailyListener(idleDailyListener) {
-    await initialize();
-    idleDailyListeners.add(idleDailyListener);
-}
-
-/**
- * Register a listener function that will be notified about once a week,
- * when the browser is idle.
- * @param {function} idleWeeklyListener - The listener function.
- */
-export async function registerIdleWeeklyListener(idleWeeklyListener) {
-    await initialize();
-    idleWeeklyListeners.add(idleWeeklyListener);
-}
+export const onIdleWeekly = new Events.Event({
+    addListenerCallback: function() { initialize(); }
+});
 
 /**
  * Set a timeout and listener for when the ordinary and the shortened
@@ -176,7 +159,7 @@ function setIdleStateDetectionTimeout() {
     // recent idle daily event. Thresholded with a delay of 0 (fire
     // immediately) since the time could be in the past (e.g., if the
     // browser has not been open for a day).
-    var timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) - Date.now(), 0);
+    let timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) - Date.now(), 0);
     timeoutId = setTimeout(function() {
         // If the browser is already in an idle state with the ordinary
         // idle state detection interval, fire the idle events.
@@ -210,9 +193,7 @@ async function notifyListeners() {
     lastIdleDailyTime = Date.now();
     await storage.set("lastIdleDailyTime", lastIdleDailyTime);
 
-    // Notify the idle daily listeners.
-    for(const idleDailyListener of idleDailyListeners)
-        idleDailyListener();
+    onIdleDaily.notifyListeners();
     
     // Set a timeout to account for corner cases.
     setIdleStateDetectionTimeout();
@@ -227,9 +208,7 @@ async function notifyListeners() {
     lastIdleWeeklyTime = lastIdleDailyTime;
     await storage.set("lastIdleWeeklyTime", lastIdleWeeklyTime);
 
-    // Notify the idle weekly listeners.
-    for(const idleWeeklyListener of idleWeeklyListeners)
-        idleWeeklyListener();
+    onIdleWeekly.notifyListeners();
 }
 
 /**
@@ -272,7 +251,7 @@ async function shortenedIdleStateListener(newState) {
  * @private
  * @type {boolean}
  */
-var initialized = false;
+let initialized = false;
 
 /**
  * Setup for the module. Runs only once.
@@ -287,8 +266,8 @@ async function initialize() {
     // from persistent storage. If there are no stored times, that
     // means the extension has just been installed, and we should
     // use the current time.
-    var currentTime = Date.now();
-    storage = await (new Storage.KeyValueStorage("WebScience.Utilities.Scheduling")).initialize();
+    const currentTime = Date.now();
+    storage = new Storage.KeyValueStorage("WebScience.Utilities.Scheduling");
 
     lastIdleDailyTime = await storage.get("lastIdleDailyTime");
     if(lastIdleDailyTime === null) {

@@ -2,27 +2,48 @@
  * Module for resolving a short url
  * @module WebScience.Utilities.LinkResolution
  */
-import {
-  getDebuggingLog
-} from './Debugging.js';
-import {
-  shortDomains
-} from '/WebScience/dependencies/shortdomains.js';
-import {
-  ampCacheDomains
-} from '/WebScience/dependencies/ampcachedomains.js';
-const debugLog = getDebuggingLog("Utilities.LinkResolution");
-
+import * as Matching from "./Matching.js";
+import { urlShortenerMatchPatterns } from "../dependencies/urlShorteners.js";
+import { ampCacheDomains, ampViewerDomainsAndPaths } from "../dependencies/ampCachesAndViewers.js";
 
 const fetchTimeoutMs = 5000;
 let initialized = false;
 // promisesByUrl is a mapping from a url to resolve and the resolve objects associated with it
-let promisesByUrl = new Map();
+const promisesByUrl = new Map();
 // trackedUrls is a set for which the headers are observed
-let trackedUrls = new Set();
+const trackedUrls = new Set();
 // urlByRedirectedUrl is a mapping from a redirected url to url that redirected to it
 // recursively traversing this mapping will get the redirect chain associated with an initial url
-let urlByRedirectedUrl = new Map();
+const urlByRedirectedUrl = new Map();
+
+/**
+ * A RegExp that matches and parses AMP cache and viewer URLs. If there is a match, the RegExp provides several
+ * named capture groups.
+ *   * AMP Cache Matches
+ *     * `ampCacheSubdomain` - The subdomain, which should be either a reformatted version of the
+ *       URL domain or a hash of the domain. If there is no subdomain, this capture group
+ *       is `undefined`.
+ *     * `ampCacheDomain` - The domain for the AMP cache.
+ *     * `ampCacheContentType` - The content type, which is either `c` for an HTML document, `i` for
+ *        an image, or `r` for another resource. 
+ *     * `ampCacheIsSecure` - Whether the AMP cache loads the resource via HTTPS. If it does, this
+ *        capture group has the value `s/`. If it doesn't, this capture group is `undefined`.
+ *     * `ampCacheUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
+ *  * AMP Viewer Matches
+ *     * `ampViewerDomainAndPath` - The domain and path for the AMP viewer.
+ *     * `ampViewerUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
+ * @see {@link https://developers.google.com/amp/cache/overview}
+ * @see {@link https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/}
+ * @constant
+ * @type {RegExp}
+ */
+export const ampRegExp = new RegExp(
+  // AMP cache regular expression
+  `(?:^https?://(?:(?<ampCacheSubdomain>[a-zA-Z0-9\\-\\.]*)\\.)?(?<ampCacheDomain>${ampCacheDomains.map(Matching.escapeRegExpString).join("|")})/(?<ampCacheContentType>c|i|r)/(?<ampCacheIsSecure>s/)?(?<ampCacheUrl>.*)$)`
+  + `|` +
+  // AMP viewer regular expression
+  `(?:^https?://(?<ampViewerDomainAndPath>${ampViewerDomainsAndPaths.map(Matching.escapeRegExpString).join("|")})/(?<ampViewerUrl>.*)$)`
+  , "i");
 
 /**
  * Function to resolve a given url to the final url that it points to
@@ -33,10 +54,10 @@ export function resolveUrl(url) {
   if (!initialized) {
     return Promise.reject("module not initialized");
   }
-  let urlResolutionPromise = new Promise(function (resolve, reject) {
+  const urlResolutionPromise = new Promise(function (resolve, reject) {
     // store the resolve function in promisesByUrl. This function will be invoked when the 
     // url is resolved
-    let resolves = promisesByUrl.get(url) || [];
+    const resolves = promisesByUrl.get(url) || [];
     if (!resolves || !resolves.length) {
       promisesByUrl.set(url, resolves);
     }
@@ -65,20 +86,29 @@ export function resolveUrl(url) {
  */
 function responseHeaderListener(details) {
   // Continue only if this url is relevant for link resolution
-  if (!trackedUrls.has(details.url)) {
-    return;
-  }
+    if (!trackedUrls.has(details.url)) {
+        // When a site has HSTS enabled, the browser silently upgrades
+        // http requests to https, which means we won't match the returned
+        // url against the one we requested. Check for a returned url that has
+        // an s and matches against a non-https url we're looking for, and link
+        // them if one exists.
+        const httpVersion = details.url.replace("https", "http");
+        if (!trackedUrls.has(httpVersion)) {
+            return;
+        }
+        urlByRedirectedUrl.set(details.url, httpVersion);
+    }
 
   // The location field in response header indicates the redirected URL
   // The response header from onHeadersReceived is an array of objects, one of which possibly
   // contains a field with name location (case insensitive).
-  let redirectedURLLocation = details.responseHeaders.find(obj => {
+  const redirectedURLLocation = details.responseHeaders.find(obj => {
     return obj.name.toUpperCase() === "LOCATION";
   });
 
   // if the location field in response header contains a new url
   if (redirectedURLLocation != null && (redirectedURLLocation.value != details.url)) {
-    let nexturl = redirectedURLLocation.value;
+    const nexturl = redirectedURLLocation.value;
     // Create a link between the next url and the initial url
     urlByRedirectedUrl.set(nexturl, details.url);
     // Add the next url so that we process it during the next onHeadersReceived
@@ -95,20 +125,20 @@ function responseHeaderListener(details) {
       // backtrack urlByRedirectedUrl to get to the promise object that corresponds to this
       let url = details.url;
       while (urlByRedirectedUrl.has(url)) {
-        let temp = url;
+        const temp = url;
         url = urlByRedirectedUrl.get(url);
         urlByRedirectedUrl.delete(temp);
         trackedUrls.delete(temp);
       }
       // url now contains the initial url. Now, resolve the corresponding promises
       if (url && promisesByUrl.has(url)) {
-        let resolves = promisesByUrl.get(url) || [];
-        let resolveObj = {
+        const resolves = promisesByUrl.get(url) || [];
+        const resolveObj = {
           source: url,
           dest: details.url
         };
-        for (var i = 0; i < resolves.length; i++) {
-          var r = resolves[i].resolve;
+        for (let i = 0; i < resolves.length; i++) {
+          const r = resolves[i].resolve;
           r(resolveObj);
         }
         promisesByUrl.delete(url);
@@ -122,11 +152,11 @@ function responseHeaderListener(details) {
  * @param {Object} responseDetails - Contains details of the error
  */
 function trackError(responseDetails) {
-  let url = responseDetails.url;
+  const url = responseDetails.url;
   if (promisesByUrl.has(url)) {
-    let resolves = promisesByUrl.get(url) || [];
+    const resolves = promisesByUrl.get(url) || [];
     for (let i = 0; i < resolves.length; i++) {
-      let r = resolves[i].reject;
+      const r = resolves[i].reject;
       r(responseDetails.error);
     }
     promisesByUrl.delete(url);
@@ -139,29 +169,27 @@ function trackError(responseDetails) {
  */
 export function initialize() {
   initialized = true;
-  let headerListener = browser.webRequest.onHeadersReceived.addListener(responseHeaderListener, {
+  browser.webRequest.onHeadersReceived.addListener(responseHeaderListener, {
     urls: ["<all_urls>"]
   }, ["responseHeaders"]);
-  let errorListener = browser.webRequest.onErrorOccurred.addListener(trackError, {
+  browser.webRequest.onErrorOccurred.addListener(trackError, {
     urls: ["<all_urls>"]
   });
 }
 
 /**
- * Returns a list of short domains that the link resolution module can resolve
- * @returns {String[]} Array of domains
+ * An array of match patterns for known URL shorteners, loaded from `urlShortenerMatchPatterns.js`.
+ * @constant
+ * @type{Array<string>}
  */
-export function getShortDomains() {
-  return shortDomains;
-}
+export { urlShortenerMatchPatterns };
 
 /**
- * Returns a list of amp cache domains
- * @returns {String[]} Array of domains
+ * A RegExp for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
+ * @constant
+ * @type{RegExp}
  */
-export function getAmpCacheDomains() {
-  return ampCacheDomains;
-}
+export const urlShortenerRegExp = Matching.matchPatternsToRegExp(urlShortenerMatchPatterns);
 
 /**
  * Fetch API doesn't provide a native timeout option. This function uses AbortController to
@@ -174,5 +202,7 @@ function fetchWithTimeout(url, init, timeout) {
   const controller = new AbortController();
   init.signal = controller.signal;
   fetch(url, init);
-  setTimeout(() => controller.abort(), timeout);
+  setTimeout(() => {
+      controller.abort()
+  }, timeout);
 }

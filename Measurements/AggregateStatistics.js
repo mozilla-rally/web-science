@@ -3,7 +3,14 @@
  * @module WebScience.Measurements.AggregateStatistics
  */
 
-var studyDomains = null;
+const fbRegex = /(facebook.com\/pages\/[0-9|a-z|A-Z|-]*\/[0-9]*(\/|$))|(facebook\.com\/[0-9|a-z|A-Z|.]*(\/|$))/i;
+const ytRegex = /(youtube.com\/(user|channel)\/[0-9|a-z|A-Z|_|-]*(\/videos)?)(\/|$)|(youtube\.com\/[0-9|A-Z|a-z]*)(\/|$)|(youtube\.com\/profile\?user=[0-9|A-Z|a-z]*)(\/|$)/i;
+const twRegex = /(twitter\.com\/[0-9|a-z|A-Z|_]*(\/|$))/;
+let referrerMatcher;
+let destinationMatcher;
+let fbMatcher;
+let twMatcher;
+let ytMatcher;
 
 /**
  * Event handler for messages from the main thread
@@ -14,14 +21,24 @@ var studyDomains = null;
  * @listens MessageEvent
  */
 onmessage = async event => {
-    let data = event.data;
-    let stats = {};
-    studyDomains = data.studyDomains;
+    const data = event.data;
+    const stats = {};
+    const studyDomains = data.studyDomains;
+    destinationMatcher = new MatchPatternSet([]);
+    destinationMatcher.import(studyDomains.destinationMatches);
+    referrerMatcher = new MatchPatternSet([])
+    referrerMatcher.import(studyDomains.referrerMatches);
+    fbMatcher = new MatchPatternSet([])
+    fbMatcher.import(studyDomains.fbMatches);
+    ytMatcher = new MatchPatternSet([])
+    ytMatcher.import(studyDomains.ytMatches);
+    twMatcher = new MatchPatternSet([])
+    twMatcher.import(studyDomains.twMatches);
     Object.entries(data.fromStorage).forEach(entry => {
-        let key = entry[0];
-        let storageObj = entry[1];
+        const key = entry[0];
+        const storageObj = entry[1];
         if (key in functionMapping) {
-            let aggregrateStats = functionMapping[key](storageObj);
+            const aggregrateStats = functionMapping[key](storageObj);
             stats[key] = aggregrateStats;
         }
     });
@@ -60,7 +77,7 @@ function StorageStatistics(setup, compute, gather) {
 }
 
 StorageStatistics.prototype.computeStats = function (storageInstance) {
-    let stats = this.setup();
+    const stats = this.setup();
     Object.entries(storageInstance).forEach(entry => {
         this.compute(entry, stats);
     });
@@ -72,22 +89,6 @@ StorageStatistics.prototype.computeStats = function (storageInstance) {
  */
 
 /**
- * The number of seconds in a day.
- * @private
- * @const {number}
- * @default
- */
-const _MS_PER_DAY = 1000 * 60 * 60 * 24;
-/**
- * Maximum date supported. Used in computing the earliest
- * date from a list of date objects.
- * @private
- * @const {number}
- * @default
- */
-const _MAX_DATE = 8640000000000000;
-
-/**
  * Object that maps the type of data and the stats function to apply on
  * data object of that type.
  *
@@ -96,9 +97,9 @@ const _MAX_DATE = 8640000000000000;
  * @default
  */
 const functionMapping = {
-    "WebScience.Measurements.PageNavigation": pageNavigationStats,
-    "WebScience.Measurements.LinkExposure": linkExposureStats,
-    "WebScience.Measurements.SocialMediaLinkSharing": socialMediaLinkSharingStats
+    "NewsAndDisinfo.Measurements.PageNavigation.pageVisits": pageNavigationStats,
+    "NewsAndDisinfo.Measurements.LinkExposure.linkExposures": linkExposureStats,
+    "NewsAndDisinfo.Measurements.SocialMediaLinkSharing.linkShares": socialMediaLinkSharingStats,
 }
 
 /**
@@ -106,64 +107,62 @@ const functionMapping = {
  * @param {Object} pageNavigationStorage page navigation storage object
  */
 function pageNavigationStats(pageNavigationStorage) {
-    let statsObj = new StorageStatistics(
+    const statsObj = new StorageStatistics(
         () => {
-            let stats = {};
+            const stats = {};
             stats.trackedVisitsByDomain = {};
-
+            stats.numUntrackedVisits = 0;
             return stats;
         },
         (entry, stats) => {
-            let navObj = entry[1];
+            const navObj = entry[1];
             if (navObj.type == "pageVisit") {
-                let domain = getTrackedPathDest(navObj.url);
-                var domainIndex = JSON.stringify({domain: domain});
-                var domainObj = stats.trackedVisitsByDomain[domainIndex];
+                const domain = getTrackedPathDest(navObj.url);
+                const domainIndex = JSON.stringify({domain: domain});
+                let domainObj = stats.trackedVisitsByDomain[domainIndex];
                 if (!domainObj) {
                     stats.trackedVisitsByDomain[domainIndex] = {};
                     domainObj = stats.trackedVisitsByDomain[domainIndex];
                     domainObj.visitsByReferrer = {};
                 }
 
-                var date = new Date(navObj.visitStart);
-                var dayOfWeek = date.getDay();
-                var hourOfDay = date.getHours();
-                var timeOfDay = Math.floor(hourOfDay / 4) * 4;
+                const date = new Date(navObj.pageVisitStartTime);
+                const dayOfWeek = date.getUTCDay();
+                const hourOfDay = date.getUTCHours();
+                const timeOfDay = Math.floor(hourOfDay / 4) * 4;
 
-                var index = JSON.stringify({
+                const index = JSON.stringify({
                     referrerDomain: getTrackedPathSource(navObj.referrer),
                     dayOfWeek: dayOfWeek,
                     timeOfDay: timeOfDay,
-                    pageCategory: navObj.classification
+                    classifierResults: navObj.classResults
                 });
 
-                var specificObj = domainObj.visitsByReferrer[index];
+                let specificObj = domainObj.visitsByReferrer[index];
                 if (specificObj) {
                     specificObj.numVisits += 1;
                     specificObj.totalAttention += navObj.attentionDuration;
-                    specificObj.totalScroll += navObj.scrollDepth == -1 ? 0 :
-                        Math.floor(navObj.scrollDepth * 100);
+                    specificObj.totalScroll += Math.floor(navObj.maxRelativeScrollDepth * 100);
                     specificObj.laterSharedCount += navObj.laterShared ? 1 : 0;
                     specificObj.prevExposedCount += navObj.prevExposed ? 1 : 0;
                 } else {
                     specificObj = {};
                     specificObj.numVisits = 1;
                     specificObj.totalAttention = navObj.attentionDuration;
-                    specificObj.totalScroll = navObj.scrollDepth == -1 ? 0 :
-                        Math.floor(navObj.scrollDepth * 100);
+                    specificObj.totalScroll = Math.floor(navObj.maxRelativeScrollDepth * 100);
                     specificObj.laterSharedCount = navObj.laterShared ? 1 : 0;
                     specificObj.prevExposedCount = navObj.prevExposed ? 1 : 0;
                     domainObj.visitsByReferrer[index] = specificObj;
                 }
-            } else if (navObj.type = "untrackedVisitCount") {
-                stats.numUntrackedVisits = navObj.numUntrackedVisits;
+            } else if (navObj.type == "untracked") {
+                stats.numUntrackedVisits += 1;
             }
         },
         (r) => {
-            for (var domain in r.trackedVisitsByDomain) {
-                var trackedVisits = r.trackedVisitsByDomain[domain].visitsByReferrer;
-                var trackedVisitsArray = Object.entries(trackedVisits).map((pair) => {
-                    var entry = JSON.parse(pair[0]);
+            for (const domain in r.trackedVisitsByDomain) {
+                const trackedVisits = r.trackedVisitsByDomain[domain].visitsByReferrer;
+                const trackedVisitsArray = Object.entries(trackedVisits).map((pair) => {
+                    const entry = JSON.parse(pair[0]);
                     entry.numVisits = pair[1].numVisits;
                     entry.totalAttention = pair[1].totalAttention;
                     entry.totalScroll = pair[1].totalScroll;
@@ -173,9 +172,9 @@ function pageNavigationStats(pageNavigationStorage) {
                 });
                 r.trackedVisitsByDomain[domain].visitsByReferrer = trackedVisitsArray;
             }
-            var domains = r.trackedVisitsByDomain;
-            var domainsArray = Object.entries(domains).map((pair) => {
-                var entry = JSON.parse(pair[0]);
+            const domains = r.trackedVisitsByDomain;
+            const domainsArray = Object.entries(domains).map((pair) => {
+                const entry = JSON.parse(pair[0]);
                 entry.visitsByReferrer = pair[1].visitsByReferrer;
                 return entry;
             });
@@ -192,24 +191,24 @@ function pageNavigationStats(pageNavigationStorage) {
  * @param {Object} linkExposureStorage page navigation storage object
  */
 function linkExposureStats(linkExposureStorage) {
-    let statsObj = new StorageStatistics(
+    const statsObj = new StorageStatistics(
         () => {
-            let stats = {};
-            stats.untrackedLinkExposures = {};
+            const stats = {};
+            stats.untrackedLinkExposures = {"5": 0};
             stats.linkExposures = {};
 
             return stats;
         },
         (entry, stats) => {
-            let exposureObj = entry[1];
-            if (exposureObj.type == "linkExposure") {
-                var date = new Date(exposureObj.firstSeen);
-                var hourOfDay = date.getHours();
-                var timeOfDay = Math.floor(hourOfDay / 4) * 4;
-                var index = JSON.stringify({
-                    sourceDomain: getTrackedPathSource(exposureObj.metadata.location),
+            const exposureObj = entry[1];
+            if (exposureObj.type == "exposure") {
+                const date = new Date(exposureObj.firstSeen);
+                const hourOfDay = date.getUTCHours();
+                const timeOfDay = Math.floor(hourOfDay / 4) * 4;
+                const index = JSON.stringify({
+                    sourceDomain: getTrackedPathSource(exposureObj.pageUrl),
                     destinationDomain: getTrackedPathDest(exposureObj.url),
-                    dayOfWeek: (new Date(exposureObj.firstSeen)).getDay(),
+                    dayOfWeek: (date).getUTCDay(),
                     timeOfDay: timeOfDay,
                     visThreshold: exposureObj.visThreshold
                 });
@@ -220,24 +219,20 @@ function linkExposureStats(linkExposureStorage) {
                         laterSharedCount: exposureObj.laterShared ? 1 : 0
                     };
                 } else {
-                    current = stats.linkExposures[index];
+                    const current = stats.linkExposures[index];
                     stats.linkExposures[index] = {
                         numExposures: current.numExposures + 1,
                         laterVisitedCount: current.laterVisitedCount + exposureObj.laterVisited ? 1 : 0,
                         laterSharedCount: current.laterSharedCount + exposureObj.laterShared ? 1 : 0
                     }
                 }
-            } else if (exposureObj.type == "numUntrackedUrls") {
-                for (var threshold in exposureObj.untrackedCounts) {
-                    var thresholdObj = exposureObj.untrackedCounts[threshold];
-                    stats.untrackedLinkExposures[thresholdObj.threshold] =
-                        thresholdObj.numUntracked;
-                }
+            } else if (exposureObj.type == "untracked") {
+                stats.untrackedLinkExposures["5"] += exposureObj.count;
             }
         },
         (r) => {
-            var exposuresArray = Object.entries(r.linkExposures).map((pair) => {
-                var entry = JSON.parse(pair[0]);
+            const exposuresArray = Object.entries(r.linkExposures).map((pair) => {
+                const entry = JSON.parse(pair[0]);
                 entry.numExposures = pair[1].numExposures;
                 entry.laterVisitedCount = pair[1].laterVisitedCount;
                 entry.laterSharedCount = pair[1].laterSharedCount;
@@ -252,13 +247,13 @@ function linkExposureStats(linkExposureStorage) {
 
 
 function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
-    var fbIndex = JSON.stringify({platform: "facebook"});
-    var twIndex = JSON.stringify({platform: "twitter"});
-    var rdIndex = JSON.stringify({platform: "reddit"});
+    const fbIndex = JSON.stringify({platform: "facebook"});
+    const twIndex = JSON.stringify({platform: "twitter"});
+    const rdIndex = JSON.stringify({platform: "reddit"});
 
-    let statsObj = new StorageStatistics(
+    const statsObj = new StorageStatistics(
         () => {
-            let stats = {};
+            const stats = {};
             stats.linkSharesByPlatform = {}
             stats.linkSharesByPlatform[fbIndex] = {trackedShares: {}, numUntrackedShares: 0};
             stats.linkSharesByPlatform[twIndex] = {trackedShares: {}, numUntrackedShares: 0};
@@ -267,37 +262,30 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
             return stats;
         },
         (entry, stats) => {
-            let val = entry[1];
-            if (val.type == "numUntrackedShares") {
-                stats.linkSharesByPlatform[fbIndex].numUntrackedShares += val.facebook;
-                stats.linkSharesByPlatform[twIndex].numUntrackedShares += val.twitter;
-                stats.linkSharesByPlatform[rdIndex].numUntrackedShares += val.reddit;
-            }
-            if (val.type == "linkShare") {
-                var platformIndex = "";
+            const val = entry[1];
+            if (val.type == "untracked") {
+                stats.linkSharesByPlatform[JSON.stringify({platform: val.platform})].numUntrackedShares += val.count;
+            } else if (val.type == "share") {
+                let platformIndex = "";
                 if (val.platform == "facebook") platformIndex = fbIndex;
                 if (val.platform == "twitter") platformIndex = twIndex;
                 if (val.platform == "reddit") platformIndex = rdIndex;
-                var platformObj = stats.linkSharesByPlatform[platformIndex];
+                let platformObj = stats.linkSharesByPlatform[platformIndex];
                 if (!platformObj) {
                     stats.linkSharesByPlatform[platformIndex] = {};
                     platformObj = stats.linkSharesByPlatform[platformIndex];
                 }
 
-                var hostname = getHostName(val.url);
-                var prevVisitReferrers = val.prevVisitReferrers;
-                var visitReferrer = null;
-                if (prevVisitReferrers && prevVisitReferrers.length > 0) {
-                    visitReferrer = getTrackedPathSource(prevVisitReferrers[0]);
-                }
-                var date = new Date(val.shareTime);
-                var dayOfWeek = date.getDay();
-                var hourOfDay = date.getHours();
-                var timeOfDay = Math.floor(hourOfDay / 4) * 4;
+                const hostname = getHostName(val.url);
+                const visitReferrer = val.prevVisitReferrer;
+                const date = new Date(val.shareTime);
+                const dayOfWeek = date.getUTCDay();
+                const hourOfDay = date.getUTCHours();
+                const timeOfDay = Math.floor(hourOfDay / 4) * 4;
 
-                var index = JSON.stringify({
+                const index = JSON.stringify({
                     domain: hostname,
-                    pageClassification: val.classification,
+                    classifierResults: val.classifierResults,
                     audience: val.audience,
                     source: val.source,
                     visitReferrer: visitReferrer,
@@ -305,7 +293,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
                     dayOfWeek: dayOfWeek,
                     timeOfDay: timeOfDay
                 });
-                var specificObj = platformObj.trackedShares[index];
+                let specificObj = platformObj.trackedShares[index];
                 if (specificObj) {
                     specificObj.trackedSharesCount += 1;
                 } else {
@@ -316,18 +304,18 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
             }
         },
         (r) => {
-            for (var platform in r.linkSharesByPlatform) {
-                var trackedShares = r.linkSharesByPlatform[platform].trackedShares;
-                var trackedSharesArray = Object.entries(trackedShares).map((pair) => {
-                    var entry = JSON.parse(pair[0]);
+            for (const platform in r.linkSharesByPlatform) {
+                const trackedShares = r.linkSharesByPlatform[platform].trackedShares;
+                const trackedSharesArray = Object.entries(trackedShares).map((pair) => {
+                    const entry = JSON.parse(pair[0]);
                     entry.numShares = pair[1].trackedSharesCount;
                     return entry;
                 });
                 r.linkSharesByPlatform[platform].trackedShares = trackedSharesArray;
             }
-            var platforms = r.linkSharesByPlatform;
-            var platformsArray = Object.entries(platforms).map((pair) => {
-                var entry = JSON.parse(pair[0]);
+            const platforms = r.linkSharesByPlatform;
+            const platformsArray = Object.entries(platforms).map((pair) => {
+                const entry = JSON.parse(pair[0]);
                 entry.numUntrackedShares = pair[1].numUntrackedShares;
                 entry.trackedShares = pair[1].trackedShares;
                 return entry;
@@ -346,7 +334,7 @@ function socialMediaLinkSharingStats(socialMediaLinkSharingStorage) {
  * @returns {string|null} hostname in the input url
  */
 function getHostName(url) {
-    var match = url.match(/:\/\/(www[0-9]?\.)?(.[^/:]+)/i);
+    const match = url.match(/:\/\/(www[0-9]?\.)?(.[^/:]+)/i);
     if (match != null && match.length > 2 && typeof match[2] === 'string' && match[2].length > 0) {
         return match[2];
     }
@@ -360,35 +348,151 @@ function getHostName(url) {
  * @returns {string|null} hostname in the input url
  */
 function getDomain(url) {
+    let urlObj;
     try {
-        var urlObj = new URL(url);
+        urlObj = new URL(url);
     } catch { return ""; }
     return urlObj.hostname;
 }
 
 function getTrackedPathDest(url) {
     // if this is a dest, it must have passed a destination check already
-    var fbResult = studyDomains.paths.fb.regex.exec(url);
-    if (fbResult && studyDomains.paths.fb.pages.regExp.exec(url)) { return fbResult[0]; }
-    /*
-    var twResult = studyDomains.paths.tw.regex.exec(url);
-    if (twResult && studyDomains.paths.tw.pages.regExp.exec(url)) { return twResult[0]; }
-    */
-    var ytResult = studyDomains.paths.yt.regex.exec(url);
-    if (ytResult && studyDomains.paths.yt.pages.regExp.exec(url)) { return ytResult[0]; }
+    const fbResult = fbRegex.exec(url);
+    if (fbResult && fbMatcher.matches(url)) { return fbResult[0]; }
+    const twResult = twRegex.exec(url);
+    if (twResult && twMatcher.matches(url)) { return twResult[0]; }
+    const ytResult = ytRegex.exec(url);
+    if (ytResult && ytMatcher.matches(url)) { return ytResult[0]; }
     return getDomain(url);
 }
 
 function getTrackedPathSource(url) {
-    var fbResult = studyDomains.paths.fb.regex.exec(url);
-    if (fbResult && studyDomains.paths.fb.pages.regExp.exec(url)) { return fbResult[0]; }
-    /*
-    var twResult = studyDomains.paths.tw.regex.exec(url);
-    if (twResult && studyDomains.paths.tw.pages.regExp.exec(url)) { return twResult[0]; }
-    */
-    var ytResult = studyDomains.paths.yt.regex.exec(url);
-    if (ytResult && studyDomains.paths.yt.pages.regExp.exec(url)) { return ytResult[0]; }
-    if (studyDomains.referrerOnlyDomains.regExp.exec(url)) { return getDomain(url); }
-    if (studyDomains.domains.regExp.exec(url)) { return getDomain(url); }
+    // a referrer hasn't necessarily passed a check
+    const fbResult = fbRegex.exec(url);
+    if (fbResult && fbMatcher.matches(url)) { return fbResult[0]; }
+    const twResult = twRegex.exec(url);
+    if (twResult && twMatcher.matches(url)) { return twResult[0]; }
+    const ytResult = ytRegex.exec(url);
+    if (ytResult && ytMatcher.matches(url)) { return ytResult[0]; }
+    if (referrerMatcher.matches(url)) { return getDomain(url); }
+    if (destinationMatcher.matches(url)) { return getDomain(url); }
     return "other";
 }
+
+/**
+ * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
+ * a significant performance improvement in comparison to `RegExp`s, in some instances
+ * greater than 100x. A `MatchPatternSet` can also be exported to an object that uses only
+ * built-in types, so it can be persisted or passed to content scripts in extension storage.
+ *
+ * There are several key optimizations in `MatchPatternSet`:
+ *   * URLs are parsed with the `URL` class, which has native implementation.
+ *   * Match patterns are indexed by hostname in a hash map. Lookups are much faster than
+ *     iteratively advancing and backtracking through a complex regular expression, which
+ *     is how domain matching currently occurs with the `Irregexp` regular expression
+ *     engine in Firefox and Chrome.
+ *   * Match patterns with identical scheme, subdomain matching, and host (i.e., that
+ *     differ only in path) are combined.
+ *   * The only remaining use of regular expressions is in path matching, where expressions
+ *     can be (relatively) uncomplicated.
+ *
+ * Future performance improvements could include:
+ *   * Replacing the path matching implementation to eliminate regular expressions entirely.
+ *   * Replacing the match pattern index, such as by implementing a trie.
+ */
+class MatchPatternSet {
+    /**
+     * Creates a match pattern set from an array of match patterns.
+     * @param {string[]} matchPatterns - The match patterns for the set.
+     */
+    constructor(matchPatterns) {
+        // Defining the special sets of `<all_url>` and wildcard schemes inside the class so
+        // keeping content scripts in sync with this implementation will be easier
+        this.allUrls = false;
+        this.allUrlsSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+        this.wildcardSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+        this.patternsByHost = { };
+    }
+
+    /**
+     * Compares a URL string to the match patterns in the set.
+     * @param {string} url - The URL string to compare.
+     * @returns {boolean} Whether the URL string matches a pattern in the set.
+     */
+    matches(url) {
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+        } catch {
+            // If the target isn't a true URL, it certainly doesn't match
+            return false;
+        }
+        // Remove the trailing : from the parsed protocol
+        const scheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1);
+        const host = parsedUrl.hostname;
+        const path = parsedUrl.pathname;
+
+        // Check the special `<all_urls>` match pattern
+        if(this.allUrls && this.allUrlsSchemeSet.has(scheme))
+            return true;
+
+        // Identify candidate match patterns
+        let candidatePatterns = [ ];
+        // Check each component suffix of the hostname for candidate match patterns
+        const hostComponents = parsedUrl.hostname.split(".");
+        let hostSuffix = "";
+        for(let i = hostComponents.length - 1; i >= 0; i--) {
+            hostSuffix = hostComponents[i] + (i < hostComponents.length - 1 ? "." : "") + hostSuffix;
+            const hostSuffixPatterns = this.patternsByHost[hostSuffix];
+            if(hostSuffixPatterns !== undefined)
+                candidatePatterns = candidatePatterns.concat(hostSuffixPatterns);
+        }
+
+        // Add match patterns with a wildcard host to the set of candidates
+        const hostWildcardPatterns = this.patternsByHost["*"];
+        if(hostWildcardPatterns !== undefined)
+        candidatePatterns = candidatePatterns.concat(hostWildcardPatterns);
+
+        // Check the scheme, then the host, then the path for a match
+        for(const candidatePattern of candidatePatterns) {
+            if((candidatePattern.scheme === scheme) ||
+               ((candidatePattern.scheme === "*") && this.wildcardSchemeSet.has(scheme))) {
+                   if(candidatePattern.matchSubdomains ||
+                      (candidatePattern.host === "*") ||
+                      (candidatePattern.host === host)) {
+                          if(candidatePattern.wildcardPath ||
+                             candidatePattern.pathRegExp.test(path))
+                             return true;
+                      }
+               }
+        }
+
+        return false;
+    }
+
+    /**
+     * Exports the internals of the match pattern set for purposes of saving to extension
+     * local storage.
+     * @returns {object} - An opaque object representing the match pattern set internals.
+     */
+    export() {
+        return {
+            allUrls: this.allUrls,
+            patternsByHost: this.patternsByHost
+        };
+    }
+
+    /**
+     * Imports the match pattern set from an opaque object previously generated by `export`.
+     * @param {exportedInternals} - The previously exported internals for the match pattern set.
+     * @example <caption>Example usage of import.</caption>
+     * // const matchPatternSet1 = new MatchPatternSet([ "*://example.com/*" ]);
+     * // const exportedInternals = matchPatternSet.export();
+     * // const matchPatternSet2 = (new MatchPatternSet([])).import(exportedInternals);
+     */
+    import(exportedInternals) {
+        this.allUrls = exportedInternals.allUrls;
+        this.patternsByHost = exportedInternals.patternsByHost;
+    }
+}
+

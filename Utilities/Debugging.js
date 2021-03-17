@@ -12,7 +12,7 @@
  * @type {boolean}
  * @default
  */
-var debug = false;
+let debug = false;
 
 /** Enable logging for debugging events. */
 export function enableDebugging() {
@@ -27,6 +27,12 @@ export function enableDebugging() {
  */
 export function getDebuggingLog(moduleName) {
     return ((text) => {
-        console.debug("WebScience." + moduleName + ": " + text);
+        if (debug) console.debug("WebScience." + moduleName + ": " + text);
     });
+}
+
+export function getExtensionVersion() {
+    const manifest = browser.runtime.getManifest();
+    if ("version" in manifest) return manifest.version;
+    return "";
 }

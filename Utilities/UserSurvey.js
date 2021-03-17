@@ -3,19 +3,9 @@
  * @module WebScience.Utilities.userSurvey
  */
 import * as Storage from "./Storage.js"
-import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
 
-var storage = null;
-
-/**
- * Logger object
- *
- * @constant
- * @private
- * @type {function(string)}
- */
-const debugLog = Debugging.getDebuggingLog("Utilities.UserSurvey");
+let storage = null;
 
 /**
  * The fully-qualified URL to Princeton shield image
@@ -33,7 +23,9 @@ const millisecondsPerSecond = 1000;
 
 const surveyRemindPeriodDays = 3;
 
-var surveyUrlBase = "";
+const surveyCompletionUrl = "https://citpsurveys.cs.princeton.edu/thankyou";
+
+let surveyUrlBase = "";
 
 /**
  * Generates a RFC4122 compliant ID
@@ -48,7 +40,7 @@ var surveyUrlBase = "";
  */
 function generateUUID(seed) {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        var r = Math.random() * 16;
+        let r = Math.random() * 16;
         r = (seed + r) % 16 | 0;
         return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
     });
@@ -56,23 +48,26 @@ function generateUUID(seed) {
 
 async function openSurveyTab(useSameTab = false) {
     const surveyId = await storage.get("surveyId");
+    const surveyUrlFull = surveyUrlBase +
+        "?surveyId=" + surveyId +
+        "&timezone=" + new Date().getTimezoneOffset();
     if (useSameTab) {
-        browser.tabs.update({url: surveyUrlBase + "?surveyId=" + surveyId });
+        browser.tabs.update({url: surveyUrlFull});
         return;
     }
-    var creating = browser.tabs.create({
+    browser.tabs.create({
         active: true,
-        url: surveyUrlBase + "?surveyId=" + surveyId
+        url: surveyUrlFull
     });
 }
 
 async function requestSurvey(alarm) {
     if (alarm.name == "surveyAlarm") {
-        var surveyCompleted = await storage.get("surveyCompleted");
-        var noRequestSurvey = await storage.get("noRequestSurvey");
+        const surveyCompleted = await storage.get("surveyCompleted");
+        const noRequestSurvey = await storage.get("noRequestSurvey");
         if (surveyCompleted) return;
         if (noRequestSurvey) return;
-        var currentTime = Date.now();
+        const currentTime = Date.now();
         await storage.set("lastSurveyRequest", currentTime);
         browser.notifications.create({
             type: "image",
@@ -93,10 +88,18 @@ function scheduleSurveyRequest(lastSurveyRequest) {
 
 function handleSurveyCompleted() {
     storage.set("surveyCompleted", true);
+    setPopupSurveyCompleted();
+}
+
+function setPopupSurveyCompleted() {
+    browser.browserAction.setPopup({
+        popup: browser.runtime.getURL("study/completedSurvey.html")
+    });
 }
 
 function cancelSurveyRequest() {
     storage.set("noRequestSurvey", true);
+    setPopupSurveyCompleted();
 }
 
 /**
@@ -108,22 +111,21 @@ function cancelSurveyRequest() {
 export async function runStudy({
     surveyUrl
 }) {
-    var currentTime = Date.now();
+    const currentTime = Date.now();
     surveyUrlBase = surveyUrl;
 
-    storage = await(new Storage.KeyValueStorage("WebScience.Utilities.UserSurvey")).initialize();
+    storage = new Storage.KeyValueStorage("WebScience.Utilities.UserSurvey");
     /* Check when we last asked the user to do the survey. If it's null,
      * we've never asked, which means the extension just got installed.
      * Open a tab with the survey, and save this time as the most recent
      * request for participation.
      */
-    var lastSurveyRequest = await storage.get("lastSurveyRequest");
-    var surveyCompleted = await storage.get("surveyCompleted");
-    var noRequestSurvey = await storage.get("noRequestSurvey");
+    let lastSurveyRequest = await storage.get("lastSurveyRequest");
+    const surveyCompleted = await storage.get("surveyCompleted");
+    const noRequestSurvey = await storage.get("noRequestSurvey");
     if (surveyCompleted || noRequestSurvey) {
-        browser.browserAction.setPopup({
-            popup: browser.runtime.getURL("study/completedSurvey.html")
-        });
+        setPopupSurveyCompleted();
+        await storage.set("surveyCompleted", surveyCompleted);
         return;
     } else {
         browser.browserAction.setPopup({
@@ -138,7 +140,7 @@ export async function runStudy({
         await storage.set("surveyCompleted", false);
         await storage.set("noRequestSurvey", false);
         await storage.set("surveyId", generateUUID(Date.now()));
-        openSurveyTab(true);
+        openSurveyTab(false);
     }
     /* Set a time to ask the user in three days (we won't actually ask
      * if they end up completing the survey before then).
@@ -149,14 +151,12 @@ export async function runStudy({
      */
     browser.webRequest.onBeforeRequest.addListener(
         handleSurveyCompleted,
-        {urls: [
-            "https://citpsurveys.cs.princeton.edu/thankyou"
-        ]}
+        {urls: [ surveyCompletionUrl + "*" ]}
     );
 
     /* If the user tells us to never ask them again, we catch it with this message */
     Messaging.registerListener("WebScience.Utilities.UserSurvey.cancelSurveyRequest", cancelSurveyRequest);
-    Messaging.registerListener("WebScience.Utilities.UserSurvey.openSurveyTab",  () => { openSurveyTab(false); });
+    Messaging.registerListener("WebScience.Utilities.UserSurvey.openSurveyTab", () => { openSurveyTab(false); });
 }
 
 export async function getSurveyId() {

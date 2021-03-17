@@ -1,391 +1,514 @@
 /**
- * Content script for link exposure study
+ * Content script for the LinkExposure module.
  * @module WebScience.Measurements.content-scripts.linkExposure
  */
-// Function encapsulation to maintain unique variable scope for each content script
-(
-    async function () {
-        /**
-         * @constant
-         * updateInterval (number of milliseconds) is the interval at which we look for new links that users
-         * are exposed to in known domains
-         */
-        const updateInterval = 2000;
-        /**
-         * @constant
-         * visibilityThreshold (number of milliseconds) is minimum number of milliseconds for link exposure
-         */
-        var visibilityThresholds = [1000, 3000, 5000, 10000]; // match to BG page
-        /**
-         * @constant
-         * minimum link width for link exposure
-         */
-        const linkWidthThreshold = 25;
-        /**
-         * @constant
-         * minimum link height for link exposure
-         */
-        const linkHeightThreshold = 15;
-        const elementSizeCache = new Map();
+// Tell eslint that PageManager isn't actually undefined
+/* global PageManager */
 
-        var numUntrackedUrlsByThreshold = {};
-        for (var visThreshold of visibilityThresholds) {
-            numUntrackedUrlsByThreshold[visThreshold] = 0;
-        }
-        var newUntracked = false;
+// Outer function encapsulation to maintain unique variable scope for each content script
+(async function () {
 
-        var hasAttentionNow = true;
-        var lastLostAttention = -1;
-        var lastGainedAttention = -1;
-
-        // First check private windows support
-        let privateWindowResults = await browser.storage.local.get("WebScience.Measurements.LinkExposure.privateWindows");
-        if (("WebScience.Measurements.LinkExposure.privateWindows" in privateWindowResults) &&
-            !privateWindowResults["WebScience.Measurements.LinkExposure.privateWindows"] &&
-            browser.extension.inIncognitoContext) {
-            return;
+    /**
+     * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
+     * a significant performance improvement in comparison to `RegExp`s, in some instances
+     * greater than 100x. A `MatchPatternSet` can also be exported to an object that uses only
+     * built-in types, so it can be persisted or passed to content scripts in extension storage.
+     *
+     * There are several key optimizations in `MatchPatternSet`:
+     *   * URLs are parsed with the `URL` class, which has native implementation.
+     *   * Match patterns are indexed by hostname in a hash map. Lookups are much faster than
+     *     iteratively advancing and backtracking through a complex regular expression, which
+     *     is how domain matching currently occurs with the `Irregexp` regular expression
+     *     engine in Firefox and Chrome.
+     *   * Match patterns with identical scheme, subdomain matching, and host (i.e., that
+     *     differ only in path) are combined.
+     *   * The only remaining use of regular expressions is in path matching, where expressions
+     *     can be (relatively) uncomplicated.
+     *
+     * Future performance improvements could include:
+     *   * Replacing the path matching implementation to eliminate regular expressions entirely.
+     *   * Replacing the match pattern index, such as by implementing a trie.
+     */
+    class MatchPatternSet {
+        /**
+         * Creates a match pattern set from an array of match patterns.
+         * @param {string[]} matchPatterns - The match patterns for the set.
+         */
+        constructor(matchPatterns) {
+            // Defining the special sets of `<all_url>` and wildcard schemes inside the class so
+            // keeping content scripts in sync with this implementation will be easier
+            this.allUrls = false;
+            this.allUrlsSchemeSet = new Set(["http", "https", "ws", "wss", "ftp", "file", "data"]);
+            this.wildcardSchemeSet = new Set(["http", "https", "ws", "wss"]);
+            this.patternsByHost = { };
         }
 
-        let shortDomainRegex = await browser.storage.local.get("shortDomainRegex");
-        let domainRegex = await browser.storage.local.get("domainRegex");
-        const shortURLMatcher = shortDomainRegex.shortDomainRegex;
-        const urlMatcher = domainRegex.domainRegex;
-
-        /** time when the document is loaded */
-        let initialLoadTime = Date.now();
-        let currentDomain = getDomain(document.URL);
-
         /**
-         * @function
-         * Use document's visibility state to test if the document is visible
-         * @returns {boolean} true if the document is visible
+         * Compares a URL string to the match patterns in the set.
+         * @param {string} url - The URL string to compare.
+         * @returns {boolean} Whether the URL string matches a pattern in the set.
          */
-        function isDocVisible() {
-            return document.visibilityState === "visible";
-        }
-
-        // Elements that we checked for link exposure
-        let checkedElements = new WeakMap();
-
-        /**
-         * Helper function to send data to background script
-         * @param {string} type - message type
-         * @param {Object} data - data to send
-         * @returns {void} Nothing
-         */
-        function sendExposureEventsToBackground(type, data) {
-            if (data.length > 0 || newUntracked) {
-                let metadata = {
-                    location: document.location.href,
-                    loadTime: initialLoadTime,
-                    visible: isDocVisible(),
-                    referrer: document.referrer
-                };
-                let updateUntrackedUrls = numUntrackedUrlsByThreshold;
-                newUntracked = false;
-                browser.runtime.sendMessage({
-                    type: type,
-                    metadata: metadata,
-                    exposureEvents: data,
-                    numUntrackedUrls: updateUntrackedUrls
-                }).then (() => {
-                    for (var visThreshold of visibilityThresholds) {
-                        numUntrackedUrlsByThreshold[visThreshold] = 0;
-                    }
-                });
+        matches(url) {
+            let parsedUrl;
+            try {
+                parsedUrl = new URL(url);
+            } catch {
+                // If the target isn't a true URL, it certainly doesn't match
+                return false;
             }
-        }
+            // Remove the trailing : from the parsed protocol
+            const scheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1);
+            const host = parsedUrl.hostname;
+            const path = parsedUrl.pathname;
 
-        let ampDomainRegex = await browser.storage.local.get("ampDomainRegex");
-        const ampDomainMatcher = ampDomainRegex.ampDomainRegex;
-        /**
-         * @const
-         * Regular expression for extracting the amp domain and url
-         */
-        const ampDomainPrefixRegex = /.*?\/{1,2}(.*?)(\.).*/;
+            // Check the special `<all_urls>` match pattern
+            if(this.allUrls && this.allUrlsSchemeSet.has(scheme))
+                return true;
 
-        /**
-         * Function to get publisher domain and actual url from a amp link
-         * https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/
-         *
-         * @param {string} url - the {@link url} to be resolved
-         * @param {ampResolutionResult} - result of amp resolution
-         * @param {string} ampResolutionResult.domain - cache domain
-         * @param {url} ampResolutionResult.url - deampd url
-         */
-        function resolveAmpUrl(url) {
-            // Does the url contain ampdomain
-            if (ampDomainMatcher.test(url)) {
-                // extract the domain prefix by removing protocol and cache domain suffix
-                let match = ampDomainPrefixRegex.exec(url);
-                if (match != null) {
-                    let domainPrefix = match[1];
-                    //Punycode Decode the publisher domain. See RFC 3492
-                    //Replace any ‘-’ (hyphen) character in the output of step 1 with ‘--’ (two hyphens).
-                    //Replace any ‘.’ (dot) character in the output of step 2 with ‘-’ (hyphen).
-                    //Punycode Encode the output of step 3. See RFC 3492
-                    // Code below reverses the encoding
-                    // 1. replace - with . and -- with a -
-                    let domain = domainPrefix.replace("-", ".");
-                    // 2. replace two . with --
-                    domains = domain.replace("..", "--");
-                    domain = domain.replace("--", "-");
-                    // 3. get the actual url
-                    let split = url.split(domain);
-                    let sourceUrl = domain + split[1];
-                    let arr = url.split("/");
-                    return {
-                        domain: domain,
-                        url: arr[0] + "//" + sourceUrl
-                    };
-                }
+            // Identify candidate match patterns
+            let candidatePatterns = [ ];
+            // Check each component suffix of the hostname for candidate match patterns
+            const hostComponents = parsedUrl.hostname.split(".");
+            let hostSuffix = "";
+            for(let i = hostComponents.length - 1; i >= 0; i--) {
+                hostSuffix = hostComponents[i] + (i < hostComponents.length - 1 ? "." : "") + hostSuffix;
+                const hostSuffixPatterns = this.patternsByHost[hostSuffix];
+                if(hostSuffixPatterns !== undefined)
+                    candidatePatterns = candidatePatterns.concat(hostSuffixPatterns);
             }
-            return undefined;
-        }
 
-        /**
-         * Helper function to get size of element
-         * @param {Element} element element
-         * @returns Object with width and height of element
-         */
-        function getElementSize(element) {
-            let rect = element.getBoundingClientRect();
-            return {
-                width: rect.width,
-                height: rect.height
-            };
-        }
+            // Add match patterns with a wildcard host to the set of candidates
+            const hostWildcardPatterns = this.patternsByHost["*"];
+            if(hostWildcardPatterns !== undefined)
+                candidatePatterns = candidatePatterns.concat(hostWildcardPatterns);
 
-        /**
-         * Helper function to see if the size object meets width and height thresholds
-         * @param {Object} size of element
-         * @returns {boolean} true if the size is greater in width and height
-         */
-        function checkElementSizeThreshold(size) {
-            return size.width >= linkWidthThreshold && size.height >= linkHeightThreshold;
-        }
-
-        /**
-         * Helper function to check if Element is visible based on style and bounding rectangle
-         * @param {Element} element element
-         * @returns {boolean} true if the element is visible
-         */
-        function isElementVisible(element) {
-            const st = window.getComputedStyle(element);
-            let ret = (
-                element &&
-                st &&
-                st.display && st.display !== "none" &&
-                st.opacity && st.opacity !== "0"
-            );
-            return ret;
-        }
-
-        /**
-         * Convert relative url to abs url
-         * @param {string} url
-         * @returns {string} absolute url
-         */
-        function relativeToAbsoluteUrl(url) {
-            /* Only accept commonly trusted protocols:
-             * Only data-image URLs are accepted, Exotic flavours (escaped slash,
-             * html-entitied characters) are not supported to keep the function fast */
-            if (/^(https?|file|ftps?|mailto|javascript|data:image\/[^;]{2,9};):/i.test(url))
-                return url; //Url is already absolute
-
-            var base_url = location.href.match(/^(.+)\/?(?:#.+)?$/)[0] + "/";
-            if (url.substring(0, 2) == "//")
-                return location.protocol + url;
-            else if (url.charAt(0) == "/")
-                return location.protocol + "//" + location.host + url;
-            else if (url.substring(0, 2) == "./")
-                url = "." + url;
-            else if (/^\s*$/.test(url))
-                return ""; //Empty = Return nothing
-            else url = "../" + url;
-
-            url = base_url + url;
-            var i = 0;
-            while (/\/\.\.\//.test(url = url.replace(/[^\/]+\/+\.\.\//g, "")));
-
-            /* Escape certain characters to prevent XSS */
-            url = url.replace(/\.$/, "").replace(/\/\./g, "").replace(/"/g, "%22")
-                .replace(/'/g, "%27").replace(/</g, "%3C").replace(/>/g, "%3E");
-            return url;
-        }
-        /**
-         * @typedef {Object} Match
-         * @property {string} url - normalized url
-         * @property {Boolean} isMatched - domain matches
-         */
-
-        /**
-         * Function takes an element, tests it for matches with link shorteners or domains of interest and
-         * returns a Match object @see Match
-         * @function
-         * @param {Element} element - href to match for short links or domains of interest
-         * @returns {Match} match true if the url matches domains
-         */
-        function matchUrl(element) {
-            let url = relativeToAbsoluteUrl(element.href);
-            let ret = removeShim(url);
-            if (ret.isShim) {
-                elementSizeCache.set(ret.url, getElementSize(element));
-                url = ret.url;
-            }
-            let ampResolvedUrl = resolveAmpUrl(url);
-            if (ampResolvedUrl !== undefined) {
-                url = relativeToAbsoluteUrl(ampResolvedUrl.url);
-            }
-            return {
-                url: url,
-                isMatched: shortURLMatcher.test(url) || urlMatcher.test(url)
-            };
-        }
-
-        /**
-         * Function to look for new <a> elements that are in viewport
-         */
-        function checkLinksInDom() {
-            // check the visibility state of document
-            const currentTime = Date.now();
-            if (!isDocVisible()) {
-                return;
-            }
-            // if we don't have attention it's been more than updateInterval since we lost it
-            if (!hasAttentionNow && (lastLostAttention + updateInterval < currentTime)) {
-                return;
-            }
-            updateTime = hasAttentionNow ? currentTime : lastLostAttention;
-            let exposureEvents = [];
-            // Get <a> elements and either observe (for new elements) or send them to background script if visible for > threshold
-            Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
-                // if we haven't seen this <a> element
-                if (!checkedElements.has(element)) {
-                    const {
-                        url,
-                        isMatched
-                    } = matchUrl(element);
-                    const elementSize = getElementSize(element);
-                    if (currentDomain == getDomain(url) || !checkElementSizeThreshold(elementSize)) {
-                        // add this element to the map of checked urls
-                        checkedElements.set(element, {track : false});
-                        return;
-                    }
-                    checkedElements.set(element, {track: true, url: url, isMatched: isMatched,
-                        ignored:false, totalTimeSeen: 0, firstSeen: -1,
-                        lastSeenStart: -1, lastThresholdMet: -1,
-                    });
-                    observer.observe(element);
-                    return;
-                }
-                let status = checkedElements.get(element);
-                if (status.ignored || !(status.track)) return;
-                // if we have seen and the element is visible for atleast threshold milliseconds
-                var totalTimeSeen = status.totalTimeSeen +
-                    (status.lastSeenStart == -1 ? 0 :
-                        (updateTime - status.lastSeenStart));
-                for (var visThreshold of visibilityThresholds) {
-                    if (status.lastThresholdMet >= visThreshold) continue;
-                    if (totalTimeSeen >= visThreshold) {
-                        // send <a> element this to background script
-                        if (status.isMatched) {
-                            exposureEvents.push({
-                                originalUrl: status.url,
-                                size: getElementSize(element),
-                                firstSeen: status.firstSeen,
-                                visThreshold: visThreshold,
-                            });
-                        } else {
-                            numUntrackedUrlsByThreshold[visThreshold] += 1;
-                            newUntracked = true;
-                        }
-                        if (visThreshold == visibilityThresholds[visibilityThresholds.length - 1]) {
-                            observer.unobserve(element);
-                            status.ignored = true;
-                        } else {
-                            status.lastThresholdMet = visThreshold;
-                        }
+            // Check the scheme, then the host, then the path for a match
+            for(const candidatePattern of candidatePatterns) {
+                if((candidatePattern.scheme === scheme) ||
+                    ((candidatePattern.scheme === "*") && this.wildcardSchemeSet.has(scheme))) {
+                    if(candidatePattern.matchSubdomains ||
+                        (candidatePattern.host === "*") ||
+                        (candidatePattern.host === host)) {
+                        if(candidatePattern.wildcardPath ||
+                            candidatePattern.pathRegExp.test(path))
+                            return true;
                     }
                 }
-            });
-            sendExposureEventsToBackground("WebScience.linkExposure", exposureEvents);
-        }
-
-        /** callback for IntersectionObserver */
-        function handleIntersection(entries, observer) {
-            const currentTime = Date.now();
-            entries.forEach(entry => {
-                const {
-                    target
-                } = entry;
-                let status = checkedElements.get(target);
-                if (entry.intersectionRatio >= 0.70 && status.track &&
-                    isElementVisible(target) && hasAttentionNow) {
-                    if (status.lastSeenStart == -1) {
-                        status.lastSeenStart = currentTime;
-                        if (status.firstSeen == -1) status.firstSeen = status.lastSeenStart;
-                    }
-                } else if (entry.intersectionRatio < 0.70 && status.track) {
-                    if (status.lastSeenStart == -1) return; //we already weren't watching
-                    status.totalTimeSeen += (currentTime - status.lastSeenStart);
-                    status.lastSeenStart = -1;
-                }
-
-
-            });
-        }
-
-        // Options for intersection observer
-        const options = {
-            threshold: [0.70]
-        };
-        const observer = new IntersectionObserver(handleIntersection, options);
-
-        let timer = setInterval(() => run(), updateInterval);
-        let maxUpdates = -1;
-        let numUpdates = 0;
-
-        function run() {
-            if (maxUpdates >= 0 && numUpdates >= maxUpdates) {
-                clearInterval(timer);
             }
-            checkLinksInDom();
-            numUpdates++;
+
+            return false;
         }
 
-        browser.runtime.onMessage.addListener((request) => {
-            if ("attentionChange" in request) {
-                const timeStamp = request.timeStamp;
-                if (request.attentionChange == "gain") {
-                    hasAttentionNow = true;
-                    lastGainedAttention = timeStamp;
+        /**
+         * Imports the match pattern set from an opaque object previously generated by `export`.
+         * @param {exportedInternals} - The previously exported internals for the match pattern set.
+         * @example <caption>Example usage of import.</caption>
+         * // const matchPatternSet1 = new MatchPatternSet([ "*://example.com/*" ]);
+         * // const exportedInternals = matchPatternSet.export();
+         * // const matchPatternSet2 = (new MatchPatternSet([])).import(exportedInternals);
+         */
+        import(exportedInternals) {
+            this.allUrls = exportedInternals.allUrls;
+            this.patternsByHost = exportedInternals.patternsByHost;
+        }
+    }
+    /**
+     * How often (in milliseconds) to check the page for new links.
+     * @constant
+     * @type {number}
+     */
+    const updateInterval = 2000;
 
-                    Array.from(document.body.querySelectorAll("a[href]")).forEach(element => {
-                        if (!checkedElements.has(element)) {
-                            return;
-                        } else {
-                            var status = checkedElements.get(element);
-                            if (status.ignored || !(status.track)) {
-                                return;
-                            }
-                            if (status.lastSeenStart != -1) {
-                                status.totalTimeSeen += lastLostAttention - status.lastSeenStart;
-                                status.lastSeenStart = timeStamp;
-                            }
-                        }
-                    });
-                } else if (request.attentionChange == "lose") {
-                    hasAttentionNow = false;
-                    lastLostAttention = timeStamp;
-                }
-            }
-        });
-    function getDomain(url) {
-        var urlObj = new URL(url);
-        return urlObj.hostname;
+    /**
+     * How long (in milliseconds) after losing attention to stop checking the links on the page.
+     * The content script will resume checking links after regaining attention.
+     */
+    const attentionIdlePeriod = 5000;
+
+    /**
+     * Ignore links where the link hostname is identical to the page hostname.
+     * TODO: Implement support for comparing public suffix + 1 domains.
+     * @constant
+     * @type {boolean}
+     */
+    const ignoreSelfLinks = true;
+
+    /**
+     * The minimum duration (in milliseconds) that a link must be visible to treat it as an exposure.
+     * @constant
+     * @type {number}
+     */
+    const linkVisibilityDuration = 5000;
+
+    /**
+     * The minimum width (in pixels from `Element.getBoundingClientRect()`) that a link must have to treat it as an exposure.
+     * @constant
+     * @type {number}
+     */
+    const linkMinimumWidth = 25;
+
+    /**
+     * The minimum height (in pixels from `Element.getBoundingClientRect()`) that a link must have to treat it as an exposure.
+     * @constant
+     * @type {number}
+     */
+    const linkMinimumHeight = 15;
+
+    /**
+     * The minimum visibility (as a proportion of element size from `IntersectionObserverEntry.intersectionRatio`) that a link must have to treat it as an exposure.
+     * @constant
+     * @type {number}
+     */
+    const linkMinimumVisibility = 0.7;
+
+    /**
+     * Check if an Element is visible. Visibility is defined as a `display` computed style other than `none` and an `opacity` computed style other than 0.
+     * @param {Element} element - The element to check.
+     * @returns {boolean} Whether the element is visible, or `false` if the parameter `element` is not an `Element`.
+     */
+    function isElementVisible(element) {
+        if(!(element instanceof Element))
+            return false;
+        const style = window.getComputedStyle(element);
+        const display = style.getPropertyValue("display");
+        if((display === "") || (display === "none"))
+            return false;
+        const opacity = style.getPropertyValue("opacity");
+        if((opacity === "") || (opacity === "0"))
+            return false;
+        return true;
     }
 
-    } // end of anon function
-)(); // encapsulate and invoke
+    /**
+     * Converts a link URL, which may be relative, to an absolute URL.
+     * @param {string} url - The input URL, which may be relative.
+     * @returns {string} If the `url` is relative, an absolute version of `url`. Otherwise just `url`.
+     */
+    function linkUrlToAbsoluteUrl(url) {
+        // Note that if the url is already absolute, the URL constructor will ignore the specified base URL
+        return (new URL(url, PageManager.url)).href;
+    }
 
+    /**
+     * The ID for a timer to periodically check links.
+     * @type {number}
+     */
+    let timerId = 0;
+
+    // Complete loading RegExps from storage before setting up event handlers
+    // to avoid possible race conditions
+    // Haunted. Don't combine into one call.
+    const storedLinkMatcher = await browser.storage.local.get([
+        "WebScience.Measurements.LinkExposure.linkMatcher",
+    ]);
+    const storedUrlShortenerRegExp = await browser.storage.local.get([
+        "WebScience.Measurements.LinkExposure.urlShortenerRegExp",
+    ]);
+    const storedAmpRegExp = await browser.storage.local.get([
+        "WebScience.Measurements.LinkExposure.ampRegExp"
+    ]);
+    if(!("WebScience.Measurements.LinkExposure.linkMatcher" in storedLinkMatcher) ||
+        !("WebScience.Measurements.LinkExposure.urlShortenerRegExp" in storedUrlShortenerRegExp) ||
+        !("WebScience.Measurements.LinkExposure.ampRegExp" in storedAmpRegExp)) {
+        console.debug("Error: LinkExposure content script cannot load RegExps from browser.storage.local.");
+        return;
+    }
+    const linkMatcher = new MatchPatternSet([]);
+    linkMatcher.import(storedLinkMatcher["WebScience.Measurements.LinkExposure.linkMatcher"]);
+    const urlShortenerRegExp = storedUrlShortenerRegExp["WebScience.Measurements.LinkExposure.urlShortenerRegExp"];
+    const ampRegExp = storedAmpRegExp["WebScience.Measurements.LinkExposure.ampRegExp"];
+
+    /**
+     * A RegExp for matching URLs that have had Facebook's link shim applied.
+     * @constant
+     * @type {RegExp}
+     */
+    const facebookLinkShimRegExp = /^https?:\/\/l.facebook.com\/l\.php\?u=/;
+
+    /**
+     * Parse a URL from Facebook's link shim, if the shim was applied to the URL.
+     * @param {string} url - A URL that may have Facebook's link shim applied.
+     * @returns {string} If Facebook's link shim was applied to the URL, the unshimmed URL. Otherwise, just the URL.
+     */
+    function parseFacebookLinkShim(url) {
+        if(!facebookLinkShimRegExp.test(url))
+            return url;
+
+        // Extract the original URL from the "u" parameter
+        const urlObject = new URL(url);
+        const uParamValue = urlObject.searchParams.get('u');
+        if(uParamValue === null)
+            return url;
+        return uParamValue;
+    }
+
+    /**
+     * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.
+     * @param {string} url - A URL that may be an AMP cache or viewer URL.
+     * @returns {string} If the URL is an AMP cache or viewer URL, the parsed underlying URL. Otherwise, just the URL.
+     */
+    function parseAmpUrl(url) {
+        if(!ampRegExp.test(url))
+            return url;
+        const parsedAmpUrl = ampRegExp.exec(url);
+        // Reconstruct AMP cache URLs
+        if(parsedAmpUrl.groups.ampCacheUrl !== undefined)
+            return "http" +
+                ((parsedAmpUrl.groups.ampCacheIsSecure === "s") ? "s" : "") +
+                "://" +
+                parsedAmpUrl.groups.ampCacheUrl;
+        // Reconstruct AMP viewer URLs, assuming the protocol is HTTPS
+        return "https://" + parsedAmpUrl.groups.ampViewerUrl;
+    }
+
+    /**
+     * The time when the page last lost the user's attention, or -1 if the page has never had the user's attention.
+     * @type {number}
+     */
+    let lastLostAttention = -1;
+
+    /**
+     * The hostname for the current page.
+     * @type {string}
+     */
+    let currentHostname = "";
+
+    /**
+     * Additional information about an anchor element.
+     * @typedef {Object} LinkInfo
+     * @property {boolean} observing - Whether this is a link that we are currently observing.
+     * @property {string} url - The URL for this link, with any Facebook link shim or AMP cache formatting reversed.
+     * @property {boolean} isMatched - Whether the link matches the match pattern for measurement or is a shortened URL.
+     * @property {number} totalTimeSeen - How long (in milliseconds) that the link has been in view.
+     * @property {number} lastEnteredViewport - When the link last entered the browser viewport.
+     * @property {boolean} inViewport - Whether the link is in the browser viewport.
+     * @property {number} lastEnteredViewportAndPageHadAttention - When the link last entered the viewport and the page had attention.
+     */
+
+    /**
+     * A WeakMap where keys are anchor elements that we have checked and values are additional information about those elements.
+     * @type {WeakMap<HTMLAnchorElement, LinkInfo>}
+     */
+    let anchorElements = new WeakMap();
+
+    // Tracked link exposure events to include in the update to the background script
+    let exposureEvents = [];
+
+    // Untracked exposure events to include in the update to the background script
+    let numUntrackedUrls = 0;
+
+    /**
+     * Update the total time that a link has been seen by the user, assuming
+     * the page has attention and the link is in the viewport. If the link has
+     * been viewed for longer than the threshold, queue it for reporting to the
+     * background script and stop observing it.
+     *
+     * @param {number} timeStamp - The time when the underlying event fired.
+     * @param {HTMLAnchorElement} anchorElement - The anchor element.
+     * @param {LinkInfo} linkInfo - Information about the link.
+     */
+    function updateLinkTimeSeen(timeStamp, anchorElement, linkInfo) {
+        // If the link is styled as visible, accumulate the visible time for the link
+        // Note that we're assuming the link style was constant throughout the timespan
+        if(isElementVisible(anchorElement))
+            linkInfo.totalTimeSeen += timeStamp - linkInfo.lastEnteredViewportAndPageHadAttention;
+
+        // Move up when the link most recently was in the viewport and the page had attention,
+        // since we've just accumulated a span of time
+        linkInfo.lastEnteredViewportAndPageHadAttention = timeStamp;
+
+        // If the user has seen the link longer than the visibility threshold, include it in the update
+        // to the background script
+        if(linkInfo.totalTimeSeen >= linkVisibilityDuration) {
+            if(linkInfo.isMatched) {
+                const elementRect = anchorElement.getBoundingClientRect();
+                exposureEvents.push({
+                    originalUrl: linkInfo.url,
+                    firstSeen: linkInfo.firstSeen,
+                    width: elementRect.width,
+                    height: elementRect.height,
+                    isShortenedUrl: linkInfo.isShortenedUrl
+                });
+            }
+            else
+                numUntrackedUrls++;
+
+            anchorElements.set(anchorElement, {observing: false});
+            observer.unobserve(anchorElement);
+        }
+    }
+
+    /**
+     * A timer callback function that checks links (anchor elements) in the DOM.
+     */
+    function checkLinksInDom() {
+        const timeStamp = Date.now();
+
+        // If the page does not have attention and we're confident that the page did not recently have attention, ignore this timer tick
+        if (!PageManager.pageHasAttention && ((lastLostAttention < 0) || (lastLostAttention + attentionIdlePeriod < timeStamp)))
+            return;
+
+        // Iterate all the links currently on the page (i.e., anchor elements with an href attribute)
+        document.body.querySelectorAll("a[href]").forEach(element => {
+            const linkInfo = anchorElements.get(element)
+
+            // If we haven't seen this link before, check the URL and dimensions
+            // If the URL is a match (or possible match) and the dimensions aren't too small, start
+            // observing the link
+            if (linkInfo === undefined) {
+                let url = linkUrlToAbsoluteUrl(element.href);
+                url = parseFacebookLinkShim(url);
+                url = parseAmpUrl(url);
+
+                // Check if the link hostname matches the page hostname,
+                // ignore if configured to ignore these self-links
+                if(ignoreSelfLinks && ((new URL(url)).hostname === currentHostname)) {
+                    anchorElements.set(element, {observing: false});
+                    return;
+                }
+
+                // Check if the link is too small, ignore it if it is
+                const elementRect = element.getBoundingClientRect();
+                if ((elementRect.width < linkMinimumWidth) ||
+                    (elementRect.height < linkMinimumHeight)) {
+                    anchorElements.set(element, {observing: false});
+                    return;
+                }
+
+                // Flag a link as matched if either it matches the link match patterns or it is a shortened URL
+                // Start observing the link with the IntersectionObserver
+                let isMatched = linkMatcher.matches(url);
+
+                const isShortenedUrl = urlShortenerRegExp.test(url);
+                isMatched = isMatched || isShortenedUrl;
+
+                anchorElements.set(element, {
+                    observing: true,
+                    url,
+                    isMatched,
+                    isShortenedUrl,
+                    totalTimeSeen: 0,
+                    firstSeen: timeStamp,
+                    lastEnteredViewport: -1,
+                    inViewport: false,
+                    lastEnteredViewportAndPageHadAttention: -1
+                });
+                observer.observe(element);
+                return;
+            }
+
+            // If the page does not have attention, move to the next link
+            if(!PageManager.pageHasAttention)
+                return;
+
+            // If we have seen this link before and are not observing it, move on to the next link
+            if (!linkInfo.observing)
+                return;
+
+            // If the link is not in the browserviewport, move to the next link
+            if(!linkInfo.inViewport)
+                return;
+
+            updateLinkTimeSeen(timeStamp, element, linkInfo);
+        });
+        if ((exposureEvents.length > 0) || (numUntrackedUrls > 0)) {
+            browser.runtime.sendMessage({
+                type: "WebScience.Measurements.LinkExposure.exposureData",
+                pageId: PageManager.pageId,
+                pageUrl: PageManager.url,
+                pageReferrer: PageManager.referrer,
+                pageVisitStartTime: PageManager.pageVisitStartTime,
+                privateWindow: browser.extension.inIncognitoContext,
+                linkExposures: exposureEvents,
+                nonmatchingLinkExposures: numUntrackedUrls
+            });
+            exposureEvents = [];
+            numUntrackedUrls = 0;
+        }
+    }
+
+    /**
+     * An IntersectionObserver callback for anchor elements.
+     * @param {Array<IntersectionObserverEntry>} entries - Updates from the IntersectionObserver that is observing anchor elements.
+     */
+    function anchorObserverCallback(entries) {
+        const timeStamp = Date.now();
+        entries.forEach(entry => {
+            const anchorElement = entry.target;
+            const linkInfo = anchorElements.get(anchorElement)
+            if (entry.intersectionRatio >= linkMinimumVisibility) {
+                linkInfo.inViewport = true;
+                linkInfo.lastEnteredViewport = timeStamp;
+                if(PageManager.pageHasAttention)
+                    linkInfo.lastEnteredViewportAndPageHadAttention = timeStamp;
+            }
+            else {
+                if(PageManager.pageHasAttention && (linkInfo.lastEnteredViewportAndPageHadAttention > 0))
+                    updateLinkTimeSeen(timeStamp, anchorElement, linkInfo);
+                linkInfo.inViewport = false;
+            }
+        });
+    }
+
+    /**
+     * An IntersectionObserver for checking link visibility.
+     * @type {IntersectionObserver}
+     */
+    const observer = new IntersectionObserver(anchorObserverCallback, { threshold: linkMinimumVisibility });
+
+    const pageVisitStartListener = function ({ timeStamp }) {
+        // Reset page-specific data
+        lastLostAttention = -1;
+        currentHostname = (new URL(PageManager.url)).hostname;
+        anchorElements = new WeakMap();
+
+        // Start the timer ticking
+        timerId = setInterval(checkLinksInDom, updateInterval);
+    };
+
+    // On page visit stop, clear the timer and intersection observer
+    const pageVisitStopListener = function() {
+        if(timerId !== 0)
+            clearInterval(timerId);
+        timerId = 0;
+        observer.disconnect();
+    };
+
+    const pageAttentionUpdateListener = function({ timeStamp }) {
+        const currentAnchorElements = document.body.querySelectorAll("a[href]");
+        if(PageManager.pageHasAttention) {
+            for(const anchorElement of currentAnchorElements) {
+                const linkInfo = anchorElements.get(anchorElement);
+                if(linkInfo !== undefined)
+                    linkInfo.lastEnteredViewportAndPageHadAttention = timeStamp;
+            }
+        }
+        else {
+            lastLostAttention = timeStamp;
+            for(const anchorElement of currentAnchorElements) {
+                const linkInfo = anchorElements.get(anchorElement);
+                if((linkInfo !== undefined) && (linkInfo.lastEnteredViewportAndPageHadAttention > 0))
+                    updateLinkTimeSeen(timeStamp, anchorElement, linkInfo);
+            }
+        }
+    }
+
+    // Wait for PageManager load
+    const pageManagerLoaded = function () {
+        PageManager.onPageVisitStart.addListener(pageVisitStartListener);
+        if(PageManager.pageVisitStarted)
+            pageVisitStartListener({timeStamp: PageManager.pageVisitStartTime});
+
+        PageManager.onPageVisitStop.addListener(pageVisitStopListener);
+
+        PageManager.onPageAttentionUpdate.addListener(pageAttentionUpdateListener);
+    };
+    if ("PageManager" in window)
+        pageManagerLoaded();
+    else {
+        if(!("pageManagerHasLoaded" in window))
+            window.pageManagerHasLoaded = [];
+        window.pageManagerHasLoaded.push(pageManagerLoaded);
+    }
+
+})();
