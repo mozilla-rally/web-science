@@ -39,3 +39,5 @@ The utility modules provide a library of reusable functions that assist with con
 * [SocialMediaActivity.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/SocialMediaActivity.js) - Functionality for listening to and acting on user sharing activity on social media platforms. Facebook, Twitter, and Reddit are currently supported. Implemented with the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
 * [Storage.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Storage.js) - Functionality for persisting study data. Implemented using the [`localForage`](https://github.com/localForage/localForage) library.
   * [../dependencies/localforagees6.min.js](https://github.com/mozilla-rally/web-science/blob/master/dependencies/localforagees6.min.js) - The [`localForage`](https://github.com/localForage/localForage) library, lightly modified to support importation as an ES6 module.
+
+Now available via `git subtree`!
