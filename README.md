@@ -1,15 +1,41 @@
-# First Rally Study
+# Web Science
+A library of reusable functionality for [Mozilla Rally](https://support.mozilla.org/en-US/kb/about-firefox-pioneer) studies.
 
-## to use this repository to collect your own data and play with it:
+## Requirements
+* [Node.js](https://nodejs.org/en/), available via [Homebrew](https://brew.sh/) on macOS
+* [Mozilla web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/)
 
-1. fork or clone this repository
-2. run `npm install`
-3. if you are:
-   1. a chrome user: run `npm run build-addon`, then [follow the instructions to load an unpacked web extension](https://developer.chrome.com/docs/extensions/mv2/getstarted/). That's it!
-   2. a firefox user: 
-      1. you'll have to use Nightly & set `xpinstall.signatures.required` to `false` in `about:config`. 
-      2. then run `npm run build-addon` in this directory.
-      3. Then you can load the add-on from `about:addons`.
-4. browse for a few days to generate data.
-5. Go the the extension page and click the `download JSON` on the top right.
+## Example Usage
+See the [News and Disinformation Study](https://github.com/citp/news-disinformation-study), which we recommend using as a template.
 
+## Architecture
+The Web Science library consists of two types of modules: measurement modules that collect a specific type of data, and utility modules that provide supporting functionality. A Firefox Pioneer study can optionally take advantage of the Web Science library (or a subset of the library) for faster development and review. We recommend including the repository for Web Science as a Git subtree in the repository for a Firefox Pioneer study.
+
+### Measurement Modules - [/Measurements/](https://github.com/mozilla-rally/web-science/tree/master/Measurements)
+The measurement modules provide reusable passive collection and intervention building blocks for conducting studies.
+* [LinkExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/LinkExposure.js) - Measures user exposure to links to domains of interest, using a [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts).
+  * [content-scripts/linkExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/linkExposure.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that extracts links to domains of interest from a page DOM.
+* [PageNavigation.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/PageNavigation.js) - Measures user navigation and attention to webpages on domains of interest, using the `PageManager` utility module.
+* [SocialMediaAccountExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/SocialMediaNewsExposure.js) - Measures how users are exposed to content from specific social media accounts on YouTube and Facebook, using [content scripts](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts).
+  * [content-scripts/socialMediaAccountExposure-youtube.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/socialMediaNewsExposure-youtube.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that identifies content from known YouTube channels.
+  * [content-scripts/socialMediaAccountExposure-fb.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/socialMediaNewsExposure-fb.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that identifies posts from know Facebook accounts.
+* [SocialMediaNewsExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/SocialMediaNewsExposure.js) - Measures how users are exposed to news on social media , using a [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts).
+  * [content-scripts/socialMediaNewsExposure-youtube.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/socialMediaNewsExposure-youtube.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that checks for the News & Politics category on Youtube.
+* [SocialMediaLinkSharing.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/SocialMediaLinkSharing.js) - Measures user sharing of links to domains of interest on social media platforms, using the `SocialMediaActivity` utility module.
+
+### Utility Modules - [/Utilities/](https://github.com/mozilla-rally/web-science/tree/master/Utilities)
+The utility modules provide a library of reusable functions that assist with conducting studies.
+* [Debugging.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Debugging.js) - Functionality for outputting debugging messages to the console in a consistent format. Implemented with the [`console`](https://developer.mozilla.org/en-US/docs/Web/API/console) Web API.
+* [Events.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Events.js) - Functionality for building events similar to [events.Event](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/events/Event) objects in WebExtensions.
+* [Idle.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Idle.js) - Functionality for supporting browser idle state listeners with differing idle state thresholds. Implemented with the [`idle`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/idle) WebExtensions API.
+* [Lifecycle.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Lifecycle.js) - Functions for starting and stopping studies.
+* [LinkResolution.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/LinkResolution.js) - Functionality for resolving shortened and shimmed URLs. Implemented with the [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) Web API and the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
+* [Matching.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Matching.js) - Functions for efficiently matching domain names and URLs.
+* [Messaging.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Messaging.js) - Functionality for supporting message types and message schemes for messaging between the background page and content scripts. Implemented with the [`runtime`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime) WebExtensions API.
+* [PageManager.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/PageManager.js) - Functionality for uniquely identifying webpages and acting on events associated with webpage loading, user attention, and audio playback. The `PageManager` module provides a convenient API for content scripts and basic webpage loading events for background scripts. Implemented with the [`tabs`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs) and [`windows`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/windows) WebExtensions APIs and the `Idle` utility module.
+* [Randomization.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Randomization.js) - Functionality for selecting and persisting randomized conditions.
+* [ResponseBody.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/ResponseBody.js) - Functionality for reassembling an HTTP(S) response body using the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
+* [Scheduling.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Scheduling.js) - Functionality for scheduling daily and weekly tasks, when the browser is idle. Implemented with the `Idle` utility module. Similar to the `idle-daily` event emitted by the Firefox [`nsIdleService`](https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XPCOM/Reference/Interface/nsIIdleService).
+* [SocialMediaActivity.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/SocialMediaActivity.js) - Functionality for listening to and acting on user sharing activity on social media platforms. Facebook, Twitter, and Reddit are currently supported. Implemented with the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
+* [Storage.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Storage.js) - Functionality for persisting study data. Implemented using the [`localForage`](https://github.com/localForage/localForage) library.
+  * [../dependencies/localforagees6.min.js](https://github.com/mozilla-rally/web-science/blob/master/dependencies/localforagees6.min.js) - The [`localForage`](https://github.com/localForage/localForage) library, lightly modified to support importation as an ES6 module.
