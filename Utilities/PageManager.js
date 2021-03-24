@@ -122,7 +122,7 @@
  * @module WebScience.Utilities.PageManager
  */
 
-import browser from 'webextension-polyfill';
+// import browser from 'webextension-polyfill';
 
 import * as Debugging from "./Debugging.js"
 import * as Events from "./Events.js"
