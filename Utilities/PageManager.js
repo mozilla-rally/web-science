@@ -122,9 +122,14 @@
  * @module WebScience.Utilities.PageManager
  */
 
+import browser from 'webextension-polyfill';
+
+import * as Debugging from "./Debugging.js"
 import * as Events from "./Events.js"
 import * as Idle from "./Idle.js"
 import * as Messaging from "./Messaging.js"
+
+const debugLog = Debugging.getDebuggingLog("Utilities.PageManager");
 
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,
@@ -177,8 +182,8 @@ const considerUserInputForAttention = true;
  */
 export const onPageVisitStart = new Events.Event({
     // Filter notifications for events in private windows
-    notifyListenersCallback: (listener, [ details ], options) => {
-        if(!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
+    notifyListenersCallback: (listener, [details], options) => {
+        if (!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
             return true;
         return false;
     }
@@ -190,7 +195,7 @@ export const onPageVisitStart = new Events.Event({
  * @private
  */
 function pageVisitStart(details) {
-    onPageVisitStart.notifyListeners([ details ]);
+    onPageVisitStart.notifyListeners([details]);
 }
 
 /**
@@ -224,8 +229,8 @@ function pageVisitStart(details) {
  */
 export const onPageVisitStop = new Events.Event({
     // Filter notifications for events in private windows
-    notifyListenersCallback: (listener, [ details ], options) => {
-        if(!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
+    notifyListenersCallback: (listener, [details], options) => {
+        if (!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
             return true;
         return false;
     }
@@ -237,7 +242,7 @@ export const onPageVisitStop = new Events.Event({
  * @private
  */
 function pageVisitStop(details) {
-    onPageVisitStop.notifyListeners([ details ]);
+    onPageVisitStop.notifyListeners([details]);
 }
 
 /**
@@ -248,11 +253,12 @@ function pageVisitStop(details) {
  * attention.
  * @param {number} [timeStamp=Date.now()] - The time when the underlying browser event fired.
  */
-function sendPageAttentionUpdate(tabId, pageHasAttention, timeStamp = Date.now()) {
+function sendPageAttentionUpdate(tabId, pageHasAttention, timeStamp = Date.now(), reason) {
     Messaging.sendMessageToTab(tabId, {
         type: "WebScience.Utilities.PageManager.pageAttentionUpdate",
         pageHasAttention,
-        timeStamp
+        timeStamp,
+        reason
     });
 }
 
@@ -313,12 +319,12 @@ const windowState = new Map();
 function updateWindowState(windowId, { activeTab }) {
     let windowDetails = windowState.get(windowId);
 
-    if(windowDetails === undefined) {
+    if (windowDetails === undefined) {
         windowDetails = { activeTab: -1 };
         windowState.set(windowId, windowDetails);
     }
 
-    if(activeTab !== undefined)
+    if (activeTab !== undefined)
         windowDetails.activeTab = activeTab;
 }
 
@@ -353,7 +359,7 @@ let initialized = false;
  * @private
  */
 export async function initialize() {
-    if(initialized || initializing)
+    if (initialized || initializing)
         return;
     initializing = true;
 
@@ -365,8 +371,8 @@ export async function initialize() {
         // Notify the content script if it has attention
         // We can't send this message earlier (e.g., when the tab URL changes) because we need to know the content
         // script is ready to receive the message
-        if(checkForAttention(sender.tab.id, sender.tab.windowId))
-            sendPageAttentionUpdate(sender.tab.id, true, Date.now());
+        if (checkForAttention(sender.tab.id, sender.tab.windowId))
+            sendPageAttentionUpdate(sender.tab.id, true, Date.now(), "page-visit-start");
 
         pageVisitStart({
             pageId: pageVisitStartInfo.pageId,
@@ -413,7 +419,9 @@ export async function initialize() {
     // when the attention state of the page may have changed
     Messaging.registerSchema("WebScience.Utilities.PageManager.pageAttentionUpdate", {
         timeStamp: "number",
-        pageHasAttention: "boolean"
+        pageHasAttention: "boolean",
+        // HAMILTON: added inboundAttentionReason
+        reason: "string"
     });
 
     // The background script sends a WebScience.Utilities.PageManager.urlChanged message when
@@ -433,23 +441,22 @@ export async function initialize() {
 
     // If a tab's audible state changed, send WebScience.Utilities.PageManager.pageAudioUpdate
     browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
-        if(!initialized)
+        if (!initialized)
             return;
         const timeStamp = Date.now();
-
         Messaging.sendMessageToTab(tabId, {
             type: "WebScience.Utilities.PageManager.pageAudioUpdate",
             pageHasAudio: changeInfo.audible,
             timeStamp
         });
     }, {
-        urls: [ "http://*/*", "https://*/*" ],
-        properties: [ "audible" ]
+        urls: ["http://*/*", "https://*/*"],
+        properties: ["audible"]
     });
 
     // If a tab's URL changed because of the History API, send WebScience.Utilities.PageManager.urlChanged
     browser.webNavigation.onHistoryStateUpdated.addListener((details) => {
-        if(!initialized)
+        if (!initialized)
             return;
         const timeStamp = Date.now();
 
@@ -458,11 +465,11 @@ export async function initialize() {
             timeStamp
         });
     }, {
-        url: [ { schemes: [ "http", "https" ] } ]
+        url: [{ schemes: ["http", "https"] }]
     });
 
     browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
-        if(!initialized)
+        if (!initialized)
             return;
 
         // We don't have to update the window state here, because either there is
@@ -471,18 +478,18 @@ export async function initialize() {
         // (and windows.onRemoved will fire)
 
         // If this is the active tab, forget it
-        if(currentActiveTab === tabId)
+        if (currentActiveTab === tabId)
             currentActiveTab = -1;
     });
 
     // Handle when the active tab in a window changes
     browser.tabs.onActivated.addListener(activeInfo => {
-        if(!initialized)
+        if (!initialized)
             return;
         const timeStamp = Date.now();
 
         // If this is a non-browser tab, ignore it
-        if((activeInfo.tabId === browser.tabs.TAB_ID_NONE) || (activeInfo.tabId < 0) ||
+        if ((activeInfo.tabId === browser.tabs.TAB_ID_NONE) || (activeInfo.tabId < 0) ||
             (activeInfo.windowId < 0))
             return;
 
@@ -493,16 +500,16 @@ export async function initialize() {
         });
 
         // If there isn't a focused window, or the tab update is not in the focused window, ignore it
-        if((currentFocusedWindow < 0) || (activeInfo.windowId != currentFocusedWindow))
+        if ((currentFocusedWindow < 0) || (activeInfo.windowId != currentFocusedWindow))
             return;
 
         // If the browser is active or (optionally) we are not considering user input,
         // notify the current page with attention that it no longer has attention, and notify
         // the new page with attention that is has attention
-        if((browserIsActive || !considerUserInputForAttention)) {
-            if((currentActiveTab >= 0) && (currentFocusedWindow >= 0))
-                sendPageAttentionUpdate(currentActiveTab, false, timeStamp);
-            sendPageAttentionUpdate(activeInfo.tabId, true, timeStamp);
+        if ((browserIsActive || !considerUserInputForAttention)) {
+            if ((currentActiveTab >= 0) && (currentFocusedWindow >= 0))
+                sendPageAttentionUpdate(currentActiveTab, false, timeStamp, "tab-switched-away");
+            sendPageAttentionUpdate(activeInfo.tabId, true, timeStamp, 'tab-switched-toward');
         }
 
         // Remember the new active tab
@@ -510,7 +517,7 @@ export async function initialize() {
     });
 
     browser.windows.onRemoved.addListener(windowId => {
-        if(!initialized)
+        if (!initialized)
             return;
 
         // If we have cached state for this window, drop it
@@ -518,15 +525,15 @@ export async function initialize() {
     });
 
     browser.windows.onFocusChanged.addListener(windowId => {
-        if(!initialized)
+        if (!initialized)
             return;
         const timeStamp = Date.now();
 
         // If the browser is active or (optionally) we are not considering user input, and if
         // if there is an active tab in a focused window, notify the current page with attention
         // that it no longer has attention
-        if((browserIsActive || !considerUserInputForAttention) && ((currentActiveTab >= 0) && (currentFocusedWindow >= 0)))
-            sendPageAttentionUpdate(currentActiveTab, false, timeStamp);
+        if ((browserIsActive || !considerUserInputForAttention) && ((currentActiveTab >= 0) && (currentFocusedWindow >= 0)))
+            sendPageAttentionUpdate(currentActiveTab, false, timeStamp, 'window-focus-lost');
 
         // If the browser has lost focus in the operating system, remember
         // tab ID = -1 and window ID = -1, and do not notify any page that it has attention
@@ -545,7 +552,7 @@ export async function initialize() {
 
         // If we haven't seen this window before, that means it's not a browser window,
         // so remember tab ID = -1 and window ID -1, and do not notify any page that it has attention
-        if(focusedWindowDetails === undefined) {
+        if (focusedWindowDetails === undefined) {
             currentActiveTab = -1;
             currentFocusedWindow = -1;
             return;
@@ -556,8 +563,8 @@ export async function initialize() {
         // has attention
         currentActiveTab = focusedWindowDetails.activeTab;
         currentFocusedWindow = windowId;
-        if(browserIsActive || !considerUserInputForAttention)
-            sendPageAttentionUpdate(currentActiveTab, true, timeStamp);
+        if (browserIsActive || !considerUserInputForAttention)
+            sendPageAttentionUpdate(currentActiveTab, true, timeStamp, "window-focus-acquired");
     });
 
     // Handle when the browser activity state changes
@@ -567,49 +574,49 @@ export async function initialize() {
 
     // Note that we have to call Idle.registerIdleStateListener before we call
     // Idle.queryState, so this comes before caching the initial state
-    if(considerUserInputForAttention) {
+    if (considerUserInputForAttention) {
         await Idle.registerIdleStateListener(newState => {
-            if(!initialized)
+            if (!initialized)
                 return;
             const timeStamp = Date.now();
 
             // If the browser is not transitioning between active and inactive states, ignore the event
-            if((browserIsActive) === (newState === "active"))
+            if ((browserIsActive) === (newState === "active"))
                 return;
 
             // Remember the flipped browser activity state
             browserIsActive = !browserIsActive;
 
             // If there isn't an active tab in a focused window, we don't need to send attention events
-            if((currentActiveTab < 0) || (currentFocusedWindow < 0))
+            if ((currentActiveTab < 0) || (currentFocusedWindow < 0))
                 return;
 
             // Send an attention state change event to the current active tab, reflecting the browser activity state
-            sendPageAttentionUpdate(currentActiveTab, browserIsActive, timeStamp);
+            sendPageAttentionUpdate(currentActiveTab, browserIsActive, timeStamp, "browser-idle");
         }, idleThreshold);
     }
 
     // Cache the initial idle, window, and tab state
 
-    if(considerUserInputForAttention)
+    if (considerUserInputForAttention)
         browserIsActive = (Idle.queryState(idleThreshold) === "active");
 
     const openWindows = await browser.windows.getAll({
         populate: true
     });
-    for(const openWindow of openWindows) {
+    for (const openWindow of openWindows) {
         // If the window doesn't have a window ID, ignore it
         // This shouldn't happen, but checking anyway since
         // the id property is optional in the windows.Window
         // type
-        if(!("id" in openWindow))
+        if (!("id" in openWindow))
             continue;
         // Iterate the tabs in the window to cache tab state
         // and find the active tab in the window
         let activeTabInOpenWindow = -1;
-        if("tabs" in openWindow)
-            for(const tab of openWindow.tabs) {
-                if(tab.active)
+        if ("tabs" in openWindow)
+            for (const tab of openWindow.tabs) {
+                if (tab.active)
                     activeTabInOpenWindow = tab.id;
             }
         updateWindowState(openWindow.id, {
@@ -622,17 +629,559 @@ export async function initialize() {
         // a normal or popup window, this block will not run and we
         // will retain the default values of tab ID = -1 and window
         // ID = -1
-        if(openWindow.focused) {
+        if (openWindow.focused) {
             currentFocusedWindow = openWindow.id;
             currentActiveTab = activeTabInOpenWindow;
         }
     }
 
+    // FIXME we will roll this up soon.
+
+    const contentScript =
+        /**
+        * Content script for the PageManager module. This module provides a `PageManager`
+        * API with global scope in the content script environment. The API includes the
+        * following features.
+        *   * Page Tracking
+        *     * `pageId` - A unique ID for the page.
+        *     * `url` - The URL of the page, omitting any hash.
+        *     * `referrer` - The referrer for the page.
+        *   * Page Events
+        *     * `onPageVisitStart` - An event that fires when a page visit begins. Note that
+        *       the page visit start event may have already fired by the time another
+        *       content script attaches (see discussion below).
+        *     * `onPageVisitStop` - An event that fires when a page visit ends.
+        *     * `onPageAttentionUpdate` - An event that fires when the page's attention state
+        *     changes.
+        *     * `onPageAudioUpdate` - An event that fires when the page's audio state changes.
+        *   * Page Properties
+        *     * `pageHasAttention` - Whether the page currently has the user's attention.
+        *     * `pageHasAudio - Whether there is currently audio playing on the page.
+        *     * `pageVisitStarted` - Whether the page visit start event has completed firing,
+        *     such that all listeners have been notified.
+        *     * `pageVisitStartTime` - The time that the page visit started.
+        *
+        * # Events
+        * See the documentation in the PageManager module for detail on the event types.
+        *
+        * Each event implements the standard WebExtensions event features.
+        *   * addListener
+        *   * removeListener
+        *   * hasListener
+        *
+        * Event listeners receive an object with the following property.
+        *   * timeStamp - The time that the underlying browser event fired.
+        *
+        * Listeners for the page visit start event receive an object with the following
+        * additional property.
+        *   * isHistoryChange - Whether the page visit was caused by a change via the History API.
+        *
+        * Example usage:
+        * ```
+        * PageManager.onPageVisitStop.addListener(({timeStamp}) => {
+        *     console.log(`Page visit stopped at ${timeStamp} with page ID ${PageManager.pageId}`);
+        * });
+        *
+        * PageManager.onPageAttentionUpdate.addListener(({timeStamp}) => {
+        *     console.log(`Page attention update at ${timeStamp} with attention state ${PageManager.pageHasAttention}.`);
+        * });
+        * ```
+        *
+        * # Content Script Load Ordering
+        * ## Executing a Content Script After the PageManager API Has Loaded
+        * Note that the WebExtensions content script model does not guarantee execution
+        * order for content scripts, so it is possible that the API will not have loaded
+        * when a content script that depends on the API loads. As a workaround, this
+        * content script checks the global `pageManagerHasLoaded` for an array of
+        * functions to call after the content script has executed, but before the content
+        * script has fired the page visit start event.
+        *
+        * Example usage:
+        * ```
+        * function main() {
+        *     // Content script logic goes here
+        * }
+        *
+        * if("PageManager" in window)
+        *     main();
+        * else {
+        *     if(!("pageManagerHasLoaded" in window))
+        *         window.pageManagerHasLoaded = [];
+        *     window.pageManagerHasLoaded.push(main);
+        * }
+        * ```
+        *
+        * ## Listening for the Page Visit Start Event
+        * Because the order of content script execution is not guaranteed, a content
+        * script that uses the PageManager API might miss a page visit start event. For
+        * example, the PageManager content script might attach and fire the page visit
+        * start event, then another content script attaches and begins listening for
+        * the event. The PageManager API addresses this limitation by providing a
+        * `pageVisitStarted` boolean reflecting whether the page visit start event has
+        * already completed firing (i.e., all listeners have been notified). Content scripts
+        * that use the page visit start event will commonly want to call their own page visit
+        * start listener if `pageVisitStarted` is `true`.
+        *
+        * Example usage:
+        * ```
+        * function pageVisitStartListener({timeStamp}) {
+        *     // Page visit start logic goes here
+        * }
+        * PageManager.onPageVisitStart.addListener(pageVisitStartListener);
+        * if(PageManager.pageVisitStarted)
+        *     pageVisitStartListener({ timeStamp: PageManager.pageVisitStartTime });
+        * ```
+        *
+        * # Known Issues
+        *   * When sending a page visit stop message to the background script, sometimes
+        *     Firefox generates an error ("Promise resolved while context is inactive")
+        *     because the content script execution environment is terminating while the
+        *     message sending Promise remains open. This error does not affect functionality,
+        *     because we do not depend on resolving the Promise (i.e., a response to the
+        *     page visit stop message).
+        * @module WebScience.Utilities.content-scripts.pageManager
+        */
+        // Tell eslint that PageManager isn't actually undefined
+        /* global PageManager */
+
+
+        // Function encapsulation to maintain content script isolation
+
+        function () {
+
+            // Check if the PageManager content script has already run on this page
+            // If it has, bail out
+            if ("PageManager" in window)
+                return;
+
+            // Construct a PageManager object on the `window` global
+            // All the public PageManager functionality that is available in the content
+            // script environment is exposed through this object
+            window.PageManager = {};
+
+            /**
+            * Generate a page ID, a random 128-bit value represented as a hexadecimal string.
+            * @private
+            * @returns {string} The new page ID.
+            */
+            function generatePageId() {
+                const pageIdBytes = window.crypto.getRandomValues(new Uint8Array(16));
+                return Array.from(pageIdBytes, (byte) => {
+                    if (byte < 16)
+                        return "0" + byte.toString(16);
+                    return byte.toString(16);
+                }).join("");
+            }
+
+            /**
+             * Returns a copy of the URL string from `window.location.href`, without any
+             * hash at the end. We canonicalize URLs without the hash because jumping
+             * between parts of a page (as indicated by a hash) should not be considered page
+             * navigation.
+             * @returns {string}
+             */
+            function locationHrefWithoutHash() {
+                return window.location.href.slice(-1 * window.location.hash.length);
+            }
+
+            /**
+             * Log a debugging message to `console.debug` in a standardized format.
+             * @param {string} message - The debugging message.
+             */
+            function debugLog(message) {
+                // HAMILTON: commented this out.
+                //console.debug(`WebScience.Utilities.PageManager (Content Script): ${message}`);
+            }
+
+            // Event management types and classes
+            // This should be kept in sync with the Events module, removing only export statements
+
+            /**
+             * A class that provides an event API similar to WebExtensions `events.Event` objects.
+             * @template EventCallbackFunction
+             * @template EventOptions
+             */
+            class Event {
+                /**
+                 * Creates an event instance similar to WebExtensions `events.Event` objects.
+                 * @param {EventOptions} [options] - A set of options for the event.
+                 * @param {addListenerCallback} [options.addListenerCallback] - A function that is
+                 * called when a listener function is added.
+                 * @param {removeListenerCallback} [options.removeListenerCallback] - A function
+                 * that is called when a listener function is removed.
+                 * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
+                 * that is called before a listener is notified and can filter the notification.
+                 */
+                constructor({
+                    addListenerCallback = null,
+                    removeListenerCallback = null,
+                    notifyListenersCallback = null
+                } = {
+                        addListenerCallback: null,
+                        removeListenerCallback: null,
+                        notifyListenersCallback: null
+                    }) {
+                    this.addListenerCallback = addListenerCallback;
+                    this.removeListenerCallback = removeListenerCallback;
+                    this.notifyListenersCallback = notifyListenersCallback;
+                    this.listeners = new Map();
+                }
+
+                /**
+                 * A callback function that is called when a new listener function is added.
+                 * @callback addListenerCallback
+                 * @param {EventCallbackFunction} listener - The new listener function.
+                 * @param {EventOptions} options - The options for the new listener function.
+                 */
+
+                /**
+                 * A function that adds an event listener, with optional parameters. If the
+                 * listener has previously been added for the event, the listener's options
+                 * (if any) will be updated.
+                 * @param {EventCallbackFunction} listener - The function to call when the event fires.
+                 * @param {EventOptions} options - Options for when the listener should be called.
+                 * The supported option(s) depend on the event type.
+                 */
+                addListener(listener, options) {
+                    if (this.addListenerCallback !== null)
+                        this.addListenerCallback(listener, options);
+                    this.listeners.set(listener, options);
+                }
+
+                /**
+                 * A callback function that is called when a listener function is removed.
+                 * @callback removeListenerCallback
+                 * @param {EventCallbackFunction} listener - The listener function to remove.
+                 */
+
+                /**
+                 * A function that removes an event listener.
+                 * @param {EventCallbackFunction} listener - The listener function to remove.
+                 */
+                removeListener(listener) {
+                    if (this.removeListenerCallback !== null)
+                        this.removeListenerCallback(listener);
+                    this.listeners.delete(listener);
+                }
+
+                /**
+                 * A function that checks whether an event listener has been added.
+                 * @param {EventCallbackFunction} listener - The listener function to check.
+                 * @return {boolean} Whether the listener function has been added.
+                 */
+                hasListener(listener) {
+                    return this.listeners.has(listener);
+                }
+
+                /**
+                 * A callback function that is called when a listener function may be notified.
+                 * @callback notifyListenersCallback
+                 * @param {EventCallbackFunction} listener - The listener function that may be called.
+                 * @param {Array} listenerArguments - The arguments that would be passed to the listener
+                 * function.
+                 * @param {EventOptions} options - The options that the listener was added with.
+                 * @return {boolean} Whether to call the listener function.
+                 */
+
+                /**
+                 * Notify the listener functions for the event.
+                 * @param {Array} [listenerArguments=[]] - The arguments that will be passed to listener
+                 * functions.
+                 */
+                notifyListeners(listenerArguments = []) {
+                    this.listeners.forEach((options, listener) => {
+                        try {
+                            if ((this.notifyListenersCallback === null) || this.notifyListenersCallback(listener, listenerArguments, options))
+                                listener.apply(null, listenerArguments);
+                        }
+                        catch (error) {
+                            debugLog(`Error in content script listener notification: ${error}`);
+                        }
+                    });
+                }
+            }
+
+            /**
+             * An extension of the Event class that omits options when adding a listener.
+             * @template EventCallbackFunction
+             * @extends {Event<EventCallbackFunction, undefined>}
+             */
+            class EventWithoutOptions extends Event {
+                /**
+                 * @callback addListenerCallbackWithoutOptions
+                 * @param {EventCallbackFunction} listener - The new listener function.
+                 */
+
+                /**
+                 * Creates an event instance similar to WebExtensions `events.Event` objects.
+                 * @param {EventOptions} [options] - A set of options for the event.
+                 * @param {addListenerCallbackWithoutOptions} [options.addListenerCallback] - A function that is
+                 * called when a listener function is added.
+                 * @param {removeListenerCallback} [options.removeListenerCallback] - A function
+                 * that is called when a listener function is removed.
+                 * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
+                 * that is called before a listener is notified and can filter the notification.
+                 */
+                constructor({
+                    addListenerCallback = null,
+                    removeListenerCallback = null,
+                    notifyListenersCallback = null
+                } = {
+                        addListenerCallback: null,
+                        removeListenerCallback: null,
+                        notifyListenersCallback: null
+                    }) {
+                    super({ addListenerCallback, removeListenerCallback, notifyListenersCallback });
+                }
+
+                /**
+                 * A function that adds an event listener.
+                 * @param {EventCallbackFunction} listener - The function to call when the event fires.
+                 */
+                addListener(listener) {
+                    super.addListener(listener, undefined);
+                }
+            }
+
+            /**
+             * Additional information about an event, containing only a time stamp.
+             * @typedef {Object} TimeStampDetails
+             * @property {number} timeStamp - The time when the underlying event occurred.
+             */
+
+            /**
+             * A callback function with a time stamp parameter.
+             * @callback callbackWithTimeStamp
+             * @param {TimeStampDetails} details - Additional information about the event.
+             */
+
+            /**
+             * Additional information about a page visit start event.
+             * @typedef {Object} PageVisitStartDetails
+             * @property {number} timeStamp - The time when the underlying event occurred.
+             * @property {boolean} isHistoryChange - Whether the page visit was caused by a change via the History API.
+             */
+
+            /**
+             * A callback function for the page visit start event.
+             * @callback pageVisitStartCallback
+             * @param {PageVisitStartDetails} details - Additional information about the event.
+             */
+
+            /**
+             * An event that is fired when a page visit starts.
+             * @type {EventWithoutOptions<pageVisitStartCallback>}
+             */
+            PageManager.onPageVisitStart = new EventWithoutOptions();
+
+            /**
+             * An event that is fired when a page visit stops.
+             * @type {EventWithoutOptions<callbackWithTimeStamp>}
+             */
+            PageManager.onPageVisitStop = new EventWithoutOptions();
+
+            /**
+             * An event that is fired when the page attention state changes.
+             * @type {EventWithoutOptions<callbackWithTimeStamp>}
+             */
+            PageManager.onPageAttentionUpdate = new EventWithoutOptions();
+
+            /**
+             * An event that is fired when the page attention state changes.
+             * @type {EventWithoutOptions<callbackWithTimeStamp>}
+             */
+            PageManager.onPageAudioUpdate = new EventWithoutOptions();
+
+            /**
+             * Send a message to the background page, with a catch because errors can
+             * occur in `browser.runtime.sendMessage` when the page is unlooading.
+             * @param {object} message - The message to send, which should be an object with
+             * a type string.
+             */
+            PageManager.sendMessage = function (message) {
+                try {
+                    browser.runtime.sendMessage(message).catch((reason) => {
+                        debugLog(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
+                    });
+                }
+                catch (error) {
+                    debugLog(`Error when sending message from content script to background page: ${JSON.stringify(message)}`);
+                }
+            };
+
+            /**
+             * The function for firing the page visit start event, which runs whenever a new page
+             * loads. A page load might be because of ordinary web navigation (i.e., loading a new
+             * HTML document with a base HTTP(S) request) or because the URL changed via the History
+             * API.
+             * @private
+             * @param {number} timeStamp - The time when the underlying event fired.
+             * @param {boolean} [isHistoryChange=false] - Whether this page load was caused by the
+             * History API.
+             */
+            function pageVisitStart(timeStamp, isHistoryChange = false) {
+                // Assign a new page ID
+                PageManager.pageId = generatePageId();
+                // Store a copy of the URL, because we use it to check for History API page loads
+                PageManager.url = locationHrefWithoutHash();
+                // Store a copy of the referrer for convenience
+                PageManager.referrer = document.referrer.repeat(1);
+                PageManager.pageVisitStartTime = timeStamp;
+                // If this is a History API page load, persist the states for attention and audio
+                PageManager.pageHasAttention = isHistoryChange ? PageManager.pageHasAttention : false;
+                PageManager.pageHasAudio = isHistoryChange ? PageManager.pageHasAudio : false;
+                // Store whether the page visit event has completed firing
+                PageManager.pageVisitStarted = false;
+
+                // Send the page visit start event to the background page
+                PageManager.sendMessage({
+                    type: "WebScience.Utilities.PageManager.pageVisitStart",
+                    pageId: PageManager.pageId,
+                    url: PageManager.url,
+                    referrer: PageManager.referrer,
+                    timeStamp: PageManager.pageVisitStartTime,
+                    privateWindow: browser.extension.inIncognitoContext,
+                    isHistoryChange
+                });
+
+                // Notify the page visit start event listeners in the content script environment
+                PageManager.onPageVisitStart.notifyListeners([{
+                    timeStamp,
+                    isHistoryChange
+                }]);
+
+                PageManager.pageVisitStarted = true;
+
+                debugLog(`Page visit start: ${JSON.stringify(PageManager)}`);
+            }
+
+            /**
+             * The function for firing the page visit stop event, which runs whenever a page closes.
+             * That could be because of browser exit, tab closing, tab navigation to a new page, or
+             * a new page loading via the History API.
+             * @private
+             * @param {number} timeStamp - The time when the underlying event fired.
+             */
+            function pageVisitStop(timeStamp) {
+                // Send the page visit stop event to the background page
+                PageManager.sendMessage({
+                    type: "WebScience.Utilities.PageManager.pageVisitStop",
+                    pageId: PageManager.pageId,
+                    url: PageManager.url,
+                    referrer: PageManager.referrer,
+                    timeStamp,
+                    pageVisitStartTime: PageManager.pageVisitStartTime,
+                    privateWindow: browser.extension.inIncognitoContext
+                });
+
+                // Notify the page visit stop event listeners in the content script environment
+                PageManager.onPageVisitStop.notifyListeners([{
+                    timeStamp
+                }]);
+
+                debugLog(`Page visit stop: ${JSON.stringify(PageManager)}`);
+            }
+
+            /**
+             * The function for firing the page attention update event, which runs whenever the
+             * page attention state might have changed. The function contains logic to verify
+             * that the attention state actually changed before firing the event.
+             * @param {number} timeStamp - The time when the underlying event fired.
+             * @param {boolean} pageHasAttention - The latest attention state, according to the
+             * PageManager module running in the background page.
+             */
+            function pageAttentionUpdate(timeStamp, pageHasAttention, reason) {
+                if (PageManager.pageHasAttention === pageHasAttention)
+                    return;
+
+                PageManager.pageHasAttention = pageHasAttention;
+
+                // Notify the page attention update event listeners in the content script environment
+                PageManager.onPageAttentionUpdate.notifyListeners([{
+                    timeStamp, reason
+                }]);
+
+                debugLog(`Page attention update: ${JSON.stringify(PageManager)}`);
+            }
+
+            /**
+             * The function for firing the page audio update event, which runs whenever the
+             * page audio state might have changed. The function contains logic to verify
+             * that the audio state actually changed before firing the event.
+             * @param {number} timeStamp - The time when the underlying event fired.
+             * @param {boolean} pageHasAudio - The latest audio state, according to the
+             * PageManager module running in the background page.
+             */
+            function pageAudioUpdate(timeStamp, pageHasAudio) {
+                if (PageManager.pageHasAudio === pageHasAudio)
+                    return;
+
+                PageManager.pageHasAudio = pageHasAudio;
+
+                // Notify the page audio update event listeners in the content script environment
+                PageManager.onPageAudioUpdate.notifyListeners([{
+                    timeStamp, pageHasAudio
+                }]);
+
+                debugLog(`Page audio update: ${JSON.stringify(PageManager)}`);
+            }
+
+            // Handle events sent from the background page
+            browser.runtime.onMessage.addListener((message) => {
+                if (message.type === "WebScience.Utilities.PageManager.pageAttentionUpdate") {
+                    pageAttentionUpdate(message.timeStamp, message.pageHasAttention, message.reason);
+                    return;
+                }
+
+                // If the background page detected a URL change, this could be belated
+                // notification about a conventional navigation or it could be a page
+                // load via the History API
+                // We can distinguish these two scenarios by checking whether the URL
+                // visible to the user (`window.location.href`) has changed since the
+                // page visit start
+                if ((message.type === "WebScience.Utilities.PageManager.urlChanged") &&
+                    (locationHrefWithoutHash() !== PageManager.url)) {
+                    pageVisitStop(message.timeStamp);
+                    pageVisitStart(message.timeStamp, true);
+                    return;
+                }
+
+                if (message.type === "WebScience.Utilities.PageManager.pageAudioUpdate") {
+                    pageAudioUpdate(message.timeStamp, message.pageHasAudio);
+                    return;
+                }
+            });
+
+            // If there are any other content scripts that are waiting for the API to load,
+            // execute the callbacks for those content scripts
+            if ("pageManagerHasLoaded" in window) {
+                if (Array.isArray(window.pageManagerHasLoaded))
+                    for (const callback of window.pageManagerHasLoaded)
+                        if (typeof callback === "function") {
+                            try {
+                                callback();
+                            }
+                            catch (error) {
+                                debugLog(`Error in callback for PageManager load: ${error}`);
+                            }
+                        }
+                delete window.pageManagerHasLoaded;
+            }
+
+            // Send the page visit start event for the first time
+            pageVisitStart(Math.floor(window.performance.timeOrigin));
+
+            // Send the page visit stop event on the window unload event
+            window.addEventListener("unload", (event) => {
+                pageVisitStop(Date.now());
+            });
+        }
     // Register the PageManager content script for all HTTP(S) URLs
+    console.debug("loading content script");
     browser.contentScripts.register({
-        matches: [ "http://*/*", "https://*/*" ],
+        matches: ["http://*/*", "https://*/*"],
         js: [{
-            file: "/WebScience/Utilities/content-scripts/pageManager.js"
+            code: `(${contentScript})()`
         }],
         runAt: "document_start"
     });

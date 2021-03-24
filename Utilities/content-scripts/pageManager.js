@@ -149,7 +149,8 @@
          * @param {string} message - The debugging message.
          */
         function debugLog(message) {
-            console.debug(`WebScience.Utilities.PageManager (Content Script): ${message}`);
+            // HAMILTON: commented this out.
+            //console.debug(`WebScience.Utilities.PageManager (Content Script): ${message}`);
         }
 
         // Event management types and classes
@@ -449,7 +450,7 @@
          * @param {boolean} pageHasAttention - The latest attention state, according to the
          * PageManager module running in the background page.
          */
-        function pageAttentionUpdate(timeStamp, pageHasAttention) {
+        function pageAttentionUpdate(timeStamp, pageHasAttention, reason) {
             if(PageManager.pageHasAttention === pageHasAttention)
                 return;
 
@@ -457,7 +458,7 @@
 
             // Notify the page attention update event listeners in the content script environment
             PageManager.onPageAttentionUpdate.notifyListeners([{
-                timeStamp
+                timeStamp, reason
             }]);
 
             debugLog(`Page attention update: ${JSON.stringify(PageManager)}`);
@@ -479,7 +480,7 @@
 
             // Notify the page audio update event listeners in the content script environment
             PageManager.onPageAudioUpdate.notifyListeners([{
-                timeStamp
+                timeStamp, pageHasAudio
             }]);
 
             debugLog(`Page audio update: ${JSON.stringify(PageManager)}`);
@@ -488,7 +489,7 @@
         // Handle events sent from the background page
         browser.runtime.onMessage.addListener((message) => {
             if(message.type === "WebScience.Utilities.PageManager.pageAttentionUpdate") {
-                pageAttentionUpdate(message.timeStamp, message.pageHasAttention);
+                pageAttentionUpdate(message.timeStamp, message.pageHasAttention, message.reason);
                 return;
             }
 

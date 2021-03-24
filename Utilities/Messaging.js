@@ -20,6 +20,7 @@
  * @module WebScience.Utilities.Messaging
  */
 
+import browser from 'webextension-polyfill';
 import * as Debugging from "./Debugging.js"
 
 const debugLog = Debugging.getDebuggingLog("Utilities.Messaging");
@@ -94,7 +95,13 @@ export function validateMessageAgainstSchema(message, messageSchema)
     // Check the message against the schema.
     for(const field in messageSchema) {
         if (!(field in message) || (typeof message[field] !== messageSchema[field])) {
-            debugLog(`Mismatch between message and schema: ${JSON.stringify(message)}`);
+            console.group("WebScience.Utilities.Messaging");
+            console.debug(`mismatch between message and schema`);
+            console.debug(`field: ${field}`);
+            console.debug(`message type: ${typeof message[field]}`);
+            console.debug(`schema type: ${messageSchema[field]}`);
+            console.groupEnd();
+            //debugLog(`Mismatch between message and schema: ${JSON.stringify(message)}`);
             return false;
         }
     }

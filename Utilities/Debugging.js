@@ -6,6 +6,8 @@
  * @module WebScience.Utilities.Debugging
  */
 
+import browser from 'webextension-polyfill';
+
 /**
  * Whether to log debugging events.
  * @private
@@ -27,7 +29,7 @@ export function enableDebugging() {
  */
 export function getDebuggingLog(moduleName) {
     return ((text) => {
-        if (debug) console.debug("WebScience." + moduleName + ": " + text);
+        console.debug("WebScience." + moduleName + ": " + text);
     });
 }
 
