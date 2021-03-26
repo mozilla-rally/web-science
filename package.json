@@ -5,7 +5,11 @@
         "build": "rollup -c rollup.config.intermediate.js && rollup -c rollup.config.final.js",
         "lint": "eslint ."
     },
+    "dependencies": {
+        "@mozilla/readability": "^0.4.1"
+    },
     "devDependencies": {
+        "@mozilla/readability": "^0.4.1",
         "@rollup/plugin-commonjs": "17.1.0",
         "@rollup/plugin-node-resolve": "^11.2.0",
         "@rollup/plugin-url": "^6.0.0",

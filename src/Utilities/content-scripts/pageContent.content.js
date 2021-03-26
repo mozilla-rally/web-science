@@ -5,8 +5,9 @@
 // Function encapsulation to maintain unique variable scope for each content script
 
 // Readbility and PageManager are defined by other content scripts, tell eslint not to worry
-/* global Readability */
 /* global PageManager */
+
+import Readability from "@mozilla/readability";
 
 (
     async function () {

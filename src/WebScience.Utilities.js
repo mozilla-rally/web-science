@@ -39,8 +39,5 @@ export { SocialMediaActivity }
 import * as DataAnalysis from "./Utilities/DataAnalysis.js"
 export { DataAnalysis }
 
-import * as Readability from "./Utilities/Readability.js"
-export { Readability }
-
 import * as PageClassification from "./Utilities/PageClassification.js"
 export { PageClassification }
