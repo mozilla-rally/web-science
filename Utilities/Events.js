@@ -5,9 +5,9 @@
  * @module WebScience.Utilities.Events
  */
 
-import * as Debugging from './Debugging.js'
+import * as Debugging from './Debugging.js';
 
-const debugLog = Debugging.getDebuggingLog('Utilities.Events')
+const debugLog = Debugging.getDebuggingLog('Utilities.Events');
 
 /**
  * A callback function with no parameters.
@@ -39,11 +39,11 @@ export class Event {
     removeListenerCallback: null,
     notifyListenersCallback: null
   }) {
-    console.log(addListenerCallback, removeListenerCallback, notifyListenersCallback)
-    this.addListenerCallback = addListenerCallback
-    this.removeListenerCallback = removeListenerCallback
-    this.notifyListenersCallback = notifyListenersCallback
-    this.listeners = new Map()
+    console.log(addListenerCallback, removeListenerCallback, notifyListenersCallback);
+    this.addListenerCallback = addListenerCallback;
+    this.removeListenerCallback = removeListenerCallback;
+    this.notifyListenersCallback = notifyListenersCallback;
+    this.listeners = new Map();
   }
 
   /**
@@ -63,9 +63,9 @@ export class Event {
      */
   addListener (listener, options) {
     if (this.addListenerCallback !== null) {
-      this.addListenerCallback(listener, options)
+      this.addListenerCallback(listener, options);
     }
-    this.listeners.set(listener, options)
+    this.listeners.set(listener, options);
   }
 
   /**
@@ -79,9 +79,9 @@ export class Event {
      * @param {EventCallbackFunction} listener - The listener function to remove.
      */
   removeListener (listener) {
-    this.listeners.delete(listener)
+    this.listeners.delete(listener);
     if (this.removeListenerCallback !== null) {
-      this.removeListenerCallback(listener)
+      this.removeListenerCallback(listener);
     }
   }
 
@@ -91,7 +91,7 @@ export class Event {
      * @return {boolean} Whether the listener function has been added.
      */
   hasListener (listener) {
-    return this.listeners.has(listener)
+    return this.listeners.has(listener);
   }
 
   /**
@@ -99,7 +99,7 @@ export class Event {
      * @return {boolean} Whether there are any listeners
      */
   hasAnyListeners () {
-    return this.listeners.size > 0
+    return this.listeners.size > 0;
   }
 
   /**
@@ -120,11 +120,11 @@ export class Event {
   notifyListeners (listenerArguments = []) {
     this.listeners.forEach((options, listener) => {
       try {
-        if ((this.notifyListenersCallback === null) || this.notifyListenersCallback(listener, listenerArguments, options)) { listener.apply(null, listenerArguments) }
+        if ((this.notifyListenersCallback === null) || this.notifyListenersCallback(listener, listenerArguments, options)) { listener.apply(null, listenerArguments); }
       } catch (error) {
-        debugLog(`Error in listener notification: ${error}`)
+        debugLog(`Error in listener notification: ${error}`);
       }
-    })
+    });
   }
 }
 
@@ -158,7 +158,7 @@ export class EventWithoutOptions extends Event {
     removeListenerCallback: null,
     notifyListenersCallback: null
   }) {
-    super({ addListenerCallback, removeListenerCallback, notifyListenersCallback })
+    super({ addListenerCallback, removeListenerCallback, notifyListenersCallback });
   }
 
   /**
@@ -166,7 +166,7 @@ export class EventWithoutOptions extends Event {
      * @param {EventCallbackFunction} listener - The function to call when the event fires.
      */
   addListener (listener) {
-    super.addListener(listener, undefined)
+    super.addListener(listener, undefined);
   }
 }
 
@@ -188,7 +188,7 @@ export class EventSingleton extends Event {
      * the event.
      */
   addListener (listener, options) {
-    if (this.listeners.size > 0) { throw new Error('Error: cannot add more than one listener to EventSingleton event.') }
-    super.addListener(listener, options)
+    if (this.listeners.size > 0) { throw new Error('Error: cannot add more than one listener to EventSingleton event.'); }
+    super.addListener(listener, options);
   }
 }

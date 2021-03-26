@@ -20,10 +20,10 @@
  * @module WebScience.Utilities.Messaging
  */
 
-import browser from 'webextension-polyfill'
-import * as Debugging from './Debugging.js'
+import browser from 'webextension-polyfill';
+import * as Debugging from './Debugging.js';
 
-const debugLog = Debugging.getDebuggingLog('Utilities.Messaging')
+const debugLog = Debugging.getDebuggingLog('Utilities.Messaging');
 
 /**
  * A Map that stores message listeners. The keys are message types and the values
@@ -31,7 +31,7 @@ const debugLog = Debugging.getDebuggingLog('Utilities.Messaging')
  * @private
  * @const {Map<string,Set<function>>}
  */
-const messageRouter = new Map()
+const messageRouter = new Map();
 
 /**
  * A Map that stores message schemas. The keys are message types and the values
@@ -39,7 +39,7 @@ const messageRouter = new Map()
  * @private
  * @const {Map<string,Object>}
  */
-const messageSchemas = new Map()
+const messageSchemas = new Map();
 
 /**
  * Whether the module's `browser.runtime.onMessage` listener has been registered.
@@ -47,7 +47,7 @@ const messageSchemas = new Map()
  * @type {boolean}
  * @default
  */
-let initialized = false
+let initialized = false;
 
 /**
  * Validates that a message is an object with a type string.
@@ -57,17 +57,17 @@ let initialized = false
 export function validateMessageObject (message) {
   // If the message does not have the right type, fail validation.
   if ((typeof message !== 'object') || (message === null)) {
-    debugLog(`Unable to validate message with type: ${typeof message}`)
-    return false
+    debugLog(`Unable to validate message with type: ${typeof message}`);
+    return false;
   }
 
   // If there is no type string, fail validation.
   if (!('type' in message) || (typeof message.type !== 'string')) {
-    debugLog(`Unable to validate message object with missing type string: ${JSON.stringify(message)}`)
-    return false
+    debugLog(`Unable to validate message object with missing type string: ${JSON.stringify(message)}`);
+    return false;
   }
 
-  return true
+  return true;
 }
 
 /**
@@ -84,27 +84,27 @@ export function validateMessageObject (message) {
 export function validateMessageAgainstSchema (message, messageSchema) {
   // If the caller doesn't specify a message schema, attempt to retrieve the registered schema.
   if (messageSchema === undefined) {
-    messageSchema = messageSchemas.get(message.type)
+    messageSchema = messageSchemas.get(message.type);
     if (messageSchema === undefined) {
-      debugLog(`No schema for message with type: ${message.type}`)
-      return false
+      debugLog(`No schema for message with type: ${message.type}`);
+      return false;
     }
   }
 
   // Check the message against the schema.
   for (const field in messageSchema) {
     if (!(field in message) || (typeof message[field] !== messageSchema[field])) {
-      console.group('WebScience.Utilities.Messaging')
-      console.debug('mismatch between message and schema')
-      console.debug(`field: ${field}`)
-      console.debug(`message type: ${typeof message[field]}`)
-      console.debug(`schema type: ${messageSchema[field]}`)
-      console.groupEnd()
+      console.group('WebScience.Utilities.Messaging');
+      console.debug('mismatch between message and schema');
+      console.debug(`field: ${field}`);
+      console.debug(`message type: ${typeof message[field]}`);
+      console.debug(`schema type: ${messageSchema[field]}`);
+      console.groupEnd();
       // debugLog(`Mismatch between message and schema: ${JSON.stringify(message)}`);
-      return false
+      return false;
     }
   }
-  return true
+  return true;
 }
 
 /**
@@ -115,34 +115,34 @@ export function validateMessageAgainstSchema (message, messageSchema) {
  * @private
  */
 function browserRuntimeListener (message, sender, sendResponse) {
-  let messageListeners, messageSchema, browserRuntimeReturnValue
+  let messageListeners, messageSchema, browserRuntimeReturnValue;
 
   // If the message is not in an expected format, ignore it.
   if (!validateMessageObject(message)) {
-    debugLog(`browser.runtime message with unexpected format: ${JSON.stringify(message)}`)
-    return
+    debugLog(`browser.runtime message with unexpected format: ${JSON.stringify(message)}`);
+    return;
   }
 
   // If the message does not have at least one registered listener, ignore it.
   if ((messageListeners = messageRouter.get(message.type)) === undefined) {
-    debugLog(`browser.runtime message with no listener for message type: ${JSON.stringify(message)}`)
-    return
+    debugLog(`browser.runtime message with no listener for message type: ${JSON.stringify(message)}`);
+    return;
   }
 
   // If there is a schema registered for this message type, check the message against the schema.
   if (((messageSchema = messageSchemas.get(message.type)) !== undefined) &&
          !validateMessageAgainstSchema(message, messageSchema)) {
-    debugLog(`browser.runtime message failed schema validation: ${JSON.stringify(message)}`)
-    return
+    debugLog(`browser.runtime message failed schema validation: ${JSON.stringify(message)}`);
+    return;
   }
 
   for (const messageListener of messageListeners) {
-    const messageListenerReturnValue = messageListener(message, sender, sendResponse)
-    if ((messageListenerReturnValue !== undefined) && (browserRuntimeReturnValue !== undefined)) { debugLog(`Multiple listener return values for message type: ${message.type}`) }
-    browserRuntimeReturnValue = messageListenerReturnValue
+    const messageListenerReturnValue = messageListener(message, sender, sendResponse);
+    if ((messageListenerReturnValue !== undefined) && (browserRuntimeReturnValue !== undefined)) { debugLog(`Multiple listener return values for message type: ${message.type}`); }
+    browserRuntimeReturnValue = messageListenerReturnValue;
   }
 
-  return browserRuntimeReturnValue
+  return browserRuntimeReturnValue;
 }
 
 /**
@@ -155,18 +155,18 @@ function browserRuntimeListener (message, sender, sendResponse) {
  */
 export function registerListener (messageType, messageListener, messageSchema) {
   if (!initialized) {
-    initialized = true
-    browser.runtime.onMessage.addListener(browserRuntimeListener)
+    initialized = true;
+    browser.runtime.onMessage.addListener(browserRuntimeListener);
   }
 
-  let messageListeners = messageRouter.get(messageType)
+  let messageListeners = messageRouter.get(messageType);
   if (messageListeners === undefined) {
-    messageListeners = new Set()
-    messageRouter.set(messageType, messageListeners)
+    messageListeners = new Set();
+    messageRouter.set(messageType, messageListeners);
   }
-  messageListeners.add(messageListener)
+  messageListeners.add(messageListener);
 
-  if (messageSchema !== undefined) { registerSchema(messageType, messageSchema) }
+  if (messageSchema !== undefined) { registerSchema(messageType, messageSchema); }
 }
 
 /**
@@ -176,12 +176,12 @@ export function registerListener (messageType, messageListener, messageSchema) {
  * @param {boolean} [unregisterSchema=true] - Whether to unregister the schema for the message type, if there is one.
  */
 export function unregisterListener (messageType, messageListener, unregisterSchema) {
-  const messageListeners = messageRouter.get(messageType)
+  const messageListeners = messageRouter.get(messageType);
   if (messageListeners !== undefined) {
-    messageListeners.delete(messageListener)
-    if (messageListeners.size === 0) { messageRouter.delete(messageType) }
+    messageListeners.delete(messageListener);
+    if (messageListeners.size === 0) { messageRouter.delete(messageType); }
   }
-  if (unregisterSchema) { messageSchemas.delete(messageType) }
+  if (unregisterSchema) { messageSchemas.delete(messageType); }
 }
 
 /**
@@ -193,10 +193,10 @@ export function unregisterListener (messageType, messageListener, unregisterSche
 export function registerSchema (messageType, messageSchema) {
   // Check whether the schema has already been registered
   if (messageSchemas.has(messageType)) {
-    debugLog(`Multiple schemas for message type: ${messageType}`)
-    return
+    debugLog(`Multiple schemas for message type: ${messageType}`);
+    return;
   }
-  messageSchemas.set(messageType, messageSchema)
+  messageSchemas.set(messageType, messageSchema);
 }
 
 /**
@@ -211,11 +211,11 @@ export function registerSchema (messageType, messageSchema) {
 export function sendMessageToTab (tabId, message) {
   // Validate the outbound message against the schema
   if (!validateMessageObject(message) || !validateMessageAgainstSchema(message)) {
-    debugLog(`Attempted to send message that fails validation: ${JSON.stringify(message)}`)
-    return new Promise((resolve) => { resolve(false) })
+    debugLog(`Attempted to send message that fails validation: ${JSON.stringify(message)}`);
+    return new Promise((resolve) => { resolve(false); });
   }
   return browser.tabs.sendMessage(tabId, message).catch((reason) => {
-    debugLog(`Unable to send message to tab: ${JSON.stringify(message)}`)
-    return false
-  })
+    debugLog(`Unable to send message to tab: ${JSON.stringify(message)}`);
+    return false;
+  });
 }

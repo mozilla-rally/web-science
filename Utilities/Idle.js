@@ -38,7 +38,7 @@
  * @module WebScience.Utilities.Idle
  */
 
-import browser from 'webextension-polyfill'
+import browser from 'webextension-polyfill';
 
 /**
  * The minimum idle state detection interval (in seconds) supported by
@@ -46,7 +46,7 @@ import browser from 'webextension-polyfill'
  * @private
  * @const {number}
  */
-const minimumIdleStateDetectionIntervalInSeconds = 15
+const minimumIdleStateDetectionIntervalInSeconds = 15;
 
 /**
  * Whether we have configured  configured the idle state detection
@@ -56,7 +56,7 @@ const minimumIdleStateDetectionIntervalInSeconds = 15
  * @type {boolean}
  * @default
  */
-let initialized = false
+let initialized = false;
 
 /**
  * An estimate of the time (in milliseconds since the epoch) when the
@@ -67,7 +67,7 @@ let initialized = false
  * @type {boolean}
  * @default
  */
-let lastIdleTime = -1
+let lastIdleTime = -1;
 
 /**
  * A cached copy of the browser's current idle state. This caching enables
@@ -76,7 +76,7 @@ let lastIdleTime = -1
  * @type {string}
  * @default
  */
-let currentIdleState = 'active'
+let currentIdleState = 'active';
 
 /**
  * A Map that stores browser idle state listeners. The keys are
@@ -85,7 +85,7 @@ let currentIdleState = 'active'
  * @private
  * @const {Map<number,Set<function>>}
  */
-const idleStateListeners = new Map()
+const idleStateListeners = new Map();
 
 /**
  * A Map that stores browser idle state timeouts. The keys are
@@ -94,7 +94,7 @@ const idleStateListeners = new Map()
  * @private
  * @const {Map<number,number>}
  */
-const idleStateTimeouts = new Map()
+const idleStateTimeouts = new Map();
 
 /**
  * Configure the idle state detection interval, cache the idle state,
@@ -102,12 +102,12 @@ const idleStateTimeouts = new Map()
  * @private
  */
 async function initialize () {
-  if (initialized) { return }
-  initialized = true
-  browser.idle.setDetectionInterval(minimumIdleStateDetectionIntervalInSeconds)
-  currentIdleState = await browser.idle.queryState(minimumIdleStateDetectionIntervalInSeconds)
-  if (currentIdleState === 'idle') { lastIdleTime = Date.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000) }
-  browser.idle.onStateChanged.addListener(idleOnStateChangedListener)
+  if (initialized) { return; }
+  initialized = true;
+  browser.idle.setDetectionInterval(minimumIdleStateDetectionIntervalInSeconds);
+  currentIdleState = await browser.idle.queryState(minimumIdleStateDetectionIntervalInSeconds);
+  if (currentIdleState === 'idle') { lastIdleTime = Date.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000); }
+  browser.idle.onStateChanged.addListener(idleOnStateChangedListener);
 }
 
 /**
@@ -119,11 +119,11 @@ async function initialize () {
  * to use
  */
 export function queryState (detectionIntervalInSeconds) {
-  if (currentIdleState !== 'idle') { return currentIdleState }
+  if (currentIdleState !== 'idle') { return currentIdleState; }
 
-  if (Date.now() >= (lastIdleTime + (detectionIntervalInSeconds * 1000))) { return 'idle' }
+  if (Date.now() >= (lastIdleTime + (detectionIntervalInSeconds * 1000))) { return 'idle'; }
 
-  return 'active'
+  return 'active';
 }
 
 /**
@@ -132,28 +132,28 @@ export function queryState (detectionIntervalInSeconds) {
  * @private
  */
 function idleOnStateChangedListener (newState) {
-  currentIdleState = newState
+  currentIdleState = newState;
 
   // If the browser idle state transitions to non-idle...
   if (newState !== 'idle') {
     // Cancel any pending notification timeouts and forget the timeout IDs
-    for (const idleStateTimeoutID of idleStateTimeouts.values()) { clearTimeout(idleStateTimeoutID) }
-    idleStateTimeouts.clear()
+    for (const idleStateTimeoutID of idleStateTimeouts.values()) { clearTimeout(idleStateTimeoutID); }
+    idleStateTimeouts.clear();
 
     // Notify all the idle state listeners
     for (const idleStateListenerSet of idleStateListeners.values()) {
-      for (const idleStateListener of idleStateListenerSet) { idleStateListener(newState.repeat(1)) }
+      for (const idleStateListener of idleStateListenerSet) { idleStateListener(newState.repeat(1)); }
     }
-    return
+    return;
   }
 
   // If the browser idle state transitions to idle...
 
   // Remember an estimate of when the browser last went into idle state
-  lastIdleTime = Date.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000)
+  lastIdleTime = Date.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000);
 
   // Set timeouts for all the idle state listeners
-  for (const [detectionIntervalInSeconds, idleStateListenersWithDetectionInterval] of idleStateListeners) { scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds) }
+  for (const [detectionIntervalInSeconds, idleStateListenersWithDetectionInterval] of idleStateListeners) { scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds); }
 }
 
 /**
@@ -166,11 +166,11 @@ function idleOnStateChangedListener (newState) {
 function scheduleIdleStateTimeout (idleStateListenersWithDetectionInterval, detectionIntervalInSeconds) {
   // Determine how long to delay before firing the listeners
   // If the delay is negative, set it to 0 (i.e., fire as soon as possible)
-  const delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - Date.now(), 0)
+  const delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - Date.now(), 0);
   const timeoutId = setTimeout(function () {
-    for (const idleStateListener of idleStateListenersWithDetectionInterval) { idleStateListener('idle') }
-  }, delayTime)
-  idleStateTimeouts.set(detectionIntervalInSeconds, timeoutId)
+    for (const idleStateListener of idleStateListenersWithDetectionInterval) { idleStateListener('idle'); }
+  }, delayTime);
+  idleStateTimeouts.set(detectionIntervalInSeconds, timeoutId);
 }
 
 /**
@@ -186,24 +186,24 @@ function scheduleIdleStateTimeout (idleStateListenersWithDetectionInterval, dete
  * are measured in milliseconds.
  */
 export async function registerIdleStateListener (idleStateListener, detectionIntervalInSeconds) {
-  await initialize()
+  await initialize();
 
   // If we already have at least one idle state listener with this
   // detection interval, add the new listener to the Set of listeners
   // and we're done
-  let idleStateListenersWithDetectionInterval = idleStateListeners.get(detectionIntervalInSeconds)
+  let idleStateListenersWithDetectionInterval = idleStateListeners.get(detectionIntervalInSeconds);
   if (idleStateListenersWithDetectionInterval !== undefined) {
-    idleStateListenersWithDetectionInterval.add(idleStateListener)
-    return
+    idleStateListenersWithDetectionInterval.add(idleStateListener);
+    return;
   }
 
   // Create a Set for listeners with this detection interval, including
   // this idle state listener
-  idleStateListenersWithDetectionInterval = idleStateListeners.set(detectionIntervalInSeconds, (new Set()).add(idleStateListener))
+  idleStateListenersWithDetectionInterval = idleStateListeners.set(detectionIntervalInSeconds, (new Set()).add(idleStateListener));
 
   // If we're in idle state, and we have been in the state for less time
   // than the detection interval for this listener (i.e., the listener
   // should still receive a state change notification), schedule a
   // notification
-  if ((currentIdleState === 'idle') && (Date.now() < (lastIdleTime + detectionIntervalInSeconds * 1000))) { scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds) }
+  if ((currentIdleState === 'idle') && (Date.now() < (lastIdleTime + detectionIntervalInSeconds * 1000))) { scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds); }
 }
