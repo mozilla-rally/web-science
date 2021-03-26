@@ -4,7 +4,8 @@
   "description": "A library of reusable functionality for [Mozilla Rally](https://support.mozilla.org/en-US/kb/about-firefox-pioneer) studies.",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -18,5 +19,12 @@
   "homepage": "https://github.com/mozilla-rally/web-science#readme",
   "dependencies": {
     "webextension-polyfill": "^0.7.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.22.0",
+    "eslint-config-standard": "^16.0.2",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.3.1"
   }
 }

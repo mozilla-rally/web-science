@@ -2,11 +2,11 @@
  * This module provides utilities for logging debugging events.
  * The module currently just outputs events with `console.debug`.
  * It should eventually support debugging via Telemetry.
- * 
+ *
  * @module WebScience.Utilities.Debugging
  */
 
-import browser from 'webextension-polyfill';
+import browser from 'webextension-polyfill'
 
 /**
  * Whether to log debugging events.
@@ -14,11 +14,11 @@ import browser from 'webextension-polyfill';
  * @type {boolean}
  * @default
  */
-let debug = false;
+let debug = false
 
 /** Enable logging for debugging events. */
-export function enableDebugging() {
-    debug = true;
+export function enableDebugging () {
+  debug = true
 }
 
 /**
@@ -27,14 +27,14 @@ export function enableDebugging() {
  * generating the debugging events.
  * @returns {function(string)} - A debugging logger.
  */
-export function getDebuggingLog(moduleName) {
-    return ((text) => {
-        console.debug("WebScience." + moduleName + ": " + text);
-    });
+export function getDebuggingLog (moduleName) {
+  return (text) => {
+    console.debug('WebScience.' + moduleName + ': ' + text)
+  }
 }
 
-export function getExtensionVersion() {
-    const manifest = browser.runtime.getManifest();
-    if ("version" in manifest) return manifest.version;
-    return "";
+export function getExtensionVersion () {
+  const manifest = browser.runtime.getManifest()
+  if ('version' in manifest) return manifest.version
+  return ''
 }
