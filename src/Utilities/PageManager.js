@@ -125,6 +125,7 @@
 import * as Events from "./Events.js"
 import * as Idle from "./Idle.js"
 import * as Messaging from "./Messaging.js"
+import pageManagerContentScript from "./content-scripts/pageManager.content.js"
 
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,
@@ -632,7 +633,7 @@ export async function initialize() {
     browser.contentScripts.register({
         matches: [ "http://*/*", "https://*/*" ],
         js: [{
-            file: "/WebScience/Utilities/content-scripts/pageManager.content.js"
+            file: pageManagerContentScript
         }],
         runAt: "document_start"
     });

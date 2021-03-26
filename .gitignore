@@ -41,3 +41,6 @@ docs
 # npm
 node_modules/
 
+# Build
+intermediate/
+dist/

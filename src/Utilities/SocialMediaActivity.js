@@ -5,6 +5,8 @@
  */
 import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
+import facebookContentScript from "./content-scripts/facebook.content.js"
+import twitterContentScript from "./content-scripts/twitter.content.js"
 
 const debugLog = Debugging.getDebuggingLog("SocialMediaSharing");
 
@@ -499,7 +501,7 @@ function tweetContentInit() {
     browser.contentScripts.register({
         matches: ["https://twitter.com/*", "https://twitter.com/"],
         js: [
-            { file: "/WebScience/Measurements/content-scripts/twitter.content.js" }
+            { file: twitterContentScript }
         ],
         runAt: "document_idle"
     });
@@ -536,7 +538,7 @@ async function fbPostContentInit() {
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
         js: [
-            { file: "/WebScience/Measurements/content-scripts/facebook.content.js" }
+            { file: facebookContentScript }
         ],
         runAt: "document_start"
     });

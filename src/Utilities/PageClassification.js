@@ -8,6 +8,8 @@ import * as Debugging from "../Utilities/Debugging.js";
 import * as Matching from "../Utilities/Matching.js";
 import * as Events from "../Utilities/Events.js";
 import * as Readability from "../Utilities/Readability.js"
+import readabilityContentScript from "./content-scripts/Readability.content.js"
+import pageContentContentScript from "./content-scripts/pageContent.content.js"
 
 const debugLog = Debugging.getDebuggingLog("Utilities.PageClassification");
 
@@ -123,10 +125,10 @@ class ClassificationEvent extends Events.Event {
             matches: [...this.existingMatchPatterns],
             js: [
                 {
-                    file: "/WebScience/Utilities/content-scripts/Readability.content.js"
+                    file: readabilityContentScript
                 },
                 {
-                    file: "/WebScience/Utilities/content-scripts/pageContent.content.js"
+                    file: pageContentContentScript
                 }
             ],
             runAt: "document_idle"

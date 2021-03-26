@@ -7,6 +7,7 @@
 import * as Events from "../Utilities/Events.js"
 import * as Messaging from "../Utilities/Messaging.js"
 import * as PageManager from "../Utilities/PageManager.js"
+import pageNavigationContentScript from "./content-scripts/pageNavigation.content.js"
 
 /**
  * Additional information about the page data event.
@@ -107,7 +108,7 @@ export async function startMeasurement({
     registeredContentScript = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
-            file: "/WebScience/Measurements/content-scripts/pageNavigation.content.js"
+            file: pageNavigationContentScript
         }],
         runAt: "document_start"
     });
