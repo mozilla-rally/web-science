@@ -37,3 +37,7 @@ Temporary Items
 
 # JSDoc
 docs
+
+# npm
+node_modules/
+
