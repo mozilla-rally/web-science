@@ -632,7 +632,7 @@ export async function initialize() {
     browser.contentScripts.register({
         matches: [ "http://*/*", "https://*/*" ],
         js: [{
-            file: "/WebScience/Utilities/content-scripts/pageManager.js"
+            file: "/WebScience/Utilities/content-scripts/pageManager.content.js"
         }],
         runAt: "document_start"
     });
