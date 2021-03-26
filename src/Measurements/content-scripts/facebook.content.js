@@ -1,6 +1,6 @@
 /**
  * Content script for getting Facebook post contents
- * @module WebScience.Measurements.content-scripts.SocialMediaLinkSharing
+ * @module WebScience.Measurements.facebook.content
  */
 
 (async function() {

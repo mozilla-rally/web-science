@@ -129,7 +129,7 @@ async function startMeasurement({
     registeredCS = await browser.contentScripts.register({
         matches: pageMatchPatterns,
         js: [{
-                file: "/WebScience/Measurements/content-scripts/linkExposure.js"
+                file: "/WebScience/Measurements/linkExposure.content.js"
             }],
         runAt: "document_idle"
     });

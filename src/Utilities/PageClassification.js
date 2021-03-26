@@ -123,10 +123,10 @@ class ClassificationEvent extends Events.Event {
             matches: [...this.existingMatchPatterns],
             js: [
                 {
-                    file: "/WebScience/Utilities/content-scripts/Readability.js"
+                    file: "/WebScience/Utilities/content-scripts/Readability.content.js"
                 },
                 {
-                    file: "/WebScience/Utilities/content-scripts/page-content.js"
+                    file: "/WebScience/Utilities/content-scripts/pageContent.content.js"
                 }
             ],
             runAt: "document_idle"

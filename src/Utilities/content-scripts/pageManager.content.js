@@ -99,7 +99,7 @@
  *     message sending Promise remains open. This error does not affect functionality,
  *     because we do not depend on resolving the Promise (i.e., a response to the
  *     page visit stop message).
- * @module WebScience.Utilities.content-scripts.pageManager
+ * @module WebScience.Utilities.pageManager.content
  */
 // Tell eslint that PageManager isn't actually undefined
 /* global PageManager */

@@ -1,6 +1,6 @@
 /**
  * Content script for the LinkExposure module.
- * @module WebScience.Measurements.content-scripts.linkExposure
+ * @module WebScience.Measurements.linkExposure.content
  */
 // Tell eslint that PageManager isn't actually undefined
 /* global PageManager */

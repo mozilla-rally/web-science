@@ -1,6 +1,6 @@
 /**
  * Content script to extract url, title, and text from a page
- * @module WebScience.Measurements.content-scripts.page-content
+ * @module WebScience.Measurements.pageContent.content
  */
 // Function encapsulation to maintain unique variable scope for each content script
 

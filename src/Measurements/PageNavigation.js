@@ -107,7 +107,7 @@ export async function startMeasurement({
     registeredContentScript = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
-            file: "/WebScience/Measurements/content-scripts/pageNavigation.js"
+            file: "/WebScience/Measurements/content-scripts/pageNavigation.content.js"
         }],
         runAt: "document_start"
     });
