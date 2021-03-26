@@ -5,6 +5,7 @@
  */
 import * as Debugging from "./Debugging.js"
 import * as Messaging from "./Messaging.js"
+import * as ContentScripts from "./ContentScripts.js"
 import facebookContentScript from "./content-scripts/facebook.content.js"
 import twitterContentScript from "./content-scripts/twitter.content.js"
 
@@ -500,9 +501,9 @@ function tweetContentInit() {
     tweetContentSetUp = true;
     browser.contentScripts.register({
         matches: ["https://twitter.com/*", "https://twitter.com/"],
-        js: [
-            { file: twitterContentScript }
-        ],
+        js: [{
+            code: ContentScripts.unpack(twitterContentScript)
+        }],
         runAt: "document_idle"
     });
     browser.webRequest.onBeforeSendHeaders.addListener((details) => {
@@ -537,9 +538,9 @@ async function fbPostContentInit() {
     // Register the content script that will find posts inside the page when reshares happen
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
-        js: [
-            { file: facebookContentScript }
-        ],
+        js: [{
+            code: ContentScripts.unpack(facebookContentScript)
+        }],
         runAt: "document_start"
     });
 }

@@ -8,6 +8,7 @@ import * as Debugging from "../Utilities/Debugging.js";
 import * as Matching from "../Utilities/Matching.js";
 import * as Events from "../Utilities/Events.js";
 import Readability from "@mozilla/readability";
+import * as ContentScripts from "../Utilities/ContentScripts.js"
 import pageContentContentScript from "./content-scripts/pageContent.content.js"
 
 const debugLog = Debugging.getDebuggingLog("Utilities.PageClassification");
@@ -122,11 +123,9 @@ class ClassificationEvent extends Events.Event {
 
         this.registeredCS = await browser.contentScripts.register({
             matches: [...this.existingMatchPatterns],
-            js: [
-                {
-                    file: pageContentContentScript
-                }
-            ],
+            js: [{
+                code: ContentScripts.unpack(pageContentContentScript)
+            }],
             runAt: "document_idle"
         });
     }

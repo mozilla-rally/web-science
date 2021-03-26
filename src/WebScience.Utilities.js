@@ -3,6 +3,9 @@
 // Note that the order of module imports matters, since utility
 // modules can depend on other utility modules
 
+import * as ContentScripts from "./Utilities/ContentScripts.js"
+export { ContentScripts }
+
 import * as Debugging from "./Utilities/Debugging.js"
 export { Debugging }
 
