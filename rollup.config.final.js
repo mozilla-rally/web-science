@@ -11,7 +11,7 @@ const distributionDirectory = "dist";
 
 export default (cliArgs) => {
   return [{
-    input: `${intermediateDirectory}/WebScience.js`,
+    input: `${intermediateDirectory}/webScience.js`,
     output: {
       dir: distributionDirectory,
       preserveModules: true,
