@@ -8,7 +8,7 @@ import * as debugging from "./debugging.js";
 import * as matching from "./matching.js";
 import * as events from "./events.js";
 import Readability from "@mozilla/readability";
-import * as contentScripts from "./ContentScripts.js"
+import * as contentScripts from "./contentScripts.js"
 import pageContentContentScript from "./content-scripts/pageContent.content.js"
 
 const debugLog = debugging.getDebuggingLog("utilities.pageClassification");
