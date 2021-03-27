@@ -6,8 +6,8 @@
 import * as debugging from "./debugging.js"
 import * as messaging from "./messaging.js"
 import * as contentScripts from "./contentScripts.js"
-import facebookContentScript from "./content-scripts/facebook.content.js"
-import twitterContentScript from "./content-scripts/twitter.content.js"
+import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js"
+import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js"
 
 const debugLog = debugging.getDebuggingLog("socialMediaActivity");
 

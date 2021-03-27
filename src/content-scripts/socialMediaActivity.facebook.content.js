@@ -1,6 +1,6 @@
 /**
  * Content script for getting Facebook post contents
- * @module webScience.facebook.content
+ * @module webScience.socialMediaActivity.facebook.content
  */
 
 // async IIFE wrapper to enable await syntax
