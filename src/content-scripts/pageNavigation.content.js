@@ -8,7 +8,7 @@
  *     message sending Promise remains open. This error does not affect functionality,
  *     because we do not depend on resolving the Promise (i.e., a response to the
  *     page visit stop message).
- * @module webScience.measurements.pageNavigation.content
+ * @module webScience.pageNavigation.content
  */
 // Tell eslint that pageManager isn't actually undefined
 /* global pageManager */
@@ -141,7 +141,7 @@ const pageNavigation = function () {
         clearInterval(scrollDepthIntervalId);
 
         pageManager.sendMessage({
-            type: "webScience.measurements.pageNavigation.pageData",
+            type: "webScience.pageNavigation.pageData",
             pageId: pageManager.pageId,
             url: pageManager.url,
             referrer: pageManager.referrer,

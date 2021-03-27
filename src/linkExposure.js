@@ -1,19 +1,19 @@
 /**
  * This module measures the user's exposure to links for specific domains.
- * @module webScience.measurements.linkExposure
+ * @module webScience.linkExposure
  */
 
-import * as events from "../utilities/events.js";
-import * as debugging from "../utilities/debugging.js";
-import * as storage from "../utilities/storage.js";
-import * as linkResolution from "../utilities/linkResolution.js";
-import * as matching from "../utilities/matching.js";
-import * as messaging from "../utilities/messaging.js";
-import * as pageManager from "../utilities/pageManager.js";
-import * as contentScripts from "../utilities/contentScripts.js";
+import * as events from "./events.js";
+import * as debugging from "./debugging.js";
+import * as storage from "./storage.js";
+import * as linkResolution from "./linkResolution.js";
+import * as matching from "./matching.js";
+import * as messaging from "./messaging.js";
+import * as pageManager from "./pageManager.js";
+import * as contentScripts from "./contentScripts.js";
 import linkExposureContentScript from "./content-scripts/linkExposure.content.js";
 
-const debugLog = debugging.getDebuggingLog("measurements.linkExposure");
+const debugLog = debugging.getDebuggingLog("linkExposure");
 
 // TODO: significant documentation updates
 /**
@@ -113,7 +113,7 @@ async function startMeasurement({
     await pageManager.initialize();
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
-    const nextLinkExposureIdCounter = await (new storage.Counter("webScience.measurements.linkExposure.nextLinkExposureId")).initialize();
+    const nextLinkExposureIdCounter = await (new storage.Counter("webScience.linkExposure.nextLinkExposureId")).initialize();
 
     // Generate RegExps for matching links, link shortener URLs, and AMP cache URLs
     // Store the RegExps in browser.storage.local so the content script can retrieve them
@@ -122,9 +122,9 @@ async function startMeasurement({
     const urlShortenerRegExp = linkResolution.urlShortenerRegExp;
     const ampRegExp = linkResolution.ampRegExp;
     await browser.storage.local.set({
-        "webScience.measurements.linkExposure.linkMatcher": linkMatcher.export(),
-        "webScience.measurements.linkExposure.urlShortenerRegExp": urlShortenerRegExp,
-        "webScience.measurements.linkExposure.ampRegExp": ampRegExp
+        "webScience.linkExposure.linkMatcher": linkMatcher.export(),
+        "webScience.linkExposure.urlShortenerRegExp": urlShortenerRegExp,
+        "webScience.linkExposure.ampRegExp": ampRegExp
     });
 
     // Add the content script for checking links on pages
@@ -137,7 +137,7 @@ async function startMeasurement({
     });
 
     // Listen for linkExposure messages from content script
-    messaging.registerListener("webScience.measurements.linkExposure.exposureData", (exposureData) => {
+    messaging.registerListener("webScience.linkExposure.exposureData", (exposureData) => {
         // If the message is from a private window and the module isn't configured to measure
         // private windows, ignore the message
         if(exposureData.privateWindow && !privateWindows)

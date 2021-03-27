@@ -1,13 +1,13 @@
 /**
  * This module measures properties of webpage navigation.
  *
- * @module webScience.measurements.pageNavigation
+ * @module webScience.pageNavigation
  */
 
-import * as events from "../utilities/events.js";
-import * as messaging from "../utilities/messaging.js";
-import * as pageManager from "../utilities/pageManager.js";
-import * as contentScripts from "../utilities/contentScripts.js";
+import * as events from "./events.js";
+import * as messaging from "./messaging.js";
+import * as pageManager from "./pageManager.js";
+import * as contentScripts from "./contentScripts.js";
 import pageNavigationContentScript from "./content-scripts/pageNavigation.content.js";
 
 /**
@@ -114,7 +114,7 @@ export async function startMeasurement({
         runAt: "document_start"
     });
 
-    messaging.registerListener("webScience.measurements.pageNavigation.pageData", pageDataListener,
+    messaging.registerListener("webScience.pageNavigation.pageData", pageDataListener,
     {
         pageId: "string",
         url: "string",
@@ -133,7 +133,7 @@ export async function startMeasurement({
  * Stop a navigation measurement.
  */
 function stopMeasurement() {
-    messaging.unregisterListener("webScience.measurements.pageNavigation.pageData", pageDataListener)
+    messaging.unregisterListener("webScience.pageNavigation.pageData", pageDataListener)
     registeredContentScript.unregister();
     registeredContentScript = null;
     notifyAboutPrivateWindows = false;

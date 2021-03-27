@@ -1,7 +1,7 @@
 /**
  * This module provides utilities for working with content scripts.
  * 
- * @module webScience.utilities.contentScripts
+ * @module webScience.contentScripts
  */
 
 /**

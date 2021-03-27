@@ -2,12 +2,12 @@
  * This module provides functionality for constructing events similar to
  * WebExtensions `events.Event` objects.
  *
- * @module webScience.utilities.events
+ * @module webScience.events
  */
 
 import * as debugging from "./debugging.js";
 
-const debugLog = debugging.getDebuggingLog("utilities.events");
+const debugLog = debugging.getDebuggingLog("events");
 
 /**
  * A callback function with no parameters.

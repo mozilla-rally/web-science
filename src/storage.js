@@ -5,7 +5,7 @@
  * needed (e.g., switching from localforage to Dexie, or directly using browser
  * storage APIs).
  *
- * @module webScience.utilities.storage
+ * @module webScience.storage
  */
 
 import Dexie from 'dexie';
@@ -140,7 +140,7 @@ export class Counter {
      */
     async initialize() {
         if(Counter.storage == null)
-            Counter.storage = new KeyValueStorage("webScience.utilities.storage.counter");
+            Counter.storage = new KeyValueStorage("webScience.storage.counter");
         const initialCounterValue = await Counter.storage.get(this.counterName);
         if(initialCounterValue != null)
             this.counterValue = initialCounterValue;

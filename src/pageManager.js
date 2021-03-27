@@ -119,7 +119,7 @@
  *     so the page visit stop message doesn't fire from the associated content script.
  *   * Add an event in the content script for detecting when content has lazily loaded into the
  *     DOM after the various DOM loading events (e.g., on Twitter).
- * @module webScience.utilities.pageManager
+ * @module webScience.pageManager
  */
 
 import * as events from "./events.js";
@@ -252,7 +252,7 @@ function pageVisitStop(details) {
  */
 function sendPageAttentionUpdate(tabId, pageHasAttention, timeStamp = Date.now()) {
     messaging.sendMessageToTab(tabId, {
-        type: "webScience.utilities.pageManager.pageAttentionUpdate",
+        type: "webScience.pageManager.pageAttentionUpdate",
         pageHasAttention,
         timeStamp
     });
@@ -361,9 +361,9 @@ export async function initialize() {
 
     // Register message listeners and schemas for communicating with the content script
 
-    // The content script sends a webScience.utilities.pageManger.pageVisitStart message when
+    // The content script sends a webScience.pageManger.pageVisitStart message when
     // there is a page visit start event
-    messaging.registerListener("webScience.utilities.pageManager.pageVisitStart", (pageVisitStartInfo, sender) => {
+    messaging.registerListener("webScience.pageManager.pageVisitStart", (pageVisitStartInfo, sender) => {
         // Notify the content script if it has attention
         // We can't send this message earlier (e.g., when the tab URL changes) because we need to know the content
         // script is ready to receive the message
@@ -389,11 +389,11 @@ export async function initialize() {
         isHistoryChange: "boolean"
     });
 
-    // The content script sends a webScience.utilities.pageManger.pageVisitStop message when
+    // The content script sends a webScience.pageManger.pageVisitStop message when
     // there is a page visit stop event
     // We don't currently include tab or window information with the page visit stop event
     // because the sender object doesn't include that information when the tab is closing
-    messaging.registerListener("webScience.utilities.pageManager.pageVisitStop", (pageVisitStopInfo) => {
+    messaging.registerListener("webScience.pageManager.pageVisitStop", (pageVisitStopInfo) => {
         pageVisitStop({
             pageId: pageVisitStopInfo.pageId,
             url: pageVisitStopInfo.url,
@@ -411,36 +411,36 @@ export async function initialize() {
         privateWindow: "boolean"
     });
 
-    // The background script sends a webScience.utilities.pageManager.pageAttentionUpdate message
+    // The background script sends a webScience.pageManager.pageAttentionUpdate message
     // when the attention state of the page may have changed
-    messaging.registerSchema("webScience.utilities.pageManager.pageAttentionUpdate", {
+    messaging.registerSchema("webScience.pageManager.pageAttentionUpdate", {
         timeStamp: "number",
         pageHasAttention: "boolean"
     });
 
-    // The background script sends a webScience.utilities.pageManager.urlChanged message when
+    // The background script sends a webScience.pageManager.urlChanged message when
     // the URL changes for a tab, indicating a possible page load with the History API
-    messaging.registerSchema("webScience.utilities.pageManager.urlChanged", {
+    messaging.registerSchema("webScience.pageManager.urlChanged", {
         timeStamp: "number"
     });
 
-    // The background script sends a webScience.utilities.pageManager.pageAudioUpdate message
+    // The background script sends a webScience.pageManager.pageAudioUpdate message
     // when the audio state of the page may have changed
-    messaging.registerSchema("webScience.utilities.pageManager.pageAudioUpdate", {
+    messaging.registerSchema("webScience.pageManager.pageAudioUpdate", {
         pageHasAudio: "boolean",
         timeStamp: "number"
     });
 
     // Register background script event handlers
 
-    // If a tab's audible state changed, send webScience.utilities.pageManager.pageAudioUpdate
+    // If a tab's audible state changed, send webScience.pageManager.pageAudioUpdate
     browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
         if(!initialized)
             return;
         const timeStamp = Date.now();
 
         messaging.sendMessageToTab(tabId, {
-            type: "webScience.utilities.pageManager.pageAudioUpdate",
+            type: "webScience.pageManager.pageAudioUpdate",
             pageHasAudio: changeInfo.audible,
             timeStamp
         });
@@ -449,14 +449,14 @@ export async function initialize() {
         properties: [ "audible" ]
     });
 
-    // If a tab's URL changed because of the History API, send webScience.utilities.pageManager.urlChanged
+    // If a tab's URL changed because of the History API, send webScience.pageManager.urlChanged
     browser.webNavigation.onHistoryStateUpdated.addListener((details) => {
         if(!initialized)
             return;
         const timeStamp = Date.now();
 
         messaging.sendMessageToTab(details.tabId, {
-            type: "webScience.utilities.pageManager.urlChanged",
+            type: "webScience.pageManager.urlChanged",
             timeStamp
         });
     }, {

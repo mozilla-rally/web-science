@@ -35,7 +35,7 @@
  *     even though it supports varying idle state detection intervals, in
  *     order to minimize privileged extension code.
  * 
- * @module webScience.utilities.idle
+ * @module webScience.idle
  */
 
 /**

@@ -1,10 +1,10 @@
 /**
  * Module for resolving a short url
- * @module webScience.utilities.linkResolution
+ * @module webScience.linkResolution
  */
 import * as matching from "./matching.js";
-import { urlShortenerMatchPatterns } from "../dependencies/urlShorteners.js";
-import { ampCacheDomains, ampViewerDomainsAndPaths } from "../dependencies/ampCachesAndViewers.js";
+import { urlShortenerMatchPatterns } from "./dependencies/urlShorteners.js";
+import { ampCacheDomains, ampViewerDomainsAndPaths } from "./dependencies/ampCachesAndViewers.js";
 
 const fetchTimeoutMs = 5000;
 let initialized = false;

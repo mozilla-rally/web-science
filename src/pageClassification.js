@@ -1,7 +1,7 @@
 /**
  * Classify web pages based on their content, title, and URL
  * Inject content scripts to  scripts   using an arbitrary classifier in reponse to messages from content scripts
- * @module webScience.utilities.pageClassification
+ * @module webScience.pageClassification
  */
 import * as messaging from "./messaging.js";
 import * as debugging from "./debugging.js";
@@ -11,7 +11,7 @@ import Readability from "@mozilla/readability";
 import * as contentScripts from "./contentScripts.js"
 import pageContentContentScript from "./content-scripts/pageContent.content.js"
 
-const debugLog = debugging.getDebuggingLog("utilities.pageClassification");
+const debugLog = debugging.getDebuggingLog("pageClassification");
 
 
 class ClassificationEvent extends events.Event {
@@ -74,7 +74,7 @@ class ClassificationEvent extends events.Event {
      *
      */
      listenForContentScriptMessages() {
-        messaging.registerListener("webScience.utilities.pageClassification.pageContent", (pageContent, sender) => {
+        messaging.registerListener("webScience.pageClassification.pageContent", (pageContent, sender) => {
             if (!("tab" in sender)) {
                 debugLog("Warning: unexpected message");
                 return;

@@ -1,7 +1,7 @@
 /**
  * This module provides utility functions for tracking social media posts.
  *
- * @module webScience.utilities.socialMediaActivity
+ * @module webScience.socialMediaActivity
  */
 import * as debugging from "./debugging.js"
 import * as messaging from "./messaging.js"
@@ -9,7 +9,7 @@ import * as contentScripts from "./contentScripts.js"
 import facebookContentScript from "./content-scripts/facebook.content.js"
 import twitterContentScript from "./content-scripts/twitter.content.js"
 
-const debugLog = debugging.getDebuggingLog("utilities.socialMediaActivity");
+const debugLog = debugging.getDebuggingLog("socialMediaActivity");
 
 let privateWindows = false;
 
@@ -528,7 +528,7 @@ function tweetContentInit() {
 async function fbPostContentInit() {
     if (fbPostContentSetUp) { return; }
     fbPostContentSetUp = true;
-    messaging.registerListener("webScience.utilities.socialMediaActivity",
+    messaging.registerListener("webScience.socialMediaActivity",
         (message, sender) => {
             if (message.platform == "facebook") {
                 facebookTabId = sender.tab.id;

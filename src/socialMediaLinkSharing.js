@@ -2,16 +2,16 @@
  * This module is used to run studies that track the user's
  * social media sharing of links.
  *
- * @module webScience.measurements.socialMediaLinkSharing
+ * @module webScience.socialMediaLinkSharing
  */
 
-import * as events from "../utilities/events.js";
-import * as debugging from "../utilities/debugging.js";
-import * as matching from "../utilities/matching.js";
-import * as socialMediaActivity from "../utilities/socialMediaActivity.js";
-import * as linkResolution from "../utilities/linkResolution.js";
+import * as events from "./events.js";
+import * as debugging from "./debugging.js";
+import * as matching from "./matching.js";
+import * as socialMediaActivity from "./socialMediaActivity.js";
+import * as linkResolution from "./linkResolution.js";
 
-const debugLog = debugging.getDebuggingLog("measurements.socialMediaLinkSharing");
+const debugLog = debugging.getDebuggingLog("socialMediaLinkSharing");
 
 /**
  * A MatchPatternSet object for testing urls

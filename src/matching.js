@@ -11,7 +11,7 @@
  *   * Regular Expressions - `RegExp` objects that compare a URL against the criteria.
  *   * Regular Expression Strings - strings expressing regular expressions for comparing a URL against the criteria.
  *
- * @module webScience.utilities.matching
+ * @module webScience.matching
  */
 
 /**

@@ -1,6 +1,6 @@
 /**
  * Content script to extract url, title, and text from a page
- * @module webScience.utilities.pageContent.content
+ * @module webScience.pageContent.content
  */
 
 // Readability and pageManager are defined by other content scripts, tell eslint not to worry
@@ -16,7 +16,7 @@ import Readability from "@mozilla/readability";
  */
 function sendPageContentToBackground(pageContent) {
     browser.runtime.sendMessage({
-        type: "webScience.utilities.pageClassification.pageContent",
+        type: "webScience.pageClassification.pageContent",
         url : document.location.href,
         pageId: pageManager.pageId,
         title : pageContent.title,

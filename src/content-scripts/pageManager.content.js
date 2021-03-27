@@ -99,7 +99,7 @@
  *     message sending Promise remains open. This error does not affect functionality,
  *     because we do not depend on resolving the Promise (i.e., a response to the
  *     page visit stop message).
- * @module webScience.utilities.pageManager.content
+ * @module webScience.pageManager.content
  */
 // Tell eslint that pageManager isn't actually undefined
 /* global pageManager */
@@ -147,7 +147,7 @@
      * @param {string} message - The debugging message.
      */
     function debugLog(message) {
-        console.debug(`webScience.utilities.pageManager.content: ${message}`);
+        console.debug(`webScience.pageManager.content: ${message}`);
     }
 
     // Event management types and classes
@@ -392,7 +392,7 @@
 
         // Send the page visit start event to the background page
         pageManager.sendMessage({
-            type: "webScience.utilities.pageManager.pageVisitStart",
+            type: "webScience.pageManager.pageVisitStart",
             pageId: pageManager.pageId,
             url: pageManager.url,
             referrer: pageManager.referrer,
@@ -422,7 +422,7 @@
     function pageVisitStop(timeStamp) {
         // Send the page visit stop event to the background page
         pageManager.sendMessage({
-            type: "webScience.utilities.pageManager.pageVisitStop",
+            type: "webScience.pageManager.pageVisitStop",
             pageId: pageManager.pageId,
             url: pageManager.url,
             referrer: pageManager.referrer,
@@ -485,7 +485,7 @@
 
     // Handle events sent from the background page
     browser.runtime.onMessage.addListener((message) => {
-        if(message.type === "webScience.utilities.pageManager.pageAttentionUpdate") {
+        if(message.type === "webScience.pageManager.pageAttentionUpdate") {
             pageAttentionUpdate(message.timeStamp, message.pageHasAttention);
             return;
         }
@@ -496,14 +496,14 @@
         // We can distinguish these two scenarios by checking whether the URL
         // visible to the user (`window.location.href`) has changed since the
         // page visit start
-        if((message.type === "webScience.utilities.pageManager.urlChanged") &&
+        if((message.type === "webScience.pageManager.urlChanged") &&
             (locationHrefWithoutHash() !== pageManager.url)) {
             pageVisitStop(message.timeStamp);
             pageVisitStart(message.timeStamp, true);
             return;
         }
 
-        if(message.type === "webScience.utilities.pageManager.pageAudioUpdate") {
+        if(message.type === "webScience.pageManager.pageAudioUpdate") {
             pageAudioUpdate(message.timeStamp, message.pageHasAudio);
             return;
         }

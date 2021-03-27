@@ -1,19 +1,19 @@
 /**
  * Content script for getting Facebook post contents
- * @module webScience.utilities.facebook.content
+ * @module webScience.facebook.content
  */
 
 // async IIFE wrapper to enable await syntax
 (async function() {
 
     // stop running if this is an incognito window and we're not supposed to run there
-    const privateWindowResults = await browser.storage.local.get("webScience.measurements.socialMediaLinkSharing.privateWindows");
-    if (("webScience.measurements.socialMediaLinkSharing.privateWindows" in privateWindowResults)
-        && !privateWindowResults["webScience.measurements.socialMediaLinkSharing.privateWindows"]
+    const privateWindowResults = await browser.storage.local.get("webScience.socialMediaLinkSharing.privateWindows");
+    if (("webScience.socialMediaLinkSharing.privateWindows" in privateWindowResults)
+        && !privateWindowResults["webScience.socialMediaLinkSharing.privateWindows"]
         && browser.extension.inIncognitoContext) { return; }
 
     // Let the background page know that the script is loaded and which tab it's in
-    browser.runtime.sendMessage({type: "webScience.utilities.socialMediaActivity",
+    browser.runtime.sendMessage({type: "webScience.socialMediaActivity",
                                  platform: "facebook"});
 
 

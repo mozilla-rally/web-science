@@ -1,14 +1,14 @@
 /**
  * This module periodically runs analysis scripts (in a separate thread) and
  * reports the results.
- * @module webScience.utilities.dataAnalysis
+ * @module webScience.dataAnalysis
  */
 
 import { getDebuggingLog } from "./debugging.js";
 import * as storage from "./storage.js";
 import * as scheduling from "./scheduling.js";
 
-const debugLog = getDebuggingLog("utilities.dataAnalysis");
+const debugLog = getDebuggingLog("dataAnalysis");
 /**
  * A Map that stores result listeners. The keys are worker script paths and the values
  * are Sets of message listeners associated with the worker script.

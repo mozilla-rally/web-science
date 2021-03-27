@@ -17,12 +17,12 @@
  * object. Each value in the schema object is a string that must match the
  * `typeof` value for that property in a corresponding message.
  * 
- * @module webScience.utilities.messaging
+ * @module webScience.messaging
  */
 
 import * as debugging from "./debugging.js";
 
-const debugLog = debugging.getDebuggingLog("utilities.messaging");
+const debugLog = debugging.getDebuggingLog("messaging");
 
 /**
  * A Map that stores message listeners. The keys are message types and the values

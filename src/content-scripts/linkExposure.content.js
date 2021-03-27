@@ -1,6 +1,6 @@
 /**
  * Content script for the linkExposure module.
- * @module webScience.measurements.linkExposure.content
+ * @module webScience.linkExposure.content
  */
 // Tell eslint that pageManager isn't actually undefined
 /* global pageManager */
@@ -199,24 +199,24 @@
     // to avoid possible race conditions
     // Haunted. Don't combine into one call.
     const storedLinkMatcher = await browser.storage.local.get([
-        "webScience.measurements.linkExposure.linkMatcher",
+        "webScience.linkExposure.linkMatcher",
     ]);
     const storedUrlShortenerRegExp = await browser.storage.local.get([
-        "webScience.measurements.linkExposure.urlShortenerRegExp",
+        "webScience.linkExposure.urlShortenerRegExp",
     ]);
     const storedAmpRegExp = await browser.storage.local.get([
-        "webScience.measurements.linkExposure.ampRegExp"
+        "webScience.linkExposure.ampRegExp"
     ]);
-    if(!("webScience.measurements.linkExposure.linkMatcher" in storedLinkMatcher) ||
-        !("webScience.measurements.linkExposure.urlShortenerRegExp" in storedUrlShortenerRegExp) ||
-        !("webScience.measurements.linkExposure.ampRegExp" in storedAmpRegExp)) {
+    if(!("webScience.linkExposure.linkMatcher" in storedLinkMatcher) ||
+        !("webScience.linkExposure.urlShortenerRegExp" in storedUrlShortenerRegExp) ||
+        !("webScience.linkExposure.ampRegExp" in storedAmpRegExp)) {
         console.debug("Error: linkExposure content script cannot load RegExps from browser.storage.local.");
         return;
     }
     const linkMatcher = new MatchPatternSet([]);
-    linkMatcher.import(storedLinkMatcher["webScience.measurements.linkExposure.linkMatcher"]);
-    const urlShortenerRegExp = storedUrlShortenerRegExp["webScience.measurements.linkExposure.urlShortenerRegExp"];
-    const ampRegExp = storedAmpRegExp["webScience.measurements.linkExposure.ampRegExp"];
+    linkMatcher.import(storedLinkMatcher["webScience.linkExposure.linkMatcher"]);
+    const urlShortenerRegExp = storedUrlShortenerRegExp["webScience.linkExposure.urlShortenerRegExp"];
+    const ampRegExp = storedAmpRegExp["webScience.linkExposure.ampRegExp"];
 
     /**
      * A RegExp for matching URLs that have had Facebook's link shim applied.
@@ -413,7 +413,7 @@
         });
         if ((exposureEvents.length > 0) || (numUntrackedUrls > 0)) {
             browser.runtime.sendMessage({
-                type: "webScience.measurements.linkExposure.exposureData",
+                type: "webScience.linkExposure.exposureData",
                 pageId: pageManager.pageId,
                 pageUrl: pageManager.url,
                 pageReferrer: pageManager.referrer,

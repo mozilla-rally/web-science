@@ -1,6 +1,6 @@
 /**
  * Present surveys to the user.
- * @module webScience.utilities.userSurvey
+ * @module webScience.userSurvey
  */
 import * as storage from "./storage.js"
 import * as messaging from "./messaging.js"
@@ -114,7 +114,7 @@ export async function runStudy({
     const currentTime = Date.now();
     surveyUrlBase = surveyUrl;
 
-    storageSpace = new storage.KeyValueStorage("webScience.utilities.userSurvey");
+    storageSpace = new storage.KeyValueStorage("webScience.userSurvey");
     /* Check when we last asked the user to do the survey. If it's null,
      * we've never asked, which means the extension just got installed.
      * Open a tab with the survey, and save this time as the most recent
@@ -155,8 +155,8 @@ export async function runStudy({
     );
 
     /* If the user tells us to never ask them again, we catch it with this message */
-    messaging.registerListener("webScience.utilities.userSurvey.cancelSurveyRequest", cancelSurveyRequest);
-    messaging.registerListener("webScience.utilities.userSurvey.openSurveyTab", () => { openSurveyTab(false); });
+    messaging.registerListener("webScience.userSurvey.cancelSurveyRequest", cancelSurveyRequest);
+    messaging.registerListener("webScience.userSurvey.openSurveyTab", () => { openSurveyTab(false); });
 }
 
 export async function getSurveyId() {

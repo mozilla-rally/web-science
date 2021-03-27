@@ -35,7 +35,7 @@
  *     persistent storage, so it is not a problem that timeouts do not
  *     persist between browser sessions.
  * 
- * @module webScience.utilities.scheduling
+ * @module webScience.scheduling
  */
 
 import * as idle from "./idle.js";
@@ -267,7 +267,7 @@ async function initialize() {
     // means the extension has just been installed, and we should
     // use the current time.
     const currentTime = Date.now();
-    storageSpace = new storage.KeyValueStorage("webScience.utilities.scheduling");
+    storageSpace = new storage.KeyValueStorage("webScience.scheduling");
 
     lastIdleDailyTime = await storageSpace.get("lastIdleDailyTime");
     if(lastIdleDailyTime === null) {
