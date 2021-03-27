@@ -5,7 +5,7 @@
 // Tell eslint that PageManager isn't actually undefined
 /* global PageManager */
 
-// Outer function encapsulation to maintain unique variable scope for each content script
+// async IIFE wrapper to enable await syntax
 (async function () {
 
     /**

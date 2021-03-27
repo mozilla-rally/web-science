@@ -3,6 +3,7 @@
  * @module WebScience.Measurements.facebook.content
  */
 
+// async IIFE wrapper to enable await syntax
 (async function() {
 
     // stop running if this is an incognito window and we're not supposed to run there

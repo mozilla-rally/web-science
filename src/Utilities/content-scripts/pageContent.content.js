@@ -9,39 +9,35 @@
 
 import Readability from "@mozilla/readability";
 
-(
-    async function () {
-        /**
-         * Send page content to a background script (e.g., a classifier)
-         * @param {string} workerId - id of the background worker
-         * @param {Object} pageContent - parsed page content
-         * @returns {void}
-         */
-        function sendPageContentToBackground(pageContent) {
-            browser.runtime.sendMessage({
-                type: "WebScience.Utilities.PageClassification.pageContent",
-                url : document.location.href,
-                pageId: PageManager.pageId,
-                title : pageContent.title,
-                text : pageContent.textContent,
-                context: {
-                    timestamp: Date.now(),
-                    referrer: document.referrer,
-                }
-            });
+/**
+ * Send page content to a background script (e.g., a classifier)
+ * @param {string} workerId - id of the background worker
+ * @param {Object} pageContent - parsed page content
+ * @returns {void}
+ */
+function sendPageContentToBackground(pageContent) {
+    browser.runtime.sendMessage({
+        type: "WebScience.Utilities.PageClassification.pageContent",
+        url : document.location.href,
+        pageId: PageManager.pageId,
+        title : pageContent.title,
+        text : pageContent.textContent,
+        context: {
+            timestamp: Date.now(),
+            referrer: document.referrer,
         }
+    });
+}
 
-        // Parse (a clone of) the document using the injected readability script
-        const documentClone = document.cloneNode(true);
-        const pageContent = new Readability(documentClone).parse();
+// Parse (a clone of) the document using the injected readability script
+const documentClone = document.cloneNode(true);
+const pageContent = new Readability(documentClone).parse();
 
-        // Wait for PageManager load
-        if ("PageManager" in window)
-            sendPageContentToBackground(pageContent);
-        else {
-            if(!("pageManagerHasLoaded" in window))
-                window.pageManagerHasLoaded = [];
-            window.pageManagerHasLoaded.push(sendPageContentToBackground.bind(null, pageContent));
-        }
-    }
-)();
+// Wait for PageManager load
+if ("PageManager" in window)
+    sendPageContentToBackground(pageContent);
+else {
+    if(!("pageManagerHasLoaded" in window))
+        window.pageManagerHasLoaded = [];
+    window.pageManagerHasLoaded.push(sendPageContentToBackground.bind(null, pageContent));
+}
