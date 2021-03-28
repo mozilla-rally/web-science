@@ -33,7 +33,7 @@ const debugLog = debugging.getDebuggingLog("linkExposure");
 
 /**
  * A callback function for the page data event.
- * @callback LinkExposureCallback
+ * @callback linkExposureCallback
  * @param {LinkExposureDetails} details - Additional information about the page data event.
  */
 
@@ -49,7 +49,7 @@ const debugLog = debugging.getDebuggingLog("linkExposure");
 /**
  * Function to start measurement when a listener is added
  * TODO: deal with multiple listeners with different match patterns
- * @param {EventCallbackFunction} listener - new listener being added
+ * @param {linkExposureCallback} listener - new listener being added
  * @param {LinkExposureOptions} options - configuration for the events to be sent to this listener
  */
 function addListener(listener, options) {
@@ -64,7 +64,7 @@ function addListenerUntracked(listener, options) {
 
 /**
  * Function to end measurement when the last listener is removed
- * @param {EventCallbackFunction} listener - listener that was just removed
+ * @param {linkExposureCallback} listener - listener that was just removed
  */
 function removeListener(listener) {
     if (!onLinkExposure.hasAnyListeners() && !onUntracked.hasAnyListeners()) {
@@ -73,7 +73,7 @@ function removeListener(listener) {
 }
 
 /**
- * @type {events.Event<LinkExposureCallback, LinkExposureOptions>}
+ * @type {events.Event<linkExposureCallback, LinkExposureOptions>}
  */
 export const onLinkExposure = new events.Event({
     addListenerCallback: addListener,

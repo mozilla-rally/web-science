@@ -37,7 +37,7 @@ let twitterPrivacySetting = "unknown";
 /**
  * Function to start measurement when a listener is added
  * TODO: deal with multiple listeners with different match patterns
- * @param {EventCallbackFunction} listener - new listener being added
+ * @param {socialMediaShareCallback} listener - new listener being added
  * @param {SocialMediaShareOptions} options - configuration for the events to be sent to this listener
  */
 function addListener(listener, options) {
@@ -46,7 +46,7 @@ function addListener(listener, options) {
 
 /**
  * Function to end measurement when the last listener is removed
- * @param {EventCallbackFunction} listener - listener that was just removed
+ * @param {socialMediaShareCallback} listener - listener that was just removed
  */
 function removeListener(listener) {
     if (!this.hasAnyListeners()) {
