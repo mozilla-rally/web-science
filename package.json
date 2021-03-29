@@ -1,5 +1,5 @@
 {
-    "name": "web-science",
+    "name": "@mozilla/web-science",
     "version": "0.0.1",
     "scripts": {
         "build": "rollup -c rollup.config.intermediate.js && rollup -c rollup.config.final.js",
