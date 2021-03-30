@@ -53,3 +53,6 @@ export { linkExposure }
 
 import * as socialMediaLinkSharing from "./socialMediaLinkSharing.js"
 export { socialMediaLinkSharing }
+
+import * as randomization from "./randomization.js"
+export { randomization }
