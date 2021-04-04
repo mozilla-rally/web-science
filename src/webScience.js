@@ -12,6 +12,9 @@ export { debugging }
 import * as events from "./events.js"
 export { events }
 
+import * as id from "./id.js"
+export { id }
+
 import * as storage from "./storage.js"
 export { storage }
 
