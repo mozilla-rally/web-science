@@ -1,6 +1,7 @@
 /**
  * Classify web pages based on their content, title, and URL
- * Inject content scripts to  scripts   using an arbitrary classifier in reponse to messages from content scripts
+ * Inject content scripts to scripts using an arbitrary classifier in reponse to
+ * messages from content scripts
  * @module webScience.pageClassification
  */
 import * as messaging from "./messaging.js";
@@ -13,159 +14,146 @@ import pageContentContentScript from "./content-scripts/pageContent.content.js"
 
 const debugLog = debugging.getDebuggingLog("pageClassification");
 
+const workers = { };
+let registeredCS = null;
+let existingMatchPatterns = null;
 
-class ClassificationEvent extends events.Event {
-    constructor(args) {
-        super(args);
-        this.workers = {};
-        this.registeredCS = null;
-        this.existingMatchPatterns = null;
+async function addListenerCallback(listener, options) {
+    if (options.workerId in workers) {
+        debugLog(`Adding listener for same worker ${options.workerId}`);
+        return;
     }
-
-    async addListener(listener, options) {
-        super.addListener(listener, options);
-        if (options.workerId in this.workers) {
-            debugLog(`Adding listener for same worker ${options.workerId}`);
-            return;
-        }
-
-        if (this.registeredCS == null) this.listenForContentScriptMessages();
-        await this.registerContentScripts(options.matchPatterns);
-
-        const newWorker = {
-            workerId: options.workerId,
-            filePath: options.filePath,
-            matchPatterns: options.matchPatterns,
-            matcher: new matching.MatchPatternSet([]),
-            workerObj: new Worker(options.filePath),
-            initialArgs: options.initArgs
-        };
-        newWorker.matcher.import(options.exportedMatcher);
-        this.workers[options.workerId] = newWorker;
-        newWorker.workerObj.onmessage = this.resultReceiver.bind(this);
-        newWorker.workerObj.onerror = (e) => {console.log(e);};
-
-        newWorker.workerObj.postMessage({
-            type: "init",
-            name: options.workerId,
-            args: options.initArgs
-        });
+    if (registeredCS === null) {
+        listenForContentScriptMessages();
     }
+    await registerContentScripts(options.matchPatterns);
+    const newWorker = {
+        workerId: options.workerId,
+        filePath: options.filePath,
+        matchPatterns: options.matchPatterns,
+        matcher: new matching.MatchPatternSet([]),
+        workerObj: new Worker(options.filePath),
+        initialArgs: options.initArgs
+    };
+    newWorker.matcher.import(options.exportedMatcher);
+    workers[options.workerId] = newWorker;
+    newWorker.workerObj.onmessage = resultReceiver;
+    newWorker.workerObj.onerror = (e) => {console.log(e);};
 
-    notifyListeners(listenerArguments) {
-        super.notifyListeners(listenerArguments);
-    }
-
-    removeListener(listener) {
-        //unregisterClassifier(listener);
-        super.removeListener(listener);
-    }
-
-    resultReceiver(result) {
-        const data = result.data;
-        data.url = matching.normalizeUrl(data.url);
-        const classificationResult = {...data};//, ...pageContent.context};
-        this.notifyListeners([classificationResult]);
-    }
-    /**
-     * Listen for messages from content script, pass them to classifier, listens for
-     * classification results and sends back results to the registered result
-     * listener function
-     *
-     */
-     listenForContentScriptMessages() {
-        messaging.registerListener("webScience.pageClassification.pageContent", (pageContent, sender) => {
-            if (!("tab" in sender)) {
-                debugLog("Warning: unexpected message");
-                return;
-            }
-            // add tab id to metadata
-            pageContent.context["tabID"] = sender.tab.id;
-
-            // fetch worker associated with this
-            for (const workerName in this.workers) {
-                const worker = this.workers[workerName]
-                if (worker.matcher.matches(pageContent.url)) {
-                    worker.workerObj.postMessage({
-                        type: "classify",
-                        payload: pageContent,
-                    });
-                }
-            }
-        });
-     }
-
-    /**
-     * Registers readability script for pages that belong to a set of patterns.
-     *
-     * Injects readability content scripts that match given patterns. The content
-     * script extracts page metadata and sends it back.
-     * @param {Array.string} matchPatterns - Match patterns of the form scheme://<host><path>
-     * @param {string} workerId - an identifier for the background script and content
-     * script to communicate
-     */
-    async registerContentScripts(newMatchPatterns) {
-        if (this.existingMatchPatterns == null) this.existingMatchPatterns = new Set();
-        const numExistingMatchPatterns = this.existingMatchPatterns.size;
-
-        newMatchPatterns.forEach((matchPattern) => {
-            this.existingMatchPatterns.add(matchPattern);
-        });
-
-        const numTotalMatchPatterns = this.existingMatchPatterns.size;
-        if (numExistingMatchPatterns == numTotalMatchPatterns) return;
-
-        // otherwise, we need to get rid of the old ones and re-register with the new
-        // set of match patterns
-        if (this.registeredCS) this.registeredCS.unregister();
-
-        this.registeredCS = await browser.contentScripts.register({
-            matches: [...this.existingMatchPatterns],
-            js: [{
-                code: contentScripts.unpack(pageContentContentScript)
-            }],
-            runAt: "document_idle"
-        });
-    }
-
-    fetchClassificationResult(url, workerId) {
-        fetch(url).then((response) => {
-            response.text().then((resp) => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(resp, 'text/html');
-                const pageContent = new Readability.Readability(doc).parse();
-                const toSend = {
-                    url : url,
-                    title: pageContent.title,
-                    text : pageContent.textContent,
-                    pageId: null,
-                    context : {
-                        timestamp : Date.now(),
-                        referrer : ""
-                    }
-                }
-                this.messageWorker(workerId, toSend);
-            });
-        });
-    }
-
-    messageWorker(workerId, pageContent) {
-        const worker = this.workers[workerId];
-        worker.workerObj.postMessage({
-            type: "classify",
-            payload: pageContent,
-        });
-    }
-
+    newWorker.workerObj.postMessage({
+        type: "init",
+        name: options.workerId,
+        args: options.initArgs
+    });
 }
 
-export const onClassificationResult = new ClassificationEvent(
-    {notifyListenersCallback: filterResults});
+function notifyListenersCallback(listener, listenerArguments, options) {
+    return listenerArguments[0].type === options.workerId;
+}
 
-function filterResults(listener, results, options) {
-    return results[0].type == options.workerId;
+function resultReceiver(result) {
+    const data = result.data;
+    data.url = matching.normalizeUrl(data.url);
+    const classificationResult = {...data};//, ...pageContent.context};
+    onClassificationResult.notifyListeners([classificationResult]);
+}
+
+/**
+ * Listen for messages from content script, pass them to classifier, listens for
+ * classification results and sends back results to the registered result
+ * listener function
+ */
+ function listenForContentScriptMessages() {
+    messaging.registerListener("webScience.pageClassification.pageContent", (pageContent, sender) => {
+        if (!("tab" in sender)) {
+            debugLog("Warning: unexpected message");
+            return;
+        }
+        // add tab id to metadata
+        pageContent.context["tabID"] = sender.tab.id;
+
+        // fetch worker associated with this
+        for (const workerName in workers) {
+            const worker = workers[workerName];
+            if (worker.matcher.matches(pageContent.url)) {
+                worker.workerObj.postMessage({
+                    type: "classify",
+                    payload: pageContent,
+                });
+            }
+        }
+    });
+}
+
+export const onClassificationResult = new events.createEvent({
+    addListenerCallback,
+    notifyListenersCallback
+});
+
+/**
+ * Registers readability script for pages that belong to a set of patterns.
+ *
+ * Injects readability content scripts that match given patterns. The content
+ * script extracts page metadata and sends it back.
+ * @param {Array.string} matchPatterns - Match patterns of the form scheme://<host><path>
+ * @param {string} workerId - an identifier for the background script and content
+ * script to communicate
+ */
+async function registerContentScripts(newMatchPatterns) {
+    if (existingMatchPatterns === null) {
+        existingMatchPatterns = new Set();
+    }
+    const numExistingMatchPatterns = existingMatchPatterns.size;
+
+    newMatchPatterns.forEach((matchPattern) => {
+        existingMatchPatterns.add(matchPattern);
+    });
+
+    const numTotalMatchPatterns = existingMatchPatterns.size;
+    if (numExistingMatchPatterns === numTotalMatchPatterns) {
+        return;
+    }
+
+    // otherwise, we need to get rid of the old ones and re-register with the new
+    // set of match patterns
+    if (registeredCS !== null) {
+        registeredCS.unregister();
+    }
+
+    registeredCS = await browser.contentScripts.register({
+        matches: [...existingMatchPatterns],
+        js: [{
+            code: contentScripts.unpack(pageContentContentScript)
+        }],
+        runAt: "document_idle"
+    });
 }
 
 export function fetchClassificationResult(url, workerId) {
-    onClassificationResult.fetchClassificationResult(url, workerId);
+    fetch(url).then((response) => {
+        response.text().then((resp) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(resp, 'text/html');
+            const pageContent = new Readability.Readability(doc).parse();
+            const toSend = {
+                url : url,
+                title: pageContent.title,
+                text : pageContent.textContent,
+                pageId: null,
+                context : {
+                    timestamp : Date.now(),
+                    referrer : ""
+                }
+            }
+            messageWorker(workerId, toSend);
+        });
+    });
+}
+
+function messageWorker(workerId, pageContent) {
+    const worker = workers[workerId];
+    worker.workerObj.postMessage({
+        type: "classify",
+        payload: pageContent,
+    });
 }

@@ -57,9 +57,10 @@ function removeListener(listener) {
 /**
  * @type {Events.Event<socialMediaShareCallback, SocialMediaShareOptions>}
  */
-export const onShare = new events.Event({
+export const onShare = events.createEvent({
     addListenerCallback: addListener,
-    removeListenerCallback: removeListener});
+    removeListenerCallback: removeListener
+});
 
 /**
  * Start a social media sharing study. Note that only one study is supported per extension.

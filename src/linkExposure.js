@@ -75,11 +75,11 @@ function removeListener(listener) {
 /**
  * @type {events.Event<linkExposureCallback, LinkExposureOptions>}
  */
-export const onLinkExposure = new events.Event({
+export const onLinkExposure = events.createEvent({
     addListenerCallback: addListener,
     removeListenerCallback: removeListener});
 
-export const onUntracked = new events.Event({
+export const onUntracked = events.createEvent({
     addListenerCallback: addListenerUntracked,
     removeListenerCallback: removeListener});
 

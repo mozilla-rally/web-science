@@ -177,7 +177,7 @@ const considerUserInputForAttention = true;
  * @type {Events.Event<pageVisitStartListener, PageVisitStartListenerOptions>}
  * @const
  */
-export const onPageVisitStart = new events.Event({
+export const onPageVisitStart = events.createEvent({
     // Filter notifications for events in private windows
     notifyListenersCallback: (listener, [ details ], options) => {
         if(!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
@@ -224,7 +224,7 @@ function pageVisitStart(details) {
  * @type {Events.Event<pageVisitStopListener, PageVisitStartListenerOptions>}
  * @const
  */
-export const onPageVisitStop = new events.Event({
+export const onPageVisitStop = events.createEvent({
     // Filter notifications for events in private windows
     notifyListenersCallback: (listener, [ details ], options) => {
         if(!details.privateWindow || (("privateWindows" in options) && options.privateWindows))

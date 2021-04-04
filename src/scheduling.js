@@ -122,7 +122,7 @@ let timeoutId = -1;
  * @constant
  * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
-export const onIdleDaily = new events.Event({
+export const onIdleDaily = events.createEvent({
     addListenerCallback: function() { initialize(); }
 })
 
@@ -131,7 +131,7 @@ export const onIdleDaily = new events.Event({
  * @constant
  * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
-export const onIdleWeekly = new events.Event({
+export const onIdleWeekly = events.createEvent({
     addListenerCallback: function() { initialize(); }
 });
 
