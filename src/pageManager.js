@@ -567,10 +567,10 @@ export async function initialize() {
     // Active means the user has recently provided input to the browser, inactive means any other
     // state (regardless of whether a screensaver or lock screen is enabled)
 
-    // Note that we have to call Idle.registerIdleStateListener before we call
-    // Idle.queryState, so this comes before caching the initial state
+    // Note that we have to call idle.onStateChanged.addListener before we call
+    // idle.queryState, so this comes before caching the initial state
     if(considerUserInputForAttention) {
-        await idle.registerIdleStateListener(newState => {
+        await idle.onStateChanged.addListener(newState => {
             if(!initialized)
                 return;
             const timeStamp = Date.now();

@@ -284,8 +284,8 @@ async function initialize() {
     // Register two listeners for idle state events from the Idle
     // module. One listener uses the ordinary idle state detection
     // interval and the other uses the shortened interval.
-    idle.registerIdleStateListener(idleStateListener, idleIntervalInSeconds);
-    idle.registerIdleStateListener(shortenedIdleStateListener, shortenedIdleIntervalInSeconds);
+    idle.onStateChanged.addListener(idleStateListener, idleIntervalInSeconds);
+    idle.onStateChanged.addListener(shortenedIdleStateListener, shortenedIdleIntervalInSeconds);
 
     // Set a timeout to account for corner cases with idle state
     // events.
