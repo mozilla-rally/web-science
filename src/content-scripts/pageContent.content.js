@@ -3,9 +3,6 @@
  * @module webScience.pageContent.content
  */
 
-// Readability and pageManager are defined by other content scripts, tell eslint not to worry
-/* global pageManager */
-
 import Readability from "@mozilla/readability";
 
 /**
@@ -18,7 +15,7 @@ function sendPageContentToBackground(pageContent) {
     browser.runtime.sendMessage({
         type: "webScience.pageClassification.pageContent",
         url : document.location.href,
-        pageId: webScience.pageManager.pageId,
+        pageId: window.webScience.pageManager.pageId,
         title : pageContent.title,
         text : pageContent.textContent,
         context: {
