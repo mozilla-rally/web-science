@@ -12,46 +12,23 @@ import Dexie from 'dexie';
 
 export const storageInstances = [];
 
-export class IndexedStorage {
-    /**
-     * Create a storage area with indexed fields.
-     * Storage is implemented with Dexie. The `stores` field specifies the Dexie tables to be created
-     * and their indexed fields. See the Dexie documentation for syntax: https://dexie.org/docs/Version/Version.stores().
-     * @param {string} storageAreaName - A name that uniquely identifies the storage area.
-     * @param {Object} stores - The tables to be created, see Dexie documentation linked above.
-     * @param {string} defaultStore - The table to use if one is not specified in future interactions.
-     */
-    constructor(storageAreaName, stores, defaultStore="") {
-        this.storageAreaName = storageAreaName;
-        this.defaultStore = defaultStore == "" ? Object.keys(stores)[0] : defaultStore;
-
-        this.storageInstance = new Dexie(this.storageAreaName);
-        this.storageInstance.version(1).stores(stores);
-    }
-
-    async set(item, store="") {
-        await this.storageInstance[store === "" ? this.defaultStore : store].put(item);
-    }
-
-    async get(key, store="") {
-        const result = await this.storageInstance[store == "" ? this.defaultStore : store].get(key);
-        return result;
-    }
-
-    async getEventsByRange(startTime, endTime, timeKey, store=""){
-        const result = await this.storageInstance[store=="" ? this.defaultStore : store].where(timeKey)
-            .inAnyRange([[startTime, endTime]])
-            .toArray();
-        return result;
-    }
-
+/**
+ * Create a key-value storage area.
+ * @param {string} storageAreaName - A name that uniquely identifies the storage area.
+ * @param {Array<string>} storeNames - A list of names of stores.
+ * @param {string} defaultStore - If store names are given, which one should be the default in future interactions.
+ * @returns - The new KeyValueStorage object.
+ * @example var exampleStorage = await (new KeyValueStorage("exampleName"));
+ */
+export function createKeyValueStorage(storageAreaName, storeNames=["default"], defaultStore = "") {
+    return new KeyValueStorage(storageAreaName, storeNames, defaultStore);
 }
 
 /**
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types.
  */
-export class KeyValueStorage {
+class KeyValueStorage {
     /**
      * Create a key-value storage area. Only a name for the storage area is required.
      * Storage is implemented using the Dexie wrapper for IndexedDB. Clients that wish to
@@ -62,6 +39,7 @@ export class KeyValueStorage {
      * @param {Array<string>} storeNames - A list of names of stores.
      * @param {string} defaultStore - If store names are given, which one should be the default in future interactions.
      * @example var exampleStorage = await (new KeyValueStorage("exampleName"));
+     * @private
      */
     constructor(storageAreaName, storeNames=["default"], defaultStore = "") {
         this.storageAreaName = storageAreaName;
@@ -120,8 +98,19 @@ export class KeyValueStorage {
     }
 }
 
+/**
+ * Create a persistent counter.
+ * @param {string} counterName - A name that uniquely identifies the counter.
+ * @returns {Counter} - The new Counter object.
+ */
+export async function createCounter(counterName) {
+    const counter = new Counter(counterName);
+    await counter.initialize();
+    return counter;
+}
+
 /** Class for maintaining persistent counters (e.g., unique IDs). */
-export class Counter {
+class Counter {
     /**
      * Create a persistent counter. Note that, because creating a counter
      * requires asynchronous calls (which cannot happen in a constructor),

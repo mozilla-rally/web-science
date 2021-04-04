@@ -113,7 +113,7 @@ async function startMeasurement({
     await pageManager.initialize();
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
-    const nextLinkExposureIdCounter = await (new storage.Counter("webScience.linkExposure.nextLinkExposureId")).initialize();
+    const nextLinkExposureIdCounter = await storage.createCounter("webScience.linkExposure.nextLinkExposureId");
 
     // Generate RegExps for matching links, link shortener URLs, and AMP cache URLs
     // Store the RegExps in browser.storage.local so the content script can retrieve them

@@ -267,7 +267,7 @@ async function initialize() {
     // means the extension has just been installed, and we should
     // use the current time.
     const currentTime = Date.now();
-    storageSpace = new storage.KeyValueStorage("webScience.scheduling");
+    storageSpace = storage.createKeyValueStorage("webScience.scheduling");
 
     lastIdleDailyTime = await storageSpace.get("lastIdleDailyTime");
     if(lastIdleDailyTime === null) {

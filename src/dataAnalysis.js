@@ -45,7 +45,7 @@ async function initialize() {
         return;
     initialized = true;
     debugLog("registering idle state listener for data analysis");
-    storageSpace = new storage.KeyValueStorage();
+    storageSpace = storage.createKeyValueStorage();
     lastAnalysisRangeEndTime = await storageSpace.get("lastAnalysisRangeEndTime");
     if (lastAnalysisRangeEndTime == null) {
         lastAnalysisRangeEndTime = roundTimeUp(Date.now());
