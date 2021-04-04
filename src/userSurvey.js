@@ -23,6 +23,8 @@
 import * as id from "./id.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
+import popupPromptPage from "./html/userSurvey.popupPrompt.html";
+import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
 
 /**
  * @type {storage.KeyValueStorage}
@@ -39,7 +41,6 @@ let createdSurvey = false;
 
 // Module-wide variables for a survey, set in createSurvey
 let lastSurveyRequest = 0;
-let popupNoPromptPage = "";
 let reminderIconUrl = "";
 let reminderInterval = 0;
 let reminderMessage = "";
@@ -96,20 +97,17 @@ async function remindUser() {
  */
 function setPopupToNoPromptPage() {
     browser.browserAction.setPopup({
-        popup: browser.runtime.getURL(popupNoPromptPage)
+        popup: popupNoPromptPage
     });
 }
 
 /**
  * Prompt the user to respond to a survey.
  * @param {Object} options - The options for the survey.
- * @param {string} options.popupNoPromptPage - A path to an HTML file, relative
- * to the study extension's root, to use in a browser action popup when the user
- * is not being prompted to complete the survey (i.e., the survey is complete or
- * cancelled).
- * @param {string} options.popupPromptPage - A path to an HTML file, relative
- * to the study extension's root, to use in a browser action prompting
- * the user to complete the survey.
+ * @param {string} options.popupNoPromptMessage - A message to present to the
+ * user when there is no survey to prompt.
+ * @param {string} options.popupPromptMessage - A message to present to the user
+ * when there is a survey to prompt.
  * @param {string} options.reminderIcon - A path to an icon file, relative
  * to the study extension's root, to use for for reminding the user with a
  * notification to complete the survey.
@@ -124,7 +122,7 @@ function setPopupToNoPromptPage() {
  * @param {string} options.surveyUrl - The URL for the survey on an external
  * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
  */
-export async function createSurvey(options) {
+export async function setSurvey(options) {
     if(createdSurvey) {
         throw new Error("userSurvey only supports one survey at present.");
     }
@@ -136,7 +134,12 @@ export async function createSurvey(options) {
     reminderInterval = options.reminderInterval;
     reminderTitle = options.reminderTitle;
     reminderMessage = options.reminderMessage;
-    popupNoPromptPage = options.popupNoPromptPage;
+    browser.storage.local.set({
+        "webScience.userSurvey.popupPromptMessage": options.popupPromptMessage
+    });
+    browser.storage.local.set({
+        "webScience.userSurvey.popupNoPromptMessage": options.popupNoPromptMessage
+    });
 
     storageSpace = new storage.KeyValueStorage("webScience.userSurvey");
 
@@ -155,7 +158,7 @@ export async function createSurvey(options) {
     }
     else {
         browser.browserAction.setPopup({
-            popup: browser.runtime.getURL(options.popupPromptPage)
+            popup: popupPromptPage
         });
     }
 

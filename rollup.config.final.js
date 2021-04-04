@@ -1,7 +1,7 @@
 /**
  * WebScience Final Build Step
  * -----------------------
- *   * Convert content script files to background script files with inlined content scripts.
+ *   * Convert content script files and HTML files to background script files with inlined content.
  */
 
 import url from "@rollup/plugin-url";
@@ -20,8 +20,8 @@ export default (cliArgs) => {
     },
     plugins: [
       url({
-        include: "**/*.content.js",
-        limit: Number.MAX_VALUE // Inline regardless of content script size
+        include: [ "**/*.content.js", "**/*.html" ],
+        limit: Number.MAX_VALUE // Inline regardless of content size
       })
     ]
   }];
