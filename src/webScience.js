@@ -39,9 +39,6 @@ export { userSurvey }
 import * as socialMediaActivity from "./socialMediaActivity.js"
 export { socialMediaActivity }
 
-import * as dataAnalysis from "./dataAnalysis.js"
-export { dataAnalysis }
-
 import * as pageClassification from "./pageClassification.js"
 export { pageClassification }
 
