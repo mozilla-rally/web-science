@@ -81,8 +81,8 @@ async function remindUser() {
     if (surveyCompleted || surveyCancelled) {
         return;
     }
-    const currentTime = Date.now();
-    await storageSpace.set("lastSurveyRequest", currentTime);
+    lastSurveyRequest = Date.now();
+    await storageSpace.set("lastSurveyRequest", lastSurveyRequest);
     browser.notifications.create({
         type: "image",
         message: reminderMessage,
