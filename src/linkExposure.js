@@ -118,7 +118,7 @@ async function startMeasurement({
     // Generate RegExps for matching links, link shortener URLs, and AMP cache URLs
     // Store the RegExps in browser.storage.local so the content script can retrieve them
     // without recompilation
-    const linkMatcher = new matching.MatchPatternSet(linkMatchPatterns);
+    const linkMatcher = new matching.createMatchPatternSet(linkMatchPatterns);
     const urlShortenerRegExp = linkResolution.urlShortenerRegExp;
     const ampRegExp = linkResolution.ampRegExp;
     await browser.storage.local.set({

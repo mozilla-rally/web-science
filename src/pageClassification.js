@@ -31,7 +31,7 @@ async function addListenerCallback(listener, options) {
         workerId: options.workerId,
         filePath: options.filePath,
         matchPatterns: options.matchPatterns,
-        matcher: new matching.MatchPatternSet([]),
+        matcher: matching.createMatchPatternSet([]),
         workerObj: new Worker(options.filePath),
         initialArgs: options.initArgs
     };

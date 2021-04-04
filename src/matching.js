@@ -150,6 +150,15 @@ function parseMatchPattern(matchPattern) {
 }
 
 /**
+ * Create a new MatchPatternSet for matching a set of match patterns.
+ * @param {string[]} matchPatterns - An array of match pattern strings.
+ * @returns {MatchPatternSet} - The new MatchPatternSet.
+ */
+export function createMatchPatternSet(matchPatterns) {
+    return new MatchPatternSet(matchPatterns);
+}
+
+/**
  * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
  * a significant performance improvement in comparison to `RegExp`s, in some instances
  * greater than 100x. A `MatchPatternSet` can also be exported to an object that uses only
@@ -170,10 +179,11 @@ function parseMatchPattern(matchPattern) {
  *   * Replacing the path matching implementation to eliminate regular expressions entirely.
  *   * Replacing the match pattern index, such as by implementing a trie.
  */
-export class MatchPatternSet {
+class MatchPatternSet {
     /**
      * Creates a match pattern set from an array of match patterns.
      * @param {string[]} matchPatterns - The match patterns for the set.
+     * @private
      */
     constructor(matchPatterns) {
         // Defining the special sets of `<all_url>` and wildcard schemes inside the class so

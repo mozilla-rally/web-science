@@ -86,7 +86,7 @@ async function startMeasurement({
         socialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet", "favorite"]);
     }
 
-    destinationMatcher = new matching.MatchPatternSet(destinationMatchPatterns);
+    destinationMatcher = matching.createMatchPatternSet(destinationMatchPatterns);
 }
 
 function stopMeasurement() {
