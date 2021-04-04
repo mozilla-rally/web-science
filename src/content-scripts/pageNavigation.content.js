@@ -10,11 +10,12 @@
  *     page visit stop message).
  * @module webScience.pageNavigation.content
  */
-// Tell eslint that pageManager isn't actually undefined
-/* global pageManager */
 
 // Function encapsulation to wait for pageManager load
 const pageNavigation = function () {
+
+    const pageManager = window.webScience.pageManager;
+
     /**
      * How long the page has had the user's attention.
      * @type {number}
@@ -183,7 +184,7 @@ const pageNavigation = function () {
 };
 
 // Wait for pageManager load
-if ("pageManager" in window)
+if (("webScience" in window) && ("pageManager" in window.webScience))
     pageNavigation();
 else {
     if(!("pageManagerHasLoaded" in window))
