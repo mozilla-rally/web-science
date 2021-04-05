@@ -1,6 +1,6 @@
 {
     "name": "@mozilla/web-science",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "scripts": {
         "build": "rollup -c rollup.config.intermediate.js && rollup -c rollup.config.final.js",
         "lint": "eslint ."
