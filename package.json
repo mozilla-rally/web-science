@@ -36,7 +36,7 @@
     "keywords": [],
     "author": "Princeton University Researchers and Mozilla",
     "license": "Apache-2.0",
-    "private": true,
+    "private": false,
     "bugs": {
         "url": "https://github.com/mozilla-rally/web-science/issues"
     },
