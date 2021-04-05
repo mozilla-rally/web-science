@@ -10,7 +10,7 @@ import * as linkResolution from "./linkResolution.js";
 import * as matching from "./matching.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
-import * as contentScripts from "./contentScripts.js";
+import * as inline from "./inline.js";
 import linkExposureContentScript from "./content-scripts/linkExposure.content.js";
 
 const debugLog = debugging.getDebuggingLog("linkExposure");
@@ -131,7 +131,7 @@ async function startMeasurement({
     registeredCS = await browser.contentScripts.register({
         matches: pageMatchPatterns,
         js: [{
-            code: contentScripts.unpack(linkExposureContentScript)
+            code: inline.dataUrlToString(linkExposureContentScript)
         }],
         runAt: "document_idle"
     });

@@ -18,11 +18,20 @@
  * one survey per study, with few options and a constrained design.
  * We have not yet decided whether to build out this module or implement
  * survey functionality in the Rally core add-on.
+ * 
+ * # Content Security Policy Requirements
+ * This module depends on inline scripts in browser action popups, which
+ * require special Content Security Policy permissions in the extension
+ * manifest (the `"content_security_policy"` key). Those permissions
+ * are currently the following additional `script-src` values.
+ *   * `'sha256-7MkXA5Z7wxRyznhUZN3nVVs9GEQpvRXdYihZZqR2y6w='`
+ *   * `'sha256-l+kgCjP15GJlVSDL9qMNffrHu8mxJcag42o2TYofOUM='`
  * @module webScience.userSurvey
  */
 import * as id from "./id.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
+import * as inline from "./inline.js";
 import popupPromptPage from "./html/userSurvey.popupPrompt.html";
 import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
 
@@ -97,7 +106,7 @@ async function remindUser() {
  */
 function setPopupToNoPromptPage() {
     browser.browserAction.setPopup({
-        popup: popupNoPromptPage
+        popup: inline.dataUrlToBlobUrl(popupNoPromptPage)
     });
 }
 
@@ -158,7 +167,7 @@ export async function setSurvey(options) {
     }
     else {
         browser.browserAction.setPopup({
-            popup: popupPromptPage
+            popup: inline.dataUrlToBlobUrl(popupPromptPage)
         });
     }
 
