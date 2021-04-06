@@ -61,7 +61,7 @@ function removeListener(listener) {
 /**
  * @type {Events.Event<pageDataCallback, PageDataOptions>}
  */
-export const onPageData = new events.Event({
+export const onPageData = events.createEvent({
     addListenerCallback: addListener,
     removeListenerCallback: removeListener});
 

@@ -122,7 +122,7 @@ let timeoutId = -1;
  * @constant
  * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
-export const onIdleDaily = new events.Event({
+export const onIdleDaily = events.createEvent({
     addListenerCallback: function() { initialize(); }
 })
 
@@ -131,7 +131,7 @@ export const onIdleDaily = new events.Event({
  * @constant
  * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
  */
-export const onIdleWeekly = new events.Event({
+export const onIdleWeekly = events.createEvent({
     addListenerCallback: function() { initialize(); }
 });
 
@@ -267,7 +267,7 @@ async function initialize() {
     // means the extension has just been installed, and we should
     // use the current time.
     const currentTime = Date.now();
-    storageSpace = new storage.KeyValueStorage("webScience.scheduling");
+    storageSpace = storage.createKeyValueStorage("webScience.scheduling");
 
     lastIdleDailyTime = await storageSpace.get("lastIdleDailyTime");
     if(lastIdleDailyTime === null) {
@@ -284,8 +284,8 @@ async function initialize() {
     // Register two listeners for idle state events from the Idle
     // module. One listener uses the ordinary idle state detection
     // interval and the other uses the shortened interval.
-    idle.registerIdleStateListener(idleStateListener, idleIntervalInSeconds);
-    idle.registerIdleStateListener(shortenedIdleStateListener, shortenedIdleIntervalInSeconds);
+    idle.onStateChanged.addListener(idleStateListener, idleIntervalInSeconds);
+    idle.onStateChanged.addListener(shortenedIdleStateListener, shortenedIdleIntervalInSeconds);
 
     // Set a timeout to account for corner cases with idle state
     // events.

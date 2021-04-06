@@ -1,7 +1,7 @@
 /**
- * Content script for the pageManager module. This script provides a `pageManager`
- * API with global scope in the content script environment. The API includes the
- * following features.
+ * Content script for the pageManager module. This script provides a
+ * `webScience.pageManager` API with global scope in the content script environment.
+ * The API includes the following features.
  *   * Page Tracking
  *     * `pageId` - A unique ID for the page.
  *     * `url` - The URL of the page, omitting any hash.
@@ -38,11 +38,11 @@
  *
  * Example usage:
  * ```
- * pageManager.onPageVisitStop.addListener(({timeStamp}) => {
+ * webScience.pageManager.onPageVisitStop.addListener(({timeStamp}) => {
  *     console.log(`Page visit stopped at ${timeStamp} with page ID ${pageManager.pageId}`);
  * });
  *
- * pageManager.onPageAttentionUpdate.addListener(({timeStamp}) => {
+ * webScience.pageManager.onPageAttentionUpdate.addListener(({timeStamp}) => {
  *     console.log(`Page attention update at ${timeStamp} with attention state ${pageManager.pageHasAttention}.`);
  * });
  * ```
@@ -62,7 +62,7 @@
  *     // Content script logic goes here
  * }
  *
- * if("pageManager" in window)
+ * if(("webScience" in window) && ("pageManager" in window.webScience))
  *     main();
  * else {
  *     if(!("pageManagerHasLoaded" in window))
@@ -87,8 +87,8 @@
  * function pageVisitStartListener({timeStamp}) {
  *     // Page visit start logic goes here
  * }
- * pageManager.onPageVisitStart.addListener(pageVisitStartListener);
- * if(pageManager.pageVisitStarted)
+ * webScience.pageManager.onPageVisitStart.addListener(pageVisitStartListener);
+ * if(webScience.pageManager.pageVisitStarted)
  *     pageVisitStartListener({ timeStamp: pageManager.pageVisitStartTime });
  * ```
  *
@@ -101,21 +101,24 @@
  *     page visit stop message).
  * @module webScience.pageManager.content
  */
-// Tell eslint that pageManager isn't actually undefined
-/* global pageManager */
 
 // IIFE wrapper to allow early return
 (function () {
 
     // Check if the pageManager content script has already run on this page
     // If it has, bail out
-    if("pageManager" in window)
+    if(("webScience" in window) && ("pageManager" in window.webScience)) {
         return;
+    }
 
-    // Construct a pageManager object on the `window` global
+    // Construct a webScience.pageManager object on the `window` global
     // All the public pageManager functionality that is available in the content
     // script environment is exposed through this object
-    window.pageManager = { };
+    if(!("webScience" in window)) {
+        window.webScience = { };
+    }
+    window.webScience.pageManager = { };
+    const pageManager = window.webScience.pageManager;
 
     /**
     * Generate a page ID, a random 128-bit value represented as a hexadecimal string.
