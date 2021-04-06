@@ -3,9 +3,6 @@
  * @module webScience.pageContent.content
  */
 
-// Readability and pageManager are defined by other content scripts, tell eslint not to worry
-/* global pageManager */
-
 import Readability from "@mozilla/readability";
 
 /**
@@ -18,7 +15,7 @@ function sendPageContentToBackground(pageContent) {
     browser.runtime.sendMessage({
         type: "webScience.pageClassification.pageContent",
         url : document.location.href,
-        pageId: pageManager.pageId,
+        pageId: window.webScience.pageManager.pageId,
         title : pageContent.title,
         text : pageContent.textContent,
         context: {
@@ -33,7 +30,7 @@ const documentClone = document.cloneNode(true);
 const pageContent = new Readability(documentClone).parse();
 
 // Wait for pageManager load
-if ("pageManager" in window)
+if (("webScience" in window) && ("pageManager" in window.webScience))
     sendPageContentToBackground(pageContent);
 else {
     if(!("pageManagerHasLoaded" in window))

@@ -2,11 +2,11 @@
  * Content script for the linkExposure module.
  * @module webScience.linkExposure.content
  */
-// Tell eslint that pageManager isn't actually undefined
-/* global pageManager */
 
 // async IIFE wrapper to enable await syntax
 (async function () {
+
+    let pageManager = null;
 
     /**
      * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
@@ -495,6 +495,7 @@
 
     // Wait for pageManager load
     const pageManagerLoaded = function () {
+        pageManager = window.webScience.pageManager;
         pageManager.onPageVisitStart.addListener(pageVisitStartListener);
         if(pageManager.pageVisitStarted)
             pageVisitStartListener({timeStamp: pageManager.pageVisitStartTime});
@@ -503,7 +504,7 @@
 
         pageManager.onPageAttentionUpdate.addListener(pageAttentionUpdateListener);
     };
-    if ("pageManager" in window)
+    if (("webScience" in window) && ("pageManager" in window.webScience))
         pageManagerLoaded();
     else {
         if(!("pageManagerHasLoaded" in window))

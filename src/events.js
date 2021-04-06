@@ -16,19 +16,21 @@ const debugLog = debugging.getDebuggingLog("events");
 
 /**
  * A class that provides an event API similar to WebExtensions `events.Event` objects.
+ * Use the `createEvent` function to create an Event object.
  * @template EventCallbackFunction
  * @template EventOptions
  */
-export class Event {
+class Event {
     /**
      * Creates an event instance similar to WebExtensions `events.Event` objects.
-     * @param {EventOptions} [options] - A set of options for the event.
+     * @param {Object} [options] - A set of options for the event.
      * @param {addListenerCallback} [options.addListenerCallback] - A function that is
      * called when a listener function is added.
      * @param {removeListenerCallback} [options.removeListenerCallback] - A function
      * that is called when a listener function is removed.
      * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
      * that is called before a listener is notified and can filter the notification.
+     * @private
      */
     constructor({
         addListenerCallback = null,
@@ -130,54 +132,12 @@ export class Event {
 }
 
 /**
- * An extension of the Event class that omits options when adding a listener.
- * @template EventCallbackFunction
- * @extends {Event<EventCallbackFunction, undefined>}
- */
-export class EventWithoutOptions extends Event {
-    /**
-     * @callback addListenerCallbackWithoutOptions
-     * @param {EventCallbackFunction} listener - The new listener function.
-     */
-
-    /**
-     * Creates an event instance similar to WebExtensions `events.Event` objects.
-     * @param {EventOptions} [options] - A set of options for the event.
-     * @param {addListenerCallbackWithoutOptions} [options.addListenerCallback] - A function that is
-     * called when a listener function is added.
-     * @param {removeListenerCallback} [options.removeListenerCallback] - A function
-     * that is called when a listener function is removed.
-     * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
-     * that is called before a listener is notified and can filter the notification.
-     */
-    constructor({
-        addListenerCallback = null,
-        removeListenerCallback = null,
-        notifyListenersCallback = null
-    } = {
-        addListenerCallback: null,
-        removeListenerCallback: null,
-        notifyListenersCallback: null
-    }) {
-        super({ addListenerCallback, removeListenerCallback, notifyListenersCallback });
-    }
-
-    /**
-     * A function that adds an event listener.
-     * @param {EventCallbackFunction} listener - The function to call when the event fires.
-     */
-    addListener(listener) {
-        super.addListener(listener, undefined);
-    }
-}
-
-/**
  * An extension of the Event class that permits only one listener at a time.
  * @template EventCallbackFunction
  * @template EventOptions
  * @extends {Event<EventCallbackFunction, EventOptions>}
  */
-export class EventSingleton extends Event {
+class EventSingleton extends Event {
     /**
      * A function that adds an event listener, with optional parameters. If the
      * listener has previously been added for the event, the listener's options
@@ -193,4 +153,43 @@ export class EventSingleton extends Event {
             throw new Error("Error: cannot add more than one listener to EventSingleton event.");
         super.addListener(listener, options);
     }
+}
+
+/**
+ * Create a new Event object that implements WebExtensions event syntax, with the
+ * provided options.
+ * @param {Object} [options] - The options for the event.
+ * @param {addListenerCallback} [options.addListenerCallback] - A function that is
+ * called when a listener function is added.
+ * @param {removeListenerCallback} [options.removeListenerCallback] - A function
+ * that is called when a listener function is removed.
+ * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
+ * that is called before a listener is notified and can filter the notification.
+ * @param {boolean} [options.singleton = false] - Whether to allow only one listener
+ * for the event.
+ * @returns {Event} - The created Event object.
+ */
+ export function createEvent({
+    addListenerCallback = null,
+    removeListenerCallback = null,
+    notifyListenersCallback = null,
+    singleton = false
+} = {
+    addListenerCallback: null,
+    removeListenerCallback: null,
+    notifyListenersCallback: null,
+    singleton: false
+}) {
+    if(singleton) {
+        return new EventSingleton({
+            addListenerCallback,
+            removeListenerCallback,
+            notifyListenersCallback
+        });
+    }
+    return new Event({
+        addListenerCallback,
+        removeListenerCallback,
+        notifyListenersCallback
+    });
 }

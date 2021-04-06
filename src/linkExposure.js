@@ -75,11 +75,11 @@ function removeListener(listener) {
 /**
  * @type {events.Event<linkExposureCallback, LinkExposureOptions>}
  */
-export const onLinkExposure = new events.Event({
+export const onLinkExposure = events.createEvent({
     addListenerCallback: addListener,
     removeListenerCallback: removeListener});
 
-export const onUntracked = new events.Event({
+export const onUntracked = events.createEvent({
     addListenerCallback: addListenerUntracked,
     removeListenerCallback: removeListener});
 
@@ -113,12 +113,12 @@ async function startMeasurement({
     await pageManager.initialize();
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
-    const nextLinkExposureIdCounter = await (new storage.Counter("webScience.linkExposure.nextLinkExposureId")).initialize();
+    const nextLinkExposureIdCounter = await storage.createCounter("webScience.linkExposure.nextLinkExposureId");
 
     // Generate RegExps for matching links, link shortener URLs, and AMP cache URLs
     // Store the RegExps in browser.storage.local so the content script can retrieve them
     // without recompilation
-    const linkMatcher = new matching.MatchPatternSet(linkMatchPatterns);
+    const linkMatcher = new matching.createMatchPatternSet(linkMatchPatterns);
     const urlShortenerRegExp = linkResolution.urlShortenerRegExp;
     const ampRegExp = linkResolution.ampRegExp;
     await browser.storage.local.set({

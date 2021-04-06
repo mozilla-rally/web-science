@@ -150,12 +150,13 @@ export async function setSurvey(options) {
         "webScience.userSurvey.popupNoPromptMessage": options.popupNoPromptMessage
     });
 
-    storageSpace = new storage.KeyValueStorage("webScience.userSurvey");
-
-    // Check when we last asked the user to complete the survey. If the value
-    // is null, we've never asked, which means the extension just got installed.
-    // Open a tab with the survey, and save this time as the most recent
-    // request for participation.
+    storageSpace = storage.createKeyValueStorage("webScience.userSurvey");
+    /* Check when we last asked the user to do the survey. If it's null,
+     * we've never asked, which means the extension just got installed.
+     * Open a tab with the survey, and save this time as the most recent
+     * request for participation.
+     */
+    let lastSurveyRequest = await storageSpace.get("lastSurveyRequest");
     const surveyCompleted = await storageSpace.get("surveyCompleted");
     const surveyCancelled = await storageSpace.get("surveyCancelled");
     lastSurveyRequest = await storageSpace.get("lastSurveyRequest");
