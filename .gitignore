@@ -44,3 +44,4 @@ node_modules/
 # Build
 intermediate/
 dist/
+jsdoc/
