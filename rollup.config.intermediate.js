@@ -1,7 +1,7 @@
 /**
  * WebScience Intermediate Build Step
  * -----------------------
- *   * Copy background script files to an intermediate directory.
+ *   * Copy background script and HTML files to an intermediate directory.
  *   * Bundle content script dependencies into IIFE content scripts, and
  *     copy the bundled content script files to the intermediate directory.
  */
@@ -15,7 +15,7 @@ const sourceDirectory = "src";
 const intermediateDirectory = "intermediate";
 
 export default (cliArgs) => {
-  // Background script files
+  // Background script files and HTML files
   const rollupConfig = [{
     input: ".empty.js", // Rollup requires an input file
     plugins: [
@@ -23,6 +23,7 @@ export default (cliArgs) => {
         targets: [{
           src: [
             `${sourceDirectory}/**/*.js`,
+            `${sourceDirectory}/**/*.html`,
             `!${sourceDirectory}/**/*.content.js`
           ],
           dest: `${intermediateDirectory}`

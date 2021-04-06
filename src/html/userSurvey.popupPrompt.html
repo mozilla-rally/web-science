@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+        <meta content="utf-8" http-equiv="encoding">
+        <style>
+            .button-container {
+                width: 100%;
+                height: 50px;
+                display: table;
+                border-collapse: separate;
+                border-spacing: 0px;
+            }
+
+            .buttonBlue {
+                background-color: #4cb1f5;
+                width: 100px;
+                color: black;
+                padding: 15px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 16px;
+                cursor: pointer;
+                float: left;
+            }
+
+            .buttonBlue:hover {
+                background-color: #31a6f5;
+            }
+
+            .buttonGray {
+                background-color: #d9d9d9;
+                width: 100px;
+                color: black;
+                padding: 15px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 16px;
+                cursor: pointer;
+                float: left;
+            }
+
+            .buttonGray:hover {
+                background-color: #b5b5b5;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="content" class="paragraph" style="width: 300px; padding-right: 25px; padding-left: 25px;">
+        </div>
+        <div class="button-container">
+            <a href="#" class="buttonGray" name="later">Later</a>
+            <a href="#" class="buttonGray" name="never">Never</a>
+            <a href="#" class="buttonBlue" name="agree">Continue</a>
+        </div>
+        <script>
+            (async function() {
+                // Load the message from storage
+                const storageKey = "webScience.userSurvey.popupPromptMessage";
+                const contentResults = await browser.storage.local.get(storageKey);
+                if(storageKey in contentResults) {
+                    const contentElement = document.getElementById("content");
+                    contentElement.innerHTML = contentResults[storageKey];
+                }
+                
+                // Listen for clicks on the buttons
+                document.addEventListener("click", async (e) => {
+                    if (e.target.name === "agree") {
+                        await browser.runtime.sendMessage({ type: "webScience.userSurvey.openSurvey" });
+                    }
+                    else if (e.target.name === "later") {
+                        window.close();
+                    }
+                    else if (e.target.name === "never") {
+                        await browser.runtime.sendMessage({ type: "webScience.userSurvey.cancelSurvey" });
+                        window.close();
+                    }
+                });
+            })();
+        </script>
+    </body>
+</html> 

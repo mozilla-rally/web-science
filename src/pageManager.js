@@ -125,7 +125,7 @@
 import * as events from "./events.js";
 import * as idle from "./idle.js";
 import * as messaging from "./messaging.js";
-import * as contentScripts from "./contentScripts.js";
+import * as inline from "./inline.js";
 import pageManagerContentScript from "./content-scripts/pageManager.content.js";
 
 /**
@@ -634,7 +634,7 @@ export async function initialize() {
     browser.contentScripts.register({
         matches: [ "http://*/*", "https://*/*" ],
         js: [{
-            code: contentScripts.unpack(pageManagerContentScript)
+            code: inline.dataUrlToString(pageManagerContentScript)
         }],
         runAt: "document_start"
     });

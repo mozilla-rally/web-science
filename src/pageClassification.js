@@ -9,7 +9,7 @@ import * as debugging from "./debugging.js";
 import * as matching from "./matching.js";
 import * as events from "./events.js";
 import Readability from "@mozilla/readability";
-import * as contentScripts from "./contentScripts.js"
+import * as inline from "./inline.js"
 import pageContentContentScript from "./content-scripts/pageContent.content.js"
 
 const debugLog = debugging.getDebuggingLog("pageClassification");
@@ -123,7 +123,7 @@ async function registerContentScripts(newMatchPatterns) {
     registeredCS = await browser.contentScripts.register({
         matches: [...existingMatchPatterns],
         js: [{
-            code: contentScripts.unpack(pageContentContentScript)
+            code: inline.dataUrlToString(pageContentContentScript)
         }],
         runAt: "document_idle"
     });

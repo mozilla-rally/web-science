@@ -7,7 +7,7 @@
 import * as events from "./events.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
-import * as contentScripts from "./contentScripts.js";
+import * as inline from "./inline.js";
 import pageNavigationContentScript from "./content-scripts/pageNavigation.content.js";
 
 /**
@@ -109,7 +109,7 @@ export async function startMeasurement({
     registeredContentScript = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
-            code: contentScripts.unpack(pageNavigationContentScript)
+            code: inline.dataUrlToString(pageNavigationContentScript)
         }],
         runAt: "document_start"
     });

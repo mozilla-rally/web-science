@@ -3,14 +3,17 @@
 // Note that the order of module imports matters, since the study
 // modules depend on the utility modules
 
-import * as contentScripts from "./contentScripts.js"
-export { contentScripts }
+import * as inline from "./inline.js"
+export { inline }
 
 import * as debugging from "./debugging.js"
 export { debugging }
 
 import * as events from "./events.js"
 export { events }
+
+import * as id from "./id.js"
+export { id }
 
 import * as storage from "./storage.js"
 export { storage }
