@@ -123,7 +123,7 @@ async function registerContentScripts(newMatchPatterns) {
     registeredCS = await browser.contentScripts.register({
         matches: [...existingMatchPatterns],
         js: [{
-            code: contentScripts.unpack(pageContentContentScript)
+            code: inline.dataUrlToString(pageContentContentScript)
         }],
         runAt: "document_idle"
     });
