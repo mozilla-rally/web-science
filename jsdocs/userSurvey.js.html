@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: userSurvey.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: userSurvey.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Present surveys to the user.
+ * @module webScience.userSurvey
+ */
+import * as storage from "./storage.js"
+import * as messaging from "./messaging.js"
+
+let storageSpace = null;
+
+/**
+ * The fully-qualified URL to Princeton shield image
+ * @constant
+ * @type {string}
+ */
+const SHIELD_URL = browser.runtime.getURL("images/Princetonshieldlarge.png");
+// TODO -- wording, icon image
+const surveyRequestMessage = "A new survey is available for your Ion study. Click the Princeton logo in the toolbar to continue.";
+const surveyRequestTitle = "New Ion survey available";
+
+const secondsPerDay = 86400;
+
+const millisecondsPerSecond = 1000;
+
+const surveyRemindPeriodDays = 3;
+
+const surveyCompletionUrl = "https://citpsurveys.cs.princeton.edu/thankyou";
+
+let surveyUrlBase = "";
+
+/**
+ * Generates a RFC4122 compliant ID
+ * https://www.ietf.org/rfc/rfc4122.txt based on given seed.
+ *
+ * A compliant UUID is of the form
+ * xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx; where 1 &lt;= M &lt;= 5
+ * In this implementation M = 4.
+ *
+ * @param  {number} seed - seed. Example UTC milliseconds
+ * @returns {string} - UUID
+ */
+function generateUUID(seed) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        let r = Math.random() * 16;
+        r = (seed + r) % 16 | 0;
+        return (c === 'x' ? r : (r &amp; 0x3 | 0x8)).toString(16);
+    });
+}
+
+async function openSurveyTab(useSameTab = false) {
+    const surveyId = await storageSpace.get("surveyId");
+    const surveyUrlFull = surveyUrlBase +
+        "?surveyId=" + surveyId +
+        "&amp;timezone=" + new Date().getTimezoneOffset();
+    if (useSameTab) {
+        browser.tabs.update({url: surveyUrlFull});
+        return;
+    }
+    browser.tabs.create({
+        active: true,
+        url: surveyUrlFull
+    });
+}
+
+async function requestSurvey(alarm) {
+    if (alarm.name == "surveyAlarm") {
+        const surveyCompleted = await storageSpace.get("surveyCompleted");
+        const noRequestSurvey = await storageSpace.get("noRequestSurvey");
+        if (surveyCompleted) return;
+        if (noRequestSurvey) return;
+        const currentTime = Date.now();
+        await storageSpace.set("lastSurveyRequest", currentTime);
+        browser.notifications.create({
+            type: "image",
+            message: surveyRequestMessage,
+            title: surveyRequestTitle,
+            iconUrl: SHIELD_URL
+        });
+        scheduleSurveyRequest(currentTime);
+    }
+}
+
+function scheduleSurveyRequest(lastSurveyRequest) {
+    browser.alarms.onAlarm.addListener(requestSurvey);
+    browser.alarms.create("surveyAlarm", {
+        when: lastSurveyRequest + (millisecondsPerSecond * secondsPerDay * surveyRemindPeriodDays)
+    });
+}
+
+function handleSurveyCompleted() {
+    storageSpace.set("surveyCompleted", true);
+    setPopupSurveyCompleted();
+}
+
+function setPopupSurveyCompleted() {
+    browser.browserAction.setPopup({
+        popup: browser.runtime.getURL("study/completedSurvey.html")
+    });
+}
+
+function cancelSurveyRequest() {
+    storageSpace.set("noRequestSurvey", true);
+    setPopupSurveyCompleted();
+}
+
+/**
+ * Run a survey at scheduled survey time if it exists otherwise
+ * current time + delta
+ *
+ * @param {string} surveyUrl - survey URL
+ */
+export async function runStudy({
+    surveyUrl
+}) {
+    const currentTime = Date.now();
+    surveyUrlBase = surveyUrl;
+
+    storageSpace = new storage.KeyValueStorage("webScience.userSurvey");
+    /* Check when we last asked the user to do the survey. If it's null,
+     * we've never asked, which means the extension just got installed.
+     * Open a tab with the survey, and save this time as the most recent
+     * request for participation.
+     */
+    let lastSurveyRequest = await storageSpace.get("lastSurveyRequest");
+    const surveyCompleted = await storageSpace.get("surveyCompleted");
+    const noRequestSurvey = await storageSpace.get("noRequestSurvey");
+    if (surveyCompleted || noRequestSurvey) {
+        setPopupSurveyCompleted();
+        await storageSpace.set("surveyCompleted", surveyCompleted);
+        return;
+    } else {
+        browser.browserAction.setPopup({
+            popup: browser.runtime.getURL("study/survey.html")
+        });
+    }
+
+    // null means we've never asked before, so the extension was just enabled
+    if (lastSurveyRequest == null) {
+        lastSurveyRequest = currentTime;
+        await storageSpace.set("lastSurveyRequest", lastSurveyRequest);
+        await storageSpace.set("surveyCompleted", false);
+        await storageSpace.set("noRequestSurvey", false);
+        await storageSpace.set("surveyId", generateUUID(Date.now()));
+        openSurveyTab(false);
+    }
+    /* Set a time to ask the user in three days (we won't actually ask
+     * if they end up completing the survey before then).
+     */
+    scheduleSurveyRequest(lastSurveyRequest);
+    /* The user gets directed to this page at the end of the survey, so
+     * seeing a request for it means they did it -- stop bothering them
+     */
+    browser.webRequest.onBeforeRequest.addListener(
+        handleSurveyCompleted,
+        {urls: [ surveyCompletionUrl + "*" ]}
+    );
+
+    /* If the user tells us to never ask them again, we catch it with this message */
+    messaging.registerListener("webScience.userSurvey.cancelSurveyRequest", cancelSurveyRequest);
+    messaging.registerListener("webScience.userSurvey.openSurveyTab", () => { openSurveyTab(false); });
+}
+
+export async function getSurveyId() {
+    return await storageSpace.get("surveyId");
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="webScience.module_contentScripts.html">contentScripts</a></li><li><a href="webScience.module_dataAnalysis.html">dataAnalysis</a></li><li><a href="webScience.module_debugging.html">debugging</a></li><li><a href="webScience.module_events.html">events</a></li><li><a href="webScience.module_idle.html">idle</a></li><li><a href="webScience.module_linkExposure.html">linkExposure</a></li><li><a href="webScience.module_linkResolution.html">linkResolution</a></li><li><a href="webScience.module_matching.html">matching</a></li><li><a href="webScience.module_messaging.html">messaging</a></li><li><a href="webScience.module_pageClassification.html">pageClassification</a></li><li><a href="webScience.module_pageManager.html">pageManager</a></li><li><a href="webScience.module_pageNavigation.html">pageNavigation</a></li><li><a href="webScience.module_scheduling.html">scheduling</a></li><li><a href="webScience.module_socialMediaActivity.html">socialMediaActivity</a></li><li><a href="webScience.module_socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="webScience.module_storage.html">storage</a></li><li><a href="webScience.module_userSurvey.html">userSurvey</a></li></ul><h3>Classes</h3><ul><li><a href="webScience.module_events.Event.html">Event</a></li><li><a href="webScience.module_events.EventSingleton.html">EventSingleton</a></li><li><a href="webScience.module_events.EventWithoutOptions.html">EventWithoutOptions</a></li><li><a href="webScience.module_matching.MatchPatternSet.html">MatchPatternSet</a></li><li><a href="webScience.module_storage.Counter.html">Counter</a></li><li><a href="webScience.module_storage.IndexedStorage.html">IndexedStorage</a></li><li><a href="webScience.module_storage.KeyValueStorage.html">KeyValueStorage</a></li></ul><h3>Interfaces</h3><ul><li><a href="webScience.module_linkExposure-LinkExposureDetails.html">LinkExposureDetails</a></li><li><a href="webScience.module_pageNavigation-PageDataDetails.html">PageDataDetails</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Tue Apr 06 2021 12:42:55 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
