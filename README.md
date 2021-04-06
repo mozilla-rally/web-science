@@ -1,41 +1,35 @@
-# Web Science
-A library of reusable functionality for [Mozilla Rally](https://support.mozilla.org/en-US/kb/about-firefox-pioneer) studies.
+# WebScience
+WebScience is an open-source library for building browser-based research studies, including on [Rally](https://rally.mozilla.org/).
 
-## Requirements
-* [Node.js](https://nodejs.org/en/), available via [Homebrew](https://brew.sh/) on macOS
-* [Mozilla web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/)
+## Design Goals
+* Reduce the barriers to implementing browser-based research studies, by providing production-quality functionality that is commonly required, difficult to implement correctly, and difficult to maintain.
+* Standardize measurement methods across browser-based research studies.
+* Advance the state of the art in browser-based research methods, such as by providing a sophisticated model for user attention to web content.
+* Encourage researchers to practice data minimization when implementing studies.
+* Provide an API that is built on and consistent with [WebExtensions](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions), and that is compatible with all major web browsers.
 
-## Example Usage
-See the [News and Disinformation Study](https://github.com/citp/news-disinformation-study), which we recommend using as a template.
+## Contributors
+The primary contributors to WebScience are researchers at the [Princeton University Center for Information Technology Policy](https://citp.princeton.edu/) and the [Mozilla Rally](https://rally.mozilla.org/) team.
 
-## Architecture
-The Web Science library consists of two types of modules: measurement modules that collect a specific type of data, and utility modules that provide supporting functionality. A Firefox Pioneer study can optionally take advantage of the Web Science library (or a subset of the library) for faster development and review. We recommend including the repository for Web Science as a Git subtree in the repository for a Firefox Pioneer study.
+## Getting Started with WebScience
+The easiest way to get started is with the Rally [study template](https://github.com/mozilla-rally/study-template), which has already been configured to integrate the WebScience library.
 
-### Measurement Modules - [/Measurements/](https://github.com/mozilla-rally/web-science/tree/master/Measurements)
-The measurement modules provide reusable passive collection and intervention building blocks for conducting studies.
-* [LinkExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/LinkExposure.js) - Measures user exposure to links to domains of interest, using a [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts).
-  * [content-scripts/linkExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/linkExposure.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that extracts links to domains of interest from a page DOM.
-* [PageNavigation.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/PageNavigation.js) - Measures user navigation and attention to webpages on domains of interest, using the `PageManager` utility module.
-* [SocialMediaAccountExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/SocialMediaNewsExposure.js) - Measures how users are exposed to content from specific social media accounts on YouTube and Facebook, using [content scripts](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts).
-  * [content-scripts/socialMediaAccountExposure-youtube.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/socialMediaNewsExposure-youtube.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that identifies content from known YouTube channels.
-  * [content-scripts/socialMediaAccountExposure-fb.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/socialMediaNewsExposure-fb.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that identifies posts from know Facebook accounts.
-* [SocialMediaNewsExposure.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/SocialMediaNewsExposure.js) - Measures how users are exposed to news on social media , using a [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts).
-  * [content-scripts/socialMediaNewsExposure-youtube.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/content-scripts/socialMediaNewsExposure-youtube.js) - A [content script](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts) that checks for the News & Politics category on Youtube.
-* [SocialMediaLinkSharing.js](https://github.com/mozilla-rally/web-science/blob/master/Measurements/SocialMediaLinkSharing.js) - Measures user sharing of links to domains of interest on social media platforms, using the `SocialMediaActivity` utility module.
+If you would prefer to build a browser extension with WebScience from scratch, we recommend the following steps:
+* Use [Node.js](https://nodejs.org/en/) for managing the extension's dependencies with a [`package.json`](https://docs.npmjs.com/cli/v7/configuring-npm/package-json) file and [`npm install`](https://docs.npmjs.com/cli/v7/commands/npm-install). WebScience is available on [npm](https://www.npmjs.com/) as the package [`@mozilla/web-science`](https://www.npmjs.com/package/@mozilla/web-science).
+* Use [Rollup](https://rollupjs.org/guide/en/) with the [`node-resolve`](https://github.com/rollup/plugins/tree/master/packages/node-resolve) plugin to integrate WebScience into your bundled extension.
 
-### Utility Modules - [/Utilities/](https://github.com/mozilla-rally/web-science/tree/master/Utilities)
-The utility modules provide a library of reusable functions that assist with conducting studies.
-* [Debugging.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Debugging.js) - Functionality for outputting debugging messages to the console in a consistent format. Implemented with the [`console`](https://developer.mozilla.org/en-US/docs/Web/API/console) Web API.
-* [Events.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Events.js) - Functionality for building events similar to [events.Event](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/events/Event) objects in WebExtensions.
-* [Idle.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Idle.js) - Functionality for supporting browser idle state listeners with differing idle state thresholds. Implemented with the [`idle`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/idle) WebExtensions API.
-* [Lifecycle.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Lifecycle.js) - Functions for starting and stopping studies.
-* [LinkResolution.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/LinkResolution.js) - Functionality for resolving shortened and shimmed URLs. Implemented with the [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) Web API and the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
-* [Matching.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Matching.js) - Functions for efficiently matching domain names and URLs.
-* [Messaging.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Messaging.js) - Functionality for supporting message types and message schemes for messaging between the background page and content scripts. Implemented with the [`runtime`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime) WebExtensions API.
-* [PageManager.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/PageManager.js) - Functionality for uniquely identifying webpages and acting on events associated with webpage loading, user attention, and audio playback. The `PageManager` module provides a convenient API for content scripts and basic webpage loading events for background scripts. Implemented with the [`tabs`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs) and [`windows`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/windows) WebExtensions APIs and the `Idle` utility module.
-* [Randomization.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Randomization.js) - Functionality for selecting and persisting randomized conditions.
-* [ResponseBody.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/ResponseBody.js) - Functionality for reassembling an HTTP(S) response body using the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
-* [Scheduling.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Scheduling.js) - Functionality for scheduling daily and weekly tasks, when the browser is idle. Implemented with the `Idle` utility module. Similar to the `idle-daily` event emitted by the Firefox [`nsIdleService`](https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XPCOM/Reference/Interface/nsIIdleService).
-* [SocialMediaActivity.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/SocialMediaActivity.js) - Functionality for listening to and acting on user sharing activity on social media platforms. Facebook, Twitter, and Reddit are currently supported. Implemented with the [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) WebExtensions API.
-* [Storage.js](https://github.com/mozilla-rally/web-science/blob/master/Utilities/Storage.js) - Functionality for persisting study data. Implemented using the [`localForage`](https://github.com/localForage/localForage) library.
-  * [../dependencies/localforagees6.min.js](https://github.com/mozilla-rally/web-science/blob/master/dependencies/localforagees6.min.js) - The [`localForage`](https://github.com/localForage/localForage) library, lightly modified to support importation as an ES6 module.
+## Using WebScience in a Study Extension
+Using WebScience in your study extension is easy. At the start of the background script where you want to use WebScience, just add:
+```js
+import * as webScience from "@mozilla/web-science";
+```
+You will then be able to use the WebScience API within the background script (e.g., `webScience.pageNavigation...`).
+
+You can also selectively import components of the WebScience API, if you prefer. Just add, for example:
+```js
+import { pageNavigation, socialMediaLinkSharing } from "@mozilla/web-science";
+```
+You will then be able to use those components of the API (e.g., `pageNavigation...`).
+
+## Exploring the WebScience API
+We will have documentation for the WebScience API online shortly. In the interim, the WebScience source includes voluminous JSDoc annotations.
