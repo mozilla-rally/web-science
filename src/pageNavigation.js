@@ -98,7 +98,7 @@ function pageDataListener(pageData) {
  * Start a navigation measurement. Note that only one measurement is currently supported per extension.
  * @param {PageDataOptions} options - A set of options for the measurement.
  */
-export async function startMeasurement({
+async function startMeasurement({
     matchPatterns = [ ],
     privateWindows = false
 }) {
