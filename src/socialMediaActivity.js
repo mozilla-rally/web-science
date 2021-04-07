@@ -9,6 +9,10 @@ import * as inline from "./inline.js"
 import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js"
 import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js"
 
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("socialMediaActivity");
 
 let privateWindows = false;
@@ -37,6 +41,7 @@ export function enablePrivateWindows() {
  * @param eventType - which type of event we're registering
  * @param blockingType - whether the handler should be blocking or not
  * @param callback - the client function to call when the event occurs
+ * @private
  */
 function registerPlatformListener(platform, eventType, blockingType, callback) {
     debugLog("Registering listener for " + platform + eventType);
@@ -152,6 +157,7 @@ export function registerRedditActivityTracker(
  * @param platform - which social media platform this event is from
  * @param eventType - which event this request should be
  * @param blockingType - whether a blocking listener should run
+ * @private
  */
 async function handleGenericEvent({requestDetails = null,
                              platform = null, eventType = null,
@@ -198,6 +204,7 @@ async function handleGenericEvent({requestDetails = null,
 /**
  * A generic verifier that makes sure a request is a POST.
  * @param requestDetails - the raw request
+ * @private
  */
 function verifyPostReq({requestDetails = null}) {
     if (!requestDetails) return null;
@@ -208,6 +215,7 @@ function verifyPostReq({requestDetails = null}) {
 /**
  * A generic verifier that makes sure the formData field is present.
  * @param requestDetails - the raw request
+ * @private
  */
 function verifyReadableFormData({requestDetails = null}) {
     if (!requestDetails.requestBody) return null;
@@ -222,6 +230,7 @@ function verifyReadableFormData({requestDetails = null}) {
  * Note: if multiple events listen to the same URL and distinguish events by
  * request contents, this verifier must be the LAST in the list
  * @param requestDetails - the raw request
+ * @private
  */
 function verifyNewRequest({requestDetails = null}) {
     if (!requestDetails.requestId) return null;
@@ -234,6 +243,7 @@ function verifyNewRequest({requestDetails = null}) {
 
 /**
  * Stores the callback functions the client has registered.
+ * @private
  */
 const clientCallbacks = {
     twitter: {
@@ -257,6 +267,7 @@ const clientCallbacks = {
 
 /**
  * Holds the configuration for each type of handler.
+ * @private
  */
 const platformHandlers = {
     twitter: {
@@ -382,6 +393,7 @@ platformHandlers.reddit.commentVote = {
  * @param requestDetails - the raw request
  * @returns - null when invalid, otherwise an object indicating whether the request comes from
  *  a service worker (not currently used).
+ * @private
  */
 function verifyTwitterTweet({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.status)) return null;
@@ -395,6 +407,7 @@ function verifyTwitterTweet({requestDetails = null}) {
  * Extract info from a tweet.
  * @param {Object} requestDetails
  * @returns {Object} - the tweet info extracted into an object
+ * @private
  */
 function extractTwitterTweet({requestDetails = null}) {
     const details = {};
@@ -416,6 +429,7 @@ function extractTwitterTweet({requestDetails = null}) {
  * @param requestDetails - the raw request
  * @returns - null when invalid, otherwise an object indicating whether the request comes from
  *  a service worker (not currently used).
+ * @private
  */
 function verifyTwitterRetweet({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id)) return null;
@@ -428,6 +442,7 @@ function verifyTwitterRetweet({requestDetails = null}) {
  * Extract info from a retweet.
  * @param {Object} requestDetails
  * @returns {Object} - the retweet info extracted into an object
+ * @private
  */
 function extractTwitterRetweet({requestDetails = null, eventTime = null}) {
     const tweetId = requestDetails.requestBody.formData.id[0];
@@ -444,6 +459,7 @@ function extractTwitterRetweet({requestDetails = null, eventTime = null}) {
  * @param requestDetails - the raw request
  * @returns - null when invalid, otherwise an object indicating whether the request comes from
  *  a service worker (not currently used).
+ * @private
  */
 function verifyTwitterFavorite({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id)) return null;
@@ -457,6 +473,7 @@ function verifyTwitterFavorite({requestDetails = null}) {
  * Extract info from a favorite.
  * @param {Object} requestDetails
  * @returns {Object} - the favorite info extracted into an object
+ * @private
  */
 function extractTwitterFavorite({requestDetails = null,
                                  details = null, verified = null,
@@ -494,6 +511,7 @@ export function getTweetContent(tweetId) {
  * register the content script and listen for it to tell us which tab ID it's inside.
  * We also need two additional fields to construct valid requests. To deal with these
  * changing periodically, we log them each time we see them sent.
+ * @private
  */
 function tweetContentInit() {
     if (tweetContentSetUp) { return; }
@@ -524,6 +542,7 @@ function tweetContentInit() {
  * A content script inside the page allows us to seach for a post or send a request.
  * When the first Facebook tracker is registered, register the content script
  * and listen for it to tell us which tab ID it's in.
+ * @private
  */
 async function fbPostContentInit() {
     if (fbPostContentSetUp) { return; }
@@ -548,6 +567,7 @@ async function fbPostContentInit() {
  * Parse a react request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 function extractFacebookReact({requestDetails = null, eventTime = null, verified = null}) {
     const reactionRequest = verified.reactionRequest;
@@ -594,6 +614,7 @@ function extractFacebookReact({requestDetails = null, eventTime = null, verified
  * Check that a request is a valid react request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid react, empty object otherwise
+ * @private
  */
 function verifyFacebookReact({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
@@ -610,6 +631,7 @@ function verifyFacebookReact({requestDetails = null}) {
  * Check that a request is a valid post request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid post, empty object otherwise
+ * @private
  */
 function verifyFacebookPost({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.variables)) { return null; }
@@ -625,6 +647,7 @@ function verifyFacebookPost({requestDetails = null}) {
  * Parse a post request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 function extractFacebookPost({requestDetails = null, eventTime = null}) {
     let postText = "";
@@ -663,6 +686,7 @@ function extractFacebookPost({requestDetails = null, eventTime = null}) {
  * Parse a comment request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 function extractFacebookComment({requestDetails = null, eventTime = null}) {
     const variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
@@ -688,6 +712,7 @@ function extractFacebookComment({requestDetails = null, eventTime = null}) {
  * Check that a request is a valid comment request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid comment, empty object otherwise
+ * @private
  */
 function verifyFacebookComment({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
@@ -696,7 +721,9 @@ function verifyFacebookComment({requestDetails = null}) {
 
     return {};
 }
-
+/**
+ * @private
+ */
 function checkFacebookPostAudience(requestDetails) {
     let base_state = "unknown";
     let audience = "unknown";
@@ -736,6 +763,9 @@ function checkFacebookPostAudience(requestDetails) {
     return audience;
 }
 
+/**
+ * @private
+ */
 function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 5) {
     if (recurseLevel <= 0) return null;
     if (object == null) return null;
@@ -781,6 +811,7 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
  * Parse a reshare request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 async function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
     // New FB
@@ -808,12 +839,18 @@ async function extractFacebookReshare({requestDetails = null, verified = null, e
     }
 }
 
+/**
+ * @private
+ */
 async function getReshareInfo() {
     return browser.tabs.sendMessage(facebookTabId, {"recentReshare": true}).then((response) => {
         return response;
     }, (e) => { console.log("ERROR", e); } );
 }
 
+/**
+ * @private
+ */
 function isThisPostAReshare(requestDetails) {
     const friendlyName = findFieldFacebook(requestDetails.requestBody.formData,
         "fb_api_req_friendly_name");
@@ -833,6 +870,7 @@ function isThisPostAReshare(requestDetails) {
  * Check that a request is a valid reshare request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid reshare, empty object otherwise
+ * @private
  */
 function verifyFacebookReshare({requestDetails = null }) {
     if (requestDetails.url.includes("api/graphql")) {
@@ -898,6 +936,7 @@ export function getFacebookPostContents(postId) {
 
 /**
  * Reddit posts don't currently have validation needs.
+ * @private
  */
 function verifyRedditPost({requestDetails = null}) {
     return {};
@@ -907,6 +946,7 @@ function verifyRedditPost({requestDetails = null}) {
  * Parse a Reddit post request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditPost({requestDetails = null}) {
     const shareTime = Date.now();
@@ -969,6 +1009,7 @@ function extractRedditPost({requestDetails = null}) {
  * Check that a request is a valid Reddit comment
  * @param requestDetails - the raw request
  * @returns - null if the request is not valid, empty object otherwise
+ * @private
  */
 function verifyRedditComment({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.thing_id &&
@@ -981,6 +1022,7 @@ function verifyRedditComment({requestDetails = null}) {
  * Parse a Reddit comment request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditComment({requestDetails = null, eventTime = null}) {
     const details = {};
@@ -996,6 +1038,7 @@ function extractRedditComment({requestDetails = null, eventTime = null}) {
  * Check that a request is a valid Reddit post vote
  * @param requestDetails - the raw request
  * @returns - null if the request is not valid, empty object otherwise
+ * @private
  */
 function verifyRedditPostVote({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id &&
@@ -1010,6 +1053,7 @@ function verifyRedditPostVote({requestDetails = null}) {
  * Parse a Reddit post vote request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditPostVote({requestDetails = null, eventTime = null}) {
     const details = {};
@@ -1024,6 +1068,7 @@ function extractRedditPostVote({requestDetails = null, eventTime = null}) {
  * Check that a request is a valid Reddit comment vote
  * @param requestDetails - the raw request
  * @returns - null if the request is not valid, empty object otherwise
+ * @private
  */
 function verifyRedditCommentVote({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id &&
@@ -1038,6 +1083,7 @@ function verifyRedditCommentVote({requestDetails = null}) {
  * Parse a Reddit comment vote request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditCommentVote({requestDetails = null, eventTime = null}) {
     return new Promise((resolve, reject) => {

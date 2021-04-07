@@ -1,7 +1,19 @@
 /**
- * An array of match patterns for known URL shorteners.
- * @constant
- * @type {Array<string>}
+ * An array of match patterns for known URL shorteners. We extract
+ * domains from the sources listed below, sort, deduplicate, and
+ * convert to match patterns with wildcard scheme and path.
+ * @constant {string[]}
+ * @see {@link https://github.com/apache/spamassassin/blob/trunk/rulesrc/sandbox/pds/20_urlshort.cf}
+ * @see {@link https://github.com/boutetnico/url-shorteners/blob/master/list.txt}
+ * @see {@link https://github.com/https-everywhere-bot/https-everywhere/blob/master/src/chrome/content/rules/Bitly_branded_short_domains.xml}
+ * @see {@link https://github.com/lrei/canonical_urls/blob/master/shorteners.txt}
+ * @see {@link https://github.com/MISP/misp-warninglists/blob/main/lists/url-shortener/list.json}
+ * @see {@link https://github.com/sambokai/ShortURL-Services-List/blob/master/shorturl-services-list.txt}
+ * @see {@link https://github.com/SMAPPNYU/urlExpander/blob/master/urlexpander/core/constants.py}
+ * @see {@link https://github.com/smfreegard/DecodeShortURLs/blob/master/DecodeShortURLs.cf}
+ * @see {@link https://github.com/specious/check-bitly/blob/master/test/bitly-domains.txt}
+ * @see {@link https://github.com/timleland/url-shorteners/blob/main/list.txt}
+ * @see {@link https://web.archive.org/web/20160317000701/longurl.org/services}
  */
 export const urlShortenerMatchPatterns = [
     "*://0rz.tw/*",

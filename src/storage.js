@@ -10,12 +10,10 @@
 
 import Dexie from 'dexie';
 
-export const storageInstances = [];
-
 /**
  * Create a key-value storage area.
  * @param {string} storageAreaName - A name that uniquely identifies the storage area.
- * @param {Array<string>} storeNames - A list of names of stores.
+ * @param {string[]} storeNames - A list of names of stores.
  * @param {string} defaultStore - If store names are given, which one should be the default in future interactions.
  * @returns - The new KeyValueStorage object.
  * @example var exampleStorage = await (new KeyValueStorage("exampleName"));
@@ -36,7 +34,7 @@ class KeyValueStorage {
      * the `storeNames` parameter. If none are specified, the module will create a default store
      * and use that store for future interactions.
      * @param {string} storageAreaName - A name that uniquely identifies the storage area.
-     * @param {Array<string>} storeNames - A list of names of stores.
+     * @param {string[]} storeNames - A list of names of stores.
      * @param {string} defaultStore - If store names are given, which one should be the default in future interactions.
      * @example var exampleStorage = await (new KeyValueStorage("exampleName"));
      * @private
@@ -109,7 +107,10 @@ export async function createCounter(counterName) {
     return counter;
 }
 
-/** Class for maintaining persistent counters (e.g., unique IDs). */
+/**
+ * Class for maintaining persistent counters (e.g., unique IDs).
+ * @private
+ */
 class Counter {
     /**
      * Create a persistent counter. Note that, because creating a counter

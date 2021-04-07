@@ -21,19 +21,18 @@
  */
 
 /**
- * @type {Object|null}
- * @private
  * A map of condition set names to condition names. Maintaining a cache avoids
  * storage race conditions. The cache is an Object rather than a Map so it can
  * be easily stored in extension local storage.
+ * @type {Object|null}
+ * @private
  */
 let conditionCache = null;
 
 /**
- * @type {string}
- * @const
- * @private
  * A unique key for storing selected conditions in extension local storage.
+ * @constant {string}
+ * @private
  */
 const storageKey = "webScience.randomization.conditions";
 

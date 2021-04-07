@@ -22,7 +22,6 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  * there is no referrer.
  * @property {number} pageVisitStartTime - The time when the underlying event fired.
  * @property {boolean} privateWindow - Whether the page is in a private window.
- * @interface
  */
 
 /**
@@ -34,7 +33,7 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
 /**
  * Options when adding a page data event listener.
  * @typedef {Object} PageDataOptions
- * @property {Array<string>} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {string[]} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
  * @property {boolean} [privateWindows=false] - Whether to measure pages in private windows.
  */
 
@@ -43,6 +42,7 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  * TODO: deal with multiple listeners with different match patterns
  * @param {pageDataCallback} listener - new listener being added
  * @param {PageDataOptions} options - configuration for the events to be sent to this listener
+ * @private
  */
 function addListener(listener, options) {
     startMeasurement(options);
@@ -51,6 +51,7 @@ function addListener(listener, options) {
 /**
  * Function to end measurement when the last listener is removed
  * @param {pageDataCallback} listener - listener that was just removed
+ * @private
  */
 function removeListener(listener) {
     if (!this.hasAnyListeners()) {
@@ -59,7 +60,9 @@ function removeListener(listener) {
 }
 
 /**
- * @type {Events.Event<pageDataCallback, PageDataOptions>}
+ * An event that fires when a page visit has ended and data about the
+ * visit that is available.
+ * @constant {Events.Event<pageDataCallback, PageDataOptions>}
  */
 export const onPageData = events.createEvent({
     addListenerCallback: addListener,
@@ -67,18 +70,22 @@ export const onPageData = events.createEvent({
 
 /**
  * The registered page navigation content script.
- * @type {RegisteredContentScript|null}
+ * @type {browser.contentScripts.RegisteredContentScript|null}
+ * @private
  */
 let registeredContentScript = null;
 
 /**
  * Whether to notify the page data listener about private windows.
+ * @type {boolean}
+ * @private
  */
 let notifyAboutPrivateWindows = false;
 
 /**
  * A function that is called when the content script sends a page data event message.
  * @param {PageData} pageData - Information about the page.
+ * @private
  */
 function pageDataListener(pageData) {
     // If the page is in a private window and the module should not measure private windows,
@@ -97,6 +104,7 @@ function pageDataListener(pageData) {
 /**
  * Start a navigation measurement. Note that only one measurement is currently supported per extension.
  * @param {PageDataOptions} options - A set of options for the measurement.
+ * @private
  */
 async function startMeasurement({
     matchPatterns = [ ],
@@ -131,6 +139,7 @@ async function startMeasurement({
 
 /**
  * Stop a navigation measurement.
+ * @private
  */
 function stopMeasurement() {
     messaging.unregisterListener("webScience.pageNavigation.pageData", pageDataListener)

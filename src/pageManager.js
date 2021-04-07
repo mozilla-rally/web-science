@@ -174,8 +174,7 @@ const considerUserInputForAttention = true;
 
 /**
  * An event that is fired when a page visit starts.
- * @type {Events.Event<pageVisitStartListener, PageVisitStartListenerOptions>}
- * @const
+ * @constant {Events.Event<pageVisitStartListener, PageVisitStartListenerOptions>}
  */
 export const onPageVisitStart = events.createEvent({
     // Filter notifications for events in private windows
@@ -221,8 +220,7 @@ function pageVisitStart(details) {
 
 /**
  * An event that is fired when a page visit starts.
- * @type {Events.Event<pageVisitStopListener, PageVisitStartListenerOptions>}
- * @const
+ * @constant {Events.Event<pageVisitStopListener, PageVisitStartListenerOptions>}
  */
 export const onPageVisitStop = events.createEvent({
     // Filter notifications for events in private windows
@@ -293,6 +291,7 @@ function checkForAttention(tabId, windowId) {
  * @typedef {Object} WindowDetails
  * @property {number} activeTab - The ID of the active tab in the window,
  * or -1 if there is no active tab.
+ * @private
  */
 
 /**
@@ -300,7 +299,7 @@ function checkForAttention(tabId, windowId) {
  * state to avoid asynchronous queries when the focused window changes. The
  * keys are window IDs and the values are WindowDetails objects.
  * @private
- * @const {Map<number,WindowDetails>}
+ * @constant {Map<number,WindowDetails>}
  * @default
  */
 const windowState = new Map();

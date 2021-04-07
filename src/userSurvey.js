@@ -36,15 +36,17 @@ import popupPromptPage from "./html/userSurvey.popupPrompt.html";
 import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
 
 /**
- * @type {storage.KeyValueStorage}
  * A persistent storage space for data about surveys.
+ * @type {storage.KeyValueStorage}
+ * @private
  */
 let storageSpace = null;
 
 /**
- * @type {boolean}
  * Whether a survey has already been created. This module
  * currently only supports one survey per study.
+ * @type {boolean}
+ * @private
  */
 let createdSurvey = false;
 
@@ -62,6 +64,7 @@ const millisecondsPerSecond = 1000;
  * Opens the survey URL in a new browser tab, appending parameters
  * for the participant's survey ID (surveyID) and timezone offset
  * (timezone).
+ * @private
  */
 async function openSurveyInNewTab() {
     const surveyId = await getSurveyId();
@@ -76,6 +79,7 @@ async function openSurveyInNewTab() {
 
 /**
  * Set a timeout to remind the user to complete the study.
+ * @private
  */
 function scheduleReminderForUser() {
     setTimeout(remindUser, Math.max((lastSurveyRequest + reminderInterval * millisecondsPerSecond) - Date.now(), 0));
@@ -83,6 +87,7 @@ function scheduleReminderForUser() {
 
 /**
  * Remind the user to complete the study, by prompting with a notification.
+ * @private
  */
 async function remindUser() {
     const surveyCompleted = await storageSpace.get("surveyCompleted");
@@ -103,6 +108,7 @@ async function remindUser() {
 
 /**
  * Set the browser action popup to the survey's no prompt page.
+ * @private
  */
 function setPopupToNoPromptPage() {
     browser.browserAction.setPopup({

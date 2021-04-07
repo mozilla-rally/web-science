@@ -49,8 +49,7 @@ const pageNavigation = function () {
 
     /**
      * How often (in milliseconds) to check maximum page scroll depth.
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const scrollDepthUpdateInterval = 1000;
 
@@ -59,8 +58,7 @@ const pageNavigation = function () {
      * page visit start if `scrollDepthWaitForAttention` is `false`) to begin checking the
      * maximum relative scroll depth. A delay is helpful because some pages have placeholder
      * content while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const scrollDepthUpdateDelay = 2000;
 
@@ -69,8 +67,7 @@ const pageNavigation = function () {
      * than `scrollHeight` or `clientHeight` to avoid clamping to screen size) to check the maximum
      * relative scroll depth. A minimum height is helpful because some pages have placeholder content
      * while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const scrollDepthMinimumHeight = 50;
 
@@ -78,8 +75,7 @@ const pageNavigation = function () {
      * Whether to wait until the first time the page gains attention before checking the maximum relative
      * scroll depth. Delaying until the first instance of attention is helpful because some pages have
      * placeholder content while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
-     * @constant
-     * @type {boolean}
+     * @constant {boolean}
      */
     const scrollDepthWaitForAttention = true;
 

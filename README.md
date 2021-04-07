@@ -33,3 +33,25 @@ You will then be able to use those components of the API (e.g., `pageNavigation.
 
 ## Exploring the WebScience API
 We will have documentation for the WebScience API online shortly. In the interim, the WebScience source includes voluminous JSDoc annotations.
+
+## API Implementation Progress
+| Module                   | No Breaking Changes Planned | No Known Bugs      | Good Documentation | Good Test Coverage |   
+| ------------------------ | --------------------------- | ------------------ | ------------------ | ------------------ |
+| `debugging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `events`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `id`                     | :x: [#19](https://github.com/mozilla-rally/web-science/issues/19)                         | :white_check_mark: | :white_check_mark: | :x:                |
+| `idle`                   | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `inline`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `linkExposure`           | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                         | :white_check_mark: | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)               | :x:                |
+| `linkResolution`         | :x: [#21](https://github.com/mozilla-rally/web-science/issues/21)                         | :white_check_mark: | :x: [#21](https://github.com/mozilla-rally/web-science/issues/21)               | :x:                |
+| `matching`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `messaging`              | :x: [#8](https://github.com/mozilla-rally/web-science/issues/8)                        | :white_check_mark: | :white_check_mark: | :x:                |
+| `pageClassification`     | :x: [#11](https://github.com/mozilla-rally/web-science/issues/11)                         | :white_check_mark: | :white_check_mark: | :x:                |
+| `pageManager`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `pageNavigation`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `randomization`          | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `scheduling`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `socialMediaActivity`    | :x: [#23](https://github.com/mozilla-rally/web-science/issues/23)                        | :white_check_mark: | :white_check_mark: | :x:                |
+| `socialMediaLinkSharing` | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                        | :white_check_mark: | :white_check_mark: | :x:                |
+| `storage`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `userSurvey`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
