@@ -249,8 +249,7 @@
     }
     /**
      * Regular expression for matching urls shimmed by facebook
-     * @constant
-     * @type {RegExp}
+     * @constant {RegExp}
      * @default
      */
     const facebookUrlRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/;

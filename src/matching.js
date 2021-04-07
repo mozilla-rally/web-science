@@ -27,8 +27,7 @@ const matchPatternValidationRegExp = new RegExp("(^<all_urls>$)|(^(https?|wss?|f
 /**
  * A Set of URL schemes permitted in WebExtensions match patterns.
  * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
- * @constant
- * @type {Set<string>}
+ * @constant {Set<string>}
  * @private
  */
 const permittedMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "data", "file"]);
@@ -36,8 +35,7 @@ const permittedMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss",
 /**
  * A Set of URL schemes that require a host locator (i.e., are followed by `://` rather than `:`).
  * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
- * @constant
- * @type {Set<string>}
+ * @constant {Set<string>}
  * @private
  */
 const hostLocatorMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "moz-extension", "chrome", "resource", "moz", "moz-icon", "moz-gio"]);
@@ -47,8 +45,7 @@ const hostLocatorMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss
  * "http", "https", "ws", "wss", "ftp", "file", and "data" schemes with any hostname and path.
  * This regular expression includes a little sanity checking: hostnames are limited to alphanumerics,
  * hyphen, period, and brackets at the start and end (for IPv6 literals).
- * @constant
- * @type {string}
+ * @constant {string}
  * @private
  */
 const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\\-\\.]+\\]?(?::[0-9]+)?(?:(?:)|(?:/.*)))|(?:file://[?[a-zA-Z0-9\\-\\.]*\\]?/.*)|(?:data:.*)$";
@@ -74,7 +71,7 @@ const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\
  * Parses a match pattern string into an object that represents the match pattern. We use this internal,
  * intermediate representation to enable constructing efficient matching objects. The parsing logic is
  * nearly identical to the parsing logic in Firefox.
- * @throws {Throws an error if the match pattern is not valid.}
+ * @throws {Error} Throws an error if the match pattern is not valid.
  * @param {string} matchPattern - The match pattern string.
  * @returns {ParsedMatchPattern} - The parsed match pattern.
  * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
@@ -155,7 +152,7 @@ function parseMatchPattern(matchPattern) {
  * @returns {MatchPatternSet} - The new MatchPatternSet.
  */
 export function createMatchPatternSet(matchPatterns) {
-    return new MatchPatternSet(matchPatterns);
+    return new _MatchPatternSet(matchPatterns);
 }
 
 /**
@@ -164,15 +161,33 @@ export function createMatchPatternSet(matchPatterns) {
  * @param {Object} exportedMatchPatternSet - A serialized MatchPatternSet.
  * @returns {MatchPatternSet} - The new MatchPatternSet.
  * @example <caption>Example usage of import.</caption>
- * // const matchPatternSet1 = webScience.matching.createMatchPatternSet([ "*://example.com/*" ]);
- * // const exportedMatchPatternSet = matchPatternSet.export();
- * // const matchPatternSet2 = webScience.matching.importMatchPatternSet(exportedMatchPatternSet);
+ * const matchPatternSet1 = webScience.matching.createMatchPatternSet([ "*://example.com/*" ]);
+ * const exportedMatchPatternSet = matchPatternSet.export();
+ * const matchPatternSet2 = webScience.matching.importMatchPatternSet(exportedMatchPatternSet);
  */
 export function importMatchPatternSet(exportedMatchPatternSet) {
-    const matchPatternSet = new MatchPatternSet([]);
+    const matchPatternSet = new _MatchPatternSet([]);
     matchPatternSet.import(exportedMatchPatternSet);
     return matchPatternSet;
 }
+
+/**
+ * @callback MatchPatternSetMatches
+ * @param {string} url - The URL to test against the set of match patterns.
+ * @returns {boolean} Whether at least one match pattern in the set matches the URL.
+ */
+
+/**
+ * @callback MatchPatternSetExport
+ * @returns {Object} The MatchPatternSet serialized to an object.
+ */
+
+/**
+ * @typedef {Object} MatchPatternSet
+ * An optimized object for matching against match patterns.
+ * @property {MatchPatternSetMatches} matches - Test a URL against the set of match patterns.
+ * @property {MatchPatternSetExport} export - Export the MatchPatternSet to a serialized object. 
+ */
 
 /**
  * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
@@ -194,8 +209,9 @@ export function importMatchPatternSet(exportedMatchPatternSet) {
  * Future performance improvements could include:
  *   * Replacing the path matching implementation to eliminate regular expressions entirely.
  *   * Replacing the match pattern index, such as by implementing a trie.
+ * @private
  */
-class MatchPatternSet {
+class _MatchPatternSet {
     /**
      * Creates a match pattern set from an array of match patterns.
      * @param {string[]} matchPatterns - The match patterns for the set.
@@ -422,7 +438,7 @@ function parsedMatchPatternToRegExpString(parsedMatchPattern) {
 
 /**
  * Converts a match pattern into a regular expression string.
- * @throws {Throws an error if the match pattern is not valid.}
+ * @throws {Error} Throws an error if the match pattern is not valid.
  * @param {string} matchPattern - The match pattern.
  * @returns {string} The regular expression.
  * @private
@@ -443,7 +459,7 @@ function combineRegExpStrings(regExpStrings) {
 
 /**
  * Converts an array of match patterns into a regular expression string.
- * @throws {Throws an error if a match pattern is not valid.}
+ * @throws {Error} Throws an error if a match pattern is not valid.
  * @param {string[]} matchPatterns - The match patterns.
  * @returns {string} The regular expression string.
  */
@@ -453,7 +469,7 @@ export function matchPatternsToRegExpString(matchPatterns) {
 
 /**
  * Converts an array of match patterns into a RegExp object.
- * @throws {Throws an error if a match pattern is not valid.}
+ * @throws {Error} Throws an error if a match pattern is not valid.
  * @param {string[]} matchPatterns - The match patterns.
  * @returns {RegExp} The regular expression RegExp object.
  */
@@ -509,7 +525,7 @@ export function domainsToRegExp(domains, matchSubdomains = true) {
  *   * Remove the fragment identifier, if any. For example, https://www.mozilla.org/#foo becomes https://www.mozilla.org/.
  * @param {string} url - The URL string to normalize.
  * @return {string} The normalized URL string.
- * @throws {Throws an error if the URL string is not a valid, absolute URL.}
+ * @throws {Error} Throws an error if the URL string is not a valid, absolute URL.
  */
 export function normalizeUrl(url) {
     const urlObj = new URL(url);

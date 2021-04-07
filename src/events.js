@@ -7,6 +7,10 @@
 
 import * as debugging from "./debugging.js";
 
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("events");
 
 /**
@@ -136,6 +140,7 @@ class Event {
  * @template EventCallbackFunction
  * @template EventOptions
  * @extends {Event<EventCallbackFunction, EventOptions>}
+ * @private
  */
 class EventSingleton extends Event {
     /**

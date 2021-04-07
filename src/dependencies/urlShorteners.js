@@ -1,7 +1,6 @@
 /**
  * An array of match patterns for known URL shorteners.
- * @constant
- * @type {Array<string>}
+ * @constant {string[]}
  */
 export const urlShortenerMatchPatterns = [
     "*://0rz.tw/*",

@@ -13,6 +13,10 @@ import * as pageManager from "./pageManager.js";
 import * as inline from "./inline.js";
 import linkExposureContentScript from "./content-scripts/linkExposure.content.js";
 
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("linkExposure");
 
 // TODO: significant documentation updates
@@ -28,34 +32,66 @@ const debugLog = debugging.getDebuggingLog("linkExposure");
  * there is no referrer.
  * @property {number} pageVisitStartTime - The time when the underlying event fired.
  * @property {boolean} privateWindow - Whether the page is in a private window.
- * @interface
  */
 
 /**
  * A callback function for the page data event.
- * @callback linkExposureCallback
+ * @callback linkExposureListener
  * @param {LinkExposureDetails} details - Additional information about the page data event.
  */
 
-
 /**
- * Options when adding a link exposure event listener.
  * @typedef {Object} LinkExposureOptions
- * @property {Array<string>} [linkMatchPatterns=[]] - The links of interest for the measurement, specified with WebExtensions match patterns.
- * @property {Array<string>} [pageMatchPatterns=[]] - The pages (on which links occur) of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {string[]} [linkMatchPatterns=[]] - The links of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {string[]} [pageMatchPatterns=[]] - The pages (on which links occur) of interest for the measurement, specified with WebExtensions match patterns.
  * @property {boolean} [privateWindows=false] - Whether to measure links in private windows.
  */
 
 /**
- * Function to start measurement when a listener is added
- * TODO: deal with multiple listeners with different match patterns
- * @param {linkExposureCallback} listener - new listener being added
- * @param {LinkExposureOptions} options - configuration for the events to be sent to this listener
+ * @callback LinkExposureAddListener
+ * @param {linkExposureListener} listener - The listener to add.
+ * @param {LinkExposureOptions} options - Options for the listener.
+ */
+
+/**
+ * @callback LinkExposureRemoveListener
+ * @param {linkExposureListener} listener - The listener to remove.
+ */
+
+/**
+ * @callback LinkExposureHasListener
+ * @param {linkExposureListener} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * @callback LinkExposureHasAnyListeners
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
+ * @typedef {Object} LinkExposureEvent
+ * @property {LinkExposureAddListener} addListener - Add a listener for idle state changes.
+ * @property {LinkExposureRemoveListener} removeListener - Remove a listener for idle state changes.
+ * @property {LinkExposureHasListener} hasListener - Whether a specified listener has been added.
+ * @property {LinkExposureHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
+ */
+
+/**
+ * Function to start measurement when a listener is added.
+ * TODO: deal with multiple listeners with different match patterns.
+ * @param {linkExposureCallback} listener - The new listener being added.
+ * @param {LinkExposureOptions} options - Configuration for the events to be sent to this listener.
+ * @private
  */
 function addListener(listener, options) {
     startMeasurement(options);
 }
 
+/**
+ * TODO: refactor untracked link events into onLinkExposure
+ * @private
+ */
 function addListenerUntracked(listener, options) {
     if (!onLinkExposure.hasAnyListeners()) {
         throw new Error("Cannot register listener for untracked links without listener for tracked");
@@ -63,8 +99,9 @@ function addListenerUntracked(listener, options) {
 }
 
 /**
- * Function to end measurement when the last listener is removed
- * @param {linkExposureCallback} listener - listener that was just removed
+ * Function to end measurement when the last listener is removed.
+ * @param {linkExposureCallback} listener - The listener that is being removed.
+ * @private
  */
 function removeListener(listener) {
     if (!onLinkExposure.hasAnyListeners() && !onUntracked.hasAnyListeners()) {
@@ -73,7 +110,7 @@ function removeListener(listener) {
 }
 
 /**
- * @type {events.Event<linkExposureCallback, LinkExposureOptions>}
+ * @constant {LinkExposureEvent}
  */
 export const onLinkExposure = events.createEvent({
     addListenerCallback: addListener,
@@ -86,18 +123,16 @@ export const onUntracked = events.createEvent({
 let initialized = false;
 
 /**
- * A RegisteredContentScript object that can be used to unregister the CS
- * @type {RegisteredContentScript}
+ * A RegisteredContentScript object that can be used to unregister the content script.
+ * @type {browser.contentScripts.RegisteredContentScript}
  * @private
  */
 let registeredCS = null;
 
 /**
  * Start a link exposure measurement. Note that only one measurement is currently supported per extension.
- * @param {Object} options - A set of options for the measurement.
- * @param {string[]} [options.linkMatchPatterns=[]] - The links to measure, specified with WebExtensions match patterns.
- * @param {string[]} [options.pageMatchPatterns=[]] - The pages where links should be measured, specified with WebExtensions match patterns.
- * @param {boolean} [options.privateWindows=false] - Whether to measure on pages in private windows.
+ * @param {LinkExposureOptions} options - A set of options for the measurement.
+ * @private
  */
 async function startMeasurement({
     linkMatchPatterns = [],
@@ -190,15 +225,20 @@ async function startMeasurement({
     initialized = true;
 }
 
+/**
+ * @private
+ */
 function stopMeasurement() {
-    if (registeredCS) registeredCS.unregister();
+    if (registeredCS) {
+        registeredCS.unregister();
+    }
     registeredCS = null;
 }
 
 /* Utilities */
 
 /**
- *
+ * Convert an exposure event from the content script to an exposure event for listeners.
  * @param {Object} exposureEvent link exposure event to store
  * @param {string} exposureEvent.originalUrl - link exposed to
  * @param {string} exposureEvent.resolvedUrl - optional field which is set if the isShortenedUrl and resolutionSucceeded are true
@@ -207,9 +247,9 @@ function stopMeasurement() {
  * @param {number} exposureEvent.firstSeen - timestamp when the link is first seen
  * @param {number} exposureEvent.duration - milliseconds of link exposure
  * @param {Object} exposureEvent.size - width and height of links
- * @param {storage.Counter} nextLinkExposureIdCounter - counter object
+ * @private
  */
-async function createLinkExposureRecord(exposureEvent, nextLinkExposureIdCounter) {
+async function createLinkExposureRecord(exposureEvent) {
     exposureEvent.type = "linkExposure";
     exposureEvent.url = (exposureEvent.isShortenedUrl && exposureEvent.resolutionSucceded ?
                          matching.normalizeUrl(exposureEvent.resolvedUrl) :

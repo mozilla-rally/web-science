@@ -114,8 +114,7 @@
     }
     /**
      * How often (in milliseconds) to check the page for new links.
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const updateInterval = 2000;
 
@@ -128,36 +127,31 @@
     /**
      * Ignore links where the link hostname is identical to the page hostname.
      * TODO: Implement support for comparing public suffix + 1 domains.
-     * @constant
-     * @type {boolean}
+     * @constant {boolean}
      */
     const ignoreSelfLinks = true;
 
     /**
      * The minimum duration (in milliseconds) that a link must be visible to treat it as an exposure.
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const linkVisibilityDuration = 5000;
 
     /**
      * The minimum width (in pixels from `Element.getBoundingClientRect()`) that a link must have to treat it as an exposure.
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const linkMinimumWidth = 25;
 
     /**
      * The minimum height (in pixels from `Element.getBoundingClientRect()`) that a link must have to treat it as an exposure.
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const linkMinimumHeight = 15;
 
     /**
      * The minimum visibility (as a proportion of element size from `IntersectionObserverEntry.intersectionRatio`) that a link must have to treat it as an exposure.
-     * @constant
-     * @type {number}
+     * @constant {number}
      */
     const linkMinimumVisibility = 0.7;
 
@@ -220,8 +214,7 @@
 
     /**
      * A RegExp for matching URLs that have had Facebook's link shim applied.
-     * @constant
-     * @type {RegExp}
+     * @constant {RegExp}
      */
     const facebookLinkShimRegExp = /^https?:\/\/l.facebook.com\/l\.php\?u=/;
 
@@ -429,7 +422,7 @@
 
     /**
      * An IntersectionObserver callback for anchor elements.
-     * @param {Array<IntersectionObserverEntry>} entries - Updates from the IntersectionObserver that is observing anchor elements.
+     * @param {IntersectionObserverEntry[]} entries - Updates from the IntersectionObserver that is observing anchor elements.
      */
     function anchorObserverCallback(entries) {
         const timeStamp = Date.now();

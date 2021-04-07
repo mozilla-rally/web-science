@@ -45,7 +45,7 @@ import * as events from "./events.js";
 /**
  * The number of seconds in a day.
  * @private
- * @const {number}
+ * @constant {number}
  * @default
  */
 const secondsPerDay = 86400;
@@ -55,7 +55,7 @@ const secondsPerDay = 86400;
  * firing idle daily and idle weekly events. This is the same value
  * (180 seconds = 3 minutes) used in the Firefox `nsIdleService`.
  * @private
- * @const {number}
+ * @constant {number}
  * @default
  */
 const idleIntervalInSeconds = 180;
@@ -68,7 +68,7 @@ const idleIntervalInSeconds = 180;
  * same value (60 seconds = 1 minute) used in the Firefox
  * `nsIdleService`.
  * @private
- * @const {number}
+ * @constant {number}
  * @default
  */
 const shortenedIdleIntervalInSeconds = 60;
@@ -79,7 +79,7 @@ const shortenedIdleIntervalInSeconds = 60;
  * interval. This is the same value (86400 seconds = 1 day) used
  * in the Firefox `nsIdleService`.
  * @private
- * @const {number}
+ * @constant {number}
  * @default [secondsPerDay]
  */
 const shortenedIdleIntervalThresholdInSeconds = secondsPerDay;
@@ -119,8 +119,7 @@ let timeoutId = -1;
 
 /**
  * An event that fires about once a day, when the browser is idle.
- * @constant
- * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
+ * @constant {events.Event<events.callbackWithoutParameters, undefined>}
  */
 export const onIdleDaily = events.createEvent({
     addListenerCallback: function() { initialize(); }
@@ -128,8 +127,7 @@ export const onIdleDaily = events.createEvent({
 
 /**
  * An event that fires about once a week, when the browser is idle.
- * @constant
- * @type {Events.EventWithoutOptions<Events.callbackWithoutParameters>}
+ * @constant {events.Event<events.callbackWithoutParameters, undefined>}
  */
 export const onIdleWeekly = events.createEvent({
     addListenerCallback: function() { initialize(); }
