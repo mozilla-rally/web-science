@@ -5,15 +5,13 @@
  * @module webScience.id
  */
 
+import { v4 as uuidv4 } from 'uuid';
+
 /**
-* Generate an ID, a random 128-bit value represented as a hexadecimal string.
-* @returns {string} The new random ID.
-*/
+ * Generate a random (v4) UUID, consistent with RFC4122. These values
+ * include 122 bits of cryptographic randomness.
+ * @returns {string} The new UUID.
+ */
 export function generateId() {
-    const idBytes = window.crypto.getRandomValues(new Uint8Array(16));
-    return Array.from(idBytes, (byte) => {
-        if(byte < 16)
-            return "0" + byte.toString(16);
-        return byte.toString(16);
-    }).join("");
+    return uuidv4();
 }
