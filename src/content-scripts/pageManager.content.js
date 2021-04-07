@@ -102,6 +102,8 @@
  * @module webScience.pageManager.content
  */
 
+import { generateId } from "../id.js";
+
 // IIFE wrapper to allow early return
 (function () {
 
@@ -119,20 +121,6 @@
     }
     window.webScience.pageManager = { };
     const pageManager = window.webScience.pageManager;
-
-    /**
-    * Generate a page ID, a random 128-bit value represented as a hexadecimal string.
-    * @private
-    * @returns {string} The new page ID.
-    */
-    function generatePageId() {
-        const pageIdBytes = window.crypto.getRandomValues(new Uint8Array(16));
-        return Array.from(pageIdBytes, (byte) => {
-            if(byte < 16)
-                return "0" + byte.toString(16);
-            return byte.toString(16);
-        }).join("");
-    }
 
     /**
      * Returns a copy of the URL string from `window.location.href`, without any
@@ -381,7 +369,7 @@
      */
     function pageVisitStart(timeStamp, isHistoryChange = false) {
         // Assign a new page ID
-        pageManager.pageId = generatePageId();
+        pageManager.pageId = generateId();
         // Store a copy of the URL, because we use it to check for History API page loads
         pageManager.url = locationHrefWithoutHash();
         // Store a copy of the referrer for convenience
