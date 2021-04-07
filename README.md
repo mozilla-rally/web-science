@@ -39,7 +39,7 @@ We will have documentation for the WebScience API online shortly. In the interim
 | ------------------------ | --------------------------- | ------------------ | ------------------ | ------------------ |
 | `debugging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `events`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `id`                     | :x: [#19](https://github.com/mozilla-rally/web-science/issues/19)                         | :white_check_mark: | :white_check_mark: | :x:                |
+| `id`                     | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `idle`                   | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `inline`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `linkExposure`           | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                         | :white_check_mark: | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)               | :x:                |
