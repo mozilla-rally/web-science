@@ -413,7 +413,7 @@ function deduplicateUrls(urls) {
 /**
  * Check whether a given token is a known short url, and resolve if so.
  * @param {string} url - a token that might be a short url
- * @return {string} - the resolved short url, or the original token if it was not a short url
+ * @returns {string} - the resolved short url, or the original token if it was not a short url
  * @private
  */
 async function expandShortUrl(token) {
@@ -483,7 +483,7 @@ function checkTwitterAccountStatus() {
  * or enclosed in quotes or parantheses. Most URLs don't end in such punctuation,
  * and we will fail to match these URLs without stripping the extraneous characters.
  * @param {string} token - text to have punctuation stripped
- * @return {string} - the token with leading and trailing punctuation stripped.
+ * @returns {string} - the token with leading and trailing punctuation stripped.
  * @private
  */
 function stripToken(token) {

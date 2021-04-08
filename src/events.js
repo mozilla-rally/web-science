@@ -94,7 +94,7 @@ class Event {
     /**
      * A function that checks whether a particular event listener has been added.
      * @param {EventCallbackFunction} listener - The listener function to check.
-     * @return {boolean} Whether the listener function has been added.
+     * @returns {boolean} Whether the listener function has been added.
      */
     hasListener(listener) {
         return this.listeners.has(listener);
@@ -102,7 +102,7 @@ class Event {
 
     /**
      * Checks whether there are any listeners registered.
-     * @return {boolean} Whether there are any listeners
+     * @returns {boolean} Whether there are any listeners
      */
     hasAnyListeners() {
         return this.listeners.size > 0;
@@ -115,7 +115,7 @@ class Event {
      * @param {Array} listenerArguments - The arguments that would be passed to the listener
      * function.
      * @param {EventOptions} options - The options that the listener was added with.
-     * @return {boolean} Whether to call the listener function.
+     * @returns {boolean} Whether to call the listener function.
      */
 
     /**

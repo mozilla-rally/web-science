@@ -81,6 +81,59 @@ export const ampRegExp = new RegExp(
     , "i");
 
 /**
+ * A RegExp for matching URLs that have had Facebook's link shim applied.
+ * @constant {RegExp}
+ */
+export const facebookLinkShimRegExp = /^https?:\/\/l.facebook.com\/l\.php\?u=/;
+
+/**
+ * Parse a URL from Facebook's link shim, if the shim was applied to the URL.
+ * @param {string} url - A URL that may have Facebook's link shim applied.
+ * @returns {string} If Facebook's link shim was applied to the URL, the unshimmed URL. Otherwise, just the URL.
+ */
+export function parseFacebookLinkShim(url) {
+    if(!facebookLinkShimRegExp.test(url))
+        return url;
+
+    // Extract the original URL from the "u" parameter
+    const urlObject = new URL(url);
+    const uParamValue = urlObject.searchParams.get('u');
+    if(uParamValue === null)
+        return url;
+    return uParamValue;
+}
+
+/**
+ * Remove Facebook link decoration (the `fbclid` paramater) from a URL, if present.
+ * @param {string} url  - A URL that may have Facebook link decoration.
+ * @returns {string} The URL without Facebook link decoration.
+ */
+export function removeFacebookLinkDecoration(url) {
+    const urlObj = new URL(url);
+    urlObj.searchParams.delete("fbclid");
+    return urlObj.href;
+}
+
+/**
+ * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.
+ * @param {string} url - A URL that may be an AMP cache or viewer URL.
+ * @returns {string} If the URL is an AMP cache or viewer URL, the parsed underlying URL. Otherwise, just the URL.
+ */
+export function parseAmpUrl(url) {
+    if(!ampRegExp.test(url))
+        return url;
+    const parsedAmpUrl = ampRegExp.exec(url);
+    // Reconstruct AMP cache URLs
+    if(parsedAmpUrl.groups.ampCacheUrl !== undefined)
+        return "http" +
+            ((parsedAmpUrl.groups.ampCacheIsSecure === "s") ? "s" : "") +
+            "://" +
+            parsedAmpUrl.groups.ampCacheUrl;
+    // Reconstruct AMP viewer URLs, assuming the protocol is HTTPS
+    return "https://" + parsedAmpUrl.groups.ampViewerUrl;
+}
+
+/**
  * Resolve a shortened or shimmed URL to an original URL, by recursively resolving the URL and removing shims.
  * @param {string} url - The URL to resolve.
  * @returns {Promise<string>} - A Promise that either resolves to the original URL or is rejected with an error.

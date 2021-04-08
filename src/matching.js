@@ -524,7 +524,7 @@ export function domainsToRegExp(domains, matchSubdomains = true) {
  *   * Remove query parameters, if any. For example, https://www.mozilla.org/?foo becomes https://www.mozilla.org/.
  *   * Remove the fragment identifier, if any. For example, https://www.mozilla.org/#foo becomes https://www.mozilla.org/.
  * @param {string} url - The URL string to normalize.
- * @return {string} The normalized URL string.
+ * @returns {string} The normalized URL string.
  * @throws {Error} Throws an error if the URL string is not a valid, absolute URL.
  */
 export function normalizeUrl(url) {
