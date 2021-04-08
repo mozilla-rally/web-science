@@ -11,7 +11,14 @@ import * as matching from "./matching.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
 import * as inline from "./inline.js";
+import * as permissions from "./permissions.js";
 import linkExposureContentScript from "./content-scripts/linkExposure.content.js";
+
+permissions.check({
+    module: "webScience.linkExposure",
+    requiredPermissions: [ "storage" ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
 
 /**
  * @constant {debugging.debuggingLogger}

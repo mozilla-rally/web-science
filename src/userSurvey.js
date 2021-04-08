@@ -32,8 +32,14 @@ import * as id from "./id.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
 import * as inline from "./inline.js";
+import * as permissions from "./permissions.js";
 import popupPromptPage from "./html/userSurvey.popupPrompt.html";
 import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
+
+permissions.check({
+    module: "webScience.userSurvey",
+    requiredPermissions: [ "notifications", "webRequest" ]
+});
 
 /**
  * A persistent storage space for data about surveys.
