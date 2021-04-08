@@ -5,6 +5,14 @@
  * @module webScience.randomization
  */
 
+import * as permissions from "./permissions.js";
+
+permissions.check({
+    module: "webScience.linkExposure",
+    requiredPermissions: [ "storage" ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
+
 /**
  * A condition for a measurement or intervention that can be randomly selected.
  * @typedef {Object} Condition

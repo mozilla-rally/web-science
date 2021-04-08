@@ -33,7 +33,7 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
 /**
  * Options when adding a page data event listener.
  * @typedef {Object} PageDataOptions
- * @property {string[]} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {string[]} [matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
  * @property {boolean} [privateWindows=false] - Whether to measure pages in private windows.
  */
 
@@ -122,18 +122,21 @@ async function startMeasurement({
         runAt: "document_start"
     });
 
-    messaging.registerListener("webScience.pageNavigation.pageData", pageDataListener,
+    messaging.onMessage.addListener(pageDataListener,
     {
-        pageId: "string",
-        url: "string",
-        referrer: "string",
-        pageVisitStartTime: "number",
-        pageVisitStopTime: "number",
-        attentionDuration: "number",
-        audioDuration: "number",
-        attentionAndAudioDuration: "number",
-        maxRelativeScrollDepth: "number",
-        privateWindow: "boolean"
+        type: "webScience.pageNavigation.pageData",
+        schema: {
+            pageId: "string",
+            url: "string",
+            referrer: "string",
+            pageVisitStartTime: "number",
+            pageVisitStopTime: "number",
+            attentionDuration: "number",
+            audioDuration: "number",
+            attentionAndAudioDuration: "number",
+            maxRelativeScrollDepth: "number",
+            privateWindow: "boolean"
+        }
     });
 }
 
@@ -142,7 +145,7 @@ async function startMeasurement({
  * @private
  */
 function stopMeasurement() {
-    messaging.unregisterListener("webScience.pageNavigation.pageData", pageDataListener)
+    messaging.onMessage.removeListener(pageDataListener);
     registeredContentScript.unregister();
     registeredContentScript = null;
     notifyAboutPrivateWindows = false;

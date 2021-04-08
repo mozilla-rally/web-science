@@ -3,11 +3,23 @@
  *
  * @module webScience.socialMediaActivity
  */
-import * as debugging from "./debugging.js"
-import * as messaging from "./messaging.js"
-import * as inline from "./inline.js"
-import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js"
-import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js"
+import * as debugging from "./debugging.js";
+import * as messaging from "./messaging.js";
+import * as inline from "./inline.js";
+import * as permissions from "./permissions";
+import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js";
+import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js";
+
+permissions.check({
+    module: "webScience.socialMediaActivity",
+    requiredPermissions: [ "webRequest" ],
+    requiredOrigins: [
+        "*://*.facebook.com/*",
+        "*://*.twitter.com/*",
+        "*://*.reddit.com/*"
+    ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
 
 /**
  * @constant {debugging.debuggingLogger}
@@ -547,12 +559,12 @@ function tweetContentInit() {
 async function fbPostContentInit() {
     if (fbPostContentSetUp) { return; }
     fbPostContentSetUp = true;
-    messaging.registerListener("webScience.socialMediaActivity",
+    messaging.onMessage.addListener(
         (message, sender) => {
             if (message.platform == "facebook") {
                 facebookTabId = sender.tab.id;
             }
-        });
+        }, { type: "webScience.socialMediaActivity" });
     // Register the content script that will find posts inside the page when reshares happen
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],

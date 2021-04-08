@@ -69,7 +69,7 @@ function resultReceiver(result) {
  * @private
  */
  function listenForContentScriptMessages() {
-    messaging.registerListener("webScience.pageClassification.pageContent", (pageContent, sender) => {
+    messaging.onMessage.addListener((pageContent, sender) => {
         if (!("tab" in sender)) {
             debugLog("Warning: unexpected message");
             return;
@@ -87,7 +87,7 @@ function resultReceiver(result) {
                 });
             }
         }
-    });
+    }, { type: "webScience.pageClassification.pageContent" });
 }
 
 export const onClassificationResult = new events.createEvent({

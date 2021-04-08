@@ -11,7 +11,14 @@ import * as matching from "./matching.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
 import * as inline from "./inline.js";
+import * as permissions from "./permissions.js";
 import linkExposureContentScript from "./content-scripts/linkExposure.content.js";
+
+permissions.check({
+    module: "webScience.linkExposure",
+    requiredPermissions: [ "storage" ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
 
 /**
  * @constant {debugging.debuggingLogger}
@@ -172,7 +179,7 @@ async function startMeasurement({
     });
 
     // Listen for linkExposure messages from content script
-    messaging.registerListener("webScience.linkExposure.exposureData", (exposureData) => {
+    messaging.onMessage.addListener((exposureData) => {
         // If the message is from a private window and the module isn't configured to measure
         // private windows, ignore the message
         if(exposureData.privateWindow && !privateWindows)
@@ -213,13 +220,16 @@ async function startMeasurement({
         });
 
     }, {
-        pageId: "string",
-        pageUrl: "string",
-        pageReferrer: "string",
-        pageVisitStartTime: "number",
-        privateWindow: "boolean",
-        nonmatchingLinkExposures: "number",
-        linkExposures: "object"
+        type: "webScience.linkExposure.exposureData",
+        schema: {
+            pageId: "string",
+            pageUrl: "string",
+            pageReferrer: "string",
+            pageVisitStartTime: "number",
+            privateWindow: "boolean",
+            nonmatchingLinkExposures: "number",
+            linkExposures: "object"
+        }
     });
 
     initialized = true;

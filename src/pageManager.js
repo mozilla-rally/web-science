@@ -126,7 +126,14 @@ import * as events from "./events.js";
 import * as idle from "./idle.js";
 import * as messaging from "./messaging.js";
 import * as inline from "./inline.js";
+import * as permissions from "./permissions.js";
 import pageManagerContentScript from "./content-scripts/pageManager.content.js";
+
+permissions.check({
+    module: "webScience.pageManager",
+    requiredPermissions: [ "webNavigation" ],
+    suggestedOrigins: [ "<all_urls>" ]
+});
 
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,
@@ -362,7 +369,7 @@ export async function initialize() {
 
     // The content script sends a webScience.pageManger.pageVisitStart message when
     // there is a page visit start event
-    messaging.registerListener("webScience.pageManager.pageVisitStart", (pageVisitStartInfo, sender) => {
+    messaging.onMessage.addListener((pageVisitStartInfo, sender) => {
         // Notify the content script if it has attention
         // We can't send this message earlier (e.g., when the tab URL changes) because we need to know the content
         // script is ready to receive the message
@@ -380,19 +387,22 @@ export async function initialize() {
             isHistoryChange: pageVisitStartInfo.isHistoryChange
         });
     }, {
-        pageId: "string",
-        url: "string",
-        referrer: "string",
-        timeStamp: "number",
-        privateWindow: "boolean",
-        isHistoryChange: "boolean"
+        type: "webScience.pageManager.pageVisitStart",
+        schema: {
+            pageId: "string",
+            url: "string",
+            referrer: "string",
+            timeStamp: "number",
+            privateWindow: "boolean",
+            isHistoryChange: "boolean"
+        }
     });
 
     // The content script sends a webScience.pageManger.pageVisitStop message when
     // there is a page visit stop event
     // We don't currently include tab or window information with the page visit stop event
     // because the sender object doesn't include that information when the tab is closing
-    messaging.registerListener("webScience.pageManager.pageVisitStop", (pageVisitStopInfo) => {
+    messaging.onMessage.addListener((pageVisitStopInfo) => {
         pageVisitStop({
             pageId: pageVisitStopInfo.pageId,
             url: pageVisitStopInfo.url,
@@ -402,12 +412,15 @@ export async function initialize() {
             privateWindow: pageVisitStopInfo.privateWindow
         });
     }, {
-        pageId: "string",
-        url: "string",
-        referrer: "string",
-        timeStamp: "number",
-        pageVisitStartTime: "number",
-        privateWindow: "boolean"
+        type: "webScience.pageManager.pageVisitStop",
+        schema: {
+            pageId: "string",
+            url: "string",
+            referrer: "string",
+            timeStamp: "number",
+            pageVisitStartTime: "number",
+            privateWindow: "boolean"
+        }
     });
 
     // The background script sends a webScience.pageManager.pageAttentionUpdate message

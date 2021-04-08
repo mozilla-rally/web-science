@@ -32,8 +32,14 @@ import * as id from "./id.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
 import * as inline from "./inline.js";
+import * as permissions from "./permissions.js";
 import popupPromptPage from "./html/userSurvey.popupPrompt.html";
 import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
+
+permissions.check({
+    module: "webScience.userSurvey",
+    requiredPermissions: [ "notifications", "webRequest" ]
+});
 
 /**
  * A persistent storage space for data about surveys.
@@ -201,11 +207,11 @@ export async function setSurvey(options) {
     );
 
     // Set listeners for cancel and open survey button clicks in the survey request
-    messaging.registerListener("webScience.userSurvey.cancelSurvey", () => {
+    messaging.onMessage.addListener(() => {
         storageSpace.set("surveyCancelled", true);
         setPopupToNoPromptPage();
-    });
-    messaging.registerListener("webScience.userSurvey.openSurvey", openSurveyInNewTab);
+    }, { type: "webScience.userSurvey.cancelSurvey" });
+    messaging.onMessage.addListener(openSurveyInNewTab, { type: "webScience.userSurvey.openSurvey" });
 }
 
 /**

@@ -6,6 +6,14 @@
  * @module webScience.storage
  */
 
+import * as permissions from "./permissions.js";
+
+permissions.check({
+    module: "webScience.storage",
+    requiredPermissions: [ "storage" ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
+
 /**
  * Create a key-value storage area.
  * @param {string} storageAreaName - A name that uniquely identifies the storage area.
