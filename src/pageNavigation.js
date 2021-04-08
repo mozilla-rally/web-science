@@ -122,18 +122,21 @@ async function startMeasurement({
         runAt: "document_start"
     });
 
-    messaging.registerListener("webScience.pageNavigation.pageData", pageDataListener,
+    messaging.onMessage.addListener(pageDataListener,
     {
-        pageId: "string",
-        url: "string",
-        referrer: "string",
-        pageVisitStartTime: "number",
-        pageVisitStopTime: "number",
-        attentionDuration: "number",
-        audioDuration: "number",
-        attentionAndAudioDuration: "number",
-        maxRelativeScrollDepth: "number",
-        privateWindow: "boolean"
+        type: "webScience.pageNavigation.pageData",
+        schema: {
+            pageId: "string",
+            url: "string",
+            referrer: "string",
+            pageVisitStartTime: "number",
+            pageVisitStopTime: "number",
+            attentionDuration: "number",
+            audioDuration: "number",
+            attentionAndAudioDuration: "number",
+            maxRelativeScrollDepth: "number",
+            privateWindow: "boolean"
+        }
     });
 }
 
@@ -142,7 +145,7 @@ async function startMeasurement({
  * @private
  */
 function stopMeasurement() {
-    messaging.unregisterListener("webScience.pageNavigation.pageData", pageDataListener)
+    messaging.onMessage.removeListener(pageDataListener);
     registeredContentScript.unregister();
     registeredContentScript = null;
     notifyAboutPrivateWindows = false;

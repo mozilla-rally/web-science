@@ -547,12 +547,12 @@ function tweetContentInit() {
 async function fbPostContentInit() {
     if (fbPostContentSetUp) { return; }
     fbPostContentSetUp = true;
-    messaging.registerListener("webScience.socialMediaActivity",
+    messaging.onMessage.addListener(
         (message, sender) => {
             if (message.platform == "facebook") {
                 facebookTabId = sender.tab.id;
             }
-        });
+        }, { type: "webScience.socialMediaActivity" });
     // Register the content script that will find posts inside the page when reshares happen
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
