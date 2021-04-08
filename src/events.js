@@ -77,6 +77,7 @@ class Event {
      * A callback function that is called immediately after a listener function is removed.
      * @callback removeListenerCallback
      * @param {EventCallbackFunction} listener - The listener function to remove.
+     * @param {EventOptions} options - The options that the listener was added with.
      */
 
     /**
@@ -84,10 +85,10 @@ class Event {
      * @param {EventCallbackFunction} listener - The listener function to remove.
      */
     removeListener(listener) {
-        this.listeners.delete(listener);
         if(this.removeListenerCallback !== null) {
-            this.removeListenerCallback(listener);
+            this.removeListenerCallback(listener, this.listeners.get(listener));
         }
+        this.listeners.delete(listener);
     }
 
     /**

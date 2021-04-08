@@ -207,11 +207,11 @@ export async function setSurvey(options) {
     );
 
     // Set listeners for cancel and open survey button clicks in the survey request
-    messaging.registerListener("webScience.userSurvey.cancelSurvey", () => {
+    messaging.onMessage.addListener(() => {
         storageSpace.set("surveyCancelled", true);
         setPopupToNoPromptPage();
-    });
-    messaging.registerListener("webScience.userSurvey.openSurvey", openSurveyInNewTab);
+    }, { type: "webScience.userSurvey.cancelSurvey" });
+    messaging.onMessage.addListener(openSurveyInNewTab, { type: "webScience.userSurvey.openSurvey" });
 }
 
 /**
