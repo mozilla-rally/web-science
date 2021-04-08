@@ -7,7 +7,6 @@
     },
     "dependencies": {
         "@mozilla/readability": "^0.4.1",
-        "dexie": "^3.0.3",
         "uuid": "^8.3.2"
     },
     "devDependencies": {
@@ -15,7 +14,6 @@
         "@rollup/plugin-commonjs": "17.1.0",
         "@rollup/plugin-node-resolve": "^11.2.0",
         "@rollup/plugin-url": "^6.0.0",
-        "dexie": "^3.0.3",
         "eslint": "^7.22.0",
         "eslint-plugin-import": "^2.22.1",
         "eslint-plugin-mocha": "^8.1.0",
