@@ -126,7 +126,14 @@ import * as events from "./events.js";
 import * as idle from "./idle.js";
 import * as messaging from "./messaging.js";
 import * as inline from "./inline.js";
+import * as permissions from "./permissions.js";
 import pageManagerContentScript from "./content-scripts/pageManager.content.js";
+
+permissions.check({
+    module: "webScience.pageManager",
+    requiredPermissions: [ "webNavigation" ],
+    suggestedOrigins: [ "<all_urls>" ]
+});
 
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,

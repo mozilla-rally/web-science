@@ -39,6 +39,12 @@
  */
 
 import * as events from "./events.js";
+import * as permissions from "./permissions.js";
+
+permissions.check({
+    module: "webScience.idle",
+    requiredPermissions: [ "idle" ]
+});
 
 /**
  * The minimum idle state detection interval (in seconds) supported by

@@ -3,11 +3,23 @@
  *
  * @module webScience.socialMediaActivity
  */
-import * as debugging from "./debugging.js"
-import * as messaging from "./messaging.js"
-import * as inline from "./inline.js"
-import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js"
-import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js"
+import * as debugging from "./debugging.js";
+import * as messaging from "./messaging.js";
+import * as inline from "./inline.js";
+import * as permissions from "./permissions";
+import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js";
+import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js";
+
+permissions.check({
+    module: "webScience.socialMediaActivity",
+    requiredPermissions: [ "webRequest" ],
+    requiredOrigins: [
+        "*://*.facebook.com/*",
+        "*://*.twitter.com/*",
+        "*://*.reddit.com/*"
+    ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
 
 /**
  * @constant {debugging.debuggingLogger}

@@ -8,7 +8,14 @@
  * @module webScience.storage
  */
 
+import * as permissions from "./permissions.js";
 import Dexie from 'dexie';
+
+permissions.check({
+    module: "webScience.storage",
+    requiredPermissions: [ "storage" ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
 
 /**
  * Create a key-value storage area.

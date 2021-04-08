@@ -3,8 +3,15 @@
  * @module webScience.linkResolution
  */
 import * as matching from "./matching.js";
+import * as permissions from "./permissions.js";
 import { urlShortenerMatchPatterns } from "./dependencies/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "./dependencies/ampCachesAndViewers.js";
+
+permissions.check({
+    module: "webScience.linkResolution",
+    requiredPermissions: [ "webRequest" ],
+    suggestedOrigins: [ "<all_urls>" ]
+});
 
 /**
  * The timeout for fetch when resolving a link.
