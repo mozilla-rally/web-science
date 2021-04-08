@@ -1,15 +1,12 @@
 /**
- * This module provides convenient storage abstractions. Implementing storage in
- * a utility module, rather than directly calling browser storage APIs, avoids code
- * duplication and allows us to swap out the underlying storage implementation if
- * needed (e.g., switching from localforage to Dexie, or directly using browser
- * storage APIs).
+ * This module provides convenient storage abstractions on top of extension local
+ * storage. These abstractions minimize code duplication and opportunities for
+ * error, and allow us to switch the underlying storage implementation in future.
  *
  * @module webScience.storage
  */
 
 import * as permissions from "./permissions.js";
-import Dexie from 'dexie';
 
 permissions.check({
     module: "webScience.storage",
@@ -20,93 +17,63 @@ permissions.check({
 /**
  * Create a key-value storage area.
  * @param {string} storageAreaName - A name that uniquely identifies the storage area.
- * @param {string[]} storeNames - A list of names of stores.
- * @param {string} defaultStore - If store names are given, which one should be the default in future interactions.
- * @returns - The new KeyValueStorage object.
- * @example var exampleStorage = await (new KeyValueStorage("exampleName"));
+ * @returns {KeyValueStorage} The new KeyValueStorage object.
+ * @example const exampleStorage = createKeyValueStorage("exampleName"));
  */
-export function createKeyValueStorage(storageAreaName, storeNames=["default"], defaultStore = "") {
-    return new KeyValueStorage(storageAreaName, storeNames, defaultStore);
+export function createKeyValueStorage(storageAreaName) {
+    return new KeyValueStorage(storageAreaName);
 }
 
 /**
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types.
+ * @private
  */
 class KeyValueStorage {
     /**
-     * Create a key-value storage area. Only a name for the storage area is required.
-     * Storage is implemented using the Dexie wrapper for IndexedDB. Clients that wish to
-     * have multiple independent Dexie stores within this storage area can specify them with
-     * the `storeNames` parameter. If none are specified, the module will create a default store
-     * and use that store for future interactions.
+     * Create a key-value storage area. Storage is implemented with extension local storage.
      * @param {string} storageAreaName - A name that uniquely identifies the storage area.
-     * @param {string[]} storeNames - A list of names of stores.
-     * @param {string} defaultStore - If store names are given, which one should be the default in future interactions.
-     * @example var exampleStorage = await (new KeyValueStorage("exampleName"));
      * @private
      */
-    constructor(storageAreaName, storeNames=["default"], defaultStore = "") {
+    constructor(storageAreaName) {
         this.storageAreaName = storageAreaName;
-        const stores = {};
-        for (const storeName in storeNames) stores[storeNames[storeName]] = "key";
-
-        this.defaultStore = defaultStore === "" ? Object.keys(stores)[0] : defaultStore;
-
-        this.storageInstance = new Dexie(this.storageAreaName);
-        this.storageInstance.version(1).stores(stores);
         return this;
     }
 
     /**
+     * Convert a key used in a storage area to a key in extension local storage. 
+     * @param {string} key - The key used in the storage area.
+     * @returns {string} A key in extension local storage.
+     */
+    keyToExtensionLocalStorageKey(key) {
+        return `webScience.storage.keyValueStorage.${this.storageAreaName}.${key}`;
+    } 
+
+    /**
      * Get a value from storage.
      * @param {string} key - The key to use in the storage area.
-     * @param {string} store - The name of the store from which to access the key
-     * @returns {Promise<Array>|Promise<ArrayBuffer>|Promise<Blob>|Promise<Float32Array>|Promise<Float64Array>|
-     * Promise<Int8Array>|Promise<Int16Array>|Promise<Int32Array>|Promise<Number>|Promise<Object>|Promise<Uint8Array>|
-     * Promise<Uint8ClampedArray>|Promise<Uint16Array>|Promise<Uint32Array>|Promise<string>} The value in the
-     * storage area for the key, or `null` if the key is not in storage.
+     * @returns {*} The value in the storage area, or null if the value is not
+     * in the storage area.
      */
-    async get(key, store="") {
-        const result = await this.storageInstance[store == "" ? this.defaultStore : store].get(key);
-        if (result) return result.value;
-        return null;
+    async get(key) {
+        const storageResult = await browser.storage.local.get({ [this.keyToExtensionLocalStorageKey(key)]: null });
+        return storageResult[this.keyToExtensionLocalStorageKey(key)];
     }
 
     /**
      * Set a value in storage.
      * @param {string} key - The key to use in the storage area.
-     * @param {(Array|ArrayBuffer|Blob|Float32Array|Float64Array|Int8Array|Int16Array|Int32Array|
-     * Number|Object|Uint8Array|Uint8ClampedArray|Uint16Array|Uint32Array|string)} value - The value
-     * to store in the storage area for the key.
-     * @param {string} store - The name of the store where the pair should be placed
+     * @param {*} value - The value to store in the storage area for the key.
      */
-    async set(key, value, store="") {
-        await this.storageInstance[store == "" ? this.defaultStore : store].put({key: key, value: value});
-    }
-
-    /**
-     * Create an object where with a property-value pair for each key-value pair in the storage area.
-     * Note that this could be slow and consume excessive memory if the storage area contains a lot
-     * of data.
-     * @param {string} The store whose contents to return
-     * @returns {Promise<Object>} An object that reflects the content in the storage area.
-     */
-    async getContentsAsObject(store="") {
-        const storeToAccess = this.storageInstance[store == "" ? this.defaultStore : store];
-        const output = { };
-        storeToAccess.each(async (object) => {
-            output[object.key] = object.value;
-        });
-
-        return output;
+    async set(key, value) {
+        await browser.storage.local.set({ [this.keyToExtensionLocalStorageKey(key)]: value });
     }
 }
 
 /**
  * Create a persistent counter.
  * @param {string} counterName - A name that uniquely identifies the counter.
- * @returns {Counter} - The new Counter object.
+ * @returns {Counter} The new Counter object.
  */
 export async function createCounter(counterName) {
     const counter = new Counter(counterName);
@@ -136,13 +103,16 @@ class Counter {
      * @returns {Object} The persistent counter.
      */
     async initialize() {
-        if(Counter.storage == null)
+        if(Counter.storage === null) {
             Counter.storage = new KeyValueStorage("webScience.storage.counter");
+        }
         const initialCounterValue = await Counter.storage.get(this.counterName);
-        if(initialCounterValue != null)
+        if(initialCounterValue !== null) {
             this.counterValue = initialCounterValue;
-        else
+        }
+        else {
             await Counter.storage.set(this.counterName, this.counterValue);
+        }
         return this;
     }
 
@@ -218,31 +188,7 @@ class Counter {
         await Counter.storage.set(this.counterName, this.counterValue);
         return currentCounterValue;
     }
-
-    /**
-     * Create an object with a property-value pair for each counter name-value pair.
-     * @returns {Promise<Object>} An object that reflects the set of counters.
-     */
-    static async getContentsAsObject() {
-        return await Counter.storage.getContentsAsObject();
-    }
-}
-
-export async function getEventsByRange(startTime, endTime, instances) {
-    const events = {};
-    for (const instance of instances) {
-        const storage = instance.storage;
-        const store = instance.store;
-        const timeKey = instance.timeKey;
-        events[instance.storage.storageAreaName + "." + store] = await storage.getEventsByRange(startTime, endTime, timeKey, store);
-    }
-    return events;
 }
 
 // Workaround for static class variable
 Counter.storage = null;
-
-// Prevents IndexedDB data from getting deleted without user intervention
-// Ignoring the promise resolution because we still want to use storage
-// even if Firefox won't guarantee persistence
-navigator.storage.persist();
