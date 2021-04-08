@@ -3,6 +3,7 @@
  *
  * @module webScience.socialMediaActivity
  */
+import * as events from "./events.js";
 import * as debugging from "./debugging.js"
 import * as messaging from "./messaging.js"
 import * as inline from "./inline.js"
@@ -36,9 +37,8 @@ export function enablePrivateWindows() {
  * @param platform - which social media platform the event is for
  * @param eventType - which type of event we're registering
  * @param blockingType - whether the handler should be blocking or not
- * @param callback - the client function to call when the event occurs
  */
-function registerPlatformListener(platform, eventType, blockingType, callback) {
+function registerPlatformListener(platform, eventType, blockingType) {
     debugLog("Registering listener for " + platform + eventType);
     const blocking = blockingType == "blocking";
     const handler = platformHandlers[platform][eventType];
@@ -65,82 +65,46 @@ function registerPlatformListener(platform, eventType, blockingType, callback) {
         },
             blocking ? ["requestBody", blockingType] : ["requestBody"]);
     }
-    clientCallbacks[platform][eventType][blockingType].push(callback);
+}
+
+function addListener(listener, { platform, eventTypes, blocking=false }){
+    for (const eventType of eventTypes) {
+        registerPlatformListener(platform, eventType, blocking ? "blocking" : "nonblocking");
+    }
+    if (platform == 'twitter') tweetContentInit();
+    if (platform == 'facebook') fbPostContentInit();
+}
+
+function notifyFilter(listener, listenerArguments, options) {
+    const reportedEvent = listenerArguments[0];
+    const ret = reportedEvent['platform'] == options['platform'] &&
+        options['eventTypes'].includes(reportedEvent['eventType']);
+    return ret;
 }
 
 /**
- * Register a callback for specific Twitter events. Supported events are "tweet" (includes
- * tweet variants such as replies), "retweet", and "favorite".
- * @param callback - the function to call when the event happens
- * @param [String] events - array of events to be tracked
- * @param blocking - whether the listener should be blocking. Allows canceling the event.
+ * A callback function for the social media activity event.
+ * @callback socialMediaActivityCallback
+ * @param {SocialMediaShareDetails} details - Additional information about the social media activity event.
  */
-export function registerTwitterActivityTracker(
-    callback,
-    events,
-    blocking = false) {
-    if (events.includes("tweet") || events.includes("<all_events>")) {
-        registerPlatformListener("twitter", "tweet", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("retweet") || events.includes("<all_events>")) {
-        registerPlatformListener("twitter", "retweet", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("favorite") || events.includes("<all_events>")) {
-        registerPlatformListener("twitter", "favorite", blocking ? "blocking" : "nonblocking", callback);
-    }
-    tweetContentInit();
-}
 
 /**
- * Register a callback for specific Facebook events. Supported events are "post", "reshare",
- * "react" (includes like, love, etc), and "comment".
- * @param callback - the function to call when the event happens
- * @param [String] events - array of events to be tracked
- * @param blocking - whether the listener should be blocking. Allows canceling the event.
+ * Options when adding a social media activity event listener.
+ * @typedef {Object} socialMediaActivityOptions
+ * @property {string} platform - The platform to add a listener for ('facebook', 'twitter', or 'reddit')
+ * @property {Array<string>} eventTypes - The events on the platform to notify for. For facebook, can
+ *   be 'post', 'comment', 'react', or 'reshare'. For twitter, 'tweet', 'retweet', 'favorite'. Reddit,
+ *   'post', 'comment', 'postVote', 'commentVote'.
+ * @property {boolean} blocking - Optional, set to true to allow blocking the events.
  */
-export function registerFacebookActivityTracker(
-    callback,
-    events,
-    blocking = false ){
-    if (events.includes("post") || events.includes("<all_events>")) {
-        registerPlatformListener("facebook", "post", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("reshare") || events.includes("<all_events>")) {
-        registerPlatformListener("facebook", "reshare", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("react") || events.includes("<all_events>")) {
-        registerPlatformListener("facebook", "react", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("comment") || events.includes("<all_events>")) {
-        registerPlatformListener("facebook", "comment", blocking ? "blocking" : "nonblocking", callback);
-    }
-    fbPostContentInit();
-}
 
 /**
- * Register a callback for specific Reddit events. Supported events are "post", "comment",
- * "postVote", and "commentVote".
- * @param callback - the function to call when the event happens
- * @param [String] events - array of events to be tracked
- * @param blocking - whether the listener should be blocking. Allows canceling the event.
+ * @type {events.event<socialMediaActivityCallback, socialMediaActivityOptions}
  */
-export function registerRedditActivityTracker(
-    callback,
-    events,
-    blocking = false) {
-    if (events.includes("post") || events.includes("<all_events>")) {
-        registerPlatformListener("reddit", "post", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("comment") || events.includes("<all_events>")) {
-        registerPlatformListener("reddit", "comment", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("postVote") || events.includes("<all_events>")) {
-        registerPlatformListener("reddit", "postVote", blocking ? "blocking" : "nonblocking", callback);
-    }
-    if (events.includes("commentVote") || events.includes("<all_events>")) {
-        registerPlatformListener("reddit", "commentVote", blocking ? "blocking" : "nonblocking", callback);
-    }
-}
+export const onSocialMediaActivity = events.createEvent({
+    addListenerCallback: addListener,
+    notifyListenersCallback: notifyFilter
+});
 
 /**
  * Upon receiving any event, validate that it is a valid instance of the tracked action,
@@ -179,15 +143,10 @@ async function handleGenericEvent({requestDetails = null,
             return {};
         }
     }
-    let blockingResult;
-    if (blockingType == "blocking") {
-        blockingResult = await clientCallbacks[platform][eventType][blockingType][0](details);
-        if (blockingResult && "cancel" in blockingResult) {
-            return blockingResult;
-        }
-    }
-    for (const userListener of clientCallbacks[platform][eventType]["nonblocking"]) {
-        userListener(details);
+    details['platform'] = platform;
+    const blockingResult = onSocialMediaActivity.notifyListeners([details]);
+    if (blockingResult && "cancel" in blockingResult) {
+        return blockingResult;
     }
     for (const completer of handler.completers) {
         completer({requestDetails: requestDetails, verified: verified, details: details,
@@ -230,29 +189,6 @@ function verifyNewRequest({requestDetails = null}) {
     }
     processedRequestIds[requestDetails.requestId] = true;
     return {};
-}
-
-/**
- * Stores the callback functions the client has registered.
- */
-const clientCallbacks = {
-    twitter: {
-        tweet: {blocking: [], nonblocking: []},
-        retweet: {blocking: [], nonblocking: []},
-        favorite: {blocking: [], nonblocking: []},
-    },
-    facebook: {
-        post: {blocking: [], nonblocking: []},
-        react: {blocking: [], nonblocking: []},
-        reshare: {blocking: [], nonblocking: []},
-        comment: {blocking: [], nonblocking: []},
-    },
-    reddit: {
-        post: {blocking: [], nonblocking: []},
-        comment: {blocking: [], nonblocking: []},
-        postVote: {blocking: [], nonblocking: []},
-        commentVote: {blocking: [], nonblocking: []}
-    }
 }
 
 /**
