@@ -33,7 +33,7 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
 /**
  * Options when adding a page data event listener.
  * @typedef {Object} PageDataOptions
- * @property {string[]} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {string[]} [matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
  * @property {boolean} [privateWindows=false] - Whether to measure pages in private windows.
  */
 

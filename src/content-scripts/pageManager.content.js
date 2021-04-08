@@ -103,6 +103,7 @@
  */
 
 import { generateId } from "../id.js";
+import { createEvent } from "../events.js";
 
 // IIFE wrapper to allow early return
 (function () {
@@ -130,7 +131,9 @@ import { generateId } from "../id.js";
      * @returns {string}
      */
     function locationHrefWithoutHash() {
-        return window.location.href.slice(-1 * window.location.hash.length);
+        const urlObj = new URL(window.location.href);
+        urlObj.hash = "";
+        return urlObj.href;
     }
 
     /**
@@ -139,156 +142,6 @@ import { generateId } from "../id.js";
      */
     function debugLog(message) {
         console.debug(`webScience.pageManager.content: ${message}`);
-    }
-
-    // Event management types and classes
-    // This should be kept in sync with the Events module, removing only export statements
-
-    /**
-     * A class that provides an event API similar to WebExtensions `events.Event` objects.
-     * @template EventCallbackFunction
-     * @template EventOptions
-     */
-    class Event {
-        /**
-         * Creates an event instance similar to WebExtensions `events.Event` objects.
-         * @param {EventOptions} [options] - A set of options for the event.
-         * @param {addListenerCallback} [options.addListenerCallback] - A function that is
-         * called when a listener function is added.
-         * @param {removeListenerCallback} [options.removeListenerCallback] - A function
-         * that is called when a listener function is removed.
-         * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
-         * that is called before a listener is notified and can filter the notification.
-         */
-        constructor({
-            addListenerCallback = null,
-            removeListenerCallback = null,
-            notifyListenersCallback = null
-        } = {
-            addListenerCallback: null,
-            removeListenerCallback: null,
-            notifyListenersCallback: null
-        }) {
-            this.addListenerCallback = addListenerCallback;
-            this.removeListenerCallback = removeListenerCallback;
-            this.notifyListenersCallback = notifyListenersCallback;
-            this.listeners = new Map();
-        }
-
-        /**
-         * A callback function that is called when a new listener function is added.
-         * @callback addListenerCallback
-         * @param {EventCallbackFunction} listener - The new listener function.
-         * @param {EventOptions} options - The options for the new listener function.
-         */
-
-        /**
-         * A function that adds an event listener, with optional parameters. If the
-         * listener has previously been added for the event, the listener's options
-         * (if any) will be updated.
-         * @param {EventCallbackFunction} listener - The function to call when the event fires.
-         * @param {EventOptions} options - Options for when the listener should be called.
-         * The supported option(s) depend on the event type.
-         */
-        addListener(listener, options) {
-            if(this.addListenerCallback !== null)
-                this.addListenerCallback(listener, options);
-            this.listeners.set(listener, options);
-        }
-
-        /**
-         * A callback function that is called when a listener function is removed.
-         * @callback removeListenerCallback
-         * @param {EventCallbackFunction} listener - The listener function to remove.
-         */
-
-        /**
-         * A function that removes an event listener.
-         * @param {EventCallbackFunction} listener - The listener function to remove.
-         */
-        removeListener(listener) {
-            if(this.removeListenerCallback !== null)
-                this.removeListenerCallback(listener);
-            this.listeners.delete(listener);
-        }
-
-        /**
-         * A function that checks whether an event listener has been added.
-         * @param {EventCallbackFunction} listener - The listener function to check.
-         * @return {boolean} Whether the listener function has been added.
-         */
-        hasListener(listener) {
-            return this.listeners.has(listener);
-        }
-
-        /**
-         * A callback function that is called when a listener function may be notified.
-         * @callback notifyListenersCallback
-         * @param {EventCallbackFunction} listener - The listener function that may be called.
-         * @param {Array} listenerArguments - The arguments that would be passed to the listener
-         * function.
-         * @param {EventOptions} options - The options that the listener was added with.
-         * @return {boolean} Whether to call the listener function.
-         */
-
-        /**
-         * Notify the listener functions for the event.
-         * @param {Array} [listenerArguments=[]] - The arguments that will be passed to listener
-         * functions.
-         */
-        notifyListeners(listenerArguments = []) {
-            this.listeners.forEach((options, listener) => {
-                try {
-                    if((this.notifyListenersCallback === null) || this.notifyListenersCallback(listener, listenerArguments, options))
-                        listener.apply(null, listenerArguments);
-                }
-                catch(error) {
-                    debugLog(`Error in content script listener notification: ${error}`);
-                }
-            });
-        }
-    }
-
-    /**
-     * An extension of the Event class that omits options when adding a listener.
-     * @template EventCallbackFunction
-     * @extends {Event<EventCallbackFunction, undefined>}
-     */
-    class EventWithoutOptions extends Event {
-        /**
-         * @callback addListenerCallbackWithoutOptions
-         * @param {EventCallbackFunction} listener - The new listener function.
-         */
-
-        /**
-         * Creates an event instance similar to WebExtensions `events.Event` objects.
-         * @param {EventOptions} [options] - A set of options for the event.
-         * @param {addListenerCallbackWithoutOptions} [options.addListenerCallback] - A function that is
-         * called when a listener function is added.
-         * @param {removeListenerCallback} [options.removeListenerCallback] - A function
-         * that is called when a listener function is removed.
-         * @param {notifyListenersCallback} [options.notifyListenersCallback] - A function
-         * that is called before a listener is notified and can filter the notification.
-         */
-        constructor({
-            addListenerCallback = null,
-            removeListenerCallback = null,
-            notifyListenersCallback = null
-        } = {
-            addListenerCallback: null,
-            removeListenerCallback: null,
-            notifyListenersCallback: null
-        }) {
-            super({ addListenerCallback, removeListenerCallback, notifyListenersCallback });
-        }
-
-        /**
-         * A function that adds an event listener.
-         * @param {EventCallbackFunction} listener - The function to call when the event fires.
-         */
-        addListener(listener) {
-            super.addListener(listener, undefined);
-        }
     }
 
     /**
@@ -317,28 +170,60 @@ import { generateId } from "../id.js";
      */
 
     /**
-     * An event that is fired when a page visit starts.
-     * @type {EventWithoutOptions<pageVisitStartCallback>}
+     * @callback PageManagerAddListener
+     * @template {ListenerFunction}
+     * @param {ListenerFunction} listener
      */
-    pageManager.onPageVisitStart = new EventWithoutOptions();
+
+    /**
+     * @callback PageManagerRemoveListener
+     * @template {ListenerFunction}
+     * @param {ListenerFunction} listener
+     */
+
+    /**
+     * @callback PageManagerHasListener
+     * @template {ListenerFunction}
+     * @param {ListenerFunction} listener
+     */
+
+    /**
+     * @callback PageManagerHasAnyListeners
+     * @returns {boolean}
+     */
+
+    /**
+     * @typedef {Object} PageManagerEvent
+     * @template {ListenerFunction}
+     * @property {PageManagerAddListener<ListenerFunction>} addListener - Add a listener function for the event.
+     * @property {PageManagerRemoveListener<ListenerFunction>} removeListener - Remove a listener function for the event.
+     * @property {PageManagerHasListener<ListenerFunction>} hasListener - Whether a listener function has been added for the event.
+     * @property {PageManagerHasAnyListeners} hasAnyListeners - Whether any listener functions have been added for the event.
+     */
+
+    /**
+     * An event that is fired when a page visit starts.
+     * @type {PageManagerEvent<pageVisitStartCallback>}
+     */
+    pageManager.onPageVisitStart = createEvent();
 
     /**
      * An event that is fired when a page visit stops.
-     * @type {EventWithoutOptions<callbackWithTimeStamp>}
+     * @type {PageManagerEvent<callbackWithTimeStamp>}
      */
-    pageManager.onPageVisitStop = new EventWithoutOptions();
+    pageManager.onPageVisitStop = createEvent();
 
     /**
      * An event that is fired when the page attention state changes.
-     * @type {EventWithoutOptions<callbackWithTimeStamp>}
+     * @type {PageManagerEvent<callbackWithTimeStamp>}
      */
-    pageManager.onPageAttentionUpdate = new EventWithoutOptions();
+    pageManager.onPageAttentionUpdate = createEvent();
 
     /**
      * An event that is fired when the page attention state changes.
-     * @type {EventWithoutOptions<callbackWithTimeStamp>}
+     * @type {PageManagerEvent<callbackWithTimeStamp>}
      */
-    pageManager.onPageAudioUpdate = new EventWithoutOptions();
+    pageManager.onPageAudioUpdate = createEvent();
 
     /**
      * Send a message to the background page, with a catch because errors can
