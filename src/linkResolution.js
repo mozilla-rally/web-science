@@ -223,6 +223,11 @@ export function resolveUrl(url, options) {
     }
 
     // Resolve the URL
+    // The webRequest API tracks HTTP(S) request lifecycle with a unique requestId value, which we
+    // can match to this link resolution by generating a random link resolution ID, inserting the
+    // link resolution ID as a special HTTP header when fetching the link, observing HTTP headers
+    // with webRequest to match the link resolution ID to a webRequest requestId, then removing
+    // the special HTTP header before the request is sent
     const linkResolutionId = id.generateId();
     const controller = new AbortController();
     const init = {
@@ -253,15 +258,14 @@ export function resolveUrl(url, options) {
 
     url = urlObj.href;
 
-    init.signal = controller.signal;
+    // Fetch the URL with a timeout
     fetch(url, init);
-    // Handle fetch timeouts
     const timeoutId = setTimeout(() => {
         controller.abort();
         completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request timed out.");
     }, fetchTimeout);
 
-    // Resolve the URL
+    // Store the link resolution data, including promise resolve and reject functions
     return new Promise((resolve, reject) => {
         linkResolutionIdToData.set(linkResolutionId, {
             resolve,
