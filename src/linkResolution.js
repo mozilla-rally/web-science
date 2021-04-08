@@ -4,22 +4,31 @@
  */
 import * as matching from "./matching.js";
 import * as permissions from "./permissions.js";
+import * as id from "./id.js";
 import { urlShortenerMatchPatterns } from "./dependencies/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "./dependencies/ampCachesAndViewers.js";
 
 permissions.check({
     module: "webScience.linkResolution",
-    requiredPermissions: [ "webRequest" ],
+    requiredPermissions: [ "webRequest", "webRequestBlocking" ],
     suggestedOrigins: [ "<all_urls>" ]
 });
 
 /**
- * The timeout for fetch when resolving a link.
+ * The timeout (in ms) for fetch when resolving a link.
  * @constant {number}
  * @private
  * @default
  */
-const fetchTimeoutMs = 5000;
+const fetchTimeout = 5000;
+
+/**
+ * The maximum number of redirects to follow with fetch when resolving a link.
+ * @constant {number}
+ * @private
+ * @default
+ */
+const fetchMaxRedirects = 3;
 
 /**
  * Whether the module has been initialized.
@@ -29,28 +38,40 @@ const fetchTimeoutMs = 5000;
 let initialized = false;
 
 /**
- * A map where keys a URLs to resolve and objects are Promises for resolving the URLs.
- * @constant {Map<string, Promise>}
+ * A map where each key is a webRequest requestId and each value is a link resolution ID.
+ * @constant {Map<string, string>}
  * @private
  */
-const promisesByUrl = new Map();
+const requestIdToLinkResolutionId = new Map();
 
 /**
- * A set of URLs where we are observing response headers.
- * @constant {Set<string>}
- * @private
+ * @typedef {Object} LinkResolutionData
+ * @property {Function} resolve - The resolve function for the link resolution Promise.
+ * @property {Function} reject - The reject function for the link resolution Promise.
+ * @property {number} timeoutId - The timeout ID for the link resolution fetch.
+ * @property {string} requestId - The webRequest requestId for the link resolution fetch.
+ * @property {number} redirects - The number of redirects in the link resolution fetch.
+ * @property {boolean} parseAmpUrl - If the resolved URL is an AMP URL, parse it.
+ * @property {boolean} parseFacebookLinkShim - If the resolved URL has a Facebook shim applied, parse it.
+ * @property {boolean} removeFacebookLinkDecoration - If the resolved URL has Facebook link decoration, remove it.
  */
-const trackedUrls = new Set();
 
 /**
- * A map where keys are redirect target URLs and values are redirect source URLs. Recursively
- * traversing this mapping is equivalent to following the redirect chain for a URL in reverse
- * order.
- * TODO: This approach to storing and backtracking through redirects is problematic, because
- * multiple URLs can redirect to the same URL (leading to ambiguous backtracking).
+ * A map where each key is a link resolution ID (randomly generated) and each value is a
+ * Promise to resolve when resolution is complete.
+ * @constant {Map<string, LinkResolutionData>}
  * @private
  */
-const urlByRedirectedUrl = new Map();
+const linkResolutionIdToData = new Map();
+
+/**
+ * A special HTTP header name to use for associating a link resolution ID with an outbound
+ * request.
+ * @constant {string}
+ * @private
+ * @default
+ */
+const httpHeaderName = "X-WebScience-LinkResolution-ID";
 
 /**
  * A RegExp that matches and parses AMP cache and viewer URLs. If there is a match, the RegExp provides several
@@ -136,132 +157,257 @@ export function parseAmpUrl(url) {
 /**
  * Resolve a shortened or shimmed URL to an original URL, by recursively resolving the URL and removing shims.
  * @param {string} url - The URL to resolve.
+ * @param {Object} [options] - Options for resolving the URL.
+ * @param {boolean} [options.parseAmpUrl=true] - If the resolved URL or the original URL is an AMP URL, parse it.
+ * @param {boolean} [options.parseFacebookLinkShim=true] - If the resolved URL or the original URL has a Facebook shim
+ * applied, parse it.
+ * @param {boolean} [options.removeFacebookLinkDecoration=true] - If the resolved URL or the original URL has Facebook link
+ * decoration, remove it.
+ * @param {string} [options.request="known_shorteners"] - Whether to issue an HTTP(S) request to resolve the URL,
+ * following HTTP 3xx redirects. Valid values are "always", "known_shorteners" (only if the URL matches a known
+ * URL shortener), and "never".
  * @returns {Promise<string>} - A Promise that either resolves to the original URL or is rejected with an error.
  */
-export function resolveUrl(url) {
-    if (!initialized) {
-        return Promise.reject("module not initialized");
+export function resolveUrl(url, options) {
+    // Using the pre-ES6 approach to default arguments to avoid ambiguity with function names
+    if(!(typeof options === "object")) {
+        options = { };
     }
-    const urlResolutionPromise = new Promise(function (resolve, reject) {
-      // store the resolve function in promisesByUrl. This function will be invoked when the 
-      // url is resolved
-      const resolves = promisesByUrl.get(url) || [];
-      if (!resolves || !resolves.length) {
-          promisesByUrl.set(url, resolves);
-      }
-      resolves.push({
-          resolve: resolve,
-          reject: reject
-      });
-      trackedUrls.add(url);
-      // fetch this url
-      fetchWithTimeout(url, {
-          redirect: 'manual',
-          headers: {
-              /* With a browser User-Agent header, the response of news.google.com link shim is a HTML document that eventually redirects to the actual news page.
-              This actual news link is not part of the HTTP response reader. However, using a non-browser User-Agent like curl the response header
-              contains the redirected location. */
-              'User-Agent': url.includes("news.google.com") ? 'curl/7.10.6 (i386-redhat-linux-gnu) libcurl/7.10.6 OpenSSL/0.9.7a ipv6 zlib/1.1.4' : ''
-          }
-      }, fetchTimeoutMs);
+    options.parseAmpUrl = "parseAmpUrl" in options ? options.parseAmpUrl : true;
+    options.parseFacebookLinkShim = "parseFacebookLinkShim" in options ? options.parseFacebookLinkShim : true;
+    options.removeFacebookLinkDecoration = "removeFacebookLinkDecoration" in options ? options.removeFacebookLinkDecoration : true;
+    options.request = "request" in options ? options.request : "known_shorteners";
+
+    // Set listener functions for webRequest lifecycle events
+    // By setting the windowId filter to WINDOW_ID_NONE, we can
+    // ignore requests associated with ordinary web content
+    if(!initialized) {
+        initialized = true;
+        browser.webRequest.onBeforeSendHeaders.addListener(onBeforeSendHeadersListener,
+            {
+                urls: [ "<all_urls>" ],
+                windowId: browser.windows.WINDOW_ID_NONE
+            },
+            [ "requestHeaders", "blocking" ]);
+        browser.webRequest.onBeforeRedirect.addListener(onBeforeRedirectListener,
+            {
+                urls: [ "<all_urls>" ],
+                windowId: browser.windows.WINDOW_ID_NONE
+            });
+        browser.webRequest.onCompleted.addListener(onCompletedListener,
+            {
+                urls: [ "<all_urls>" ],
+                windowId: browser.windows.WINDOW_ID_NONE
+            });
+        browser.webRequest.onErrorOccurred.addListener(onErrorListener,
+            {
+                urls: [ "<all_urls>" ],
+                windowId: browser.windows.WINDOW_ID_NONE
+            });
+    }
+
+    if(options.parseAmpUrl) {
+        url = parseAmpUrl(url);
+    }
+    if(options.parseFacebookLinkShim) {
+        url = parseFacebookLinkShim(url);
+    }
+    if(options.removeFacebookLinkDecoration) {
+        url = removeFacebookLinkDecoration(url);
+    }
+
+    // If we don't need to resolve the URL, just return the current URL value in a Promise
+    if((options.resolve === "never") ||
+    ((options.resolve === "known_shorteners") && !urlShortenerMatchPatternSet.matches(url))) {
+        return Promise.resolve(url);
+    }
+
+    // Resolve the URL
+    const linkResolutionId = id.generateId();
+    const controller = new AbortController();
+    const init = {
+        signal: controller.signal,
+        // Don't include cookies or a User-Agent with the request, because they can cause shorteners
+        // to provide HTML/JS redirects rather than HTTP redirects
+        credentials: "omit",
+        headers: {
+            "User-Agent": "",
+            [httpHeaderName]: linkResolutionId
+        }
+    };
+
+    // Special Cases
+    const urlObj = new URL(url);
+
+    // Twitter (t.co)
+    // Removing the amp=1 parameter results in more reliable HTTP redirects instead of HTML/JS redirects
+    if(urlObj.hostname === "t.co") {
+        urlObj.searchParams.delete("amp");
+    }
+
+    // Google News (news.google.com)
+    // Setting the User-Agent to curl results in more reliable HTTP redirects instead of HTML/JS redirects
+    if(urlObj.hostname.endsWith("news.google.com")) {
+        init.headers["User-Agent"] = "curl/7.10.6 (i386-redhat-linux-gnu) libcurl/7.10.6 OpenSSL/0.9.7a ipv6 zlib/1.1.4";
+    }
+
+    url = urlObj.href;
+
+    init.signal = controller.signal;
+    fetch(url, init);
+    // Handle fetch timeouts
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+        completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request timed out.");
+    }, fetchTimeout);
+
+    // Resolve the URL
+    return new Promise((resolve, reject) => {
+        linkResolutionIdToData.set(linkResolutionId, {
+            resolve,
+            reject,
+            timeoutId,
+            requestId: -1,
+            redirects: 0,
+            parseAmpUrl,
+            parseFacebookLinkShim,
+            removeFacebookLinkDecoration
+        });
     });
-    return urlResolutionPromise;
 }
 
 /**
- * Listener for webRequest.onHeadersReceived.
+ * Complete resolution of a link via HTTP request(s), under circumstances specified in the arguments.
+ * @param {string} linkResolutionId - The link resolution ID.
+ * @param {boolean} success - Whether link resolution was successful.
+ * @param {*} [resolvedUrl] - The URL that resulted from resolution.
+ * @param {*} [errorMessage] - An error message because resolution failed.
+ * @private
+ */
+function completeResolution(linkResolutionId, success, resolvedUrl, errorMessage) {
+    const linkResolutionData = linkResolutionIdToData.get(linkResolutionId);
+    const resolve = linkResolutionData.resolve;
+    const reject = linkResolutionData.reject;
+    clearTimeout(linkResolutionData.timeoutId);
+
+    if(success) {
+        if(linkResolutionData.parseAmpUrl) {
+            resolvedUrl = parseAmpUrl(resolvedUrl);
+        }
+        if(linkResolutionData.parseFacebookLinkShim) {
+            resolvedUrl = parseFacebookLinkShim(resolvedUrl);
+        }
+        if(linkResolutionData.removeFacebookLinkDecoration) {
+            resolvedUrl = removeFacebookLinkDecoration(resolvedUrl);
+        }
+    }
+
+    // Remove the data structure entries for this link resolution
+    if(linkResolutionData.requestId !== "") {
+        requestIdToLinkResolutionId.delete(linkResolutionData.requestId);
+    }
+    linkResolutionIdToData.delete(linkResolutionId);
+
+    if(success) {
+        resolve(resolvedUrl);
+        return;
+    }
+    reject(errorMessage);
+}
+
+/**
+ * A listener for the browser.webRequest.onBeforeSendHeaders event. This listener blocks
+ * the request, extracts the link resolution ID from a header, updates the link
+ * resolution data structures, and removes the header. This listener also cancels the
+ * request if it exceeds the redirect limit.
+ * @param {Object} details - Details about the request.
+ * @returns {browser.webRequest.BlockingResponse|undefined} 
+ */
+function onBeforeSendHeadersListener(details) {
+    let linkResolutionId = undefined;
+    let resolutionData = undefined;
+    let requestHeaderIndex = -1;
+    for(let i = 0; i < details.requestHeaders.length; i++) {
+        const requestHeader = details.requestHeaders[i];
+        if(requestHeader.name === httpHeaderName) {
+            linkResolutionId = requestHeader.value;
+            requestHeaderIndex = i;
+            break;
+        }
+    }
+
+    // If the HTTP request header includes a link resolution ID, update the
+    // internal data structures to associate that link resolution ID with
+    // the webRequest requestId 
+    if(linkResolutionId !== undefined) {
+        resolutionData = linkResolutionIdToData.get(linkResolutionId);
+        if(resolutionData !== undefined) {
+            resolutionData.requestId = details.requestId;
+            requestIdToLinkResolutionId.set(details.requestId, linkResolutionId);
+        }
+    }
+    // If the HTTP request header doesn't include a link resolution ID,
+    // we might already have a mapping from the webRequest requestId to
+    // the link resolution ID
+    else {
+        linkResolutionId = requestIdToLinkResolutionId.get(details.requestId);
+        if(linkResolutionId !== undefined) {
+            resolutionData = linkResolutionIdToData.get(linkResolutionId);
+        }
+    }
+
+    // Check the redirect limit and cancel the request if it's exceeded
+    if((resolutionData !== undefined) && resolutionData.redirects > fetchMaxRedirects) {
+        completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request exceeded redirect limit.");
+        return {
+            cancel: true
+        };
+    }
+
+    // If there's an HTTP header with the link resolution ID, remove it
+    if(requestHeaderIndex >= 0) {
+        details.requestHeaders.splice(requestHeaderIndex, 1);
+        return {
+            requestHeaders: details.requestHeaders
+        };
+    }
+}
+
+/**
+ * Listener for webRequest.onBeforeRedirect.
  * @param {Object} details - Details about the request.
  * @private
  */
-function responseHeaderListener(details) {
-    // Continue only if this url is relevant for link resolution
-    if (!trackedUrls.has(details.url)) {
-        // When a site has HSTS enabled, the browser silently upgrades
-        // http requests to https, which means we won't match the returned
-        // url against the one we requested. Check for a returned url that has
-        // an s and matches against a non-https url we're looking for, and link
-        // them if one exists.
-        const httpVersion = details.url.replace("https", "http");
-        if (!trackedUrls.has(httpVersion)) {
-            return;
-        }
-        urlByRedirectedUrl.set(details.url, httpVersion);
+ function onBeforeRedirectListener(details) {
+    const linkResolutionId = requestIdToLinkResolutionId.get(details.requestId);
+    if(linkResolutionId !== undefined) {
+        const linkResolutionData = linkResolutionIdToData.get(linkResolutionId);
+        linkResolutionData.redirects++;
     }
+}
 
-    // The location field in response header indicates the redirected URL
-    // The response header from onHeadersReceived is an array of objects, one of which possibly
-    // contains a field with name location (case insensitive).
-    const redirectedURLLocation = details.responseHeaders.find(obj => {
-        return obj.name.toUpperCase() === "LOCATION";
-    });
-
-    // if the location field in response header contains a new url
-    if (redirectedURLLocation != null && (redirectedURLLocation.value != details.url)) {
-        const nexturl = redirectedURLLocation.value;
-        // Create a link between the next url and the initial url
-        urlByRedirectedUrl.set(nexturl, details.url);
-        // Add the next url so that we process it during the next onHeadersReceived
-        trackedUrls.add(nexturl);
-        // Send fetch request to the next url
-        fetchWithTimeout(nexturl, {
-            redirect: 'manual',
-            headers: {
-              'User-Agent': ''
-            }
-        }, fetchTimeoutMs);
-    }
-    else { // url is not redirected
-        if (urlByRedirectedUrl.has(details.url)) {
-            // backtrack urlByRedirectedUrl to get to the promise object that corresponds to this
-            let url = details.url;
-            while (urlByRedirectedUrl.has(url)) {
-                const temp = url;
-                url = urlByRedirectedUrl.get(url);
-                urlByRedirectedUrl.delete(temp);
-                trackedUrls.delete(temp);
-            }
-            // url now contains the initial url. Now, resolve the corresponding promises
-            if (url && promisesByUrl.has(url)) {
-                const resolves = promisesByUrl.get(url) || [];
-                for (let i = 0; i < resolves.length; i++) {
-                    const r = resolves[i].resolve;
-                    r(details.url);
-                }
-                promisesByUrl.delete(url);
-            }
-        }
+/**
+ * Listener for webRequest.onCompleted.
+ * @param {Object} details - Details about the request.
+ * @private
+ */
+function onCompletedListener(details) {
+    const linkResolutionId = requestIdToLinkResolutionId.get(details.requestId);
+    if(linkResolutionId !== undefined) {
+        completeResolution(linkResolutionId, true, details.url, undefined);
     }
 }
 
 /**
  * Listener for webRequest.onErrorOccurred.
- * @param {Object} responseDetails - Details of the error.
+ * @param {Object} details - Details of the error.
  * @private
  */
-function trackError(responseDetails) {
-    const url = responseDetails.url;
-    if (promisesByUrl.has(url)) {
-        const resolves = promisesByUrl.get(url) || [];
-        for (let i = 0; i < resolves.length; i++) {
-            const r = resolves[i].reject;
-            r(responseDetails.error);
-        }
-        promisesByUrl.delete(url);
+function onErrorListener(details) {
+    const linkResolutionId = requestIdToLinkResolutionId.get(details.requestId);
+    if(linkResolutionId !== undefined) {
+        completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request encountered a network error.");
     }
-}
-
-/**
- * Initializes the module by setting up webRequest listeners.
- * TODO: Integrate this function into resolveUrl.
- */
-export function initialize() {
-    initialized = true;
-    browser.webRequest.onHeadersReceived.addListener(responseHeaderListener, {
-        urls: ["<all_urls>"]
-    }, ["responseHeaders"]);
-    browser.webRequest.onErrorOccurred.addListener(trackError, {
-        urls: ["<all_urls>"]
-    });
 }
 
 /**
@@ -277,17 +423,8 @@ export { urlShortenerMatchPatterns };
 export const urlShortenerRegExp = matching.matchPatternsToRegExp(urlShortenerMatchPatterns);
 
 /**
- * Fetches a URL with a timeout, using an AbortController.
- * @param {string} url - The URL to request with fetch.
- * @param {Object} init - An init object to pass to fetch.
- * @param {number} timeout - The timeout in ms for the fetch request.
- * @private
+ * A matching.MatchPatternSet for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
+ * @constant {matching.MatchPatternSet}
  */
-function fetchWithTimeout(url, init, timeout) {
-    const controller = new AbortController();
-    init.signal = controller.signal;
-    fetch(url, init);
-    setTimeout(() => {
-        controller.abort()
-    }, timeout);
-}
+export const urlShortenerMatchPatternSet = matching.createMatchPatternSet(urlShortenerMatchPatterns);
+
