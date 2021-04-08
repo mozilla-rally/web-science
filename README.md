@@ -45,7 +45,7 @@ We will have documentation for the WebScience API online shortly. In the interim
 | `linkExposure`           | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                         | :white_check_mark: | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)               | :x:                |
 | `linkResolution`         | :x: [#21](https://github.com/mozilla-rally/web-science/issues/21)                         | :white_check_mark: | :x: [#21](https://github.com/mozilla-rally/web-science/issues/21)               | :x:                |
 | `matching`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `messaging`              | :x: [#8](https://github.com/mozilla-rally/web-science/issues/8)                        | :white_check_mark: | :white_check_mark: | :x:                |
+| `messaging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `pageClassification`     | :x: [#11](https://github.com/mozilla-rally/web-science/issues/11)                         | :white_check_mark: | :white_check_mark: | :x:                |
 | `pageManager`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `pageNavigation`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
