@@ -1,6 +1,6 @@
 /**
  * This module enabled measurement of the user's exposure to links.
- * 
+ *
  * @module webScience.linkExposure
  */
 

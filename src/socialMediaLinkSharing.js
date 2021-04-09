@@ -420,7 +420,7 @@ async function expandShortUrl(token) {
     try {
         if (linkResolution.urlShortenerRegExp.test(token)) {
             const resolved = await linkResolution.resolveUrl(token)
-            if (resolved && resolved.dest) return resolved.dest;
+            if (resolved) return resolved;
         }
         return token;
     } catch {
