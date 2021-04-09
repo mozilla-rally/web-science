@@ -14,9 +14,8 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  * Additional information about the page data event.
  * @typedef {Object} PageDataDetails
  * @property {number} pageId - The ID for the page, unique across browsing sessions.
- * @property {string} url - The URL of the page loading in the tab, without any hash.
- * @property {string} referrer - The referrer URL for the page loading in the tab, or `""` if
- * there is no referrer.
+ * @property {string} url - The URL of the page, without any hash.
+ * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer.
  * @property {number} pageVisitStartTime - The time when the page visit started, in ms since
  * the epoch.
  * @property {number} pageVisitStopTime - The time when the page visit ended, in ms since the
@@ -30,23 +29,49 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  */
 
 /**
- * A callback function for the page data event.
- * @callback pageDataCallback
+ * @callback pageDataListener
  * @param {PageDataDetails} details - Additional information about the page data event.
  */
 
 /**
- * Options when adding a page data event listener.
- * @typedef {Object} PageDataOptions
- * @property {string[]} [matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
- * @property {boolean} [privateWindows=false] - Whether to measure pages in private windows.
+ * @callback PageDataAddListener
+ * @param {pageDataListener} listener - The listener to add.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
+ */
+
+/**
+ * @callback PageDataRemoveListener
+ * @param {pageDataListener} listener - The listener to remove.
+ */
+
+/**
+ * @callback PageDataHasListener
+ * @param {pageDataListener} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * @callback PageDataHasAnyListeners
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
+ * @typedef {Object} PageDataEvent
+ * @property {PageDataAddListener} addListener - Add a listener for page data.
+ * @property {PageDataRemoveListener} removeListener - Remove a listener for page data.
+ * @property {PageDataHasListener} hasListener - Whether a specified listener has been added.
+ * @property {PageDataHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
  */
 
 /**
  * Function to start measurement when a listener is added
  * TODO: deal with multiple listeners with different match patterns
  * @param {pageDataCallback} listener - new listener being added
- * @param {PageDataOptions} options - configuration for the events to be sent to this listener
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
  * @private
  */
 function addListener(listener, options) {
@@ -67,7 +92,7 @@ function removeListener(listener) {
 /**
  * An event that fires when a page visit has ended and data about the
  * visit that is available.
- * @constant {Events.Event<pageDataCallback, PageDataOptions>}
+ * @constant {PageDataEvent}
  */
 export const onPageData = events.createEvent({
     addListenerCallback: addListener,
@@ -109,7 +134,9 @@ function pageDataListener(pageData) {
 
 /**
  * Start a navigation measurement. Note that only one measurement is currently supported per extension.
- * @param {PageDataOptions} options - A set of options for the measurement.
+ * @param {Object} options - A set of options for the measurement.
+ * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
  * @private
  */
 async function startMeasurement({
