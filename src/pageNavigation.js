@@ -14,14 +14,19 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  * Additional information about the page data event.
  * @typedef {Object} PageDataDetails
  * @property {number} pageId - The ID for the page, unique across browsing sessions.
- * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session.
- * @property {number} windowId - The ID for the window containing the page, unique to the browsing session.
- * Note that tabs can subsequently move between windows.
  * @property {string} url - The URL of the page loading in the tab, without any hash.
  * @property {string} referrer - The referrer URL for the page loading in the tab, or `""` if
  * there is no referrer.
- * @property {number} pageVisitStartTime - The time when the underlying event fired.
- * @property {boolean} privateWindow - Whether the page is in a private window.
+ * @property {number} pageVisitStartTime - The time when the page visit started, in ms since
+ * the epoch.
+ * @property {number} pageVisitStopTime - The time when the page visit ended, in ms since the
+ * epoch.
+ * @property {number} attentionDuration - The amount of time in ms that the page had user attention.
+ * @property {number} audioDuration - The amount of time in ms that the page was playing audio.
+ * @property {number} attentionAndAudioDuration - The amount of time in ms that the page both had
+ * user attention and was playing audio.
+ * @property {number} maxRelativeScrollDepth - The maximum relative scroll depth on the page.
+ * @property {boolean} privateWindow - Whether the page loaded in a private window.
  */
 
 /**
@@ -66,7 +71,8 @@ function removeListener(listener) {
  */
 export const onPageData = events.createEvent({
     addListenerCallback: addListener,
-    removeListenerCallback: removeListener});
+    removeListenerCallback: removeListener
+});
 
 /**
  * The registered page navigation content script.
