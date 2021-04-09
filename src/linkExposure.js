@@ -1,11 +1,10 @@
 /**
- * This module measures the user's exposure to links for specific domains.
+ * This module enabled measurement of the user's exposure to links.
+ * 
  * @module webScience.linkExposure
  */
 
 import * as events from "./events.js";
-import * as debugging from "./debugging.js";
-import * as storage from "./storage.js";
 import * as linkResolution from "./linkResolution.js";
 import * as matching from "./matching.js";
 import * as messaging from "./messaging.js";
@@ -21,156 +20,122 @@ permissions.check({
 });
 
 /**
- * @constant {debugging.debuggingLogger}
- * @private
- */
-const debugLog = debugging.getDebuggingLog("linkExposure");
-
-// TODO: significant documentation updates
-/**
- * Additional information about the link exposure event.
- * @typedef {Object} LinkExposureDetails
+ * The details of a link exposure event.
+ * @typedef {Object} LinkExposureDataDetails
  * @property {number} pageId - The ID for the page, unique across browsing sessions.
- * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session.
- * @property {number} windowId - The ID for the window containing the page, unique to the browsing session.
- * Note that tabs can subsequently move between windows.
- * @property {string} url - The URL of the page loading in the tab, without any hash.
- * @property {string} referrer - The referrer URL for the page loading in the tab, or `""` if
- * there is no referrer.
- * @property {number} pageVisitStartTime - The time when the underlying event fired.
- * @property {boolean} privateWindow - Whether the page is in a private window.
+ * @property {string} url - The URL of the page, without any hash.
+ * @property {string[]} matchingLinkUrls - An array containing the resolved URLs of links
+ * on the page that the user was exposed to and that matched a provided match pattern.
+ * @property {number} nonmatchingLinkCount - The number of resolved links on the page that
+ * the user was exposed to and that did not match a provided match pattern.
  */
 
 /**
  * A callback function for the page data event.
- * @callback linkExposureListener
- * @param {LinkExposureDetails} details - Additional information about the page data event.
+ * @callback linkExposureDataListener
+ * @param {LinkExposureDataDetails} details - Additional information about the page data event.
  */
 
 /**
- * @typedef {Object} LinkExposureOptions
- * @property {string[]} [linkMatchPatterns=[]] - The links of interest for the measurement, specified with WebExtensions match patterns.
- * @property {string[]} [pageMatchPatterns=[]] - The pages (on which links occur) of interest for the measurement, specified with WebExtensions match patterns.
+ * @typedef {Object} LinkExposureDataOptions
+ * @property {string[]} linkMatchPatterns - Match patterns for links where the listener
+ * should receive individual resolved URLs. Links that do not match this match pattern are
+ * included in an aggregate count.
+ * @property {string[]} pageMatchPatterns - Match patterns for pages where the listener
+ * should be provided link exposure data.
  * @property {boolean} [privateWindows=false] - Whether to measure links in private windows.
  */
 
 /**
- * @callback LinkExposureAddListener
- * @param {linkExposureListener} listener - The listener to add.
- * @param {LinkExposureOptions} options - Options for the listener.
+ * @typedef {Object} LinkExposureDataListenerRecord
+ * @property {matching.MatchPatternSet} linkMatchPatternSet - The match patterns for link URLs.
+ * @property {matching.MatchPatternSet} pageMatchPatternSet - The match patterns for pages.
+ * @property {boolean} privateWindows - Whether to report exposures in private windows.
+ * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * script associated with the listener.
  */
 
 /**
- * @callback LinkExposureRemoveListener
- * @param {linkExposureListener} listener - The listener to remove.
+ * A map where each key is a listener function and each value is a record for that listener function.
+ * @constant {Map<linkExposureDataListener, LinkExposureDataListenerRecord}
+ */
+const linkExposureDataListeners = new Map();
+
+/**
+ * @callback LinkExposureDataAddListener
+ * @param {linkExposureDataListener} listener - The listener to add.
+ * @param {LinkExposureDataOptions} options - Options for the listener.
  */
 
 /**
- * @callback LinkExposureHasListener
- * @param {linkExposureListener} listener - The listener to check.
+ * @callback LinkExposureDataRemoveListener
+ * @param {linkExposureDataListener} listener - The listener to remove.
+ */
+
+/**
+ * @callback LinkExposurDataHasListener
+ * @param {linkExposureDataListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
 
 /**
- * @callback LinkExposureHasAnyListeners
+ * @callback LinkExposureDataHasAnyListeners
  * @returns {boolean} Whether the event has any listeners.
  */
 
 /**
- * @typedef {Object} LinkExposureEvent
- * @property {LinkExposureAddListener} addListener - Add a listener for idle state changes.
- * @property {LinkExposureRemoveListener} removeListener - Remove a listener for idle state changes.
- * @property {LinkExposureHasListener} hasListener - Whether a specified listener has been added.
- * @property {LinkExposureHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
+ * @typedef {Object} LinkExposureDataEvent
+ * @property {LinkExposureDataAddListener} addListener - Add a listener for idle state changes.
+ * @property {LinkExposureDataRemoveListener} removeListener - Remove a listener for idle state changes.
+ * @property {LinkExposureDataHasListener} hasListener - Whether a specified listener has been added.
+ * @property {LinkExposureDataHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
  */
 
 /**
- * Function to start measurement when a listener is added.
- * TODO: deal with multiple listeners with different match patterns.
- * @param {linkExposureCallback} listener - The new listener being added.
- * @param {LinkExposureOptions} options - Configuration for the events to be sent to this listener.
- * @private
- */
-function addListener(listener, options) {
-    startMeasurement(options);
-}
-
-/**
- * TODO: refactor untracked link events into onLinkExposure
- * @private
- */
-function addListenerUntracked(listener, options) {
-    if (!onLinkExposure.hasAnyListeners()) {
-        throw new Error("Cannot register listener for untracked links without listener for tracked");
-    }
-}
-
-/**
- * Function to end measurement when the last listener is removed.
- * @param {linkExposureCallback} listener - The listener that is being removed.
- * @private
- */
-function removeListener(listener) {
-    if (!onLinkExposure.hasAnyListeners() && !onUntracked.hasAnyListeners()) {
-        stopMeasurement();
-    }
-}
-
-/**
+ * An event that fires when a page visit has ended and data about link exposures
+ * during the visit is available.
  * @constant {LinkExposureEvent}
  */
-export const onLinkExposure = events.createEvent({
+export const onLinkExposureData = events.createEvent({
     addListenerCallback: addListener,
-    removeListenerCallback: removeListener});
-
-export const onUntracked = events.createEvent({
-    addListenerCallback: addListenerUntracked,
-    removeListenerCallback: removeListener});
-
-let initialized = false;
+    removeListenerCallback: removeListener,
+    notifyListenersCallback: () => { return false; }
+});
 
 /**
- * A RegisteredContentScript object that can be used to unregister the content script.
- * @type {browser.contentScripts.RegisteredContentScript}
- * @private
+ * Whether the messaging.onMessage listener has been added.
+ * @type {boolean}
  */
-let registeredCS = null;
+let addedMessageListener = false;
 
 /**
- * Start a link exposure measurement. Note that only one measurement is currently supported per extension.
+ * Callback for adding an onLinkExposureData listener.
+ * @param {linkExposureDataListener} listener - The listener function.
  * @param {LinkExposureOptions} options - A set of options for the measurement.
  * @private
  */
-async function startMeasurement({
-    linkMatchPatterns = [],
-    pageMatchPatterns = [],
-    privateWindows = false
-}) {
-    if(initialized)
-        return;
-    debugLog("Starting link exposure measurement");
-
-    linkResolution.initialize();
-
+async function addListener(listener, { linkMatchPatterns, pageMatchPatterns, privateWindows = false }) {
+    // Initialization
     await pageManager.initialize();
+    if(!addedMessageListener) {
+        messaging.onMessage.addListener(messageListener, {
+            type: "webScience.linkExposure.linkExposureUpdate",
+            schema: {
+                pageId: "string",
+                url: "string",
+                privateWindow: "boolean",
+                linkUrls: "object"
+            }
+        });
+        addedMessageListener = true;
+    }
 
-    // Use a unique identifier for each webpage the user visits that has a matching domain
-    const nextLinkExposureIdCounter = await storage.createCounter("webScience.linkExposure.nextLinkExposureId");
+    // Compile the match patterns for link URLs and page URLs
+    const linkMatchPatternSet = matching.createMatchPatternSet(linkMatchPatterns);
+    const pageMatchPatternSet = matching.createMatchPatternSet(pageMatchPatterns);
 
-    // Generate RegExps for matching links, link shortener URLs, and AMP cache URLs
-    // Store the RegExps in browser.storage.local so the content script can retrieve them
-    // without recompilation
-    const linkMatcher = new matching.createMatchPatternSet(linkMatchPatterns);
-    const urlShortenerRegExp = linkResolution.urlShortenerRegExp;
-    const ampRegExp = linkResolution.ampRegExp;
-    await browser.storage.local.set({
-        "webScience.linkExposure.linkMatcher": linkMatcher.export(),
-        "webScience.linkExposure.urlShortenerRegExp": urlShortenerRegExp,
-        "webScience.linkExposure.ampRegExp": ampRegExp
-    });
-
-    // Add the content script for checking links on pages
-    registeredCS = await browser.contentScripts.register({
+    // Register a content script for the page URLs
+    const contentScript = await browser.contentScripts.register({
         matches: pageMatchPatterns,
         js: [{
             code: inline.dataUrlToString(linkExposureContentScript)
@@ -178,91 +143,85 @@ async function startMeasurement({
         runAt: "document_idle"
     });
 
-    // Listen for linkExposure messages from content script
-    messaging.onMessage.addListener((exposureData) => {
-        // If the message is from a private window and the module isn't configured to measure
-        // private windows, ignore the message
-        if(exposureData.privateWindow && !privateWindows)
-            return;
+    // Store the listener information in a record
+    linkExposureDataListeners.set(listener, {
+        linkMatchPatternSet,
+        pageMatchPatternSet,
+        privateWindows,
+        contentScript
+    });
+}
 
-        if(exposureData.nonmatchingLinkExposures > 0)
-            onUntracked.notifyListeners([ {
-                count: exposureData.nonmatchingLinkExposures,
-                timeStamp: exposureData.pageVisitStartTime
-            } ]);
+/**
+ * Callback for removing an onLinkExposureData listener.
+ * @param {linkExposureCallback} listener - The listener that is being removed.
+ * @private
+ */
+function removeListener(listener) {
+    // If the listener has a record, unregister its content script and delete
+    // the record
+    const listenerRecord = linkExposureDataListeners.get(listener);
+    if(listenerRecord !== undefined) {
+        listenerRecord.contentScript.unregister();
+        linkExposureDataListeners.delete(listener);
+    }
+}
 
-        exposureData.linkExposures.forEach(async (linkExposure) => {
-            linkExposure.pageId = exposureData.pageId;
-            linkExposure.pageUrl = exposureData.pageUrl;
-            linkExposure.pageReferrer = exposureData.pageReferrer;
-            linkExposure.pageVisitStartTime = exposureData.pageVisitStartTime;
-            linkExposure.privateWindow = exposureData.privateWindow;
-            linkExposure.resolutionSucceded = true;
-            // resolvedUrl is valid only for shortened URLs
-            linkExposure.resolvedUrl = undefined;
-            if (linkExposure.isShortenedUrl) {
-                const promise = linkResolution.resolveUrl(linkExposure.originalUrl);
-                promise.then(async function (result) {
-                    if (linkMatcher.matches(result.dest)) {
-                        linkExposure.resolvedUrl = result.dest;
-                    }
-                }, function (error) {
-                    linkExposure.error = error.message;
-                    linkExposure.resolutionSucceded = false;
-                }).finally(async function () {
-                    if (!linkExposure.resolutionSucceded || linkExposure.resolvedUrl !== undefined)
-                        await createLinkExposureRecord(linkExposure, nextLinkExposureIdCounter);
-                });
-            }
-            else {
-                await createLinkExposureRecord(linkExposure, nextLinkExposureIdCounter);
-            }
-        });
-
-    }, {
-        type: "webScience.linkExposure.exposureData",
-        schema: {
-            pageId: "string",
-            pageUrl: "string",
-            pageReferrer: "string",
-            pageVisitStartTime: "number",
-            privateWindow: "boolean",
-            nonmatchingLinkExposures: "number",
-            linkExposures: "object"
-        }
+/**
+ * Callback for a link exposure update message from the content script.
+ * @param {Options} linkExposureUpdate - The update message.
+ * @param {string} linkExposureUpdate.pageId - The page ID for the page where
+ * the content script is running.
+ * @param {string} linkExposureUpdate.url - The URL, without a hash, for the page
+ * where the content script is running.
+ * @param {boolean} linkExposureUpdate.privateWindow - Whether the page where the
+ * content script is running is in a private window.
+ * @param {string[]} linkExposureUpdate.linkUrls - The links on the page that the
+ * user was exposed to.
+ */
+function messageListener({ pageId, url, privateWindow, linkUrls }) {
+    // Resolve all the link URLs in the update
+    const resolvedLinkUrlPromises = linkUrls.map((linkUrl) => {
+        return linkResolution.resolveUrl(linkUrl);
     });
 
-    initialized = true;
-}
+    // Once resolution is complete, notify the linkExposureData listeners
+    Promise.allSettled(resolvedLinkUrlPromises).then(async (results) => {
+        // For each link URL, if we have a resolved URL, use that
+        // If we don't have a resolved URL, use the original URL with
+        // cache, shim, and link decoration parsing
+        for(let i = 0; i < linkUrls.length; i++) {
+            if(results[i].status === "fulfilled") {
+                linkUrls[i] = results[i].value;
+            }
+            else {
+                linkUrls[i] = await linkResolution.resolveUrl(linkUrls[i], { request: "none" });
+            }
+        }
 
-/**
- * @private
- */
-function stopMeasurement() {
-    if (registeredCS) {
-        registeredCS.unregister();
-    }
-    registeredCS = null;
-}
+        // Notify the listeners
+        for(const [listener, listenerRecord] of linkExposureDataListeners) {
+            // Check private window and page match pattern requirements for the listener
+            if((!privateWindow || listenerRecord.privateWindows) &&
+            listenerRecord.pageMatchPatternSet.matches(url)) {
+                const matchingLinkUrls = [];
+                let nonmatchingLinkCount = 0;
+                for(const linkUrl of linkUrls) {
+                    if(listenerRecord.linkMatchPatternSet.matches(linkUrl)) {
+                        matchingLinkUrls.push(linkUrl);
+                    }
+                    else {
+                        nonmatchingLinkCount++;
+                    }
+                }
+                listener({
+                    pageId,
+                    url,
+                    matchingLinkUrls,
+                    nonmatchingLinkCount
+                });
+            }
 
-/* Utilities */
-
-/**
- * Convert an exposure event from the content script to an exposure event for listeners.
- * @param {Object} exposureEvent link exposure event to store
- * @param {string} exposureEvent.originalUrl - link exposed to
- * @param {string} exposureEvent.resolvedUrl - optional field which is set if the isShortenedUrl and resolutionSucceeded are true
- * @param {boolean} exposureEvent.resolutionSucceded - true if link resolution succeeded
- * @param {boolean} exposureEvent.isShortenedUrl - true if link matches short domains
- * @param {number} exposureEvent.firstSeen - timestamp when the link is first seen
- * @param {number} exposureEvent.duration - milliseconds of link exposure
- * @param {Object} exposureEvent.size - width and height of links
- * @private
- */
-async function createLinkExposureRecord(exposureEvent) {
-    exposureEvent.type = "linkExposure";
-    exposureEvent.url = (exposureEvent.isShortenedUrl && exposureEvent.resolutionSucceded ?
-                         matching.normalizeUrl(exposureEvent.resolvedUrl) :
-                         matching.normalizeUrl(exposureEvent.originalUrl));
-    onLinkExposure.notifyListeners([ exposureEvent ]);
+        }
+    });
 }

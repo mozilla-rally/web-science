@@ -91,7 +91,7 @@ function removeListener(listener) {
 
 /**
  * An event that fires when a page visit has ended and data about the
- * visit that is available.
+ * visit is available.
  * @constant {PageDataEvent}
  */
 export const onPageData = events.createEvent({

@@ -6,6 +6,7 @@ import * as matching from "./matching.js";
 import * as permissions from "./permissions.js";
 import { urlShortenerMatchPatterns } from "./dependencies/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "./dependencies/ampCachesAndViewers.js";
+import { parse as tldtsParse } from "tldts";
 
 permissions.check({
     module: "webScience.linkResolution",
@@ -79,6 +80,16 @@ export const ampRegExp = new RegExp(
     // AMP viewer regular expression
     `(?:^https?://(?<ampViewerDomainAndPath>${ampViewerDomainsAndPaths.map(matching.escapeRegExpString).join("|")})/(?<ampViewerUrl>.*)$)`
     , "i");
+
+/**
+ * A MatchPatternSet for AMP caches and viewers.
+ * @constant {matching.MatchPatternSet}
+ */
+export const ampMatchPatternSet = matching.createMatchPatternSet(
+    matching.domainsToMatchPatterns(ampCacheDomains, false).concat(
+        ampViewerDomainsAndPaths.map((ampViewerDomainAndPath) => {
+            return `*://${ampViewerDomainAndPath}*`;
+        })));
 
 /**
  * A RegExp for matching URLs that have had Facebook's link shim applied.
@@ -275,6 +286,24 @@ export { urlShortenerMatchPatterns };
  * @constant {RegExp}
  */
 export const urlShortenerRegExp = matching.matchPatternsToRegExp(urlShortenerMatchPatterns);
+
+/**
+ * A MatchPatternSet for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
+ * @constant {matching.MatchPatternSet}
+ */
+export const urlShortenerMatchPatternSet = matching.createMatchPatternSet(urlShortenerMatchPatterns);
+
+/**
+ * Extracts the public suffix + 1 from a URL.
+ * @param {string} url - The URL.
+ * @returns {string} The public suffix + 1.
+ * @example <caption>Example usage of urlToPS1.</caption>
+ * // returns "mozilla.org"
+ * urlToPS1("https://www.mozilla.org/");
+ */
+export function urlToPS1(url) {
+    return tldtsParse((new URL(url)).hostname).domain;
+} 
 
 /**
  * Fetches a URL with a timeout, using an AbortController.
