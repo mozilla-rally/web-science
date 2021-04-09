@@ -150,8 +150,6 @@ async function startMeasurement({
         return;
     debugLog("Starting link exposure measurement");
 
-    linkResolution.initialize();
-
     await pageManager.initialize();
 
     // Use a unique identifier for each webpage the user visits that has a matching domain
@@ -203,8 +201,8 @@ async function startMeasurement({
             if (linkExposure.isShortenedUrl) {
                 const promise = linkResolution.resolveUrl(linkExposure.originalUrl);
                 promise.then(async function (result) {
-                    if (linkMatcher.matches(result.dest)) {
-                        linkExposure.resolvedUrl = result.dest;
+                    if (linkMatcher.matches(result)) {
+                        linkExposure.resolvedUrl = result;
                     }
                 }, function (error) {
                     linkExposure.error = error.message;
