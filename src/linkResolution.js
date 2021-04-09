@@ -14,6 +14,113 @@ permissions.check({
     suggestedOrigins: [ "<all_urls>" ]
 });
 
+// AMP caches and viewers
+
+/**
+ * A RegExp that matches and parses AMP cache and viewer URLs. If there is a match, the RegExp provides several
+ * named capture groups.
+ *   * AMP Cache Matches
+ *     * `ampCacheSubdomain` - The subdomain, which should be either a reformatted version of the
+ *       URL domain or a hash of the domain. If there is no subdomain, this capture group
+ *       is `undefined`.
+ *     * `ampCacheDomain` - The domain for the AMP cache.
+ *     * `ampCacheContentType` - The content type, which is either `c` for an HTML document, `i` for
+ *        an image, or `r` for another resource. 
+ *     * `ampCacheIsSecure` - Whether the AMP cache loads the resource via HTTPS. If it does, this
+ *        capture group has the value `s/`. If it doesn't, this capture group is `undefined`.
+ *     * `ampCacheUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
+ *  * AMP Viewer Matches
+ *     * `ampViewerDomainAndPath` - The domain and path for the AMP viewer.
+ *     * `ampViewerUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
+ * @see {@link https://developers.google.com/amp/cache/overview}
+ * @see {@link https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/}
+ * @constant {RegExp}
+ */
+export const ampRegExp = new RegExp(
+    // AMP cache regular expression
+    `(?:^https?://(?:(?<ampCacheSubdomain>[a-zA-Z0-9\\-\\.]*)\\.)?(?<ampCacheDomain>${ampCacheDomains.map(matching.escapeRegExpString).join("|")})/(?<ampCacheContentType>c|i|r)/(?<ampCacheIsSecure>s/)?(?<ampCacheUrl>.*)$)`
+    + `|` +
+    // AMP viewer regular expression
+    `(?:^https?://(?<ampViewerDomainAndPath>${ampViewerDomainsAndPaths.map(matching.escapeRegExpString).join("|")})/(?<ampViewerUrl>.*)$)`
+    , "i");
+
+/**
+ * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.
+ * @param {string} url - A URL that may be an AMP cache or viewer URL.
+ * @returns {string} If the URL is an AMP cache or viewer URL, the parsed underlying URL. Otherwise, just the URL.
+ */
+ export function parseAmpUrl(url) {
+    if(!ampRegExp.test(url))
+        return url;
+    const parsedAmpUrl = ampRegExp.exec(url);
+    // Reconstruct AMP cache URLs
+    if(parsedAmpUrl.groups.ampCacheUrl !== undefined)
+        return "http" +
+            ((parsedAmpUrl.groups.ampCacheIsSecure === "s") ? "s" : "") +
+            "://" +
+            parsedAmpUrl.groups.ampCacheUrl;
+    // Reconstruct AMP viewer URLs, assuming the protocol is HTTPS
+    return "https://" + parsedAmpUrl.groups.ampViewerUrl;
+}
+
+// Facebook link shims
+
+/**
+ * A RegExp for matching URLs that have had Facebook's link shim applied.
+ * @constant {RegExp}
+ */
+export const facebookLinkShimRegExp = /^https?:\/\/l.facebook.com\/l\.php\?u=/;
+
+/**
+ * Parse a URL from Facebook's link shim, if the shim was applied to the URL.
+ * @param {string} url - A URL that may have Facebook's link shim applied.
+ * @returns {string} If Facebook's link shim was applied to the URL, the unshimmed URL. Otherwise, just the URL.
+ */
+export function parseFacebookLinkShim(url) {
+    if(!facebookLinkShimRegExp.test(url))
+        return url;
+
+    // Extract the original URL from the "u" parameter
+    const urlObject = new URL(url);
+    const uParamValue = urlObject.searchParams.get('u');
+    if(uParamValue === null)
+        return url;
+    return uParamValue;
+}
+
+/**
+ * Remove Facebook link decoration (the `fbclid` paramater) from a URL, if present.
+ * @param {string} url  - A URL that may have Facebook link decoration.
+ * @returns {string} The URL without Facebook link decoration.
+ */
+export function removeFacebookLinkDecoration(url) {
+    const urlObj = new URL(url);
+    urlObj.searchParams.delete("fbclid");
+    return urlObj.href;
+}
+
+// URL shorteners
+
+/**
+ * An array of match patterns for known URL shorteners, loaded from `urlShortenerMatchPatterns.js`.
+ * @constant {string[]}
+ */
+export { urlShortenerMatchPatterns };
+
+/**
+ * A RegExp for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
+ * @constant {RegExp}
+ */
+export const urlShortenerRegExp = matching.matchPatternsToRegExp(urlShortenerMatchPatterns);
+
+/**
+ * A matching.MatchPatternSet for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
+ * @constant {matching.MatchPatternSet}
+ */
+export const urlShortenerMatchPatternSet = matching.createMatchPatternSet(urlShortenerMatchPatterns);
+
+// URL resolution
+
 /**
  * The timeout (in ms) for fetch when resolving a link.
  * @constant {number}
@@ -54,6 +161,11 @@ const requestIdToLinkResolutionId = new Map();
  * @property {boolean} parseAmpUrl - If the resolved URL is an AMP URL, parse it.
  * @property {boolean} parseFacebookLinkShim - If the resolved URL has a Facebook shim applied, parse it.
  * @property {boolean} removeFacebookLinkDecoration - If the resolved URL has Facebook link decoration, remove it.
+ * @property {boolean} onlyRequestKnownUrlShorteners - If the resolution should only issue HTTP requests for
+ * known URL shorteners, and should treat all other origins as resolved (i.e., if a known shortener has a 3xx
+ * redirect to an origin that isn't a known shortener, treat that redirection target as the resolved URL). When
+ * this value is false, resolution will follow all redirects until either loading completes, the redirect limit is
+ * reached, or there is an error.
  */
 
 /**
@@ -74,87 +186,6 @@ const linkResolutionIdToData = new Map();
 const httpHeaderName = "X-WebScience-LinkResolution-ID";
 
 /**
- * A RegExp that matches and parses AMP cache and viewer URLs. If there is a match, the RegExp provides several
- * named capture groups.
- *   * AMP Cache Matches
- *     * `ampCacheSubdomain` - The subdomain, which should be either a reformatted version of the
- *       URL domain or a hash of the domain. If there is no subdomain, this capture group
- *       is `undefined`.
- *     * `ampCacheDomain` - The domain for the AMP cache.
- *     * `ampCacheContentType` - The content type, which is either `c` for an HTML document, `i` for
- *        an image, or `r` for another resource. 
- *     * `ampCacheIsSecure` - Whether the AMP cache loads the resource via HTTPS. If it does, this
- *        capture group has the value `s/`. If it doesn't, this capture group is `undefined`.
- *     * `ampCacheUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
- *  * AMP Viewer Matches
- *     * `ampViewerDomainAndPath` - The domain and path for the AMP viewer.
- *     * `ampViewerUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
- * @see {@link https://developers.google.com/amp/cache/overview}
- * @see {@link https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/}
- * @constant {RegExp}
- */
-export const ampRegExp = new RegExp(
-    // AMP cache regular expression
-    `(?:^https?://(?:(?<ampCacheSubdomain>[a-zA-Z0-9\\-\\.]*)\\.)?(?<ampCacheDomain>${ampCacheDomains.map(matching.escapeRegExpString).join("|")})/(?<ampCacheContentType>c|i|r)/(?<ampCacheIsSecure>s/)?(?<ampCacheUrl>.*)$)`
-    + `|` +
-    // AMP viewer regular expression
-    `(?:^https?://(?<ampViewerDomainAndPath>${ampViewerDomainsAndPaths.map(matching.escapeRegExpString).join("|")})/(?<ampViewerUrl>.*)$)`
-    , "i");
-
-/**
- * A RegExp for matching URLs that have had Facebook's link shim applied.
- * @constant {RegExp}
- */
-export const facebookLinkShimRegExp = /^https?:\/\/l.facebook.com\/l\.php\?u=/;
-
-/**
- * Parse a URL from Facebook's link shim, if the shim was applied to the URL.
- * @param {string} url - A URL that may have Facebook's link shim applied.
- * @returns {string} If Facebook's link shim was applied to the URL, the unshimmed URL. Otherwise, just the URL.
- */
-export function parseFacebookLinkShim(url) {
-    if(!facebookLinkShimRegExp.test(url))
-        return url;
-
-    // Extract the original URL from the "u" parameter
-    const urlObject = new URL(url);
-    const uParamValue = urlObject.searchParams.get('u');
-    if(uParamValue === null)
-        return url;
-    return uParamValue;
-}
-
-/**
- * Remove Facebook link decoration (the `fbclid` paramater) from a URL, if present.
- * @param {string} url  - A URL that may have Facebook link decoration.
- * @returns {string} The URL without Facebook link decoration.
- */
-export function removeFacebookLinkDecoration(url) {
-    const urlObj = new URL(url);
-    urlObj.searchParams.delete("fbclid");
-    return urlObj.href;
-}
-
-/**
- * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.
- * @param {string} url - A URL that may be an AMP cache or viewer URL.
- * @returns {string} If the URL is an AMP cache or viewer URL, the parsed underlying URL. Otherwise, just the URL.
- */
-export function parseAmpUrl(url) {
-    if(!ampRegExp.test(url))
-        return url;
-    const parsedAmpUrl = ampRegExp.exec(url);
-    // Reconstruct AMP cache URLs
-    if(parsedAmpUrl.groups.ampCacheUrl !== undefined)
-        return "http" +
-            ((parsedAmpUrl.groups.ampCacheIsSecure === "s") ? "s" : "") +
-            "://" +
-            parsedAmpUrl.groups.ampCacheUrl;
-    // Reconstruct AMP viewer URLs, assuming the protocol is HTTPS
-    return "https://" + parsedAmpUrl.groups.ampViewerUrl;
-}
-
-/**
  * Resolve a shortened or shimmed URL to an original URL, by recursively resolving the URL and removing shims.
  * @param {string} url - The URL to resolve.
  * @param {Object} [options] - Options for resolving the URL.
@@ -163,9 +194,10 @@ export function parseAmpUrl(url) {
  * applied, parse it.
  * @param {boolean} [options.removeFacebookLinkDecoration=true] - If the resolved URL or the original URL has Facebook link
  * decoration, remove it.
- * @param {string} [options.request="known_shorteners"] - Whether to issue an HTTP(S) request to resolve the URL,
- * following HTTP 3xx redirects. Valid values are "always", "known_shorteners" (only if the URL matches a known
- * URL shortener), and "never".
+ * @param {string} [options.request="known_shorteners"] - Whether to issue HTTP requests to resolve the URL,
+ * following HTTP 3xx redirects. Valid values are "always", "known_shorteners" (only issue a request if the original URL or
+ * a redirection target URL matches a known URL shortener), and "never". Note that setting this value to "always" could have
+ * performance implications, since it requires completely loading the destination URL.
  * @returns {Promise<string>} - A Promise that either resolves to the original URL or is rejected with an error.
  */
 export function resolveUrl(url, options) {
@@ -223,7 +255,7 @@ export function resolveUrl(url, options) {
     }
 
     // Resolve the URL
-    // The webRequest API tracks HTTP(S) request lifecycle with a unique requestId value, which we
+    // The webRequest API tracks HTTP request lifecycle with a unique requestId value, which we
     // can match to this link resolution by generating a random link resolution ID, inserting the
     // link resolution ID as a special HTTP header when fetching the link, observing HTTP headers
     // with webRequest to match the link resolution ID to a webRequest requestId, then removing
@@ -258,8 +290,10 @@ export function resolveUrl(url, options) {
 
     url = urlObj.href;
 
-    // Fetch the URL with a timeout
-    fetch(url, init);
+    // Fetch the URL with a timeout, discarding the outcome of the fetch Promise because the logic for
+    // resolving URLs is in the webRequest handlers (which have greater permissions for inspecting and
+    // modifying the HTTP request lifecycle)
+    fetch(url, init).then(() => {}, () => {});
     const timeoutId = setTimeout(() => {
         controller.abort();
         completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request timed out.");
@@ -275,13 +309,14 @@ export function resolveUrl(url, options) {
             redirects: 0,
             parseAmpUrl,
             parseFacebookLinkShim,
-            removeFacebookLinkDecoration
+            removeFacebookLinkDecoration,
+            onlyRequestKnownUrlShorteners: options.request === "known_shorteners"
         });
     });
 }
 
 /**
- * Complete resolution of a link via HTTP request(s), under circumstances specified in the arguments.
+ * Complete resolution of a link via HTTP requests, under circumstances specified in the arguments.
  * @param {string} linkResolutionId - The link resolution ID.
  * @param {boolean} success - Whether link resolution was successful.
  * @param {*} [resolvedUrl] - The URL that resulted from resolution.
@@ -360,8 +395,21 @@ function onBeforeSendHeadersListener(details) {
         }
     }
 
+    // If this link resolution should only issue HTTP requests to known
+    // URL shorteners, and this is not a request to a known URL shortener,
+    // consider the link resolved and cancel the request
+    if((resolutionData !== undefined) && 
+    resolutionData.onlyRequestKnownUrlShorteners &&
+    !urlShortenerMatchPatternSet.matches(details.url)) {
+        completeResolution(linkResolutionId, true, details.url, undefined);
+        return {
+            cancel: true
+        };
+    }
+
     // Check the redirect limit and cancel the request if it's exceeded
-    if((resolutionData !== undefined) && resolutionData.redirects > fetchMaxRedirects) {
+    if((resolutionData !== undefined) && 
+    resolutionData.redirects > fetchMaxRedirects) {
         completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request exceeded redirect limit.");
         return {
             cancel: true
@@ -413,22 +461,3 @@ function onErrorListener(details) {
         completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request encountered a network error.");
     }
 }
-
-/**
- * An array of match patterns for known URL shorteners, loaded from `urlShortenerMatchPatterns.js`.
- * @constant {string[]}
- */
-export { urlShortenerMatchPatterns };
-
-/**
- * A RegExp for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
- * @constant {RegExp}
- */
-export const urlShortenerRegExp = matching.matchPatternsToRegExp(urlShortenerMatchPatterns);
-
-/**
- * A matching.MatchPatternSet for known URL shorteners, based on the match patterns loaded from `urlShortenerMatchPatterns.js`.
- * @constant {matching.MatchPatternSet}
- */
-export const urlShortenerMatchPatternSet = matching.createMatchPatternSet(urlShortenerMatchPatterns);
-
