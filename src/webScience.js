@@ -45,8 +45,8 @@ export { userSurvey }
 import * as socialMediaActivity from "./socialMediaActivity.js"
 export { socialMediaActivity }
 
-import * as pageClassification from "./pageClassification.js"
-export { pageClassification }
+import * as pageText from "./pageText.js"
+export { pageText }
 
 import * as pageNavigation from "./pageNavigation.js"
 export { pageNavigation }
