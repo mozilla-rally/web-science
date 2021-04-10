@@ -123,7 +123,7 @@ function setPopupToNoPromptPage() {
 }
 
 /**
- * Initialize storage for the module
+ * Initialize storage for the module.
  * @private
  */
 function initializeStorage() {
@@ -135,7 +135,7 @@ function initializeStorage() {
 /**
  * Prompt the user to respond to a survey.
  * @param {Object} options - The options for the survey.
- * @param {Object} options.surveyName - A unique name for the survey within the study
+ * @param {Object} options.surveyName - A unique name for the survey within the study.
  * @param {string} options.popupNoPromptMessage - A message to present to the
  * user when there is no survey to prompt.
  * @param {string} options.popupPromptMessage - A message to present to the user
@@ -178,7 +178,7 @@ export async function setSurvey(options) {
     let currentSurvey = await storageSpace.get("currentSurvey");
 
     /* Clears the existing survey data if this survey differs from the
-     * previous survey
+     * previous survey.
      */
     if (currentSurvey !== options.surveyName) {
         await storageSpace.set("lastSurveyRequest", null);
@@ -253,7 +253,7 @@ export async function getSurveyId() {
 /**
  * Gets the completion status of the current survey. Can be used if a
  * subsequent survey depends on the status of the previous survey. 
- * @returns {boolean} - Whether the current survey has been completed
+ * @returns {boolean} - Whether the current survey has been completed.
  */
 export async function getSurveyCompletionStatus() {
     initializeStorage();
@@ -262,7 +262,7 @@ export async function getSurveyCompletionStatus() {
 
 /**
  * Gets the name of the current survey.
- * @returns {string} - Whether the current survey has been completed
+ * @returns {string} - The name of the current survey.
  */
 export async function getCurrentSurveyName() {
     initializeStorage();
