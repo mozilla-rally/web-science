@@ -4,9 +4,10 @@ WebScience is an open-source library for building browser-based research studies
 ## Design Goals
 * Reduce the barriers to implementing browser-based research studies, by providing production-quality functionality that is commonly required, difficult to implement correctly, and difficult to maintain.
 * Standardize measurement methods across browser-based research studies.
-* Advance the state of the art in browser-based research methods, such as by providing a sophisticated model for user attention to web content.
+* Advance the state of the art in browser-based research methods, such as by providing a sophisticated model for user attention to web content and providing infrastructure for in-browser machine learning classification of webpages.
 * Encourage researchers to practice data minimization when implementing studies.
-* Provide an API that is built on and consistent with [WebExtensions](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions), and that is compatible with all major web browsers.
+* Support integration with existing libraries that are valuable for browser-based studies, such as for indexed data storage (e.g., [Dexie.js](https://dexie.org/)) or for machine learning (e.g., [TensorFlow.js](https://www.tensorflow.org/js), [ONNX.js](https://github.com/microsoft/onnxjs), [WebDNN](https://mil-tokyo.github.io/webdnn/), or [sklearn-porter](https://github.com/nok/sklearn-porter)).
+* Provide an API that is built on and consistent with [WebExtensions](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions), reducing the learning curve and offering compatibility with all major web browsers.
 
 ## Contributors
 The primary contributors to WebScience are researchers at the [Princeton University Center for Information Technology Policy](https://citp.princeton.edu/) and the [Mozilla Rally](https://rally.mozilla.org/) team.
@@ -46,9 +47,9 @@ We will have documentation for the WebScience API online shortly. In the interim
 | `linkResolution`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `matching`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `messaging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `pageClassification`     | :x: [#11](https://github.com/mozilla-rally/web-science/issues/11)                         | :white_check_mark: | :white_check_mark: | :x:                |
 | `pageManager`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `pageNavigation`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `pageText`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `permissions`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `randomization`          | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `scheduling`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
