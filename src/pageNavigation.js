@@ -14,35 +14,65 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  * Additional information about the page data event.
  * @typedef {Object} PageDataDetails
  * @property {number} pageId - The ID for the page, unique across browsing sessions.
- * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session.
- * @property {number} windowId - The ID for the window containing the page, unique to the browsing session.
- * Note that tabs can subsequently move between windows.
- * @property {string} url - The URL of the page loading in the tab, without any hash.
- * @property {string} referrer - The referrer URL for the page loading in the tab, or `""` if
- * there is no referrer.
- * @property {number} pageVisitStartTime - The time when the underlying event fired.
- * @property {boolean} privateWindow - Whether the page is in a private window.
- * @interface
+ * @property {string} url - The URL of the page, without any hash.
+ * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer.
+ * @property {number} pageVisitStartTime - The time when the page visit started, in ms since
+ * the epoch.
+ * @property {number} pageVisitStopTime - The time when the page visit ended, in ms since the
+ * epoch.
+ * @property {number} attentionDuration - The amount of time in ms that the page had user attention.
+ * @property {number} audioDuration - The amount of time in ms that the page was playing audio.
+ * @property {number} attentionAndAudioDuration - The amount of time in ms that the page both had
+ * user attention and was playing audio.
+ * @property {number} maxRelativeScrollDepth - The maximum relative scroll depth on the page.
+ * @property {boolean} privateWindow - Whether the page loaded in a private window.
  */
 
 /**
- * A callback function for the page data event.
- * @callback pageDataCallback
+ * @callback pageDataListener
  * @param {PageDataDetails} details - Additional information about the page data event.
  */
 
 /**
- * Options when adding a page data event listener.
- * @typedef {Object} PageDataOptions
- * @property {Array<string>} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
- * @property {boolean} [privateWindows=false] - Whether to measure pages in private windows.
+ * @callback PageDataAddListener
+ * @param {pageDataListener} listener - The listener to add.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
+ */
+
+/**
+ * @callback PageDataRemoveListener
+ * @param {pageDataListener} listener - The listener to remove.
+ */
+
+/**
+ * @callback PageDataHasListener
+ * @param {pageDataListener} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * @callback PageDataHasAnyListeners
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
+ * @typedef {Object} PageDataEvent
+ * @property {PageDataAddListener} addListener - Add a listener for page data.
+ * @property {PageDataRemoveListener} removeListener - Remove a listener for page data.
+ * @property {PageDataHasListener} hasListener - Whether a specified listener has been added.
+ * @property {PageDataHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
  */
 
 /**
  * Function to start measurement when a listener is added
  * TODO: deal with multiple listeners with different match patterns
  * @param {pageDataCallback} listener - new listener being added
- * @param {PageDataOptions} options - configuration for the events to be sent to this listener
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
+ * @private
  */
 function addListener(listener, options) {
     startMeasurement(options);
@@ -51,6 +81,7 @@ function addListener(listener, options) {
 /**
  * Function to end measurement when the last listener is removed
  * @param {pageDataCallback} listener - listener that was just removed
+ * @private
  */
 function removeListener(listener) {
     if (!this.hasAnyListeners()) {
@@ -59,26 +90,33 @@ function removeListener(listener) {
 }
 
 /**
- * @type {Events.Event<pageDataCallback, PageDataOptions>}
+ * An event that fires when a page visit has ended and data about the
+ * visit that is available.
+ * @constant {PageDataEvent}
  */
 export const onPageData = events.createEvent({
     addListenerCallback: addListener,
-    removeListenerCallback: removeListener});
+    removeListenerCallback: removeListener
+});
 
 /**
  * The registered page navigation content script.
- * @type {RegisteredContentScript|null}
+ * @type {browser.contentScripts.RegisteredContentScript|null}
+ * @private
  */
 let registeredContentScript = null;
 
 /**
  * Whether to notify the page data listener about private windows.
+ * @type {boolean}
+ * @private
  */
 let notifyAboutPrivateWindows = false;
 
 /**
  * A function that is called when the content script sends a page data event message.
  * @param {PageData} pageData - Information about the page.
+ * @private
  */
 function pageDataListener(pageData) {
     // If the page is in a private window and the module should not measure private windows,
@@ -96,7 +134,10 @@ function pageDataListener(pageData) {
 
 /**
  * Start a navigation measurement. Note that only one measurement is currently supported per extension.
- * @param {PageDataOptions} options - A set of options for the measurement.
+ * @param {Object} options - A set of options for the measurement.
+ * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
+ * @private
  */
 async function startMeasurement({
     matchPatterns = [ ],
@@ -114,26 +155,30 @@ async function startMeasurement({
         runAt: "document_start"
     });
 
-    messaging.registerListener("webScience.pageNavigation.pageData", pageDataListener,
+    messaging.onMessage.addListener(pageDataListener,
     {
-        pageId: "string",
-        url: "string",
-        referrer: "string",
-        pageVisitStartTime: "number",
-        pageVisitStopTime: "number",
-        attentionDuration: "number",
-        audioDuration: "number",
-        attentionAndAudioDuration: "number",
-        maxRelativeScrollDepth: "number",
-        privateWindow: "boolean"
+        type: "webScience.pageNavigation.pageData",
+        schema: {
+            pageId: "string",
+            url: "string",
+            referrer: "string",
+            pageVisitStartTime: "number",
+            pageVisitStopTime: "number",
+            attentionDuration: "number",
+            audioDuration: "number",
+            attentionAndAudioDuration: "number",
+            maxRelativeScrollDepth: "number",
+            privateWindow: "boolean"
+        }
     });
 }
 
 /**
  * Stop a navigation measurement.
+ * @private
  */
 function stopMeasurement() {
-    messaging.unregisterListener("webScience.pageNavigation.pageData", pageDataListener)
+    messaging.onMessage.removeListener(pageDataListener);
     registeredContentScript.unregister();
     registeredContentScript = null;
     notifyAboutPrivateWindows = false;

@@ -5,6 +5,14 @@
  * @module webScience.randomization
  */
 
+import * as permissions from "./permissions.js";
+
+permissions.check({
+    module: "webScience.linkExposure",
+    requiredPermissions: [ "storage" ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
+
 /**
  * A condition for a measurement or intervention that can be randomly selected.
  * @typedef {Object} Condition
@@ -21,19 +29,18 @@
  */
 
 /**
- * @type {Object|null}
- * @private
  * A map of condition set names to condition names. Maintaining a cache avoids
  * storage race conditions. The cache is an Object rather than a Map so it can
  * be easily stored in extension local storage.
+ * @type {Object|null}
+ * @private
  */
 let conditionCache = null;
 
 /**
- * @type {string}
- * @const
- * @private
  * A unique key for storing selected conditions in extension local storage.
+ * @constant {string}
+ * @private
  */
 const storageKey = "webScience.randomization.conditions";
 

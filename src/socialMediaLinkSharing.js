@@ -1,6 +1,5 @@
 /**
- * This module is used to run studies that track the user's
- * social media sharing of links.
+ * This module enables observing when the user shares a link on social media.
  *
  * @module webScience.socialMediaLinkSharing
  */
@@ -11,11 +10,15 @@ import * as matching from "./matching.js";
 import * as socialMediaActivity from "./socialMediaActivity.js";
 import * as linkResolution from "./linkResolution.js";
 
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("socialMediaLinkSharing");
 
 /**
- * A MatchPatternSet object for testing urls
- * @type {Object}
+ * The match patterns for URLs of interest.
+ * @type {matching.MatchPatternSet}
  * @private
  */
 let destinationMatcher = null;
@@ -31,7 +34,7 @@ let twitterPrivacySetting = "unknown";
 /**
  * Options when adding a social media share event listener.
  * @typedef {Object} SocialMediaShareOptions
- * @property {Array<string>} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {string[]} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
  */
 
 /**
@@ -39,6 +42,7 @@ let twitterPrivacySetting = "unknown";
  * TODO: deal with multiple listeners with different match patterns
  * @param {socialMediaShareCallback} listener - new listener being added
  * @param {SocialMediaShareOptions} options - configuration for the events to be sent to this listener
+ * @private
  */
 function addListener(listener, options) {
     startMeasurement(options);
@@ -47,6 +51,7 @@ function addListener(listener, options) {
 /**
  * Function to end measurement when the last listener is removed
  * @param {socialMediaShareCallback} listener - listener that was just removed
+ * @private
  */
 function removeListener(listener) {
     if (!this.hasAnyListeners()) {
@@ -69,6 +74,7 @@ export const onShare = events.createEvent({
  * @param {boolean} [options.facebook=false] - Whether to track URL shares on Facebook.
  * @param {boolean} [options.twitter=false] - Whether to track URL shares on Twitter.
  * @param {boolean} [options.reddit=false] - Whether to track URL shares on Reddit.
+ * @private
  */
 async function startMeasurement({
     destinationMatchPatterns = [],
@@ -95,21 +101,33 @@ async function startMeasurement({
     destinationMatcher = matching.createMatchPatternSet(destinationMatchPatterns);
 }
 
+/**
+ * @private
+ */
 function stopMeasurement() {
     //TODO
 }
 
+/**
+ * @private
+ */
 function isTwitterLink(url) {
     const twitterLink = /twitter\.com\/[0-9|a-z|A-Z|_]*\/status\/([0-9]*)\//;
     return twitterLink.exec(url);
 }
 
+/**
+ * @private
+ */
 async function parsePossibleTwitterQuoteTweet(twitterUrl, urlsToSave, urlsNotToSave) {
     const matchTwitter = isTwitterLink(twitterUrl);
     if (matchTwitter == null) return;
     await parseTwitterQuoteTweet(matchTwitter[1], urlsToSave, urlsNotToSave, []);
 }
 
+/**
+ * @private
+ */
 async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets) {
     if (!tweetId) return;
     if (!(tweetId in tweets)) {
@@ -133,6 +151,9 @@ async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets
     }
 }
 
+/**
+ * @private
+ */
 function parseTwitterUrlObject(urlObject) {
     if ("expanded_url" in urlObject) return urlObject.expanded_url;
     if ("url" in urlObject) return urlObject.url;
@@ -144,6 +165,7 @@ function parseTwitterUrlObject(urlObject) {
  * We track tweets and retweets, and only care about links within them. Note that "tweet"s contains
  *  reply tweets and retweet-with-comment.
  * @param details - the description of the event
+ * @private
  */
 async function twitterLinks(details) {
     // This is the callback for any kind of tracked Twitter event
@@ -260,6 +282,7 @@ async function twitterLinks(details) {
  * The callback for Facebook events.
  * We track posts and reshares of posts, and only care about links within them.
  * @param details - the description of the event
+ * @private
  */
 async function facebookLinks(details) {
     let urlsToSave = [];
@@ -314,6 +337,7 @@ async function facebookLinks(details) {
  * The callback for Reddit events.
  * We track posts, and only care about links within them,
  * @param details - the description of the event
+ * @private
  */
 async function redditLinks(details) {
     let urlsToSave = [];
@@ -358,6 +382,7 @@ async function redditLinks(details) {
  * @param {string} event - The type of sharing event.
  * @returns {Object} - An object containing the `shareTime`, `platform`,
  * `url`, `audience`, `source`, and `event` as properties.
+ * @private
  */
 async function createShareRecord({shareTime = "",
                                   platform = "",
@@ -381,6 +406,7 @@ async function createShareRecord({shareTime = "",
  * Normalize urls by stripping url parameters and then remove duplicates
  * @param {string[]} urls - the urls to normalize and deduplicate
  * @returns {Set} - unique normalized urls
+ * @private
  */
 function deduplicateUrls(urls) {
     const uniqueUrls = new Set();
@@ -393,13 +419,14 @@ function deduplicateUrls(urls) {
 /**
  * Check whether a given token is a known short url, and resolve if so.
  * @param {string} url - a token that might be a short url
- * @return {string} - the resolved short url, or the original token if it was not a short url
+ * @returns {string} - the resolved short url, or the original token if it was not a short url
+ * @private
  */
 async function expandShortUrl(token) {
     try {
         if (linkResolution.urlShortenerRegExp.test(token)) {
             const resolved = await linkResolution.resolveUrl(token)
-            if (resolved && resolved.dest) return resolved.dest;
+            if (resolved) return resolved;
         }
         return token;
     } catch {
@@ -407,7 +434,9 @@ async function expandShortUrl(token) {
     }
 }
 
-
+/**
+ * @private
+ */
 function isUrl(token) {
     let url;
     try { url = new URL(token); }
@@ -419,6 +448,7 @@ function isUrl(token) {
  * Filter an array of tokens into relevant urls, including resolving short urls.
  * @param {String[]} unfilteredTokens - array of tokens
  * @param {String[]} urlsToSave - an array to add the relevant urls to
+ * @private
  */
 async function extractRelevantUrlsFromTokens(unfilteredTokens, urlsToSave, urlsNotToSave) {
     for (let unfilteredToken of unfilteredTokens) {
@@ -435,6 +465,9 @@ async function extractRelevantUrlsFromTokens(unfilteredTokens, urlsToSave, urlsN
     }
 }
 
+/**
+ * @private
+ */
 function checkTwitterAccountStatus() {
     fetch("https://twitter.com", {credentials: "include"}).then((response) => {
         response.text().then(resp => {
@@ -456,7 +489,8 @@ function checkTwitterAccountStatus() {
  * or enclosed in quotes or parantheses. Most URLs don't end in such punctuation,
  * and we will fail to match these URLs without stripping the extraneous characters.
  * @param {string} token - text to have punctuation stripped
- * @return {string} - the token with leading and trailing punctuation stripped.
+ * @returns {string} - the token with leading and trailing punctuation stripped.
+ * @private
  */
 function stripToken(token) {
     token = token.replace(/[.,'")(]+$/, "");
