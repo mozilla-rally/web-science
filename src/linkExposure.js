@@ -1,5 +1,6 @@
 /**
- * This module enabled measurement of the user's exposure to links.
+ * This module enables measuring user exposure to linked content. See the
+ * `onLinkExposureData` event for specifics.
  *
  * @module webScience.linkExposure
  */
