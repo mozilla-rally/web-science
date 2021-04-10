@@ -24,6 +24,13 @@ export async function check({
     warn = true,
     module = "moduleNameNotProvided"
 }) {
+    // If this function is called in an environment other than a background script (e.g., a content script),
+    // that very likely means the call was left in as a possible side effect during bundling when we wanted
+    // it to be tree shaken out. If that's the case, just return true.
+    if(!("permissions" in browser)) {
+        return true;
+    }
+
     let passed = true;
 
     // API permissions

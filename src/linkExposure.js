@@ -73,7 +73,7 @@ const linkExposureDataListeners = new Map();
  */
 
 /**
- * @callback LinkExposurDataHasListener
+ * @callback LinkExposureDataHasListener
  * @param {linkExposureDataListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
