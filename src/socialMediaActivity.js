@@ -31,7 +31,8 @@ export function enablePrivateWindows() {
     privateWindows = true;
 }
 
-/** Unregister old handlers for an event, and register a new one, if necessary.
+/**
+ * Unregister old handlers for an event, and register a new one, if necessary.
  * Unregistering is only necessary when there's already a nonblocking handler registered
  * and we want to convert it to a blocking handler.
  * @param platform - which social media platform the event is for
@@ -67,6 +68,14 @@ function registerPlatformListener(platform, eventType, blockingType) {
     }
 }
 
+/**
+ * Handle registering listeners and setting up content scripts for a new set of events.
+ * Used as callback for adding a listener to the event.
+ * @param {socialMediaActivityCallback} listener - The listener being added.
+ * @param {string} platform - the social media platform for the events.
+ * @param {Array<string>} eventTypes - a list of events on the above platform.
+ * @param {boolean} blocking - whether the listener should be able to cancel an event.
+ */
 function addListener(listener, { platform, eventTypes, blocking=false }){
     for (const eventType of eventTypes) {
         registerPlatformListener(platform, eventType, blocking ? "blocking" : "nonblocking");
@@ -75,6 +84,13 @@ function addListener(listener, { platform, eventTypes, blocking=false }){
     if (platform == 'facebook') fbPostContentInit();
 }
 
+/**
+ * Filter generated events to only the listeners for the specific event type.
+ * @param {socialMediaActivityCallback} listener - The listener that may be notified.
+ * @param {Array} listenerArguments - The event about to be sent to the listener.
+ * @param {EventOptions} options - The set of options provided when this listener was registered.
+ * @return {boolean} Whether to notify this listener for this event.
+ */
 function notifyFilter(listener, listenerArguments, options) {
     const reportedEvent = listenerArguments[0];
     const ret = reportedEvent['platform'] == options['platform'] &&
@@ -633,6 +649,11 @@ function verifyFacebookComment({requestDetails = null}) {
     return {};
 }
 
+/**
+ * Determine the audience of a Facebook post or reshare.
+ * @param {Object} requestDetails - the full requestDetails object from a captured web request.
+ * @return {string} - The audience of the post ("public", "restricted", or "unknown").
+ */
 function checkFacebookPostAudience(requestDetails) {
     let base_state = "unknown";
     let audience = "unknown";
@@ -672,6 +693,22 @@ function checkFacebookPostAudience(requestDetails) {
     return audience;
 }
 
+/**
+ * Given an object and the name of a target field, attempt to find a field with that name
+ * within the object. This function is necessary to handle the frequest small changes that
+ * Facebook makes to its APIs. For example, they sometimes change a field from being a
+ * string to being an array of strings that only ever holds a single string, or vice versa.
+ * The function checks recurses down the object structure, unwinding fields as it goes:
+ *   - it searches within arrays
+ *   - it parses strings as JSON, since Facebook often encodes lower-level objects this way
+ *   - it checks properties of the object itself
+ * It also uses the first entry in an array as the return value.
+ * @param {Object} object - The parent object to search.
+ * @param {string} fieldName - The target field to find.
+ * @param {boolean} enterArray - whether to use the first element of a found array as the return value, or the entire array.
+ * @param {integer} recurseLevel - Used internally to prevent recursing down very large structures.
+ * @param - the value of the fieldName, if found, or null.
+ */
 function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 5) {
     if (recurseLevel <= 0) return null;
     if (object == null) return null;
@@ -744,12 +781,25 @@ async function extractFacebookReshare({requestDetails = null, verified = null, e
     }
 }
 
+/**
+ * Ask our Facebook content script whether the last reshare was from a page or a person.
+ * This information is not included in the web request, nor is it attached to the generated post,
+ * so the only way to get it is by watching the user click the reshare button, which
+ * the content script does.
+ * @return {Promise} - The source of the last reshare ("person" or "page").
+ */
 async function getReshareInfo() {
     return browser.tabs.sendMessage(facebookTabId, {"recentReshare": true}).then((response) => {
         return response;
     }, (e) => { console.log("ERROR", e); } );
 }
 
+/**
+ * Facebook uses the same API endpoint for original posts and for reshares, so
+ * this function looks at the request details to differentiate the two.
+ * @param {Object} requestDetails - The requestDetails field from the captured web request.
+ * @return {boolean} - Whether this represents a reshare (or, if not, then a post).
+ */
 function isThisPostAReshare(requestDetails) {
     const friendlyName = findFieldFacebook(requestDetails.requestBody.formData,
         "fb_api_req_friendly_name");
@@ -991,6 +1041,11 @@ function extractRedditCommentVote({requestDetails = null, eventTime = null}) {
     });
 }
 
+/**
+ * For a given subreddit name, return whether it is private or public.
+ * @param {string} subredditName - The name of the subreddit, without leading "r/".
+ * @return {Promise} - resolves to a string representing the subreddit's status, or "unknown".
+ */
 export function checkSubredditStatus(subredditName) {
     if (subredditName == "") return "unknown";
     return new Promise((resolve, reject) => {
