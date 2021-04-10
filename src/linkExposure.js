@@ -92,8 +92,8 @@ const linkExposureDataListeners = new Map();
  */
 
 /**
- * An event that fires when a page visit has ended and data about link exposures
- * during the visit is available.
+ * An event that fires when data about link exposures on a page is available. This event can fire multiple
+ * times for one page, as link exposures occur and the URLs for those links are resolved.
  * @constant {LinkExposureEvent}
  */
 export const onLinkExposureData = events.createEvent({
