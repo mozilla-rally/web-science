@@ -235,6 +235,8 @@ export async function setSurvey(options) {
     // Schedule a reminder for the user
     scheduleReminderForUser();
 
+    // If listeners have already been registered, remove the previously added listener
+    // for browser.webRequest.onBeforeRequest that checks for the survey completion URL
     if (listenersRegistered === true) {
         browser.webRequest.onBeforeRequest.removeListener(setSurveyComplete);
     }
@@ -245,6 +247,8 @@ export async function setSurvey(options) {
         { urls: [ (new URL(options.surveyCompletionUrl)).href + "*" ] }
     );
 
+    // Listeners for cancel and open survey button click only need to be added once.
+    // They do not need to be added again for subsequent calls to setSurvey
     if (listenersRegistered === false) {
         // Set listeners for cancel and open survey button clicks in the survey request
         messaging.onMessage.addListener(() => {
