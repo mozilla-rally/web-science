@@ -175,7 +175,7 @@ export async function setSurvey(options) {
 
     initializeStorage();
 
-    let currentSurvey = await storageSpace.get("currentSurvey");
+    const currentSurvey = await storageSpace.get("currentSurvey");
 
     /* Clears the existing survey data if this survey differs from the
      * previous survey.
