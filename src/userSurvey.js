@@ -170,16 +170,8 @@ function setSurveyComplete() {
  * indicates the user has completed the survey.
  * @param {string} options.surveyUrl - The URL for the survey on an external
  * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
- * @param {boolean} options.clearSurvey - Whether to clear existing survey data.
- * Should be set to true if this survey differs from the previous survey.
  */
 export async function setSurvey(options) {
-    // If there is an existing timeout from a previous call to setSurvey,
-    // clears the timeout.
-    if (reminderTimeoutId !== null) {
-        clearTimeout(reminderTimeoutId);
-    }
-
     const currentTime = Date.now();
     surveyUrl = options.surveyUrl;
     reminderIconUrl = browser.runtime.getURL(options.reminderIcon);
@@ -194,13 +186,6 @@ export async function setSurvey(options) {
     });
 
     initializeStorage();
-
-    // Clears the existing survey data if options.clearSurvey is true.
-    if (options.clearSurvey) {
-        await storageSpace.set("lastSurveyRequest", null);
-        await storageSpace.set("surveyCompleted", false);
-        await storageSpace.set("surveyCancelled", false);
-    }
 
     await storageSpace.set("currentSurvey", options.surveyName);
 
@@ -234,12 +219,6 @@ export async function setSurvey(options) {
 
     // Schedule a reminder for the user
     scheduleReminderForUser();
-
-    // If listeners have already been registered, remove the previously added listener
-    // for browser.webRequest.onBeforeRequest that checks for the survey completion URL.
-    if (listenersRegistered === true) {
-        browser.webRequest.onBeforeRequest.removeListener(setSurveyComplete);
-    }
 
     // Set a listener for the survey completion URL.
     browser.webRequest.onBeforeRequest.addListener(
@@ -298,4 +277,26 @@ export async function getSurveyCompletionStatus() {
 export async function getCurrentSurveyName() {
     initializeStorage();
     return await storageSpace.get("currentSurvey");
+}
+
+/**
+ * End the current survey. Should be called before a subsequent survey is started.
+ */
+ export async function endCurrentSurvey() {
+    // If there is an existing survey reminder timeout, clears the timeout.
+    if (reminderTimeoutId !== null) {
+        clearTimeout(reminderTimeoutId);
+    }
+
+    // Remove any previously added listener for browser.webRequest.onBeforeRequest
+    // that checks for the survey completion URL.
+    browser.webRequest.onBeforeRequest.removeListener(setSurveyComplete);
+
+    initializeStorage();
+
+    // Clears the the data in storage for the current survey.
+    await storageSpace.set("lastSurveyRequest", null);
+    await storageSpace.set("surveyCompleted", false);
+    await storageSpace.set("surveyCancelled", false);
+    await storageSpace.set("currentSurvey", null);
 }
