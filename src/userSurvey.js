@@ -49,12 +49,19 @@ permissions.check({
 let storageSpace = null;
 
 /**
- * Whether a survey has already been created. This module
- * currently only supports one survey per study.
+ * The ID of the survey reminder timeout (is null if there 
+ * is no such timeout).
+ * @type {number}
+ * @private
+ */
+let reminderTimeoutId = null;
+
+/**
+ * Whether listeners for this module have already been registered.
  * @type {boolean}
  * @private
  */
-let createdSurvey = false;
+let listenersRegistered = false;
 
 // Module-wide variables for a survey, set in createSurvey
 let lastSurveyRequest = 0;
@@ -88,7 +95,7 @@ async function openSurveyInNewTab() {
  * @private
  */
 function scheduleReminderForUser() {
-    setTimeout(remindUser, Math.max((lastSurveyRequest + reminderInterval * millisecondsPerSecond) - Date.now(), 0));
+    reminderTimeoutId = setTimeout(remindUser, Math.max((lastSurveyRequest + reminderInterval * millisecondsPerSecond) - Date.now(), 0));
 }
 
 /**
@@ -133,6 +140,16 @@ function initializeStorage() {
 }
 
 /**
+ * Called when the current survey is completed. Sets surveyCompleted to true in storage
+ * and changes the browser action popup to the survey's no prompt page.
+ * @private
+ */
+function setSurveyComplete() {
+    storageSpace.set("surveyCompleted", true);
+    setPopupToNoPromptPage();
+}
+
+/**
  * Prompt the user to respond to a survey.
  * @param {Object} options - The options for the survey.
  * @param {Object} options.surveyName - A unique name for the survey within the study.
@@ -153,12 +170,15 @@ function initializeStorage() {
  * indicates the user has completed the survey.
  * @param {string} options.surveyUrl - The URL for the survey on an external
  * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
+ * @param {boolean} options.clearSurvey - Whether to clear existing survey data.
+ * Should be set to true if this survey differs from the previous survey.
  */
 export async function setSurvey(options) {
-    if(createdSurvey) {
-        throw new Error("userSurvey only supports one survey at present.");
+    // If there is an existing timeout from a previous call to setSurvey,
+    // clears the timeout.
+    if (reminderTimeoutId !== null) {
+        clearTimeout(reminderTimeoutId);
     }
-    createdSurvey = true;
 
     const currentTime = Date.now();
     surveyUrl = options.surveyUrl;
@@ -175,12 +195,8 @@ export async function setSurvey(options) {
 
     initializeStorage();
 
-    const currentSurvey = await storageSpace.get("currentSurvey");
-
-    /* Clears the existing survey data if this survey differs from the
-     * previous survey.
-     */
-    if (currentSurvey !== options.surveyName) {
+    // Clears the existing survey data if options.clearSurvey is true.
+    if (options.clearSurvey) {
         await storageSpace.set("lastSurveyRequest", null);
         await storageSpace.set("surveyCompleted", false);
         await storageSpace.set("surveyCancelled", false);
@@ -188,11 +204,10 @@ export async function setSurvey(options) {
 
     await storageSpace.set("currentSurvey", options.surveyName);
 
-    /* Check when we last asked the user to do the survey. If it's null,
-     * we've never asked, which means the extension just got installed.
-     * Open a tab with the survey, and save this time as the most recent
-     * request for participation.
-     */
+    // Check when we last asked the user to do the survey. If it's null,
+    // we've never asked, which means the extension just got installed.
+    // Open a tab with the survey, and save this time as the most recent
+    // request for participation.
     let lastSurveyRequest = await storageSpace.get("lastSurveyRequest");
     const surveyCompleted = await storageSpace.get("surveyCompleted");
     const surveyCancelled = await storageSpace.get("surveyCancelled");
@@ -209,51 +224,62 @@ export async function setSurvey(options) {
     }
 
     // If this is the first survey request, open the survey in a new tab
-    if(lastSurveyRequest === null) {
+    if (lastSurveyRequest === null) {
         lastSurveyRequest = currentTime;
         await storageSpace.set("lastSurveyRequest", lastSurveyRequest);
         await storageSpace.set("surveyCompleted", false);
         await storageSpace.set("surveyCancelled", false);
-        await storageSpace.set("surveyId", id.generateId());
         openSurveyInNewTab();
     }
 
     // Schedule a reminder for the user
     scheduleReminderForUser();
 
+    if (listenersRegistered === true) {
+        browser.webRequest.onBeforeRequest.removeListener(setSurveyComplete);
+    }
+
     // Set a listener for the survey completion URL
     browser.webRequest.onBeforeRequest.addListener(
-        () => {
-            storageSpace.set("surveyCompleted", true);
-            setPopupToNoPromptPage();
-        },
+        setSurveyComplete,
         { urls: [ (new URL(options.surveyCompletionUrl)).href + "*" ] }
     );
 
-    // Set listeners for cancel and open survey button clicks in the survey request
-    messaging.onMessage.addListener(() => {
-        storageSpace.set("surveyCancelled", true);
-        setPopupToNoPromptPage();
-    }, { type: "webScience.userSurvey.cancelSurvey" });
-    messaging.onMessage.addListener(openSurveyInNewTab, { type: "webScience.userSurvey.openSurvey" });
+    if (listenersRegistered === false) {
+        // Set listeners for cancel and open survey button clicks in the survey request
+        messaging.onMessage.addListener(() => {
+            storageSpace.set("surveyCancelled", true);
+            setPopupToNoPromptPage();
+        }, { type: "webScience.userSurvey.cancelSurvey" });
+        messaging.onMessage.addListener(openSurveyInNewTab, { type: "webScience.userSurvey.openSurvey" });
+    }
+
+    listenersRegistered = true;
 }
 
 /**
  * Each study participant has a persistent survey ID, generated with
  * the id module. The ID is automatically added as a parameter to
  * the survey URL, enabling researchers to import survey data from an
- * external platform and sync it with Rally data.
+ * external platform and sync it with Rally data. This method returns the
+ * survey ID (generating it if it does not already exist)
  * @returns {string} - The participant's survey ID.
  */
 export async function getSurveyId() {
     initializeStorage();
-    return await storageSpace.get("surveyId");
+    let surveyId = await storageSpace.get("surveyId");
+    if (surveyId === null) {
+        surveyId = id.generateId();
+        await storageSpace.set("surveyId", surveyId);
+    }
+    return surveyId;
 }
 
 /**
  * Gets the completion status of the current survey. Can be used if a
- * subsequent survey depends on the status of the previous survey. 
+ * subsequent survey depends on the status of the previous survey.
  * @returns {boolean} - Whether the current survey has been completed.
+ * Returns null if there is no current survey.
  */
 export async function getSurveyCompletionStatus() {
     initializeStorage();
@@ -262,7 +288,8 @@ export async function getSurveyCompletionStatus() {
 
 /**
  * Gets the name of the current survey.
- * @returns {string} - The name of the current survey.
+ * @returns {string} - The name of the current survey. Returns null
+ * if there is no current survey.
  */
 export async function getCurrentSurveyName() {
     initializeStorage();
