@@ -32,11 +32,11 @@ export function enablePrivateWindows() {
 }
 
 /**
- * Unregister old handlers for an event, and register a new one, if necessary.
+ * Unregister old handlers for an activity, and register a new one, if necessary.
  * Unregistering is only necessary when there's already a nonblocking handler registered
  * and we want to convert it to a blocking handler.
- * @param platform - which social media platform the event is for
- * @param eventType - which type of event we're registering
+ * @param platform - which social media platform the activity is for
+ * @param eventType - which type of activity we're registering
  * @param blockingType - whether the handler should be blocking or not
  */
 function registerPlatformListener(platform, eventType, blockingType) {
@@ -80,21 +80,21 @@ function addListener(listener, { platform, eventTypes, blocking=false }){
     for (const eventType of eventTypes) {
         registerPlatformListener(platform, eventType, blocking ? "blocking" : "nonblocking");
     }
-    if (platform == 'twitter') tweetContentInit();
-    if (platform == 'facebook') fbPostContentInit();
+    if (platform === "twitter") tweetContentInit();
+    if (platform === "facebook") fbPostContentInit();
 }
 
 /**
  * Filter generated events to only the listeners for the specific event type.
  * @param {socialMediaActivityCallback} listener - The listener that may be notified.
- * @param {Array} listenerArguments - The event about to be sent to the listener.
+ * @param {Array<social} listenerArguments - The event about to be sent to the listener.
  * @param {EventOptions} options - The set of options provided when this listener was registered.
  * @return {boolean} Whether to notify this listener for this event.
  */
 function notifyFilter(listener, listenerArguments, options) {
     const reportedEvent = listenerArguments[0];
-    const ret = reportedEvent['platform'] == options['platform'] &&
-        options['eventTypes'].includes(reportedEvent['eventType']);
+    const ret = reportedEvent["platform"] === options["platform"] &&
+        options["eventTypes"].includes(reportedEvent["eventType"]);
     return ret;
 }
 
@@ -106,16 +106,16 @@ function notifyFilter(listener, listenerArguments, options) {
 
 /**
  * Options when adding a social media activity event listener.
- * @typedef {Object} socialMediaActivityOptions
- * @property {string} platform - The platform to add a listener for ('facebook', 'twitter', or 'reddit')
- * @property {Array<string>} eventTypes - The events on the platform to notify for. For facebook, can
- *   be 'post', 'comment', 'react', or 'reshare'. For twitter, 'tweet', 'retweet', 'favorite'. Reddit,
- *   'post', 'comment', 'postVote', 'commentVote'.
+ * @typedef {Object} SocialMediaActivityOptions
+ * @property {string} platform - The platform to add a listener for ("facebook", "twitter", or "reddit").
+ * @property {string[]} eventTypes - The events on the platform to notify for. For facebook, can
+ *   be "post", "comment", "react", or "reshare". For twitter, "tweet", "retweet", "favorite". Reddit,
+ *   "post", "comment", "postVote", "commentVote".
  * @property {boolean} blocking - Optional, set to true to allow blocking the events.
  */
 
 /**
- * @type {events.event<socialMediaActivityCallback, socialMediaActivityOptions}
+ * @type {events.event<socialMediaActivityCallback, SocialMediaActivityOptions}
  */
 export const onSocialMediaActivity = events.createEvent({
     addListenerCallback: addListener,
@@ -160,9 +160,11 @@ async function handleGenericEvent({requestDetails = null,
         }
     }
     details['platform'] = platform;
-    const blockingResult = onSocialMediaActivity.notifyListeners([details]);
-    if (blockingResult && "cancel" in blockingResult) {
-        return blockingResult;
+    const blockingResults = onSocialMediaActivity.notifyListeners([details]);
+    for (const blockingResult of blockingResults) {
+        if ("cancel" in blockingResult) {
+            return blockingResult;
+        }
     }
     for (const completer of handler.completers) {
         completer({requestDetails: requestDetails, verified: verified, details: details,
@@ -694,11 +696,11 @@ function checkFacebookPostAudience(requestDetails) {
 }
 
 /**
- * Given an object and the name of a target field, attempt to find a field with that name
+ * Given an object and the name of a target attribute, attempt to find a field with that name
  * within the object. This function is necessary to handle the frequest small changes that
  * Facebook makes to its APIs. For example, they sometimes change a field from being a
  * string to being an array of strings that only ever holds a single string, or vice versa.
- * The function checks recurses down the object structure, unwinding fields as it goes:
+ * The function recurses down the object structure, expanding fields as it goes:
  *   - it searches within arrays
  *   - it parses strings as JSON, since Facebook often encodes lower-level objects this way
  *   - it checks properties of the object itself

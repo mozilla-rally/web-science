@@ -119,19 +119,19 @@ class Event {
      * functions.
      */
     notifyListeners(listenerArguments = []) {
-        let returnVal = undefined;
+        const listenerReturnValues = [];
         this.listeners.forEach((options, listener) => {
             try {
                 if((this.notifyListenersCallback === null) || this.notifyListenersCallback(listener, listenerArguments, options)) {
                     const listenerReturnValue = listener.apply(null, listenerArguments);
-                    if (listenerReturnValue !== undefined) { returnVal = listenerReturnValue; }
+                    if (listenerReturnValue !== undefined) { listenerReturnValues.push(listenerReturnValue); }
                 }
             }
             catch(error) {
                 debugLog(`Error in listener notification: ${error}`);
             }
         });
-        return returnVal;
+        return listenerReturnValues;
     }
 }
 
