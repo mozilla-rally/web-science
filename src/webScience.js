@@ -9,6 +9,9 @@ export { inline }
 import * as debugging from "./debugging.js"
 export { debugging }
 
+import * as permissions from "./permissions.js"
+export { permissions }
+
 import * as events from "./events.js"
 export { events }
 

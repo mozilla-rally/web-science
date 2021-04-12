@@ -39,12 +39,19 @@
  */
 
 import * as events from "./events.js";
+import * as permissions from "./permissions.js";
+
+permissions.check({
+    module: "webScience.idle",
+    requiredPermissions: [ "idle" ]
+});
 
 /**
  * The minimum idle state detection interval (in seconds) supported by
  * the `idle` API.
  * @private
- * @const {number}
+ * @constant {number}
+ * @default
  */
 const minimumIdleStateDetectionIntervalInSeconds = 15;
 
@@ -54,7 +61,6 @@ const minimumIdleStateDetectionIntervalInSeconds = 15;
  * listener.
  * @private
  * @type {boolean}
- * @default
  */
 let initialized = false;
 
@@ -64,8 +70,7 @@ let initialized = false;
  * idle state detection interval (converted to milliseconds) from the
  * time the browser last fired an idle state notification.
  * @private
- * @type {boolean}
- * @default
+ * @type {number}
  */
 let lastIdleTime = -1;
 
@@ -74,7 +79,6 @@ let lastIdleTime = -1;
  * synchronous checking of the current idle state.
  * @private
  * @type {string}
- * @default
  */
 let currentIdleState = "active";
 
@@ -83,7 +87,7 @@ let currentIdleState = "active";
  * detection intervals in seconds and the values are Sets of
  * browser idle state listeners.
  * @private
- * @const {Map<number,Set<function>>}
+ * @constant {Map<number,Set<function>>}
  */
 const idleStateListeners = new Map();
 
@@ -92,7 +96,7 @@ const idleStateListeners = new Map();
  * detection intervals in seconds and the values are `timeoutID`
  * values from `setTimeout()`.
  * @private
- * @const {Map<number,number>}
+ * @constant {Map<number,number>}
  */
 const idleStateTimeouts = new Map();
 
@@ -118,7 +122,8 @@ async function initialize() {
  * if an idle state listener has not been registered, this function
  * will always return the default value of active state.
  * @param {number} detectionIntervalInSeconds - The detection interval
- * to use
+ * to use.
+ * @returns {string} - The idle state, either "idle" or "active".
  */
 export function queryState(detectionIntervalInSeconds) {
     if(currentIdleState !== "idle")
@@ -133,6 +138,7 @@ export function queryState(detectionIntervalInSeconds) {
 /**
  * A listener for `idle.onStateChanged` that supports notifying
  * idle state listeners with varying detection intervals.
+ * @param {browser.idle.IdleState}
  * @private
  */
 function idleOnStateChangedListener(newState) {
@@ -164,7 +170,7 @@ function idleOnStateChangedListener(newState) {
 
 /**
  * Schedule a timeout for a set of idle state listeners.
- * @param {Set<function>} idleStateListenersWithDetectionInterval - The set of idle state listeners.
+ * @param {Set<idleStateChangeListener>} idleStateListenersWithDetectionInterval - The set of idle state listeners.
  * @param {number} detectionIntervalInSeconds - The idle state detection interval (in seconds) for this set of listeners.
  * @returns {number} The timeout ID for the scheduled timeout.
  * @private
@@ -186,7 +192,7 @@ function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detec
  */
 
 /**
- * @typedef {function} IdleStateChangeAddListener
+ * @callback IdleStateChangeAddListener
  * @param {idleStateChangeListener} listener - The listener to add.
  * @param {Object} options - Options for the listener.
  * @param {number} options.detectionInterval - The idle state detection interval
@@ -194,18 +200,18 @@ function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detec
  */
 
 /**
- * @typedef {function} IdleStateChangeRemoveListener
+ * @callback IdleStateChangeRemoveListener
  * @param {idleStateChangeListener} listener - The listener to remove.
  */
 
 /**
- * @typedef {function} IdleStateChangeHasListener
+ * @callback IdleStateChangeHasListener
  * @param {idleStateChangeListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
 
 /**
- * @typedef {function} IdleStateChangeHasAnyListeners
+ * @callback IdleStateChangeHasAnyListeners
  * @returns {boolean} Whether the event has any listeners.
  */
 
@@ -218,11 +224,11 @@ function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detec
  */
 
 /**
- * @type {IdleStateChangeEvent}
  * An event that fires when the browser's idle state changes. This event supports multiple idle
  * detection intervals, unlike the WebExtensions idle.onStateChanged event.
  * 
  * TODO: The event does not currently support removing listeners.
+ * @constant {IdleStateChangeEvent}
  */
 export const onStateChanged = events.createEvent({
     addListenerCallback: (listener, options) => {
@@ -233,8 +239,8 @@ export const onStateChanged = events.createEvent({
 
 /**
  * Register a listener function for browser idle state.
- * @param {function} idleStateListener - The listener function.
- * The function will receive the same `idle.IdleState` parameter
+ * @param {idleStateChangeListener} idleStateListener - The listener function.
+ * The function will receive the same `browser.idle.IdleState` parameter
  * as if it had subscribed to idle state events with
  * `browser.idle.onStateChanged.addListener`.
  * @param {number} detectionIntervalInSeconds - The detection

@@ -3,6 +3,9 @@
  * @module webScience.socialMediaActivity.facebook.content
  */
 
+import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecoration } from "../linkResolution.js";
+
+
 // async IIFE wrapper to enable await syntax
 (async function() {
 
@@ -247,39 +250,6 @@
             condenseContent(child, text, links);
         }
     }
-    /**
-     * Regular expression for matching urls shimmed by facebook
-     * @constant
-     * @type {RegExp}
-     * @default
-     */
-    const facebookUrlRegex = /https?:\/\/l.facebook.com\/l\.php\?u=/;
-
-    /**
-     * Function to retrieve original url from a url shimmed by facebook
-     * @see facebookUrlRegex
-     * The shimmed url contains key-value pairs. Original url is stored under
-     * key 'u'
-     * @param {string} url - inner url if the format follows the above description empty otherwise
-     */
-    function removeFacebookShim(url) {
-        const urlObject = new URL(url);
-        // this is for facebook posts
-        const searchParamValue = urlObject.searchParams.get('u');
-        if (searchParamValue != null) {
-            return searchParamValue.split('?')[0];
-        }
-        return "";
-    }
-
-    function removeFacebookfbclid(url) {
-        const fbclidRegex = /(.*)(\?fbclid=.*)/;
-        const urlResult = fbclidRegex.exec(url);
-        if (urlResult) {
-            return urlResult[1];
-        }
-        return url;
-    }
 
     /**
      * Removes url shim. Currently supports only facebook urls
@@ -289,9 +259,9 @@
      */
     function removeShim(url) {
         // check if the url matches shim
-        if (facebookUrlRegex.test(url)) {
+        if (facebookLinkShimRegExp.test(url)) {
             return {
-                url: removeFacebookfbclid(removeFacebookShim(url)),
+                url: removeFacebookLinkDecoration(parseFacebookLinkShim(url)),
                 isShim: true
             };
         }

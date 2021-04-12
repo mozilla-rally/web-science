@@ -12,6 +12,10 @@ import Readability from "@mozilla/readability";
 import * as inline from "./inline.js"
 import pageContentContentScript from "./content-scripts/pageContent.content.js"
 
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("pageClassification");
 
 const workers = { };
@@ -62,9 +66,10 @@ function resultReceiver(result) {
  * Listen for messages from content script, pass them to classifier, listens for
  * classification results and sends back results to the registered result
  * listener function
+ * @private
  */
  function listenForContentScriptMessages() {
-    messaging.registerListener("webScience.pageClassification.pageContent", (pageContent, sender) => {
+    messaging.onMessage.addListener((pageContent, sender) => {
         if (!("tab" in sender)) {
             debugLog("Warning: unexpected message");
             return;
@@ -82,7 +87,7 @@ function resultReceiver(result) {
                 });
             }
         }
-    });
+    }, { type: "webScience.pageClassification.pageContent" });
 }
 
 export const onClassificationResult = new events.createEvent({
@@ -98,6 +103,7 @@ export const onClassificationResult = new events.createEvent({
  * @param {Array.string} matchPatterns - Match patterns of the form scheme://<host><path>
  * @param {string} workerId - an identifier for the background script and content
  * script to communicate
+ * @private
  */
 async function registerContentScripts(newMatchPatterns) {
     if (existingMatchPatterns === null) {

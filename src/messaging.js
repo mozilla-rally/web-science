@@ -21,14 +21,19 @@
  */
 
 import * as debugging from "./debugging.js";
+import * as events from "./events.js";
 
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("messaging");
 
 /**
  * A Map that stores message listeners. The keys are message types and the values
  * are Sets of message listeners.
  * @private
- * @const {Map<string,Set<function>>}
+ * @constant {Map<string,Set<Function>>}
  */
 const messageRouter = new Map();
 
@@ -36,7 +41,7 @@ const messageRouter = new Map();
  * A Map that stores message schemas. The keys are message types and the values
  * are schemas.
  * @private
- * @const {Map<string,Object>}
+ * @constant {Map<string,Object>}
  */
 const messageSchemas = new Map();
 
@@ -50,10 +55,11 @@ let initialized = false;
 
 /**
  * Validates that a message is an object with a type string.
- * @param {*} message - The message.
+ * @param {Object} message - The message.
  * @returns {boolean} Whether the message is an object with a type string.
+ * @private
  */
-export function validateMessageObject(message) {
+function validateMessageObject(message) {
     // If the message does not have the right type, fail validation.
     if ((typeof message !== "object") || (message === null)) {
         debugLog(`Unable to validate message with type: ${typeof message}`);
@@ -72,15 +78,16 @@ export function validateMessageObject(message) {
 /**
  * Validates a message against a registered schema. Assumes that the message is an object
  * with a type string. If you cannot guarantee that, call `validateMessageObject` first.
- * @param {*} message - The message, which must be an object that matches the properties
+ * @param {Object} message - The message, which must be an object that matches the properties
  * and types specified in the schema.
- * @param {object} [messageSchema] - The schema to use for validation. If no schema is
+ * @param {Object} [messageSchema] - The schema to use for validation. If no schema is
  * specified, this function attempts to retrieve the registered schema for the message type.
  * @returns {boolean} Whether the message successfully validated against the schema. Returns
  * `false` if there is a schema mismatch or if there is no schema registered for the message
  * type.
+ * @private
  */
-export function validateMessageAgainstSchema(message, messageSchema)
+function validateMessageAgainstSchema(message, messageSchema)
 {
     // If the caller doesn't specify a message schema, attempt to retrieve the registered schema.
     if(messageSchema === undefined) {
@@ -140,15 +147,69 @@ function browserRuntimeListener(message, sender, sendResponse) {
     return browserRuntimeReturnValue;
 }
 
+
+/**
+ * @callback onMessageListener
+ * @param {Object} message - The received message with a matching type string.
+ */
+
+/**
+ * @callback OnMessageAddListener
+ * @param {onMessageListener} listener - The listener to add.
+ * @param {Object} options - Options for the listener.
+ * @param {string} options.type - A unique string that identifies the message type.
+ * @param {object} [options.schema] - A schema for validating messages with this type.
+ */
+
+/**
+ * @callback OnMessageRemoveListener
+ * @param {onMessageListener} listener - The listener to remove.
+ */
+
+/**
+ * @callback OnMessageHasListener
+ * @param {onMessageListener} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * @callback OnMessageHasAnyListeners
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
+ * @typedef {Object} OnMessageEvent
+ * @property {OnMessageAddListener} addListener - Add a listener for messages.
+ * @property {OnMessageRemoveListener} removeListener - Remove a listener for messages.
+ * @property {OnMessageHasListener} hasListener - Whether a specified listener has been added.
+ * @property {OnMessageHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
+ */
+
+/**
+ * An event that fires when the background script environment receives a message, usually from
+ * a content script.
+ * @constant {OnMessageEvent}
+ */
+export const onMessage = events.createEvent({
+    addListenerCallback: (listener, options) => {
+        registerListener(options.type, listener, "schema" in options ? options.schema : undefined);
+    },
+    removeListenerCallback: (listener, options) => {
+        unregisterListener(options.type, listener);
+    },
+    notifyListenersCallback: () => { return false; }
+});
+
 /**
  * Registers a message listener.
  * @param {string} messageType - The type of message that triggers the listener function.
- * @param {function} messageListener - The listener function, which receives the same
+ * @param {Function} messageListener - The listener function, which receives the same
  * parameters as if it had been called by `browser.runtime.onMessage`, and that can
  * return the same values as a listener to `browser.runtime.onMessage`.
- * @param {object} [messageSchema] - An optional schema to register for the message type.
+ * @param {Object} [messageSchema] - An optional schema to register for the message type.
+ * @private
  */
-export function registerListener(messageType, messageListener, messageSchema) {
+function registerListener(messageType, messageListener, messageSchema) {
     if (!initialized) {
         initialized = true;
         browser.runtime.onMessage.addListener(browserRuntimeListener);
@@ -161,29 +222,29 @@ export function registerListener(messageType, messageListener, messageSchema) {
     }
     messageListeners.add(messageListener);
 
-    if(messageSchema !== undefined)
+    if(messageSchema !== undefined) {
         registerSchema(messageType, messageSchema);
+    }
 }
 
 /**
  * Unregisters a message listener.
  * @param {string} messageType - The type of message that triggers the listener function.
- * @param {function} messageListener - The listener function.
- * @param {boolean} [unregisterSchema=true] - Whether to unregister the schema for the message type, if there is one.
+ * @param {Function} messageListener - The listener function.
+ * @private
  */
-export function unregisterListener(messageType, messageListener, unregisterSchema) {
+function unregisterListener(messageType, messageListener) {
     const messageListeners = messageRouter.get(messageType);
     if(messageListeners !== undefined) {
         messageListeners.delete(messageListener);
-        if(messageListeners.size === 0)
+        if(messageListeners.size === 0) {
             messageRouter.delete(messageType);
+        }
     }
-    if(unregisterSchema)
-        messageSchemas.delete(messageType);
 }
 
 /**
- * Registers a message schema.
+ * Registers a schema for a type of message.
  * @param {string} messageType - The type of message that must follow the schema.
  * @param {Object} messageSchema - An object where each field has a value that is
  * a built-in type string.
@@ -195,6 +256,14 @@ export function registerSchema(messageType, messageSchema) {
         return;
     }
     messageSchemas.set(messageType, messageSchema);
+}
+
+/**
+ * Unregisters a schema for a type of message, if one is registered.
+ * @param {string} messageType - The type of message .
+ */
+ export function unregisterSchema(messageType) {
+     messageSchemas.delete(messageType);
 }
 
 /**
