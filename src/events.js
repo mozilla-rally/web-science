@@ -117,6 +117,7 @@ class Event {
      * Notify the listener functions for the event.
      * @param {Array} [listenerArguments=[]] - The arguments that will be passed to listener
      * functions.
+     * @return {Object[]} - Any provided return values from the listeners.
      */
     notifyListeners(listenerArguments = []) {
         const listenerReturnValues = [];
