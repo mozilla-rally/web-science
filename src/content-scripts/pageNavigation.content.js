@@ -78,7 +78,7 @@ const pageNavigation = function () {
     /**
      * The minimum page height required (in pixels, using the maximum of `document.documentElement.offsetHeight`
      * and `window.scrollY`) to check the maximum relative scroll depth. A minimum height is helpful because some
-     * pages have placeholder content while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
+     * pages have placeholder content while loading (e.g., on YouTube) or lazily load content (e.g., on Twitter).
      * We use `document.documentElement.offsetHeight` because it typically measures the vertical height of document
      * content, and we use `window.scrollY` as a backstop of real user scrolling because in unusual layouts (e.g.,
      * YouTube) the value of `document.documentElement.offsetHeight` is 0. We do not use `scrollHeight` or
