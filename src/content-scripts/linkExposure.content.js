@@ -38,6 +38,8 @@ import { urlToPS1 } from "../linkResolution.js";
 
     /**
      * Ignore links where the link URL PS+1 is identical to the page URL PS+1.
+     * Note that there is another ignoreSelfLinks constant in the linkExposure
+     * background script, and these two constants should have the same value.
      * @constant {boolean}
      */
     const ignoreSelfLinks = true;

@@ -21,6 +21,14 @@ permissions.check({
 });
 
 /**
+ * Ignore links where the link URL PS+1 is identical to the page URL PS+1.
+ * Note that there is another ignoreSelfLinks constant in the linkExposure
+ * content script, and these two constants should have the same value.
+ * @constant {boolean}
+ */
+const ignoreSelfLinks = true;
+
+/**
  * The details of a link exposure event.
  * @typedef {Object} LinkExposureDataDetails
  * @property {number} pageId - The ID for the page, unique across browsing sessions.
@@ -200,6 +208,16 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
             }
         }
 
+        // Parse the page URL and link URL public suffix + 1s if we are ignoring
+        // self links
+        // These are links that do not appear to be self links in the content
+        // script, but resolve to self links
+        let selfLinks = null;
+        if(ignoreSelfLinks) {
+            const pagePS1 = linkResolution.urlToPS1(url);
+            selfLinks = linkUrls.map(linkUrl => { return pagePS1 === linkResolution.urlToPS1(linkUrl); })
+        }
+
         // Notify the listeners
         for(const [listener, listenerRecord] of linkExposureDataListeners) {
             // Check private window and page match pattern requirements for the listener
@@ -207,7 +225,15 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
             listenerRecord.pageMatchPatternSet.matches(url)) {
                 const matchingLinkUrls = [];
                 let nonmatchingLinkCount = 0;
-                for(const linkUrl of linkUrls) {
+                for(let i = 0; i < linkUrls.length; i++) {
+                    // If we are ignoring self links and a resolved link URL is a self link,
+                    // ignore the resolved link URL
+                    if(ignoreSelfLinks && selfLinks[i]) {
+                        continue;
+                    }
+                    // Queue the link for reporting to the listener, either as a URL (if matching)
+                    // or in a count (if nonmatching)
+                    const linkUrl = linkUrls[i];
                     if(listenerRecord.linkMatchPatternSet.matches(linkUrl)) {
                         matchingLinkUrls.push(linkUrl);
                     }
