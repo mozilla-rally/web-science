@@ -14,6 +14,19 @@
 // Function encapsulation to wait for pageManager load
 const pageNavigation = function () {
 
+    // If the pageNavigation content script is already running on this page, no need for this instance
+    if("webScience" in window) {
+        if("pageNavigationActive" in window.webScience) {
+            return;
+        }
+        window.webScience.pageNavigationActive = true;
+    }
+    else {
+        window.webScience = {
+            pageNavigationActive: true
+        }
+    }
+
     const pageManager = window.webScience.pageManager;
 
     /**
@@ -63,10 +76,13 @@ const pageNavigation = function () {
     const scrollDepthUpdateDelay = 2000;
 
     /**
-     * The minimum page height required (in pixels, using `document.documentElement.offsetHeight` rather
-     * than `scrollHeight` or `clientHeight` to avoid clamping to screen size) to check the maximum
-     * relative scroll depth. A minimum height is helpful because some pages have placeholder content
-     * while loading (e.g., on YouTube) or lazily load contnt (e.g., on Twitter).
+     * The minimum page height required (in pixels, using the maximum of `document.documentElement.offsetHeight`
+     * and `window.scrollY`) to check the maximum relative scroll depth. A minimum height is helpful because some
+     * pages have placeholder content while loading (e.g., on YouTube) or lazily load content (e.g., on Twitter).
+     * We use `document.documentElement.offsetHeight` because it typically measures the vertical height of document
+     * content, and we use `window.scrollY` as a backstop of real user scrolling because in unusual layouts (e.g.,
+     * YouTube) the value of `document.documentElement.offsetHeight` is 0. We do not use `scrollHeight` or
+     * `clientHeight` because those values are clamped to screen size.
      * @constant {number}
      */
     const scrollDepthMinimumHeight = 50;
@@ -101,7 +117,34 @@ const pageNavigation = function () {
      */
     let scrollDepthIntervalId = 0;
 
-    const pageVisitStart = function ({ timeStamp }) {
+    /**
+     * A timer tick callback function that updates the maximum relative scroll depth on the page.
+     */
+    function updateMaxRelativeScrollDepth() {
+        /* Don't measure scroll depth if:
+         *   * The page doesn't have the user's attention
+         *   * Scroll depth measurement doesn't wait on attention and the page load is too recent
+         *   * Scroll depth measurement does wait on attention and either the first attention hasn't happened or is too recent
+         *   * The content height and user scrolling are below a minimum amount
+         */
+        if(!pageManager.pageHasAttention ||
+            (!scrollDepthWaitForAttention && (Date.now() - pageManager.pageVisitStartTime) < scrollDepthUpdateDelay) || 
+            (scrollDepthWaitForAttention && ((firstAttentionTime <= 0) || ((Date.now() - firstAttentionTime) < scrollDepthUpdateDelay))) ||
+            (Math.max(document.documentElement.offsetHeight, window.scrollY) < scrollDepthMinimumHeight)) {
+            return;
+        }
+        // Set the maximum relative scroll depth
+        maxRelativeScrollDepth = Math.min(
+            Math.max(maxRelativeScrollDepth, (window.scrollY + document.documentElement.clientHeight) / document.documentElement.scrollHeight),
+            1);
+    }
+
+    /**
+     * A callback function for pageManager.onPageVisitStart.
+     * @param {Object} details
+     * @param {number} details.timeStamp 
+     */
+    function pageVisitStart ({ timeStamp }) {
         // Reset page attention and page audio tracking
         attentionDuration = 0;
         lastAttentionUpdateTime = timeStamp;
@@ -109,20 +152,17 @@ const pageNavigation = function () {
         audioDuration = 0;
         lastAudioUpdateTime = timeStamp;
         attentionAndAudioDuration = 0;
+        scrollDepthIntervalId = 0;
 
-        // Reset scroll depth tracking and set an interval timer for checking scroll depth
+        // Reset scroll depth tracking and, if the page has attention, set an interval timer for checking scroll depth
         maxRelativeScrollDepth = 0;
-        scrollDepthIntervalId = setInterval(function() {
-            if((scrollDepthWaitForAttention || ((Date.now() - pageManager.pageVisitStartTime) >= scrollDepthUpdateDelay)) &&
-                (!scrollDepthWaitForAttention || ((firstAttentionTime > 0) && ((Date.now() - firstAttentionTime) >= scrollDepthUpdateDelay))) &&
-                (document.documentElement.offsetHeight >= scrollDepthMinimumHeight))
-                maxRelativeScrollDepth = Math.min(
-                    Math.max(maxRelativeScrollDepth, (window.scrollY + document.documentElement.clientHeight) / document.documentElement.scrollHeight),
-                    1);
-        }, scrollDepthUpdateInterval);
-    };
-    if(pageManager.pageVisitStarted)
+        if(pageManager.pageHasAttention) {
+            scrollDepthIntervalId = setInterval(updateMaxRelativeScrollDepth, scrollDepthUpdateInterval);
+        }
+    }
+    if(pageManager.pageVisitStarted) {
         pageVisitStart({ timeStamp: pageManager.pageVisitStartTime });
+    }
     pageManager.onPageVisitStart.addListener(pageVisitStart);
 
     pageManager.onPageVisitStop.addListener(({ timeStamp }) => {
@@ -137,6 +177,7 @@ const pageNavigation = function () {
         // Clear the interval timer for checking scroll depth
         clearInterval(scrollDepthIntervalId);
 
+        // Send page engagement data to the background script
         pageManager.sendMessage({
             type: "webScience.pageNavigation.pageData",
             pageId: pageManager.pageId,
@@ -153,16 +194,26 @@ const pageNavigation = function () {
     });
 
     pageManager.onPageAttentionUpdate.addListener(({ timeStamp }) => {
-        // If the page just gained attention for the first time, store the time stamp
-        if(pageManager.pageHasAttention && (firstAttentionTime < pageManager.pageVisitStartTime))
-            firstAttentionTime = timeStamp;
+        // If the page just gained attention, start the timer, and if this
+        // was the first user attention store the timestamp
+        if(pageManager.pageHasAttention) {
+            if(scrollDepthIntervalId <= 0) {
+                scrollDepthIntervalId = setInterval(updateMaxRelativeScrollDepth, scrollDepthUpdateInterval);
+            }
+            if(firstAttentionTime < pageManager.pageVisitStartTime) {
+                firstAttentionTime = timeStamp;
+            }
+        }
 
         // If the page just lost attention, add to the attention duration
-        // and possibly the attention and audio duration
+        // and possibly the attention and audio duration, and stop the timer
         if(!pageManager.pageHasAttention) {
             attentionDuration += timeStamp - lastAttentionUpdateTime;
-            if(pageManager.pageHasAudio)
+            if(pageManager.pageHasAudio) {
                 attentionAndAudioDuration += timeStamp - Math.max(lastAttentionUpdateTime, lastAudioUpdateTime);
+            }
+            clearInterval(scrollDepthIntervalId);
+            scrollDepthIntervalId = 0;
         }
         lastAttentionUpdateTime = timeStamp;
     });
@@ -172,18 +223,21 @@ const pageNavigation = function () {
         // and possibly the attention and audio duration
         if(!pageManager.pageHasAudio) {
             audioDuration += timeStamp - lastAudioUpdateTime;
-            if(pageManager.pageHasAttention)
+            if(pageManager.pageHasAttention) {
                 attentionAndAudioDuration += timeStamp - Math.max(lastAttentionUpdateTime, lastAudioUpdateTime);
+            }
         }
         lastAudioUpdateTime = timeStamp;
     });
 };
 
 // Wait for pageManager load
-if (("webScience" in window) && ("pageManager" in window.webScience))
+if (("webScience" in window) && ("pageManager" in window.webScience)) {
     pageNavigation();
+}
 else {
-    if(!("pageManagerHasLoaded" in window))
+    if(!("pageManagerHasLoaded" in window)) {
         window.pageManagerHasLoaded = [];
+    }
     window.pageManagerHasLoaded.push(pageNavigation);
 }
