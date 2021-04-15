@@ -51,9 +51,7 @@ export const ampRegExp = new RegExp(
  */
 export const ampMatchPatternSet = matching.createMatchPatternSet(
     matching.domainsToMatchPatterns(ampCacheDomains, false).concat(
-        ampViewerDomainsAndPaths.map((ampViewerDomainAndPath) => {
-            return `*://${ampViewerDomainAndPath}*`;
-        })));
+        ampViewerDomainsAndPaths.map(ampViewerDomainAndPath => `*://${ampViewerDomainAndPath}*`)));
 
 /**
  * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.

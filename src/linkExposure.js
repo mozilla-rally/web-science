@@ -224,7 +224,7 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
         // For each link URL, if we have a resolved URL, use that
         // If we don't have a resolved URL, use the original URL with
         // cache, shim, and link decoration parsing
-        for(let i = 0; i < linkUrls.length; i++) {
+        for(const i of linkUrls.keys()) {
             if(results[i].status === "fulfilled") {
                 linkUrls[i] = results[i].value;
             }
@@ -250,7 +250,7 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
             listenerRecord.pageMatchPatternSet.matches(url)) {
                 const matchingLinkUrls = [];
                 let nonmatchingLinkCount = 0;
-                for(let i = 0; i < linkUrls.length; i++) {
+                for(const i of linkUrls.keys()) {
                     // If we are ignoring self links and a resolved link URL is a self link,
                     // ignore the resolved link URL
                     if(ignoreSelfLinks && selfLinks[i]) {
