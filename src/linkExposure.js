@@ -240,7 +240,7 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
         let selfLinks = null;
         if(ignoreSelfLinks) {
             const pagePS1 = linkResolution.urlToPS1(url);
-            selfLinks = linkUrls.map(linkUrl => { return pagePS1 === linkResolution.urlToPS1(linkUrl); })
+            selfLinks = linkUrls.map(linkUrl => pagePS1 === linkResolution.urlToPS1(linkUrl))
         }
 
         // Notify the listeners
