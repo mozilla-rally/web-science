@@ -77,18 +77,18 @@ function parseContentSecurityPolicy(contentSecurityPolicyString) {
  */
 function checkContentSecurityPolicyDirective(directiveName, directiveValue, contentSecurityPolicy, checkFallbackDirectives = true) {
     if(directiveName in contentSecurityPolicy) {
-        for(const CSPDirectiveValue of contentSecurityPolicy[directiveName]) {
-            if(directiveValue === CSPDirectiveValue) {
-                return true;
-            }
+        if(contentSecurityPolicy[directiveName].includes(directiveValue)) {
+            return true;
         }
+        return false;
     }
     if(checkFallbackDirectives && directiveName in contentSecurityPolicyDirectiveFallbacks) {
         for(const fallbackDirectiveName of contentSecurityPolicyDirectiveFallbacks[directiveName]) {
-            for(const CSPDirectiveValue of contentSecurityPolicy[fallbackDirectiveName]) {
-                if(directiveValue === CSPDirectiveValue) {
+            if(fallbackDirectiveName in contentSecurityPolicy) {
+                if(contentSecurityPolicy[fallbackDirectiveName].includes(directiveValue)) {
                     return true;
                 }
+                return false;
             }
         }
     }
