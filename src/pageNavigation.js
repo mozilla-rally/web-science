@@ -53,7 +53,7 @@ const pageDataListeners = new Map();
  * @callback PageDataAddListener
  * @param {pageDataListener} listener - The listener to add.
  * @param {Object} options - Options for the listener.
- * @param {string[]} options.matchPatterns - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {string[]} options.matchPatterns - The webpages that the listener should be notified about, specified with WebExtensions match patterns.
  * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
  */
 

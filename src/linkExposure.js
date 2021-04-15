@@ -139,7 +139,7 @@ let addedMessageListener = false;
 /**
  * Callback for adding an onLinkExposureUpdate listener.
  * @param {linkExposureUpdateListener} listener - The listener function.
- * @param {LinkExposureUpdateOptions} options - A set of options for the measurement.
+ * @param {LinkExposureUpdateOptions} options - A set of options for the listener.
  * @private
  */
 async function addUpdateListener(listener, { linkMatchPatterns, pageMatchPatterns, privateWindows = false }) {
@@ -396,7 +396,7 @@ const pageVisitStopDelay = 500;
 /**
  * Callback for adding an onLinkExposureData listener.
  * @param {linkExposureDataListener} listener - The listener function.
- * @param {LinkExposureDataOptions} options - A set of options for the measurement.
+ * @param {LinkExposureDataOptions} options - A set of options for the listener.
  * @private
  */
 async function addDataListener(listener, options) {
