@@ -6,7 +6,6 @@
         "lint": "eslint ."
     },
     "dependencies": {
-        "@mozilla/readability": "^0.4.1",
         "tldts": "^5.7.25",
         "uuid": "^8.3.2"
     },

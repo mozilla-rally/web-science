@@ -1,5 +1,6 @@
 /**
- * This module measures properties of webpage navigation.
+ * This module enables measuring user engagement with webpages. See the `onPageData`
+ * event for specifics.
  *
  * @module webScience.pageNavigation
  */
@@ -8,6 +9,7 @@ import * as events from "./events.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
 import * as inline from "./inline.js";
+import * as matching from "./matching.js";
 import pageNavigationContentScript from "./content-scripts/pageNavigation.content.js";
 
 /**
@@ -34,10 +36,24 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  */
 
 /**
+ * @typedef {Object} PageDataListenerRecord
+ * @property {matching.MatchPatternSet} matchPatternSet - The match patterns for the listener.
+ * @property {boolean} privateWindows - Whether to notify the listener about pages in private windows.
+ * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * script associated with the listener.
+ */
+
+/**
+ * A map where each key is a listener function and each value is a record for that listener function.
+ * @constant {Map<pageDataListener, PageDataListenerRecord}
+ */
+const pageDataListeners = new Map();
+
+/**
  * @callback PageDataAddListener
  * @param {pageDataListener} listener - The listener to add.
  * @param {Object} options - Options for the listener.
- * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @param {string[]} options.matchPatterns - The webpages of interest for the measurement, specified with WebExtensions match patterns.
  * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
  */
 
@@ -66,88 +82,63 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  */
 
 /**
- * Function to start measurement when a listener is added
- * TODO: deal with multiple listeners with different match patterns
- * @param {pageDataCallback} listener - new listener being added
- * @param {Object} options - Options for the listener.
- * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
- * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
- * @private
- */
-function addListener(listener, options) {
-    startMeasurement(options);
-}
-
-/**
- * Function to end measurement when the last listener is removed
- * @param {pageDataCallback} listener - listener that was just removed
- * @private
- */
-function removeListener(listener) {
-    if (!this.hasAnyListeners()) {
-        stopMeasurement();
-    }
-}
-
-/**
  * An event that fires when a page visit has ended and data about the
  * visit is available.
  * @constant {PageDataEvent}
  */
 export const onPageData = events.createEvent({
     addListenerCallback: addListener,
-    removeListenerCallback: removeListener
+    removeListenerCallback: removeListener,
+    notifyListenersCallback: () => { return false; }
 });
 
 /**
- * The registered page navigation content script.
- * @type {browser.contentScripts.RegisteredContentScript|null}
+ * Whether the module has completed initialization.
+ * @type{boolean}
  * @private
  */
-let registeredContentScript = null;
+let initialized = false;
 
 /**
- * Whether to notify the page data listener about private windows.
- * @type {boolean}
+ * A callback function for adding a page data listener.
+ * @param {pageDataCallback} listener - The listener function being added.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} options.matchPatterns - The match patterns for pages where the listener should
+ * be notified.
+ * @param {boolean} [options.privateWindows=false] - Whether the listener should be notified for
+ * pages in private windows.
  * @private
  */
-let notifyAboutPrivateWindows = false;
-
-/**
- * A function that is called when the content script sends a page data event message.
- * @param {PageData} pageData - Information about the page.
- * @private
- */
-function pageDataListener(pageData) {
-    // If the page is in a private window and the module should not measure private windows,
-    // ignore the page
-    if(!notifyAboutPrivateWindows && pageData.privateWindow)
-        return;
-
-    // Delete the type string from the content script message
-    // There isn't (yet) a good way to document this in JSDoc, because there isn't support
-    // for object inheritance
-    delete pageData.type;
-
-    onPageData.notifyListeners([ pageData ]);
-}
-
-/**
- * Start a navigation measurement. Note that only one measurement is currently supported per extension.
- * @param {Object} options - A set of options for the measurement.
- * @param {string[]} [options.matchPatterns=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
- * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
- * @private
- */
-async function startMeasurement({
-    matchPatterns = [ ],
+async function addListener(listener, {
+    matchPatterns,
     privateWindows = false
 }) {
-    await pageManager.initialize();
+    // Initialization
+    if(!initialized) {
+        initialized = true;
+        await pageManager.initialize();
+        messaging.onMessage.addListener(messageListener,
+            {
+                type: "webScience.pageNavigation.pageData",
+                schema: {
+                    pageId: "string",
+                    url: "string",
+                    referrer: "string",
+                    pageVisitStartTime: "number",
+                    pageVisitStopTime: "number",
+                    attentionDuration: "number",
+                    audioDuration: "number",
+                    attentionAndAudioDuration: "number",
+                    maxRelativeScrollDepth: "number",
+                    privateWindow: "boolean"
+                }
+            });
+    }
 
-    notifyAboutPrivateWindows = privateWindows;
-
-    registeredContentScript = await browser.contentScripts.register({
+    // Compile the match patterns for the listener
+    const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
+    // Register a content script for the listener
+    const contentScript = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
             code: inline.dataUrlToString(pageNavigationContentScript)
@@ -155,31 +146,44 @@ async function startMeasurement({
         runAt: "document_start"
     });
 
-    messaging.onMessage.addListener(pageDataListener,
-    {
-        type: "webScience.pageNavigation.pageData",
-        schema: {
-            pageId: "string",
-            url: "string",
-            referrer: "string",
-            pageVisitStartTime: "number",
-            pageVisitStopTime: "number",
-            attentionDuration: "number",
-            audioDuration: "number",
-            attentionAndAudioDuration: "number",
-            maxRelativeScrollDepth: "number",
-            privateWindow: "boolean"
-        }
+    // Store a record for the listener
+    pageDataListeners.set(listener, {
+        matchPatternSet,
+        contentScript,
+        privateWindows
     });
 }
 
 /**
- * Stop a navigation measurement.
+ * A callback function for removing a page data listener.
+ * @param {pageDataCallback} listener - The listener that is being removed.
  * @private
  */
-function stopMeasurement() {
-    messaging.onMessage.removeListener(pageDataListener);
-    registeredContentScript.unregister();
-    registeredContentScript = null;
-    notifyAboutPrivateWindows = false;
+ function removeListener(listener) {
+    // If there is a record of the listener, unregister its content script
+    // and delete the record
+    const listenerRecord = pageDataListeners.get(listener);
+    if(listenerRecord === undefined) {
+        return;
+    }
+    listenerRecord.contentScript.unregister();
+    pageDataListeners.delete(listener);
+}
+
+/**
+ * A callback function for messages from the content script.
+ * @param {PageDataDetails} pageData - Information about the page.
+ * @private
+ */
+ function messageListener(pageData) {
+    // Remove the type string from the content script message
+    delete pageData.type;
+
+    // Notify listeners when the private window and match pattern requirements are met
+    for(const [listener, listenerRecord] of pageDataListeners) {
+        if((!pageData.privateWindow || listenerRecord.privateWindows)
+        && (listenerRecord.matchPatternSet.matches(pageData.url))) {
+            listener(pageData);
+        }
+    }
 }
