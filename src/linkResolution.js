@@ -7,6 +7,7 @@ import * as permissions from "./permissions.js";
 import * as id from "./id.js";
 import { urlShortenerMatchPatterns } from "./dependencies/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "./dependencies/ampCachesAndViewers.js";
+import { parse as tldtsParse } from "tldts";
 
 permissions.check({
     module: "webScience.linkResolution",
@@ -25,7 +26,7 @@ permissions.check({
  *       is `undefined`.
  *     * `ampCacheDomain` - The domain for the AMP cache.
  *     * `ampCacheContentType` - The content type, which is either `c` for an HTML document, `i` for
- *        an image, or `r` for another resource. 
+ *        an image, or `r` for another resource.
  *     * `ampCacheIsSecure` - Whether the AMP cache loads the resource via HTTPS. If it does, this
  *        capture group has the value `s/`. If it doesn't, this capture group is `undefined`.
  *     * `ampCacheUrl` - The underlying URL, without a specified scheme (i.e., `http://` or `https://`).
@@ -43,6 +44,14 @@ export const ampRegExp = new RegExp(
     // AMP viewer regular expression
     `(?:^https?://(?<ampViewerDomainAndPath>${ampViewerDomainsAndPaths.map(matching.escapeRegExpString).join("|")})/(?<ampViewerUrl>.*)$)`
     , "i");
+
+/**
+ * A MatchPatternSet for AMP caches and viewers.
+ * @constant {matching.MatchPatternSet}
+ */
+export const ampMatchPatternSet = matching.createMatchPatternSet(
+    matching.domainsToMatchPatterns(ampCacheDomains, false).concat(
+        ampViewerDomainsAndPaths.map(ampViewerDomainAndPath => `*://${ampViewerDomainAndPath}*`)));
 
 /**
  * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.
@@ -118,6 +127,20 @@ export const urlShortenerRegExp = matching.matchPatternsToRegExp(urlShortenerMat
  * @constant {matching.MatchPatternSet}
  */
 export const urlShortenerMatchPatternSet = matching.createMatchPatternSet(urlShortenerMatchPatterns);
+
+// Public suffix + 1
+
+/**
+ * Extracts the public suffix + 1 from a URL.
+ * @param {string} url - The URL.
+ * @returns {string} The public suffix + 1.
+ * @example <caption>Example usage of urlToPS1.</caption>
+ * // returns "mozilla.org"
+ * urlToPS1("https://www.mozilla.org/");
+ */
+export function urlToPS1(url) {
+    return tldtsParse((new URL(url)).hostname).domain;
+}
 
 // URL resolution
 
@@ -360,7 +383,7 @@ function completeResolution(linkResolutionId, success, resolvedUrl, errorMessage
  * resolution data structures, and removes the header. This listener also cancels the
  * request if it exceeds the redirect limit.
  * @param {Object} details - Details about the request.
- * @returns {browser.webRequest.BlockingResponse|undefined} 
+ * @returns {browser.webRequest.BlockingResponse|undefined}
  */
 function onBeforeSendHeadersListener(details) {
     let linkResolutionId = undefined;
@@ -377,7 +400,7 @@ function onBeforeSendHeadersListener(details) {
 
     // If the HTTP request header includes a link resolution ID, update the
     // internal data structures to associate that link resolution ID with
-    // the webRequest requestId 
+    // the webRequest requestId
     if(linkResolutionId !== undefined) {
         resolutionData = linkResolutionIdToData.get(linkResolutionId);
         if(resolutionData !== undefined) {
@@ -398,7 +421,7 @@ function onBeforeSendHeadersListener(details) {
     // If this link resolution should only issue HTTP requests to known
     // URL shorteners, and this is not a request to a known URL shortener,
     // consider the link resolved and cancel the request
-    if((resolutionData !== undefined) && 
+    if((resolutionData !== undefined) &&
     resolutionData.onlyRequestKnownUrlShorteners &&
     !urlShortenerMatchPatternSet.matches(details.url)) {
         completeResolution(linkResolutionId, true, details.url, undefined);
@@ -408,7 +431,7 @@ function onBeforeSendHeadersListener(details) {
     }
 
     // Check the redirect limit and cancel the request if it's exceeded
-    if((resolutionData !== undefined) && 
+    if((resolutionData !== undefined) &&
     resolutionData.redirects > fetchMaxRedirects) {
         completeResolution(linkResolutionId, false, undefined, "Error: webScience.linkResolution.resolveUrl fetch request exceeded redirect limit.");
         return {
