@@ -41,11 +41,13 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
  * @property {boolean} privateWindows - Whether to notify the listener about pages in private windows.
  * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
+ * @private
  */
 
 /**
  * A map where each key is a listener function and each value is a record for that listener function.
- * @constant {Map<pageDataListener, PageDataListenerRecord}
+ * @constant {Map<pageDataListener, PageDataListenerRecord>}
+ * @private
  */
 const pageDataListeners = new Map();
 

@@ -34,10 +34,7 @@
  * YouTube).
  *
  * # Page IDs
- * Each page ID is 128-bit value, randomly generated with the Web Crypto API and
- * stored as a hexadecimal `String`. While this representation is less efficient than
- * a `Uint8Array` or similar, it is more convenient for development and debugging. The
- * page ID is available in the content script environment.
+ * Each page ID is a random (v4) UUID, consistent with RFC4122.
  *
  * # Page Lifecycle
  * Each webpage has the following lifecycle events, which fire in both the background
@@ -360,9 +357,12 @@ let initializing = false;
 let initialized = false;
 
 /**
- * Configure message passing between the background script and content script, register browser
- * event handlers, cache initial state, and register the content script. Runs only once.
- * @private
+ * Initialize `pageManager` in the background and content script environments. If you are using
+ * `pageManager` events in content scripts but not background scripts, you must call this function.
+ * If you are using `pageManager` events in background scripts, this function is automatically called
+ * when adding a listener for an event. This function configures message passing between the
+ * `pageManager` background script and content script, registers browser event handlers, caches
+ * initial state, and registers the `pageManager` content script. It runs only once.
  */
 export async function initialize() {
     if(initialized || initializing)

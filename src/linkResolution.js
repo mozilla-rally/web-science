@@ -384,6 +384,7 @@ function completeResolution(linkResolutionId, success, resolvedUrl, errorMessage
  * request if it exceeds the redirect limit.
  * @param {Object} details - Details about the request.
  * @returns {browser.webRequest.BlockingResponse|undefined}
+ * @private
  */
 function onBeforeSendHeadersListener(details) {
     let linkResolutionId = undefined;

@@ -62,7 +62,8 @@ import pageTextWorker from "./worker-scripts/pageText.worker.js";
 
 /**
  * A map where each key is a listener function and each value is a record for that listener function.
- * @constant {Map<textParsedListener, TextParsedListenerRecord}
+ * @constant {Map<textParsedListener, TextParsedListenerRecord>}
+ * @private
  */
 const textParsedListeners = new Map();
 

@@ -248,6 +248,7 @@ export const onStateChanged = events.createEvent({
  * time in measured in seconds because that is how the `idle`
  * API is implemented, even though most times in the library
  * are measured in milliseconds.
+ * @private
  */
 async function registerIdleStateListener(idleStateListener, detectionIntervalInSeconds) {
     await initialize();

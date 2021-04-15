@@ -29,6 +29,7 @@ permissions.check({
  * Note that there is another ignoreSelfLinks constant in the linkExposure
  * content script, and these two constants should have the same value.
  * @constant {boolean}
+ * @private
  */
 const ignoreSelfLinks = true;
 
@@ -71,7 +72,8 @@ const ignoreSelfLinks = true;
 
 /**
  * A map where each key is a listener function and each value is a record for that listener function.
- * @constant {Map<linkExposureUpdateListener, LinkExposureUpdateListenerRecord}
+ * @constant {Map<linkExposureUpdateListener, LinkExposureUpdateListenerRecord>}
+ * @private
  */
 const linkExposureUpdateListeners = new Map();
 
@@ -79,6 +81,7 @@ const linkExposureUpdateListeners = new Map();
  * A map where each key is a page ID and each value is a count of pending page link exposure updates
  * waiting on link resolution.
  * @constant {Map<string, number>}
+ * @private
  */
 const pendingPageLinkExposureUpdates = new Map();
 
@@ -86,6 +89,7 @@ const pendingPageLinkExposureUpdates = new Map();
  * A map where each key is a page ID and each value is a callback function that is fired when there
  * are no more pending link exposure updates for the page ID.
  * @constant {Map<string, Function>}
+ * @private
  */
 const pendingPageLinkExposureCallbacks = new Map();
 
@@ -133,6 +137,7 @@ export const onLinkExposureUpdate = events.createEvent({
 /**
  * Whether the messaging.onMessage listener has been added.
  * @type {boolean}
+ * @private
  */
 let addedMessageListener = false;
 
@@ -334,7 +339,8 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
 
 /**
  * A map where each key is a listener function and each value is a record for that listener function.
- * @constant {Map<linkExposureDataListener, LinkExposureDataListenerRecord}
+ * @constant {Map<linkExposureDataListener, LinkExposureDataListenerRecord>}
+ * @private
  */
 const linkExposureDataListeners = new Map();
 
@@ -371,6 +377,7 @@ const linkExposureDataListeners = new Map();
 /**
  * Whether the pageManager.onPageVisitStart and pageManager.onPageVisitStop listeners have been added.
  * @type {boolean}
+ * @private
  */
 let addedPageVisitListeners = false;
  
@@ -390,6 +397,8 @@ export const onLinkExposureData = events.createEvent({
  * onLinkExposureData event. We need to wait a short period because there can be lingering
  * onLinkExposureUpdate events after onPageVisitStop (e.g., links that are still getting resolved or a
  * final message from the linkExposure content script when the page visit ends).
+ * @constant {number}
+ * @private
  */
 const pageVisitStopDelay = 500;
 

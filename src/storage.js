@@ -27,7 +27,6 @@ export function createKeyValueStorage(storageAreaName) {
 /**
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types.
- * @private
  */
 class KeyValueStorage {
     /**
@@ -83,7 +82,6 @@ export async function createCounter(counterName) {
 
 /**
  * Class for maintaining persistent counters (e.g., unique IDs).
- * @private
  */
 class Counter {
     /**
