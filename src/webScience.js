@@ -1,7 +1,6 @@
-// Assemble the webScience namespace
-
-// Note that the order of module imports matters, since the study
-// modules depend on the utility modules
+// Assemble the webScience namespace by re-exporting modules.
+// Note that the order of modules matters. When adding a new
+// module, it should come after dependencies.
 
 import * as inline from "./inline.js"
 export { inline }
