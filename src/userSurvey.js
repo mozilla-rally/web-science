@@ -38,7 +38,10 @@ import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
 
 permissions.check({
     module: "webScience.userSurvey",
-    requiredPermissions: [ "notifications", "webRequest" ]
+    requiredPermissions: [ "notifications", "webRequest" ],
+    requiredContentSecurityPolicy: {
+        "script-src": [ "'sha256-7MkXA5Z7wxRyznhUZN3nVVs9GEQpvRXdYihZZqR2y6w='", "'sha256-l+kgCjP15GJlVSDL9qMNffrHu8mxJcag42o2TYofOUM='" ]
+    }
 });
 
 /**
