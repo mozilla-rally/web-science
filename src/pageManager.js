@@ -233,7 +233,7 @@ function pageVisitStart(details) {
  */
 export const onPageVisitStop = events.createEvent({
     // Make sure the module is initialized when a listener is added
-    addListenerCallback: listener => { initialize(); },
+    addListenerCallback: listener => initialize(),
     // Filter notifications for events in private windows
     notifyListenersCallback: (listener, [ details ], options) => {
         if(!details.privateWindow || (("privateWindows" in options) && options.privateWindows))
