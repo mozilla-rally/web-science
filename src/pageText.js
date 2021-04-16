@@ -3,23 +3,9 @@
  * natural language processing methods. The module uses Mozilla Readability
  * in a content script to parse document title and content when possible. The
  * module provides infrastructure for implementing a machine learning
- * classifier in a Web Worker, but leaves feature generation from document
- * attributes and model implementation to study authors (e.g., using
- * TensorFlow.js, ONNX.js, WebDNN, or sklearn-porter).
- * 
- * # Content Security Policy Requirements
- * This module depends on an inline script to provide the pageText.onTextParsed
- * event in Web Workers. The script requires a special Content Security Policy
- * permission in the extension manifest (the `"content_security_policy"` key),
- * because Firefox does not currently treat blob URLs originating from an extension
- * as covered by the extension's CSP exemption (see [bug 1294996](https://bugzilla.mozilla.org/show_bug.cgi?id=1294996)).
- * There does not appear to be a reliable way to provide permission for just the
- * one inline script (script hash values do not work), so you must add the
- * blob URL scheme as a permitted script source. The following Content Security
- * Policy property is sufficient:
- * ```
- *   "content_security_policy": "script-src 'self' blob:; object-src 'self'"
- * ```
+ * classifier, but leaves feature generation from document attributes and
+ * model implementation to study authors (e.g., using TensorFlow.js, ONNX.js,
+ * WebDNN, or sklearn-porter).
  * 
  * @see {@link https://github.com/mozilla/readability}
  * @see {@link https://www.tensorflow.org/js}
@@ -34,7 +20,6 @@ import * as events from "./events.js";
 import * as inline from "./inline.js";
 import * as pageManager from "./pageManager.js";
 import pageTextContentScript from "./content-scripts/pageText.content.js";
-import pageTextWorker from "./worker-scripts/pageText.worker.js";
 
 /**
  * Additional information about the page data event.
@@ -225,71 +210,4 @@ function messageListener(textParsedDetails) {
             listener(textParsedDetails);
         }
     }
-}
-
-/**
- * @typedef {Object} TextParsedWorker
- * @property {Function} unregister - Unregister the Web Worker.
- */
-
-/**
- * A blob object URL for the inlined pageText Web Worker script.
- * @type {string|null}
- * @private
- */
-let pageTextWorkerBlobUrl = null;
-
-/**
- * Register a Web Worker with access to the webScience.onTextParsed event. Note that the
- * event in the Web Worker does not support listener options, because those options are
- * specified as parameters for this registration function.
- * @param {Object} workerOptions - Options for the new Web Worker.
- * @param {string} workerOptions.url - The URL for the Web Worker script. If you are
- * loading a script file from inside an extension, use browser.runtime.getURL to convert
- * the script file path into a URL.
- * @param {Function} workerOptions.onMessage - A function that will be called when
- * messages arrive from the Web Worker.
- * @param {string[]} workerOptions.matchPatterns - The match patterns for pages where the
- * onTextParsed event should fire in the Web Worker.
- * @param {boolean} [options.privateWindows=false] - Whether the onTextParsedEvent event
- * should fire in the Web Worker for private windows.
- * @returns {TextParsedWorker} An object that allows unregistering the new Web Worker.
- */
-export function registerWorker({
-    url,
-    onMessage,
-    matchPatterns,
-    privateWindows = false
-}) {
-    // If we haven't yet created a blob object URL for the pageText Web Worker script,
-    // create it
-    if(pageTextWorkerBlobUrl === null) {
-        pageTextWorkerBlobUrl = inline.dataUrlToBlobUrl(pageTextWorker)
-    }
-    // Create a Web Worker with the pageText Web Worker
-    const worker = new Worker(pageTextWorkerBlobUrl);
-    // Connect the onMessage callback to the Web Worker
-    worker.onmessage = onMessage;
-    // Send the URL of the Web Worker script so the new Worker can import it
-    worker.postMessage({
-        type: "webScience.pageText.registerWorker",
-        url: url
-    });
-    // Add a listener for onTextParsed that notifies the Web Worker
-    const textParsedListener = function(textParsedDetails) {
-        worker.postMessage({
-            type: "webScience.pageText.onTextParsed",
-            textParsedDetails
-        });
-    };
-    onTextParsed.addListener(textParsedListener, { matchPatterns, privateWindows });
-    // Return an object that allows unregistering the Web Worker, which removes the
-    // onTextParsed listener for notifying the Web Worker and terminates the Web
-    // Worker
-    return {
-        unregister: () => {
-            onTextParsed.removeListener(textParsedListener);
-            worker.terminate();
-        }
-    };
 }
