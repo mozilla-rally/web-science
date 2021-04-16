@@ -1,7 +1,7 @@
 /**
  * WebScience Final Build Step
  * -----------------------
- *   * Convert content script, worker script, and HTML files to background script files with inlined content.
+ *   * Convert content script and HTML files to background script files with inlined content.
  */
 
 import url from "@rollup/plugin-url";
@@ -20,7 +20,7 @@ export default (cliArgs) => {
     },
     plugins: [
       url({
-        include: [ "**/*.content.js", "**/*.worker.js", "**/*.html" ],
+        include: [ "**/*.content.js", "**/*.html" ],
         limit: Number.MAX_VALUE // Inline regardless of content size
       })
     ]
