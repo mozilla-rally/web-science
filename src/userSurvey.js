@@ -51,7 +51,7 @@ let storageSpace = null;
 /**
  * The ID of the survey reminder timeout (is null if there 
  * is no such timeout).
- * @type {number}
+ * @type {number|null}
  * @private
  */
 let reminderTimeoutId = null;
@@ -144,7 +144,7 @@ function initializeStorage() {
  * and changes the browser action popup to the survey's no prompt page.
  * @private
  */
-function setSurveyComplete() {
+function completeSurvey() {
     storageSpace.set("surveyCompleted", true);
     setPopupToNoPromptPage();
 }
@@ -172,22 +172,42 @@ function setSurveyComplete() {
  * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
  */
 export async function setSurvey(options) {
-    const currentTime = Date.now();
-    surveyUrl = options.surveyUrl;
-    reminderIconUrl = browser.runtime.getURL(options.reminderIcon);
-    reminderInterval = options.reminderInterval;
-    reminderTitle = options.reminderTitle;
-    reminderMessage = options.reminderMessage;
-    browser.storage.local.set({
-        "webScience.userSurvey.popupPromptMessage": options.popupPromptMessage
-    });
-    browser.storage.local.set({
-        "webScience.userSurvey.popupNoPromptMessage": options.popupNoPromptMessage
-    });
-
     initializeStorage();
 
-    await storageSpace.set("currentSurvey", options.surveyName);
+    let currentSurveyDetails = await storageSpace.get("currentSurveyDetails");
+    let surveyDetails;
+
+    if (!currentSurveyDetails) {
+        // If there's a call to setSurvey and there's no survey in storage,
+        // save the parameters in storage and carry out the survey.
+        surveyDetails = options;
+        await storageSpace.set("currentSurveyDetails", options);
+    } else if (currentSurveyDetails.surveyName === options.surveyName) {
+        // If there's a call to setSurvey with the same survey name as the
+        // survey in storage, ignore options and load all the survey attributes
+        // from storage, and continue with the survey.
+        surveyDetails = await storageSpace.get("currentSurveyDetails");
+    } else {
+        // If there's a call to setSurvey with a different survey name from
+        // the survey in storage, throw an error, because two surveys are
+        // now set at the same time.
+        throw new Error("userSurvey only supports one survey at a time. Complete the survey that has previously been set.");
+    }
+
+
+
+    const currentTime = Date.now();
+    surveyUrl = surveyDetails.surveyUrl;
+    reminderIconUrl = browser.runtime.getURL(surveyDetails.reminderIcon);
+    reminderInterval = surveyDetails.reminderInterval;
+    reminderTitle = surveyDetails.reminderTitle;
+    reminderMessage = surveyDetails.reminderMessage;
+    browser.storage.local.set({
+        "webScience.userSurvey.popupPromptMessage": surveyDetails.popupPromptMessage
+    });
+    browser.storage.local.set({
+        "webScience.userSurvey.popupNoPromptMessage": surveyDetails.popupNoPromptMessage
+    });
 
     // Check when we last asked the user to do the survey. If it's null,
     // we've never asked, which means the extension just got installed.
@@ -222,13 +242,13 @@ export async function setSurvey(options) {
 
     // Set a listener for the survey completion URL.
     browser.webRequest.onBeforeRequest.addListener(
-        setSurveyComplete,
-        { urls: [ (new URL(options.surveyCompletionUrl)).href + "*" ] }
+        completeSurvey,
+        { urls: [ (new URL(surveyDetails.surveyCompletionUrl)).href + "*" ] }
     );
 
     // Listeners for cancel and open survey button click only need to be added once.
     // They do not need to be added again for subsequent calls to setSurvey.
-    if (listenersRegistered === false) {
+    if (!listenersRegistered) {
         // Set listeners for cancel and open survey button clicks in the survey request.
         messaging.onMessage.addListener(() => {
             storageSpace.set("surveyCancelled", true);
@@ -245,7 +265,7 @@ export async function setSurvey(options) {
  * the id module. The ID is automatically added as a parameter to
  * the survey URL, enabling researchers to import survey data from an
  * external platform and sync it with Rally data. This method returns the
- * survey ID (generating it if it does not already exist)
+ * survey ID, generating it if it does not already exist.
  * @returns {string} - The participant's survey ID.
  */
 export async function getSurveyId() {
@@ -261,7 +281,7 @@ export async function getSurveyId() {
 /**
  * Gets the completion status of the current survey. Can be used if a
  * subsequent survey depends on the status of the previous survey.
- * @returns {boolean} - Whether the current survey has been completed.
+ * @returns {boolean|null} - Whether the current survey has been completed.
  * Returns null if there is no current survey.
  */
 export async function getSurveyCompletionStatus() {
@@ -271,26 +291,25 @@ export async function getSurveyCompletionStatus() {
 
 /**
  * Gets the name of the current survey.
- * @returns {string} - The name of the current survey. Returns null
+ * @returns {string|null} - The name of the current survey. Returns null
  * if there is no current survey.
  */
 export async function getCurrentSurveyName() {
     initializeStorage();
-    return await storageSpace.get("currentSurvey");
+    const currentSurveyDetails = await storageSpace.get("currentSurveyDetails");
+    return currentSurveyDetails ? currentSurveyDetails.surveyName : null;
 }
 
 /**
  * End the current survey. Should be called before a subsequent survey is started.
  */
- export async function endCurrentSurvey() {
+export async function endCurrentSurvey() {
     // If there is an existing survey reminder timeout, clears the timeout.
-    if (reminderTimeoutId !== null) {
-        clearTimeout(reminderTimeoutId);
-    }
+    clearTimeout(reminderTimeoutId);
 
     // Remove any previously added listener for browser.webRequest.onBeforeRequest
     // that checks for the survey completion URL.
-    browser.webRequest.onBeforeRequest.removeListener(setSurveyComplete);
+    browser.webRequest.onBeforeRequest.removeListener(completeSurvey);
 
     initializeStorage();
 
@@ -298,5 +317,5 @@ export async function getCurrentSurveyName() {
     await storageSpace.set("lastSurveyRequest", null);
     await storageSpace.set("surveyCompleted", false);
     await storageSpace.set("surveyCancelled", false);
-    await storageSpace.set("currentSurvey", null);
+    await storageSpace.set("currentSurveyDetails", null);
 }
