@@ -29,7 +29,7 @@
  * event fires. 
  * @typedef {Object} WorkerEventData
  * @property {string} eventName - The name of the event.
- * @property {Array} listenerArguments - The parameters that would be
+ * @property {Array} listenerArguments - The arguments that would be
  * passed to an event listener in the background script.
  * @example
  * // {
@@ -57,10 +57,13 @@
  * send a message to a Worker when the event occurs.
  * @param {Worker} worker - The Worker that should receive messages
  * about the event.
- * @param {string} [eventName] - The name of the event. This parameter
+ * @param {string} [eventName] - The name of the event, which is used
+ * as the `eventName` property in messages to the Worker. This parameter
  * is not necessary when adding the listener to a WebScience event or
  * an event created with `events.createEvent` (if an an event name is
- * specified).
+ * specified), because `eventName` (if not provided as a parameter) will
+ * be automatically set to the event's name when the listener is added to
+ * the event.
  * @returns {Function} A listener function for the event. Each listener
  * function should only be used with one event.
  * @example

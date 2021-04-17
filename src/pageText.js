@@ -1,13 +1,48 @@
 /**
  * This module enables analyzing the text content of webpages, including with
  * natural language processing methods. The module uses Mozilla Readability
- * in a content script to parse document title and content when possible. The
- * module provides infrastructure for implementing a machine learning
- * classifier, but leaves feature generation from document attributes and
- * model implementation to study authors (e.g., using TensorFlow.js, ONNX.js,
- * WebDNN, or sklearn-porter).
+ * in a content script to parse document title and content when possible.
+ * 
+ * # Training, Testing, and Deploying Natural Language Processing Models
+ * A motivating use case for this module is applying natural language
+ * processing methods to webpage text. The module provides infrastructure for
+ * NLP models, but leaves implementation and evaluation of models to study
+ * authors. We recommend using existing toolkits for NLP feature generation
+ * (e.g., Natural or NLP.js) and for working with models (e.g., TensorFlow.js,
+ * ONNX.js, WebDNN, or sklearn-porter). We also recommend using the same
+ * codebase for collecting data (e.g., with web crawls), constructing models,
+ * evaluating models, and deploying models in browser-based studies. When
+ * maintaining multiple NLP codebases for a browser-based study, subtle
+ * inconsistencies are easy to introduce and can call into question NLP model
+ * performance.
+ * 
+ * # Web Crawls to Collect Natural Language Processing Training Data
+ * Because WebScience integrates with ordinary browser extensions, you can
+ * use this module in a web crawl to collect page text content as NLP training
+ * data. All the major browser automation toolkits (e.g., Selenium, Puppeteer,
+ * Playwright, and WebdriverIO) support running web crawls with browser
+ * extensions installed. We recommend running an online crawl to collect NLP
+ * data, using this module to extract webpage text, then training and testing
+ * models offline. If you use web crawl data to construct an NLP model for a
+ * browser-based study, be sure to carefully consider how the distribution
+ * of pages in the crawl compares to the distribution of pages that a user in
+ * the study might visit. If a crawl is not representative of user browsing,
+ * NLP model performance on crawl data might significantly differ from
+ * performance when deployed in a browser-based study.
+ * 
+ * # Implementing Natural Language Processing in Web Workers
+ * Because natural language processing methods can be computationally
+ * expensive, it is very important to offload NLP tasks from an extension's
+ * main thread. We recommend pairing this module with the `workers` module to 
+ * implement NLP tasks inside of Web Workers, which run in separate threads
+ * and will not block the extension's main thread. Some NLP toolkits support
+ * additional optimizations, such as WebAssembly or WebGL, and we recommend
+ * enabling all available optimizations to minimize the possibility of impact
+ * on the user's browsing experience. 
  * 
  * @see {@link https://github.com/mozilla/readability}
+ * @see {@link https://github.com/NaturalNode/natural}
+ * @see {@link https://github.com/axa-group/nlp.js}
  * @see {@link https://www.tensorflow.org/js}
  * @see {@link https://github.com/microsoft/onnxjs}
  * @see {@link https://mil-tokyo.github.io/webdnn/}
@@ -85,7 +120,8 @@ const textParsedListeners = new Map();
  */
 
 /**
- * An event that fires when a page's text content has been parsed with Readability.
+ * An event that fires when a page's text content has been parsed with Readability. If the text
+ * content is not parseable, this event does not fire.
  * @constant {TextParsedEvent}
  */
 export const onTextParsed = events.createEvent({
