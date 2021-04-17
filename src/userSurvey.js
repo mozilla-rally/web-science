@@ -342,9 +342,9 @@ export async function getSurveyId() {
 export async function getSurveyStatus() {
     initializeStorage();
 
-    let surveyDetails = await storageSpace.get("surveyDetails");
-    let surveyCompleted = await storageSpace.get("surveyCompleted");
-    let surveyCancelled = await storageSpace.get("surveyCancelled");
+    const surveyDetails = await storageSpace.get("surveyDetails");
+    const surveyCompleted = await storageSpace.get("surveyCompleted");
+    const surveyCancelled = await storageSpace.get("surveyCancelled");
 
     if (!surveyDetails) {
         return null;
