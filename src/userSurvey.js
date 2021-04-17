@@ -5,13 +5,16 @@
  *   * If the user has not been previously prompted for the survey,
  *     the survey will open in a new tab.
  *   * The study's browser action popup will contain either a page
- *     prompting the user complete the survey (with options to open
+ *     prompting the user to complete the survey (with options to open
  *     the survey or decline the survey), or a neutral page (if the
  *     user has already completed or declined the survey).
  *   * If the user has been previously prompted for the survey, and
  *     has not completed or declined the survey, the user will be
  *     reminded to complete the survey with a browser notification
  *     at a set interval.
+ *   * View the documentation for the exported functions for additional
+ *     details about usage.
+ * 
  * 
  * # Limitations
  * Note that this module is currently very limited: it only supports
@@ -63,15 +66,78 @@ let reminderTimeoutId = null;
  */
 let listenersRegistered = false;
 
-// Module-wide variables for a survey, set in createSurvey
+/**
+ * When we last asked the user to do the survey, either with a browser
+ * notification or through opening a tab with the survey.
+ * @type {number}
+ * @private
+ */
 let lastSurveyRequest = 0;
+
+/**
+ * A fully-qualified URL to an icon file to use for for reminding the
+ * user with a notification to complete the survey.
+ * @type {string}
+ * @private
+ */
 let reminderIconUrl = "";
+
+/**
+ * How often, in seconds, to wait before reminding the user with a
+ * notification to participate in the survey.
+ * @type {number}
+ * @private
+ */
 let reminderInterval = 0;
+
+/**
+ * The message to use for reminding the user with a notification to
+ * complete the survey.
+ * @type {string}
+ * @private
+ */
 let reminderMessage = "";
+
+/**
+ * The title to use for reminding the user with a notification to
+ * complete the survey.
+ * @type {string}
+ * @private
+ */
 let reminderTitle = "";
+
+/**
+ * The URL for the survey on an external platform
+ * (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
+ * @type {string}
+ * @private
+ */
 let surveyUrl = "";
 
 const millisecondsPerSecond = 1000;
+
+/**
+ * Options for configuring a survey.
+ * @typedef {Object} SurveyOptions
+ * @param {string} surveyName - A unique name for the survey within the study.
+ * @param {string} popupNoPromptMessage - A message to present to the
+ * user when there is no survey to prompt.
+ * @param {string} popupPromptMessage - A message to present to the user
+ * when there is a survey to prompt.
+ * @param {string} reminderIcon - A path to an icon file, relative
+ * to the study extension's root, to use for for reminding the user with a
+ * notification to complete the survey.
+ * @param {number} reminderInterval - How often, in seconds, to wait before
+ * reminding the user with a notification to participate in the survey.
+ * @param {string} reminderMessage - The message to use for reminding the
+ * user with a notification to complete the survey.
+ * @param {string} reminderTitle - The title to use for reminding the
+ * user with a notification to complete the survey.
+ * @param {string} surveyCompletionUrl - A URL that, when loaded,
+ * indicates the user has completed the survey.
+ * @param {string} surveyUrl - The URL for the survey on an external
+ * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
+ */
 
 /**
  * Opens the survey URL in a new browser tab, appending parameters
@@ -150,51 +216,38 @@ function completeSurvey() {
 }
 
 /**
- * Prompt the user to respond to a survey.
- * @param {Object} options - The options for the survey.
- * @param {Object} options.surveyName - A unique name for the survey within the study.
- * @param {string} options.popupNoPromptMessage - A message to present to the
- * user when there is no survey to prompt.
- * @param {string} options.popupPromptMessage - A message to present to the user
- * when there is a survey to prompt.
- * @param {string} options.reminderIcon - A path to an icon file, relative
- * to the study extension's root, to use for for reminding the user with a
- * notification to complete the survey.
- * @param {number} options.reminderInterval - How often, in seconds, to wait before
- * reminding the user with a notification to participate in the survey.
- * @param {string} options.reminderMessage - The message to use for reminding the
- * user with a notification to complete the survey.
- * @param {string} options.reminderTitle - The title to use for reminding the
- * user with a notification to complete the survey.
- * @param {string} options.surveyCompletionUrl - A URL that, when loaded,
- * indicates the user has completed the survey.
- * @param {string} options.surveyUrl - The URL for the survey on an external
- * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
+ * Prompt the user to respond to a survey. There can only be one survey running at a time.
+ * To run a single survey in a study, simply call setSurvey with the specified SurveyOptions object.
+ * If there is more than one survey in a study, endSurvey must be called after every survey
+ * before starting the next survey.
+ * 
+ * # Usage Notes:
+ *   * If there is no active survey, saves the options parameter to storage and
+ *     starts the survey based on this parameter.
+ *   * If there is an active survey and options.surveyName matches the name of
+ *     the active survey, continues the survey based on the options in storage.
+ *   * If there is already an active survey and options.surveyName does not match
+ *     the name of the active survey, throws an error as there can only be one
+ *     active survey at a time.
+ * @param {SurveyOptions} options - The options for the survey.
  */
 export async function setSurvey(options) {
     initializeStorage();
 
-    let currentSurveyDetails = await storageSpace.get("currentSurveyDetails");
-    let surveyDetails;
+    let surveyDetails = await storageSpace.get("surveyDetails");
 
-    if (!currentSurveyDetails) {
-        // If there's a call to setSurvey and there's no survey in storage,
-        // save the parameters in storage and carry out the survey.
+    // If there's no survey in storage, save the parameters in
+    //    storage and carry out the survey based on the parameters.
+    // If options.surveyName differs from the survey name in storage,
+    //    throw an error, because only one survey can be set at a time.
+    // Otherwise, options.surveyName is the same as the survey name in
+    //    storage. In this case, use the survey attributes from storage.
+    if (!surveyDetails) {
         surveyDetails = options;
-        await storageSpace.set("currentSurveyDetails", options);
-    } else if (currentSurveyDetails.surveyName === options.surveyName) {
-        // If there's a call to setSurvey with the same survey name as the
-        // survey in storage, ignore options and load all the survey attributes
-        // from storage, and continue with the survey.
-        surveyDetails = await storageSpace.get("currentSurveyDetails");
-    } else {
-        // If there's a call to setSurvey with a different survey name from
-        // the survey in storage, throw an error, because two surveys are
-        // now set at the same time.
+        await storageSpace.set("surveyDetails", options);
+    } else if (surveyDetails.surveyName !== options.surveyName) {
         throw new Error("userSurvey only supports one survey at a time. Complete the survey that has previously been set.");
     }
-
-
 
     const currentTime = Date.now();
     surveyUrl = surveyDetails.surveyUrl;
@@ -213,7 +266,7 @@ export async function setSurvey(options) {
     // we've never asked, which means the extension just got installed.
     // Open a tab with the survey, and save this time as the most recent
     // request for participation.
-    let lastSurveyRequest = await storageSpace.get("lastSurveyRequest");
+    lastSurveyRequest = await storageSpace.get("lastSurveyRequest");
     const surveyCompleted = await storageSpace.get("surveyCompleted");
     const surveyCancelled = await storageSpace.get("surveyCancelled");
 
@@ -248,6 +301,8 @@ export async function setSurvey(options) {
 
     // Listeners for cancel and open survey button click only need to be added once.
     // They do not need to be added again for subsequent calls to setSurvey.
+    // These listeners do not need to be removed in endCurrentSurvey because they will
+    // not receive messages when the popup is the no prompt page.
     if (!listenersRegistered) {
         // Set listeners for cancel and open survey button clicks in the survey request.
         messaging.onMessage.addListener(() => {
@@ -279,14 +334,27 @@ export async function getSurveyId() {
 }
 
 /**
- * Gets the completion status of the current survey. Can be used if a
+ * Gets the status of the current survey. Can be used if a
  * subsequent survey depends on the status of the previous survey.
- * @returns {boolean|null} - Whether the current survey has been completed.
- * Returns null if there is no current survey.
+ * @returns {string|null} - The status of the survey (either "completed",
+ * "cancelled", or "active") or null if there is no survey.
  */
-export async function getSurveyCompletionStatus() {
+export async function getSurveyStatus() {
     initializeStorage();
-    return await storageSpace.get("surveyCompleted");
+
+    let surveyDetails = await storageSpace.get("surveyDetails");
+    let surveyCompleted = await storageSpace.get("surveyCompleted");
+    let surveyCancelled = await storageSpace.get("surveyCancelled");
+
+    if (!surveyDetails) {
+        return null;
+    } else if(surveyCompleted) {
+        return "completed";
+    } else if(surveyCancelled) {
+        return "cancelled";
+    } else {
+        return "active";
+    }
 }
 
 /**
@@ -294,16 +362,19 @@ export async function getSurveyCompletionStatus() {
  * @returns {string|null} - The name of the current survey. Returns null
  * if there is no current survey.
  */
-export async function getCurrentSurveyName() {
+export async function getSurveyName() {
     initializeStorage();
-    const currentSurveyDetails = await storageSpace.get("currentSurveyDetails");
-    return currentSurveyDetails ? currentSurveyDetails.surveyName : null;
+    const surveyDetails = await storageSpace.get("surveyDetails");
+    return surveyDetails ? surveyDetails.surveyName : null;
 }
 
 /**
  * End the current survey. Should be called before a subsequent survey is started.
  */
-export async function endCurrentSurvey() {
+export async function endSurvey() {
+    // Stop prompting for the survey.
+    setPopupToNoPromptPage();
+
     // If there is an existing survey reminder timeout, clears the timeout.
     clearTimeout(reminderTimeoutId);
 
@@ -317,5 +388,5 @@ export async function endCurrentSurvey() {
     await storageSpace.set("lastSurveyRequest", null);
     await storageSpace.set("surveyCompleted", false);
     await storageSpace.set("surveyCancelled", false);
-    await storageSpace.set("currentSurveyDetails", null);
+    await storageSpace.set("surveyDetails", null);
 }
