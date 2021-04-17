@@ -191,6 +191,7 @@ function browserRuntimeListener(message, sender, sendResponse) {
  * @constant {OnMessageEvent}
  */
 export const onMessage = events.createEvent({
+    name: "webScience.messaging.onMessage",
     addListenerCallback: (listener, options) => {
         registerListener(options.type, listener, "schema" in options ? options.schema : undefined);
     },

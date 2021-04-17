@@ -89,6 +89,7 @@ const textParsedListeners = new Map();
  * @constant {TextParsedEvent}
  */
 export const onTextParsed = events.createEvent({
+    name: "webScience.pageText.onTextParsed",
     addListenerCallback: addListener,
     removeListenerCallback: removeListener,
     notifyListenersCallback: () => { return false; }

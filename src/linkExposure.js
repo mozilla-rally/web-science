@@ -129,6 +129,7 @@ const pendingPageLinkExposureCallbacks = new Map();
  * @constant {LinkExposureUpdateEvent}
  */
 export const onLinkExposureUpdate = events.createEvent({
+    name: "webScience.linkExposure.onLinkExposureUpdate",
     addListenerCallback: addUpdateListener,
     removeListenerCallback: removeUpdateListener,
     notifyListenersCallback: () => { return false; }
@@ -387,9 +388,10 @@ let addedPageVisitListeners = false;
  * @constant {LinkExposureDataEvent}
  */
 export const onLinkExposureData = events.createEvent({
-     addListenerCallback: addDataListener,
-     removeListenerCallback: removeDataListener,
-     notifyListenersCallback: () => { return false; }
+    name: "webScience.linkExposure.onLinkExposureData",
+    addListenerCallback: addDataListener,
+    removeListenerCallback: removeDataListener,
+    notifyListenersCallback: () => { return false; }
 });
 
 /**

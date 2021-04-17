@@ -181,6 +181,7 @@ const considerUserInputForAttention = true;
  * @constant {Events.Event<pageVisitStartListener, PageVisitStartListenerOptions>}
  */
 export const onPageVisitStart = events.createEvent({
+    name: "webScience.pageManager.onPageVisitStart",
     // Make sure the module is initialized when a listener is added
     addListenerCallback: listener => initialize(),
     // Filter notifications for events in private windows
@@ -229,6 +230,7 @@ function pageVisitStart(details) {
  * @constant {Events.Event<pageVisitStopListener, PageVisitStartListenerOptions>}
  */
 export const onPageVisitStop = events.createEvent({
+    name: "webScience.pageManager.onPageVisitStop",
     // Make sure the module is initialized when a listener is added
     addListenerCallback: listener => initialize(),
     // Filter notifications for events in private windows
