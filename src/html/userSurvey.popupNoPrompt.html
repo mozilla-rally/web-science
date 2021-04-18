@@ -3,18 +3,42 @@
     <head>
         <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
         <meta content="utf-8" http-equiv="encoding">
+        <style>
+            body {
+                font-family: Inter, X-LocaleSpecific, sans-serif;
+            }
+
+            .icon {
+                max-width: 50px;
+                max-height: 50px;
+                float: left;
+                padding-left: 10px;
+                padding-right: 10px; 
+            }
+        </style>
     </head>
     <body>
-        <div id="content" class="paragraph" style="width: 300px; padding-right: 25px; padding-left: 25px;">
+        <div style="display: flex; max-width: 300px; padding-top: 10px; padding-bottom: 10px;">
+            <img id="icon" class="icon" style="display: none;">
+            <div id="content" class="paragraph" style="padding-left: 10px; padding-right: 10px;"></div>
         </div>
         <script>
             (async function() {
                 // Load the message from storage
-                const storageKey = "webScience.userSurvey.popupNoPromptMessage";
-                const contentResults = await browser.storage.local.get(storageKey);
-                if(storageKey in contentResults) {
+                const messageStorageKey = "webScience.userSurvey.popupNoPromptMessage";
+                const messageResults = await browser.storage.local.get(messageStorageKey);
+                if(messageStorageKey in messageResults) {
                     const contentElement = document.getElementById("content");
-                    contentElement.innerHTML = contentResults[storageKey];
+                    contentElement.innerHTML = messageResults[messageStorageKey];
+                }
+
+                // Load icon URL from storage
+                const iconUrlStorageKey = "webScience.userSurvey.iconUrl";
+                const iconUrlResults = await browser.storage.local.get(iconUrlStorageKey);
+                if(iconUrlStorageKey in iconUrlResults) {
+                    const iconElement = document.getElementById("icon");
+                    iconElement.src = iconUrlResults[iconUrlStorageKey];
+                    iconElement.style.display = "block";
                 }
             })();
         </script>

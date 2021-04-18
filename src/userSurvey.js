@@ -27,8 +27,8 @@
  * require special Content Security Policy permissions in the extension
  * manifest (the `"content_security_policy"` key). Those permissions
  * are currently the following additional `script-src` values.
- *   * `'sha256-7MkXA5Z7wxRyznhUZN3nVVs9GEQpvRXdYihZZqR2y6w='`
- *   * `'sha256-l+kgCjP15GJlVSDL9qMNffrHu8mxJcag42o2TYofOUM='`
+ *   * `'sha256-bUKxQqZNe2fk3PaK48M80MFRVXl53IHJVB0ugEX1rAQ='`
+ *   * `'sha256-HPkcxqeZXjC8zvEDHjPct9ksdZqm8+7GxQqYAuDpqtk='`
  * @module webScience.userSurvey
  */
 import * as id from "./id.js";
@@ -124,6 +124,9 @@ const millisecondsPerSecond = 1000;
  * user when there is no survey to prompt.
  * @param {string} popupPromptMessage - A message to present to the user
  * when there is a survey to prompt.
+ * @param {string} popupIcon - A path to an icon file, relative
+ * to the study extension's root, to use for for the browser action popup.
+ * This property is optional as the popup does not need to display an icon.
  * @param {string} reminderIcon - A path to an icon file, relative
  * to the study extension's root, to use for for reminding the user with a
  * notification to complete the survey.
@@ -261,6 +264,11 @@ export async function setSurvey(options) {
     browser.storage.local.set({
         "webScience.userSurvey.popupNoPromptMessage": surveyDetails.popupNoPromptMessage
     });
+    if (surveyDetails.popupIcon) {
+        browser.storage.local.set({
+            "webScience.userSurvey.iconUrl": browser.runtime.getURL(surveyDetails.popupIcon)
+        });
+    }
 
     // Check when we last asked the user to do the survey. If it's null,
     // we've never asked, which means the extension just got installed.

@@ -4,19 +4,22 @@
         <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
         <meta content="utf-8" http-equiv="encoding">
         <style>
+            body {
+                font-family: Inter, X-LocaleSpecific, sans-serif;
+            }
+
             .button-container {
-                width: 100%;
-                height: 50px;
                 display: table;
                 border-collapse: separate;
                 border-spacing: 0px;
             }
 
             .buttonBlue {
-                background-color: #4cb1f5;
-                width: 100px;
-                color: black;
-                padding: 15px;
+                background-color: #145EE3;
+                width: 99px;
+                color: white;
+                padding-top: 14px;
+                padding-bottom: 14px;
                 text-align: center;
                 text-decoration: none;
                 font-size: 16px;
@@ -25,14 +28,15 @@
             }
 
             .buttonBlue:hover {
-                background-color: #31a6f5;
+                background-color: #104FBF;
             }
 
             .buttonGray {
-                background-color: #d9d9d9;
+                background-color: #f1f1f1;
                 width: 100px;
                 color: black;
-                padding: 15px;
+                padding-top: 14px;
+                padding-bottom: 14px;
                 text-align: center;
                 text-decoration: none;
                 font-size: 16px;
@@ -41,26 +45,54 @@
             }
 
             .buttonGray:hover {
-                background-color: #b5b5b5;
+                background-color: #e2e2e2;
+            }
+
+            .icon {
+                max-width: 50px;
+                max-height: 50px;
+                float: left;
+                padding-left: 10px;
+                padding-right: 10px; 
+            }
+
+            .separator {
+                width: 1px;
+                height: 46px;
+                color: black;
+                float: left;
+                background: #d3d3d3;
             }
         </style>
     </head>
     <body>
-        <div id="content" class="paragraph" style="width: 300px; padding-right: 25px; padding-left: 25px;">
+        <div style="display: flex; max-width: 300px; padding-top: 10px; padding-bottom: 10px;">
+            <img id="icon" class="icon" style="display: none;">
+            <div id="content" class="paragraph" style="padding-left: 10px; padding-right: 10px;"></div>
         </div>
         <div class="button-container">
-            <a href="#" class="buttonGray" name="later">Later</a>
-            <a href="#" class="buttonGray" name="never">Never</a>
-            <a href="#" class="buttonBlue" name="agree">Continue</a>
+            <a href="#" class="button buttonGray" name="later">Later</a>
+            <span class="separator"></span>
+            <a href="#" class="button buttonGray" name="never">Never</a>
+            <a href="#" class="button buttonBlue" name="agree">Continue</a>
         </div>
         <script>
             (async function() {
                 // Load the message from storage
-                const storageKey = "webScience.userSurvey.popupPromptMessage";
-                const contentResults = await browser.storage.local.get(storageKey);
-                if(storageKey in contentResults) {
+                const messageStorageKey = "webScience.userSurvey.popupPromptMessage";
+                const messageResults = await browser.storage.local.get(messageStorageKey);
+                if(messageStorageKey in messageResults) {
                     const contentElement = document.getElementById("content");
-                    contentElement.innerHTML = contentResults[storageKey];
+                    contentElement.innerHTML = messageResults[messageStorageKey];
+                }
+
+                // Load icon URL from storage
+                const iconUrlStorageKey = "webScience.userSurvey.iconUrl";
+                const iconUrlResults = await browser.storage.local.get(iconUrlStorageKey);
+                if(iconUrlStorageKey in iconUrlResults) {
+                    const iconElement = document.getElementById("icon");
+                    iconElement.src = iconUrlResults[iconUrlStorageKey];
+                    iconElement.style.display = "block";
                 }
                 
                 // Listen for clicks on the buttons
