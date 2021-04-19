@@ -122,6 +122,7 @@ let timeoutId = -1;
  * @constant {events.Event<events.callbackWithoutParameters, undefined>}
  */
 export const onIdleDaily = events.createEvent({
+    name: "webScience.scheduling.onIdleDaily",
     addListenerCallback: function() { initialize(); }
 })
 
@@ -130,6 +131,7 @@ export const onIdleDaily = events.createEvent({
  * @constant {events.Event<events.callbackWithoutParameters, undefined>}
  */
 export const onIdleWeekly = events.createEvent({
+    name: "webScience.scheduling.onIdleWeekly",
     addListenerCallback: function() { initialize(); }
 });
 

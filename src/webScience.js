@@ -58,3 +58,6 @@ export { socialMediaLinkSharing }
 
 import * as randomization from "./randomization.js"
 export { randomization }
+
+import * as workers from "./workers.js"
+export { workers }

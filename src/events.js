@@ -28,6 +28,7 @@ class Event {
     /**
      * Creates an event instance similar to WebExtensions `events.Event` objects.
      * @param {Object} [options] - A set of options for the event.
+     * @param {name} [options.name] - The name of the event.
      * @param {addListenerCallback} [options.addListenerCallback] - A function that is
      * called when a listener function is added.
      * @param {removeListenerCallback} [options.removeListenerCallback] - A function
@@ -37,14 +38,17 @@ class Event {
      * @private
      */
     constructor({
+        name = null,
         addListenerCallback = null,
         removeListenerCallback = null,
         notifyListenersCallback = null
     } = {
+        name: null,
         addListenerCallback: null,
         removeListenerCallback: null,
         notifyListenersCallback: null
     }) {
+        this.name = name;
         this.addListenerCallback = addListenerCallback;
         this.removeListenerCallback = removeListenerCallback;
         this.notifyListenersCallback = notifyListenersCallback;
@@ -71,6 +75,10 @@ class Event {
             this.addListenerCallback(listener, options);
         }
         this.listeners.set(listener, options);
+        // If the event has a name, annotate the listener with the name
+        if(typeof this.name === "string") {
+            listener.webScienceEventName = this.name;
+        }
     }
 
     /**
@@ -165,6 +173,7 @@ class EventSingleton extends Event {
  * Create a new Event object that implements WebExtensions event syntax, with the
  * provided options.
  * @param {Object} [options] - The options for the event.
+ * @param {string} name - The name of the event.
  * @param {addListenerCallback} [options.addListenerCallback] - A function that is
  * called when a listener function is added.
  * @param {removeListenerCallback} [options.removeListenerCallback] - A function
@@ -176,11 +185,13 @@ class EventSingleton extends Event {
  * @returns {Event} - The created Event object.
  */
  export function createEvent({
+    name = null,
     addListenerCallback = null,
     removeListenerCallback = null,
     notifyListenersCallback = null,
     singleton = false
 } = {
+    name: null,
     addListenerCallback: null,
     removeListenerCallback: null,
     notifyListenersCallback: null,
@@ -188,12 +199,14 @@ class EventSingleton extends Event {
 }) {
     if(singleton) {
         return new EventSingleton({
+            name,
             addListenerCallback,
             removeListenerCallback,
             notifyListenersCallback
         });
     }
     return new Event({
+        name,
         addListenerCallback,
         removeListenerCallback,
         notifyListenersCallback

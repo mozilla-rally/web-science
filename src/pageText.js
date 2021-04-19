@@ -1,27 +1,48 @@
 /**
  * This module enables analyzing the text content of webpages, including with
  * natural language processing methods. The module uses Mozilla Readability
- * in a content script to parse document title and content when possible. The
- * module provides infrastructure for implementing a machine learning
- * classifier in a Web Worker, but leaves feature generation from document
- * attributes and model implementation to study authors (e.g., using
- * TensorFlow.js, ONNX.js, WebDNN, or sklearn-porter).
+ * in a content script to parse document title and content when possible.
  * 
- * # Content Security Policy Requirements
- * This module depends on an inline script to provide the pageText.onTextParsed
- * event in Web Workers. The script requires a special Content Security Policy
- * permission in the extension manifest (the `"content_security_policy"` key),
- * because Firefox does not currently treat blob URLs originating from an extension
- * as covered by the extension's CSP exemption (see [bug 1294996](https://bugzilla.mozilla.org/show_bug.cgi?id=1294996)).
- * There does not appear to be a reliable way to provide permission for just the
- * one inline script (script hash values do not work), so you must add the
- * blob URL scheme as a permitted script source. The following Content Security
- * Policy property is sufficient:
- * ```
- *   "content_security_policy": "script-src 'self' blob:; object-src 'self'"
- * ```
+ * # Training, Testing, and Deploying Natural Language Processing Models
+ * A motivating use case for this module is applying natural language
+ * processing methods to webpage text. The module provides infrastructure for
+ * NLP models, but leaves implementation and evaluation of models to study
+ * authors. We recommend using existing toolkits for NLP feature generation
+ * (e.g., Natural or NLP.js) and for working with models (e.g., TensorFlow.js,
+ * ONNX.js, WebDNN, or sklearn-porter). We also recommend using the same
+ * codebase for collecting data (e.g., with web crawls), constructing models,
+ * evaluating models, and deploying models in browser-based studies. When
+ * maintaining multiple NLP codebases for a browser-based study, subtle
+ * inconsistencies are easy to introduce and can call into question NLP model
+ * performance.
+ * 
+ * # Web Crawls to Collect Natural Language Processing Training Data
+ * Because WebScience integrates with ordinary browser extensions, you can
+ * use this module in a web crawl to collect page text content as NLP training
+ * data. All the major browser automation toolkits (e.g., Selenium, Puppeteer,
+ * Playwright, and WebdriverIO) support running web crawls with browser
+ * extensions installed. We recommend running an online crawl to collect NLP
+ * data, using this module to extract webpage text, then training and testing
+ * models offline. If you use web crawl data to construct an NLP model for a
+ * browser-based study, be sure to carefully consider how the distribution
+ * of pages in the crawl compares to the distribution of pages that a user in
+ * the study might visit. If a crawl is not representative of user browsing,
+ * NLP model performance on crawl data might significantly differ from
+ * performance when deployed in a browser-based study.
+ * 
+ * # Implementing Natural Language Processing in Web Workers
+ * Because natural language processing methods can be computationally
+ * expensive, it is very important to offload NLP tasks from an extension's
+ * main thread. We recommend pairing this module with the `workers` module to 
+ * implement NLP tasks inside of Web Workers, which run in separate threads
+ * and will not block the extension's main thread. Some NLP toolkits support
+ * additional optimizations, such as WebAssembly or WebGL, and we recommend
+ * enabling all available optimizations to minimize the possibility of impact
+ * on the user's browsing experience. 
  * 
  * @see {@link https://github.com/mozilla/readability}
+ * @see {@link https://github.com/NaturalNode/natural}
+ * @see {@link https://github.com/axa-group/nlp.js}
  * @see {@link https://www.tensorflow.org/js}
  * @see {@link https://github.com/microsoft/onnxjs}
  * @see {@link https://mil-tokyo.github.io/webdnn/}
@@ -34,7 +55,6 @@ import * as events from "./events.js";
 import * as inline from "./inline.js";
 import * as pageManager from "./pageManager.js";
 import pageTextContentScript from "./content-scripts/pageText.content.js";
-import pageTextWorker from "./worker-scripts/pageText.worker.js";
 
 /**
  * Additional information about the page data event.
@@ -100,10 +120,12 @@ const textParsedListeners = new Map();
  */
 
 /**
- * An event that fires when a page's text content has been parsed with Readability.
+ * An event that fires when a page's text content has been parsed with Readability. If the text
+ * content is not parseable, this event does not fire.
  * @constant {TextParsedEvent}
  */
 export const onTextParsed = events.createEvent({
+    name: "webScience.pageText.onTextParsed",
     addListenerCallback: addListener,
     removeListenerCallback: removeListener,
     notifyListenersCallback: () => { return false; }
@@ -225,71 +247,4 @@ function messageListener(textParsedDetails) {
             listener(textParsedDetails);
         }
     }
-}
-
-/**
- * @typedef {Object} TextParsedWorker
- * @property {Function} unregister - Unregister the Web Worker.
- */
-
-/**
- * A blob object URL for the inlined pageText Web Worker script.
- * @type {string|null}
- * @private
- */
-let pageTextWorkerBlobUrl = null;
-
-/**
- * Register a Web Worker with access to the webScience.onTextParsed event. Note that the
- * event in the Web Worker does not support listener options, because those options are
- * specified as parameters for this registration function.
- * @param {Object} workerOptions - Options for the new Web Worker.
- * @param {string} workerOptions.url - The URL for the Web Worker script. If you are
- * loading a script file from inside an extension, use browser.runtime.getURL to convert
- * the script file path into a URL.
- * @param {Function} workerOptions.onMessage - A function that will be called when
- * messages arrive from the Web Worker.
- * @param {string[]} workerOptions.matchPatterns - The match patterns for pages where the
- * onTextParsed event should fire in the Web Worker.
- * @param {boolean} [options.privateWindows=false] - Whether the onTextParsedEvent event
- * should fire in the Web Worker for private windows.
- * @returns {TextParsedWorker} An object that allows unregistering the new Web Worker.
- */
-export function registerWorker({
-    url,
-    onMessage,
-    matchPatterns,
-    privateWindows = false
-}) {
-    // If we haven't yet created a blob object URL for the pageText Web Worker script,
-    // create it
-    if(pageTextWorkerBlobUrl === null) {
-        pageTextWorkerBlobUrl = inline.dataUrlToBlobUrl(pageTextWorker)
-    }
-    // Create a Web Worker with the pageText Web Worker
-    const worker = new Worker(pageTextWorkerBlobUrl);
-    // Connect the onMessage callback to the Web Worker
-    worker.onmessage = onMessage;
-    // Send the URL of the Web Worker script so the new Worker can import it
-    worker.postMessage({
-        type: "webScience.pageText.registerWorker",
-        url: url
-    });
-    // Add a listener for onTextParsed that notifies the Web Worker
-    const textParsedListener = function(textParsedDetails) {
-        worker.postMessage({
-            type: "webScience.pageText.onTextParsed",
-            textParsedDetails
-        });
-    };
-    onTextParsed.addListener(textParsedListener, { matchPatterns, privateWindows });
-    // Return an object that allows unregistering the Web Worker, which removes the
-    // onTextParsed listener for notifying the Web Worker and terminates the Web
-    // Worker
-    return {
-        unregister: () => {
-            onTextParsed.removeListener(textParsedListener);
-            worker.terminate();
-        }
-    };
 }

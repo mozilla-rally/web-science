@@ -2,9 +2,8 @@
  * WebScience Intermediate Build Step
  * -----------------------
  *   * Copy background script and HTML files to an intermediate directory.
- *   * Bundle content script and worker script dependencies into IIFE
- *     scripts, and copy the bundled script files to the intermediate
- *     directory.
+ *   * Bundle content script dependencies into IIFE scripts, and copy the
+ *     bundled script files to the intermediate directory.
  */
 
 import copy from "rollup-plugin-copy";
@@ -25,8 +24,7 @@ export default (cliArgs) => {
           src: [
             `${sourceDirectory}/**/*.js`,
             `${sourceDirectory}/**/*.html`,
-            `!${sourceDirectory}/**/*.content.js`,
-            `!${sourceDirectory}/**/*.worker.js`
+            `!${sourceDirectory}/**/*.content.js`
           ],
           dest: `${intermediateDirectory}`
         }],
@@ -53,22 +51,5 @@ export default (cliArgs) => {
     });
   }
 
-    // Worker script files
-    const workerScriptPaths = globby.sync(`${sourceDirectory}/**/*.worker.js`);
-    for(const workerScriptPath of workerScriptPaths) {
-      rollupConfig.push({
-        input: workerScriptPath,
-        output: {
-          file: `${intermediateDirectory}${workerScriptPath.slice(sourceDirectory.length)}`,
-          format: "iife"
-        },
-        plugins: [
-          commonjs(),
-          resolve({
-            browser: true
-          })
-        ]
-      });
-    }
   return rollupConfig;
 }

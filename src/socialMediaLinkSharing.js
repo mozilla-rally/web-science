@@ -63,6 +63,7 @@ function removeListener(listener) {
  * @type {Events.Event<socialMediaShareCallback, SocialMediaShareOptions>}
  */
 export const onShare = events.createEvent({
+    name: "webScience.socialMediaLinkSharing.onShare",
     addListenerCallback: addListener,
     removeListenerCallback: removeListener
 });

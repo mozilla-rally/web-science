@@ -89,6 +89,7 @@ const pageDataListeners = new Map();
  * @constant {PageDataEvent}
  */
 export const onPageData = events.createEvent({
+    name: "webScience.pageNavigation.onPageData",
     addListenerCallback: addListener,
     removeListenerCallback: removeListener,
     notifyListenersCallback: () => { return false; }

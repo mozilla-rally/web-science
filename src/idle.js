@@ -231,6 +231,7 @@ function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detec
  * @constant {IdleStateChangeEvent}
  */
 export const onStateChanged = events.createEvent({
+    name: "webScience.idle.onStateChanged",
     addListenerCallback: (listener, options) => {
         registerIdleStateListener(listener, options.detectionInterval);
     },

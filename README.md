@@ -57,3 +57,4 @@ We will have documentation for the WebScience API online shortly. In the interim
 | `socialMediaLinkSharing` | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                        | :white_check_mark: | :white_check_mark: | :x:                |
 | `storage`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `userSurvey`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `workers`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
