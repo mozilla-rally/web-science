@@ -27,8 +27,8 @@
  * require special Content Security Policy permissions in the extension
  * manifest (the `"content_security_policy"` key). Those permissions
  * are currently the following additional `script-src` values.
- *   * `'sha256-bUKxQqZNe2fk3PaK48M80MFRVXl53IHJVB0ugEX1rAQ='`
- *   * `'sha256-HPkcxqeZXjC8zvEDHjPct9ksdZqm8+7GxQqYAuDpqtk='`
+ *   * `'sha256-NWQdcQcRHnQIYGjBL9M0prg9b8pv3wLmOaV2jrsanMc='`
+ *   * `'sha256-fL9pxYxI1za3bC+fugL+6glz9nJYpdZGgQAPwcD97ds='`
  * @module webScience.userSurvey
  */
 import * as id from "./id.js";
@@ -76,11 +76,12 @@ let lastSurveyRequest = 0;
 
 /**
  * A fully-qualified URL to an icon file to use for for reminding the
- * user with a notification to complete the survey.
- * @type {string}
+ * user with a notification to complete the survey (is null if there is
+ * no such icon).
+ * @type {string|null}
  * @private
  */
-let reminderIconUrl = "";
+let reminderIconUrl = null;
 
 /**
  * How often, in seconds, to wait before reminding the user with a
@@ -124,12 +125,13 @@ const millisecondsPerSecond = 1000;
  * user when there is no survey to prompt.
  * @param {string} popupPromptMessage - A message to present to the user
  * when there is a survey to prompt.
- * @param {string} popupIcon - A path to an icon file, relative
+ * @param {string} [popupIcon] - A path to an icon file, relative
  * to the study extension's root, to use for for the browser action popup.
  * This property is optional as the popup does not need to display an icon.
- * @param {string} reminderIcon - A path to an icon file, relative
+ * @param {string} [reminderIcon] - A path to an icon file, relative
  * to the study extension's root, to use for for reminding the user with a
- * notification to complete the survey.
+ * notification to complete the survey. This property is optional as the
+ * notification does not need to display an icon.
  * @param {number} reminderInterval - How often, in seconds, to wait before
  * reminding the user with a notification to participate in the survey.
  * @param {string} reminderMessage - The message to use for reminding the
@@ -209,11 +211,12 @@ function initializeStorage() {
 }
 
 /**
- * Called when the current survey is completed. Sets surveyCompleted to true in storage
- * and changes the browser action popup to the survey's no prompt page.
+ * Listener for webRequest.onBeforeRequest when the URL is the survey
+ * completion URL. Sets surveyCompleted to true in storage and changes
+ * the browser action popup to the survey's no prompt page.
  * @private
  */
-function completeSurvey() {
+function surveyCompletionUrlListener() {
     storageSpace.set("surveyCompleted", true);
     setPopupToNoPromptPage();
 }
@@ -224,11 +227,13 @@ function completeSurvey() {
  * If there is more than one survey in a study, endSurvey must be called after every survey
  * before starting the next survey.
  * 
- * # Usage Notes:
+ * # Usage Notes
  *   * If there is no active survey, saves the options parameter to storage and
  *     starts the survey based on this parameter.
  *   * If there is an active survey and options.surveyName matches the name of
  *     the active survey, continues the survey based on the options in storage.
+ *     This allows for studies with only one survey to simply call this function
+ *     with the survey options on study extension startup.
  *   * If there is already an active survey and options.surveyName does not match
  *     the name of the active survey, throws an error as there can only be one
  *     active survey at a time.
@@ -253,22 +258,19 @@ export async function setSurvey(options) {
     }
 
     const currentTime = Date.now();
-    surveyUrl = surveyDetails.surveyUrl;
-    reminderIconUrl = browser.runtime.getURL(surveyDetails.reminderIcon);
-    reminderInterval = surveyDetails.reminderInterval;
-    reminderTitle = surveyDetails.reminderTitle;
-    reminderMessage = surveyDetails.reminderMessage;
+    ({surveyUrl,reminderInterval, reminderTitle, reminderMessage } = surveyDetails);
     browser.storage.local.set({
         "webScience.userSurvey.popupPromptMessage": surveyDetails.popupPromptMessage
     });
     browser.storage.local.set({
         "webScience.userSurvey.popupNoPromptMessage": surveyDetails.popupNoPromptMessage
     });
-    if (surveyDetails.popupIcon) {
-        browser.storage.local.set({
-            "webScience.userSurvey.iconUrl": browser.runtime.getURL(surveyDetails.popupIcon)
-        });
-    }
+    reminderIconUrl = surveyDetails.reminderIcon ?
+        browser.runtime.getURL(surveyDetails.reminderIcon) : null;
+    browser.storage.local.set({
+        "webScience.userSurvey.popupIconUrl": 
+            surveyDetails.popupIcon ? browser.runtime.getURL(surveyDetails.popupIcon) : null
+    });
 
     // Check when we last asked the user to do the survey. If it's null,
     // we've never asked, which means the extension just got installed.
@@ -289,10 +291,13 @@ export async function setSurvey(options) {
         });
     }
 
-    // If this is the first survey request, open the survey in a new tab
+    // If this is the first survey request, open the survey in a new tab.
     if (lastSurveyRequest === null) {
         lastSurveyRequest = currentTime;
         await storageSpace.set("lastSurveyRequest", lastSurveyRequest);
+
+        // Since this is the first survey request, initialize the stored
+        // completed and cancelled state to false.
         await storageSpace.set("surveyCompleted", false);
         await storageSpace.set("surveyCancelled", false);
         openSurveyInNewTab();
@@ -303,7 +308,7 @@ export async function setSurvey(options) {
 
     // Set a listener for the survey completion URL.
     browser.webRequest.onBeforeRequest.addListener(
-        completeSurvey,
+        surveyCompletionUrlListener,
         { urls: [ (new URL(surveyDetails.surveyCompletionUrl)).href + "*" ] }
     );
 
@@ -316,8 +321,11 @@ export async function setSurvey(options) {
         messaging.onMessage.addListener(() => {
             storageSpace.set("surveyCancelled", true);
             setPopupToNoPromptPage();
+            browser.webRequest.onBeforeRequest.removeListener(surveyCompletionUrlListener);
         }, { type: "webScience.userSurvey.cancelSurvey" });
-        messaging.onMessage.addListener(openSurveyInNewTab, { type: "webScience.userSurvey.openSurvey" });
+        messaging.onMessage.addListener(() => {
+            openSurveyInNewTab();
+        }, { type: "webScience.userSurvey.openSurvey" });
     }
 
     listenersRegistered = true;
@@ -388,7 +396,7 @@ export async function endSurvey() {
 
     // Remove any previously added listener for browser.webRequest.onBeforeRequest
     // that checks for the survey completion URL.
-    browser.webRequest.onBeforeRequest.removeListener(completeSurvey);
+    browser.webRequest.onBeforeRequest.removeListener(surveyCompletionUrlListener);
 
     initializeStorage();
 

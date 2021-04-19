@@ -6,7 +6,7 @@
         <style>
             /* May need to add font bundling or revisit the font choice for cross-browser compatibility. */
             body {
-                font-family: Inter, X-LocaleSpecific, sans-serif;
+                font-family: sans-serif;
             }
 
             .button-container {
@@ -53,8 +53,7 @@
                 max-width: 50px;
                 max-height: 50px;
                 float: left;
-                padding-left: 10px;
-                padding-right: 10px; 
+                padding-right: 10px;
             }
 
             .separator {
@@ -67,7 +66,7 @@
         </style>
     </head>
     <body>
-        <div style="display: flex; max-width: 300px; padding-top: 10px; padding-bottom: 10px;">
+        <div style="display: flex; max-width: 280px; padding: 10px;">
             <img id="icon" class="icon" style="display: none;">
             <div id="content" class="paragraph" style="padding-left: 10px; padding-right: 10px;"></div>
         </div>
@@ -82,15 +81,15 @@
                 // Load the message from storage
                 const messageStorageKey = "webScience.userSurvey.popupPromptMessage";
                 const messageResults = await browser.storage.local.get(messageStorageKey);
-                if(messageStorageKey in messageResults) {
+                if(messageResults[messageStorageKey]) {
                     const contentElement = document.getElementById("content");
                     contentElement.innerHTML = messageResults[messageStorageKey];
                 }
 
                 // Load icon URL from storage
-                const iconUrlStorageKey = "webScience.userSurvey.iconUrl";
+                const iconUrlStorageKey = "webScience.userSurvey.popupIconUrl";
                 const iconUrlResults = await browser.storage.local.get(iconUrlStorageKey);
-                if(iconUrlStorageKey in iconUrlResults) {
+                if(iconUrlResults[iconUrlStorageKey]) {
                     const iconElement = document.getElementById("icon");
                     iconElement.src = iconUrlResults[iconUrlStorageKey];
                     iconElement.style.display = "block";
