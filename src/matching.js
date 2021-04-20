@@ -1,16 +1,27 @@
 /**
  * This module provides utilities for matching URLs against criteria.
  *
+ * # Matching Criteria
  * The module supports two types of criteria:
  *   * Match Patterns (preferred) - a syntax used in the WebExtensions API for expressing possible URL matches.
  *     See: {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns}.
  *   * Domains - a simple list of domain names, which are converted into match patterns.
- *
- * The module supports two types of output for matching URLs:
+ * 
+ * # Matching Output
+ * The module supports three types of output for matching URLs:
  *   * Match Pattern Sets (preferred) - optimized objects that compare a URL against the criteria.
  *   * Regular Expressions - `RegExp` objects that compare a URL against the criteria.
  *   * Regular Expression Strings - strings expressing regular expressions for comparing a URL against the criteria.
+ * 
+ * # Implementation Notes
+ * We use Rollup pure annotations (`@__PURE__` comments) because Rollup assumes that iterators might have side 
+ * effects (including subtle cases of iteration like `Array.map` and `Array.join`). Without the annotations, Rollup
+ * would mark arguments for many of this module's functions (which might be large string arrays) as tainted by side
+ * effects and always include those arguments in bundled output. The pure annotations are associated with either
+ * iteration functions or class instantiation to provide clarity about why they're needed.
  *
+ * @see {@link https://github.com/rollup/rollup/issues/3127}
+ * 
  * @module webScience.matching
  */
 
@@ -152,7 +163,7 @@ function parseMatchPattern(matchPattern) {
  * @returns {MatchPatternSet} - The new MatchPatternSet.
  */
 export function createMatchPatternSet(matchPatterns) {
-    return new _MatchPatternSet(matchPatterns);
+    return /*@__PURE__*/new _MatchPatternSet(matchPatterns);
 }
 
 /**
@@ -454,7 +465,7 @@ function matchPatternToRegExpString(matchPattern) {
  * @private
  */
 function combineRegExpStrings(regExpStrings) {
-    return "(?:" + (regExpStrings.map((regExpString) => { return regExpStrings.length > 1 ? `(?:${regExpString})` : regExpString; })).join("|") + ")";
+    return "(?:" + /*@__PURE__*/(/*@__PURE__*/regExpStrings.map((regExpString) => { return regExpStrings.length > 1 ? `(?:${regExpString})` : regExpString; })).join("|") + ")";
 }
 
 /**
@@ -464,7 +475,7 @@ function combineRegExpStrings(regExpStrings) {
  * @returns {string} The regular expression string.
  */
 export function matchPatternsToRegExpString(matchPatterns) {
-    return combineRegExpStrings(matchPatterns.map(matchPattern => { return matchPatternToRegExpString(matchPattern); }));
+    return combineRegExpStrings(/*@__PURE__*/matchPatterns.map(matchPattern => { return matchPatternToRegExpString(matchPattern); }));
 }
 
 /**
@@ -488,7 +499,7 @@ export function matchPatternsToRegExp(matchPatterns) {
  * @returns {string[]} Match patterns for the domains in the set.
  */
 export function domainsToMatchPatterns(domains, matchSubdomains = true) {
-    return domains.map(domain => { return `*://${matchSubdomains ? "*." : ""}${domain}/*` });
+    return /*@__PURE__*/domains.map(domain => { return `*://${matchSubdomains ? "*." : ""}${domain}/*` });
 }
 
 /**
