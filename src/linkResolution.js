@@ -5,8 +5,8 @@
 import * as matching from "./matching.js";
 import * as permissions from "./permissions.js";
 import * as id from "./id.js";
-import { urlShortenerMatchPatterns } from "./dependencies/urlShorteners.js";
-import { ampCacheDomains, ampViewerDomainsAndPaths } from "./dependencies/ampCachesAndViewers.js";
+import { urlShortenerMatchPatterns } from "./data/urlShorteners.js";
+import { ampCacheDomains, ampViewerDomainsAndPaths } from "./data/ampCachesAndViewers.js";
 import { parse as tldtsParse } from "tldts";
 
 permissions.check({
