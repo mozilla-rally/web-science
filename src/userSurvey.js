@@ -27,8 +27,8 @@
  * require special Content Security Policy permissions in the extension
  * manifest (the `"content_security_policy"` key). Those permissions
  * are currently the following additional `script-src` values.
- *   * `'sha256-NWQdcQcRHnQIYGjBL9M0prg9b8pv3wLmOaV2jrsanMc='`
- *   * `'sha256-fL9pxYxI1za3bC+fugL+6glz9nJYpdZGgQAPwcD97ds='`
+ *   * `'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='`
+ *   * `'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='`
  * @module webScience.userSurvey
  */
 import * as id from "./id.js";

@@ -83,7 +83,7 @@
                 const messageResults = await browser.storage.local.get(messageStorageKey);
                 if(messageResults[messageStorageKey]) {
                     const contentElement = document.getElementById("content");
-                    contentElement.innerHTML = messageResults[messageStorageKey];
+                    contentElement.textContent = messageResults[messageStorageKey];
                 }
 
                 // Load icon URL from storage
