@@ -24,8 +24,8 @@
  * require special Content Security Policy permissions in the extension
  * manifest (the `"content_security_policy"` key). Those permissions
  * are currently the following additional `script-src` values.
- *   * `'sha256-7MkXA5Z7wxRyznhUZN3nVVs9GEQpvRXdYihZZqR2y6w='`
- *   * `'sha256-l+kgCjP15GJlVSDL9qMNffrHu8mxJcag42o2TYofOUM='`
+ *   * `'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='`
+ *   * `'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='`
  * @module webScience.userSurvey
  */
 import * as id from "./id.js";
@@ -40,7 +40,7 @@ permissions.check({
     module: "webScience.userSurvey",
     requiredPermissions: [ "notifications", "webRequest" ],
     requiredContentSecurityPolicy: {
-        "script-src": [ "'sha256-7MkXA5Z7wxRyznhUZN3nVVs9GEQpvRXdYihZZqR2y6w='", "'sha256-l+kgCjP15GJlVSDL9qMNffrHu8mxJcag42o2TYofOUM='" ]
+        "script-src": [ "'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='", "'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='" ]
     }
 });
 
