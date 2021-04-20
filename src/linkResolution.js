@@ -50,7 +50,7 @@ export const ampRegExp = new RegExp(
  * @constant {matching.MatchPatternSet}
  */
 export const ampMatchPatternSet = matching.createMatchPatternSet(
-    /*@__PURE__*/matching.domainsToMatchPatterns(ampCacheDomains, false).concat(
+    matching.domainsToMatchPatterns(ampCacheDomains, false).concat(
         ampViewerDomainsAndPaths.map(ampViewerDomainAndPath => `*://${ampViewerDomainAndPath}*`)));
 
 /**
