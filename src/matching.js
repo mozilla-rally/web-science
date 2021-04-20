@@ -152,7 +152,7 @@ function parseMatchPattern(matchPattern) {
  * @returns {MatchPatternSet} - The new MatchPatternSet.
  */
 export function createMatchPatternSet(matchPatterns) {
-    return new _MatchPatternSet(matchPatterns);
+    return /*@__PURE__*/new _MatchPatternSet(matchPatterns);
 }
 
 /**
@@ -476,7 +476,7 @@ export function matchPatternsToRegExpString(matchPatterns) {
 export function matchPatternsToRegExp(matchPatterns) {
     // Set the entire regular expression to case insensitive, because JavaScript regular expressions
     // do not (currently) support partial case insensitivity
-    return new RegExp(matchPatternsToRegExpString(matchPatterns), "i");
+    return new RegExp(/*@__PURE__*/matchPatternsToRegExpString(matchPatterns), "i");
 }
 
 /**

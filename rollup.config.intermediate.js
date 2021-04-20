@@ -42,6 +42,11 @@ export default (cliArgs) => {
         file: `${intermediateDirectory}${contentScriptPath.slice(sourceDirectory.length)}`,
         format: "iife"
       },
+      // allow optional annotations which enables us to mark
+      // certain expressions as pure
+      treeshake: {
+        annotations: true
+      },
       plugins: [
         commonjs(),
         resolve({
