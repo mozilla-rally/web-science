@@ -158,7 +158,9 @@ export async function check({
     }
 
     // Content Security Policy directives
-    let manifestContentSecurityPolicyString = "";
+    // The default CSP for WebExtensions is "script-src 'self'; object-src 'self';"
+    // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_Security_Policy
+    let manifestContentSecurityPolicyString = "script-src 'self'; object-src 'self';";
     const manifest = browser.runtime.getManifest();
     if("content_security_policy" in manifest) {
         manifestContentSecurityPolicyString = manifest["content_security_policy"];
