@@ -2,7 +2,12 @@
  * This module provides convenient storage abstractions on top of extension local
  * storage. These abstractions minimize code duplication and opportunities for
  * error, and allow us to switch the underlying storage implementation in future.
- *
+ * 
+ * Rally studies are welcome to choose any WebExtensions compatible storage option,
+ * including this module, extension local storage, IndexedDB, or an IndexedDB wrapper
+ * (e.g., Dexie.js).
+ * 
+ * @see {@link https://dexie.org/}
  * @module webScience.storage
  */
 
@@ -26,7 +31,8 @@ export function createKeyValueStorage(storageAreaName) {
 
 /**
  * Class for a key-value storage area, where the key is a string and the value can have
- * any of a number of basic types.
+ * any of a number of basic types. The class is modeled on the built-in Map type, but
+ * backed by persistent storage and using Promise return values.
  */
 class KeyValueStorage {
     /**
@@ -49,10 +55,10 @@ class KeyValueStorage {
     } 
 
     /**
-     * Get a value from storage.
+     * Get a value from storage by its key.
      * @param {string} key - The key to use in the storage area.
-     * @returns {*} The value in the storage area, or null if the value is not
-     * in the storage area.
+     * @returns {Promise} A Promise that resolves to the value in the storage area,
+     * or null if the value is not in the storage area.
      */
     async get(key) {
         const storageResult = await browser.storage.local.get({ [this.keyToExtensionLocalStorageKey(key)]: null });
@@ -60,12 +66,107 @@ class KeyValueStorage {
     }
 
     /**
-     * Set a value in storage.
+     * Set a key-value pair in storage.
      * @param {string} key - The key to use in the storage area.
      * @param {*} value - The value to store in the storage area for the key.
      */
     async set(key, value) {
         await browser.storage.local.set({ [this.keyToExtensionLocalStorageKey(key)]: value });
+    }
+
+    /**
+     * Check whether a key is associated with a value in the storage area.
+     * @param {string} key - The key to use in the storage area.
+     * @returns {Promise<boolean>} Whether the key is associated with a value in the
+     * storage area.
+     */
+    async has(key) {
+        const extensionLocalStorageKey = this.keyToExtensionLocalStorageKey(key);
+        const storageResult = await browser.storage.local.get(extensionLocalStorageKey);
+        return extensionLocalStorageKey in storageResult;
+    }
+
+    /**
+     * Delete a key-value pair from storage.
+     * @param {string} key - The key to use in the storage area.
+     * @returns {Promise<boolean>} Whether the key was in use in the storage area.
+     */
+    async delete(key) {
+        const hadKey = await this.has(key);
+        if(hadKey) {
+            await browser.storage.local.remove(key);
+        }
+        return hadKey;
+    }
+
+    /**
+     * Convert the storage area into an object. Note that this function
+     * loads and iterates all key-value pairs in extension local storage,
+     * so it may have performance implications.
+     * @returns {Promise<Object>} A promise that resolves to an object
+     * where properties are keys in the storage area and values are stored
+     * values.
+     */
+    async toObject() {
+        const storagePrefix = this.keyToExtensionLocalStorageKey("");
+        const storageEntries = await browser.storage.local.get();
+        const outputEntries = { };
+        for(const key in storageEntries) {
+            if(key.startsWith(storagePrefix)) {
+                outputEntries[key.substring(storagePrefix.length)] = storageEntries[key];
+            }
+        }
+        return outputEntries;
+    }
+
+    /**
+     * Return an iterator over key-value pairs in the storage area. Note
+     * that this function loads and iterates all key-value pairs in extension
+     * local storage, so it may have performance implications.
+     * @returns {Promise<Object>} A promise that resolves to an iterator over
+     * the key-value pairs in the storage area.
+     */
+    async entries() {
+        return Object.entries(await this.toObject()).values();
+    }
+
+    /**
+     * Return an iterator over keys in the storage area. Note that this
+     * function loads and iterates all key-value pairs in extension local
+     * storage, so it may have performance implications.
+     * @returns {Promise<Object>} A promise that resolves to an iterator over
+     * the keys in the storage area.
+     */
+    async keys() {
+        return Object.keys(await this.toObject()).values();
+    }
+
+    /**
+     * Return an iterator over values in the storage area. Note that this
+     * function loads and iterates all key-value pairs in extension local
+     * storage, so it may have performance implications.
+     * @returns {Object} A promise that resolves to an iterator over the
+     * values in the storage area.
+     */
+    async values() {
+        return Object.values(await this.toObject()).values();
+    }
+
+    /**
+     * Clear all key-value pairs in the storage area. Note that this
+     * function loads and iterates all key-value pairs in extension local
+     * storage, so it may have performance implications.
+     */
+    async clear() {
+        const storagePrefix = this.keyToExtensionLocalStorageKey("");
+        const storageEntries = await browser.storage.local.get();
+        const keysToRemove = [ ];
+        for(const key in storageEntries) {
+            if(key.startsWith(storagePrefix)) {
+                keysToRemove.push(key);
+            }
+        }
+        await browser.storage.local.remove(keysToRemove);
     }
 }
 
