@@ -61,3 +61,6 @@ export { randomization }
 
 import * as workers from "./workers.js"
 export { workers }
+
+import * as pageTransition from "./pageTransition.js"
+export { pageTransition }
