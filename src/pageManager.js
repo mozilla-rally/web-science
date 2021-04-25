@@ -471,6 +471,8 @@ export async function initialize() {
     browser.webNavigation.onHistoryStateUpdated.addListener((details) => {
         if(!initialized)
             return;
+        if(details.frameId !== 0)
+            return;
         const timeStamp = Date.now();
 
         messaging.sendMessageToTab(details.tabId, {

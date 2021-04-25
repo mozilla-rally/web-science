@@ -99,12 +99,16 @@
  *     DOMContentLoaded timestamp with the content script's URL and
  *     DOMContentLoaded timestamp.
  *   * We have to sync background script `webNavigation` events for different
- *     stages in the webpage loading lifecycle. Unlike `webRequest` events,
- *     `webNavigation` events are not associated with unique identifiers. We
- *     accomplish this syncing by assuming that when the
- *     `webNavigation.onDOMContentLoaded` event fires for a tab, it is part of
- *     the same navigation lifecycle as the most recent
- *     `webNavigation.onCommitted` event in the tab.
+ *     stages in the webpage loading lifecycle, because we want properties of
+ *     both `webNavigation.onCommitted` and `webNavigation.onDOMContentLoaded`:
+ *     the former has transition types and qualifiers, while the latter has a
+ *     timestamp that is comparable to an event in the content script and does
+ *     not have the risk of firing before the content script is ready to
+ *     receive messages. Unlike `webRequest` events, `webNavigation` events are
+ *     not associated with unique identifiers. We accomplish syncing across
+ *     events by assuming that when the `webNavigation.onDOMContentLoaded` event
+ *     fires for a tab, it is part of the same navigation lifecycle as the most
+ *     recent `webNavigation.onCommitted` event in the tab.
  *   * We have to sync content script data for a page with content script
  *     data for a prior page (either loaded in the same tab, loaded in an
  *     opener tab, or loaded immediately before in time). We accomplish this by
@@ -121,6 +125,11 @@
 
 import * as events from "./events.js";
 import * as permissions from "./permissions.js";
+import * as messaging from "./messaging.js";
+import * as matching from "./matching.js";
+import * as inline from "./inline.js";
+import * as pageManager from "./pageManager.js";
+import pageTransitionContentScript from "./content-scripts/pageTransition.content.js";
  
 permissions.check({
     module: "webScience.pageTransition",
@@ -136,6 +145,8 @@ permissions.check({
  * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer. Note that we
  * recommend against using referrers for analyzing page transitions.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
+ * @property {string} transitionType - The transition type, from `webNavigation.onCommitted`.
+ * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted`.
  * @property {string} tabSourcePageId - The ID for the most recent page in the same tab. If the page is opening
  * in a new tab, then the ID of the most recent page in the opener tab. The value is `""` if there is no such page.
  * @property {string} tabSourceUrl - The URL, without any hash, for the most recent page in the same tab. If the page
@@ -171,7 +182,9 @@ permissions.check({
  * @property {matching.MatchPatternSet} matchPatternSet - Match patterns for pages where the listener should be
  * notified about transition data.
  * @property {boolean} privateWindows - Whether to notify the listener about page transitions in
- * private windows. 
+ * private windows.
+ * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * script associated with the listener.
  */
 
 /**
@@ -179,7 +192,7 @@ permissions.check({
  * @constant {Map<pageTransitionDataListener, PageTransitionDataListenerRecord>}
  * @private
  */
-//const pageTransitionDataListeners = new Map();
+const pageTransitionDataListeners = new Map();
 
 /**
  * @callback PageTransitionDataAddListener
@@ -223,6 +236,97 @@ export const onPageTransitionData = events.createEvent({
 });
 
 /**
+ * Whether the module has been initialized.
+ * @type {boolean}
+ * @private
+ */
+let initialized = false;
+
+/**
+ * Initialize the module, registering event handlers and message schemas.
+ * @private
+ */
+async function initialize() {
+    if(initialized) {
+        return;
+    }
+    initialized = true;
+
+    await pageManager.initialize();
+
+    browser.webNavigation.onCommitted.addListener(details => {
+        if(details.frameId !== 0) {
+            return;
+        }
+        webNavigationOnCommittedCache.set(details.tabId, details);
+    }, {
+        url: [ { schemes: [ "http", "https" ] } ]
+    });
+
+    browser.webNavigation.onDOMContentLoaded.addListener(details => {
+        if(details.frameId !== 0) {
+            return;
+        }
+        const webNavigationOnCommittedDetails = webNavigationOnCommittedCache.get(details.tabId);
+        if(webNavigationOnCommittedDetails === undefined) {
+            return;
+        }
+        webNavigationOnCommittedCache.delete(details.tabId);
+        if(details.url !== webNavigationOnCommittedDetails.url) {
+            return;
+        }
+        messaging.sendMessageToTab(details.tabId, {
+            type: "webScience.pageTransition.backgroundScriptUpdate",
+            url: details.url,
+            DOMContentLoadedTimeStamp: details.timeStamp,
+            transitionType: webNavigationOnCommittedDetails.transitionType,
+            transitionQualifiers: webNavigationOnCommittedDetails.transitionQualifiers
+        });
+    }, {
+        url: [ { schemes: [ "http", "https" ] } ]
+    });
+
+    messaging.registerSchema("webScience.pageTransition.backgroundScriptUpdate", {
+        url: "string",
+        DOMContentLoadedTimeStamp: "number",
+        transitionType: "string",
+        transitionQualifiers: "object"
+    });
+
+    messaging.onMessage.addListener(contentScriptUpdateMessage => {
+        delete contentScriptUpdateMessage.type;
+        for(const [listener, listenerRecord] of pageTransitionDataListeners) {
+            if(listenerRecord.matchPatternSet.matches(contentScriptUpdateMessage.url)) {
+                listener(contentScriptUpdateMessage);
+            }
+        }
+    },
+    {
+        type: "webScience.pageTransition.contentScriptUpdate",
+        schema: {
+            pageId: "string",
+            url: "string",
+            isHistoryChange: "boolean",
+            transitionType: "string",
+            transitionQualifiers: "object",
+            tabSourcePageId: "string",
+            tabSourceUrl: "string",
+            tabSourceClick: "boolean",
+            timeSourcePageId: "string",
+            timeSourceUrl: "string"
+        }
+    });
+}
+
+/**
+ * A map where keys are tab IDs and values are the most recent `webNavigation.onCommitted`
+ * details, removed from the map when a subsequent `webNavigation.onDOMContentLoaded` fires
+ * for the tab.
+ * @private
+ */
+ const webNavigationOnCommittedCache = new Map();
+
+/**
  * A callback function for adding a page transition data listener.
  * @param {pageTransitionDataListener} listener - The listener function being added.
  * @param {PageTransitionDataOptions} options - Options for the listener.
@@ -232,6 +336,18 @@ async function addListener(listener, {
     matchPatterns,
     privateWindows = false
 }) {
+    await initialize();
+    pageTransitionDataListeners.set(listener, {
+        matchPatternSet: matching.createMatchPatternSet(matchPatterns),
+        privateWindows,
+        contentScript: await browser.contentScripts.register({
+            matches: matchPatterns,
+            js: [{
+                code: inline.dataUrlToString(pageTransitionContentScript)
+            }],
+            runAt: "document_start"
+        })
+    });
 }
 
 /**
@@ -240,4 +356,10 @@ async function addListener(listener, {
  * @private
  */
 function removeListener(listener) {
+    const listenerRecord = pageTransitionDataListeners.get(listener);
+    if(listenerRecord === undefined) {
+        return;
+    }
+    listenerRecord.contentScript.unregister();
+    pageTransitionDataListeners.delete(listenerRecord);
 }
