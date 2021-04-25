@@ -162,7 +162,7 @@ async function addListener(listener, {
  * @param {pageDataCallback} listener - The listener that is being removed.
  * @private
  */
- function removeListener(listener) {
+function removeListener(listener) {
     // If there is a record of the listener, unregister its content script
     // and delete the record
     const listenerRecord = pageDataListeners.get(listener);
@@ -178,7 +178,7 @@ async function addListener(listener, {
  * @param {PageDataDetails} pageData - Information about the page.
  * @private
  */
- function messageListener(pageData) {
+function messageListener(pageData) {
     // Remove the type string from the content script message
     delete pageData.type;
 

@@ -482,7 +482,7 @@ async function addDataListener(listener, options) {
  * @param {linkExposureDataListener} listener - The listener that is being removed.
  * @private
  */
- function removeDataListener(listener) {
+function removeDataListener(listener) {
     // If the listener has a record, unregister its onLinkExposureUpdate listener
     // and delete the record
     const listenerRecord = linkExposureDataListeners.get(listener);
