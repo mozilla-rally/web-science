@@ -152,7 +152,7 @@ const considerUserInputForAttention = true;
 /**
  * Additional information about a page visit start event.
  * @typedef {Object} PageVisitStartDetails
- * @param {number} pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} pageId - The ID for the page, unique across browsing sessions.
  * @param {number} tabId - The ID for the tab containing the page, unique to the browsing session.
  * @param {number} windowId - The ID for the window containing the page, unique to the browsing session.
  * Note that tabs can subsequently move between windows.
@@ -204,7 +204,7 @@ function pageVisitStart(details) {
 /**
  * Additional information about a page visit stop event.
  * @typedef {Object} PageVisitStopDetails
- * @param {number} pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} pageId - The ID for the page, unique across browsing sessions.
  * @param {string} url - The URL of the page loading in the tab, without any hash.
  * @param {string} referrer - The referrer URL for the page loading in the tab, or `""` if
  * there is no referrer.

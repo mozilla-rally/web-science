@@ -15,7 +15,7 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
 /**
  * Additional information about the page data event.
  * @typedef {Object} PageDataDetails
- * @property {number} pageId - The ID for the page, unique across browsing sessions.
+ * @property {string} pageId - The ID for the page, unique across browsing sessions.
  * @property {string} url - The URL of the page, without any hash.
  * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer.
  * @property {number} pageVisitStartTime - The time when the page visit started, in ms since

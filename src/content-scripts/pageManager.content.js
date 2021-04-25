@@ -5,7 +5,9 @@
  *   * Page Tracking
  *     * `pageId` - A unique ID for the page.
  *     * `url` - The URL of the page, omitting any hash.
- *     * `referrer` - The referrer for the page.
+ *     * `referrer` - The HTTP referrer for the page. Note that, when a page loads via
+ *       the History API, the referrer is unchanged because there is no document-level
+ *       HTTP request. 
  *   * Page Events
  *     * `onPageVisitStart` - An event that fires when a page visit begins. Note that
  *       the page visit start event may have already fired by the time another

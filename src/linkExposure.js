@@ -36,7 +36,7 @@ const ignoreSelfLinks = true;
 /**
  * The details of a link exposure update event.
  * @typedef {Object} LinkExposureUpdateDetails
- * @property {number} pageId - The ID for the page, unique across browsing sessions.
+ * @property {string} pageId - The ID for the page, unique across browsing sessions.
  * @property {string} url - The URL of the page, without any hash.
  * @property {string[]} matchingLinkUrls - An array containing the resolved URLs of links
  * on the page that the user was exposed to and that matched a provided match pattern.
@@ -305,7 +305,7 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
 /**
  * The details of a link exposure data event.
  * @typedef {Object} LinkExposureDataDetails
- * @property {number} pageId - The ID for the page, unique across browsing sessions.
+ * @property {string} pageId - The ID for the page, unique across browsing sessions.
  * @property {string} url - The URL of the page, without any hash.
  * @property {string[]} matchingLinkUrls - An array containing the resolved URLs of links
  * on the page that the user was exposed to and that matched a provided match pattern.
