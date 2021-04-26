@@ -236,6 +236,47 @@ export const onPageTransitionData = events.createEvent({
 });
 
 /**
+ * A callback function for adding a page transition data listener.
+ * @param {pageTransitionDataListener} listener - The listener function being added.
+ * @param {PageTransitionDataOptions} options - Options for the listener.
+ * @private
+ */
+ async function addListener(listener, {
+    matchPatterns,
+    privateWindows = false
+}) {
+    await initialize();
+    // Store a record for the listener
+    pageTransitionDataListeners.set(listener, {
+        // Compile the listener's match pattern set
+        matchPatternSet: matching.createMatchPatternSet(matchPatterns),
+        privateWindows,
+        // Register a content script with the listener's match patterns
+        contentScript: await browser.contentScripts.register({
+            matches: matchPatterns,
+            js: [{
+                code: inline.dataUrlToString(pageTransitionContentScript)
+            }],
+            runAt: "document_start"
+        })
+    });
+}
+
+/**
+ * A callback function for removing a page transition data listener.
+ * @param {pageTransitionDataListener} listener - The listener that is being removed.
+ * @private
+ */
+function removeListener(listener) {
+    const listenerRecord = pageTransitionDataListeners.get(listener);
+    if(listenerRecord === undefined) {
+        return;
+    }
+    listenerRecord.contentScript.unregister();
+    pageTransitionDataListeners.delete(listenerRecord);
+}
+
+/**
  * Whether the module has been initialized.
  * @type {boolean}
  * @private
@@ -265,8 +306,9 @@ async function initialize() {
         // that was the correct page for time-based transition information.
     });
 
-    // When webNavigation.onCommitted fires, store the details in the tab-based transition cache
+    // When webNavigation.onCommitted fires, store the details in the per-tab onCommitted details cache
     browser.webNavigation.onCommitted.addListener(details => {
+        // Ignore subframe navigation
         if(details.frameId !== 0) {
             return;
         }
@@ -276,9 +318,9 @@ async function initialize() {
     });
 
     // When webNavigation.onDOMContentLoaded fires, pull the webNavigation.onCommitted
-    // details from the cache, notify the content script, and expire stale data in the
-    // time-based transition cache
+    // details from the per-tab cache and notify the content script
     browser.webNavigation.onDOMContentLoaded.addListener(details => {
+        // Ignore subframe navigation
         if(details.frameId !== 0) {
             return;
         }
@@ -294,56 +336,47 @@ async function initialize() {
             return;
         }
 
-        // Notify the content script with webNavigation and time-based transition data
-        messaging.sendMessageToTab(details.tabId, {
-            type: "webScience.pageTransition.backgroundScriptUpdate",
+        // Notify the content script
+        sendUpdateToContentScript({
+            tabId: details.tabId,
             url: details.url,
-            DOMContentLoadedTimeStamp: details.timeStamp,
+            timeStamp: details.timeStamp,
             transitionType: webNavigationOnCommittedDetails.transitionType,
             transitionQualifiers: webNavigationOnCommittedDetails.transitionQualifiers,
-            pageVisitTimeCache
+            isHistoryChange: false
         });
-
-        // Remove stale page visits from the time-based transition cache, retaining the most recent page
-        // visit in any window and the most recent page visit in only non-private windows. We have to
-        // track the most recent non-private page separately, since a listener might only be registered
-        // for transitions involving non-private pages. We perform this expiration after sending a
-        // message to the content script, for the reasons explained in the pageManager.onPageVisitStart
-        // listener.
-        const timeStamp = Date.now();
-        const expiredCachePageIds = new Set();
-        let mostRecentPageId = "";
-        let mostRecentPageVisitStartTime = 0;
-        let mostRecentNonPrivatePageId = "";
-        let mostRecentNonPrivatePageVisitStartTime = 0;
-        for(const cachePageId in pageVisitTimeCache) {
-            if(pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentPageVisitStartTime) {
-                mostRecentPageId = cachePageId;
-                mostRecentPageVisitStartTime = pageVisitTimeCache[cachePageId].pageVisitStartTime;
-            }
-            if(!pageVisitTimeCache[cachePageId].privateWindow && (pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentNonPrivatePageVisitStartTime)) {
-                mostRecentNonPrivatePageId = cachePageId;
-                mostRecentNonPrivatePageVisitStartTime = pageVisitTimeCache[cachePageId].pageVisitStartTime;
-            }
-            if((timeStamp - pageVisitTimeCache[cachePageId].pageVisitStartTime) > pageVisitTimeCacheExpiry) {
-                expiredCachePageIds.add(cachePageId);
-            }
-        }
-        expiredCachePageIds.delete(mostRecentPageId);
-        expiredCachePageIds.delete(mostRecentNonPrivatePageId);
-        for(const expiredCachePageId of expiredCachePageIds) {
-            delete pageVisitTimeCache[expiredCachePageId];
-        }
     }, {
         url: [ { schemes: [ "http", "https" ] } ]
     });
 
+    // When webNavigation.onHistoryStateUpdated fires, notify the content script
+    browser.webNavigation.onHistoryStateUpdated.addListener(details => {
+        // Ignore subframe navigation
+        if(details.frameId !== 0) {
+            return;
+        }
+
+        // Notify the content script
+        sendUpdateToContentScript({
+            tabId: details.tabId,
+            url: details.url,
+            timeStamp: details.timeStamp,
+            transitionType: details.transitionType,
+            transitionQualifiers: details.transitionQualifiers,
+            isHistoryChange: true
+        });
+    }, {
+        url: [ { schemes: [ "http", "https" ] } ]
+    });
+
+    // Register the message schema for background script updates
     messaging.registerSchema("webScience.pageTransition.backgroundScriptUpdate", {
         url: "string",
-        DOMContentLoadedTimeStamp: "number",
+        timeStamp: "number",
         transitionType: "string",
         transitionQualifiers: "object",
-        pageVisitTimeCache: "object"
+        pageVisitTimeCache: "object",
+        isHistoryChange: "boolean"
     });
 
     // When the content script sends data, notify the relevant listeners
@@ -417,42 +450,72 @@ const pageVisitTimeCache = { };
 const pageVisitTimeCacheExpiry = 1000;
 
 /**
- * A callback function for adding a page transition data listener.
- * @param {pageTransitionDataListener} listener - The listener function being added.
- * @param {PageTransitionDataOptions} options - Options for the listener.
+ * Send an update to the content script running on a page, called when a
+ * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`
+ * event fires.
+ * @param {Object} details - Details for the update to the content script.
+ * @param {number} details.tabId - The tab ID for the tab where the page is loading.
+ * @param {string} details.url - The URL for the page.
+ * @param {number} details.timeStamp - The timestamp for the page that is loading,
+ * either from `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
+ * @param {string} details.transitionType - The transition type for the page that is loading,
+ * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
+ * @param {string[]} details.transitionQualifiers - The transition qualifiers for the page
+ * that is loading, either from `webNavigation.onDOMContentLoaded` or
+ * `webNavigation.onHistoryStateUpdated`.
+ * @param {boolean} details.isHistoryChange - Whether the update was caused by
+ * `webNavigation.onDOMContentLoaded` (`false`) or `webNavigation.onHistoryStateUpdated`
+ * (`true`).
  * @private
  */
-async function addListener(listener, {
-    matchPatterns,
-    privateWindows = false
+ function sendUpdateToContentScript({
+    tabId,
+    url,
+    timeStamp,
+    transitionType,
+    transitionQualifiers,
+    isHistoryChange
 }) {
-    await initialize();
-    // Store a record for the listener
-    pageTransitionDataListeners.set(listener, {
-        // Compile the listener's match pattern set
-        matchPatternSet: matching.createMatchPatternSet(matchPatterns),
-        privateWindows,
-        // Register a content script with the listener's match patterns
-        contentScript: await browser.contentScripts.register({
-            matches: matchPatterns,
-            js: [{
-                code: inline.dataUrlToString(pageTransitionContentScript)
-            }],
-            runAt: "document_start"
-        })
+    // Send a message to the content script with transition information. The content script will
+    // merge this information with its local information to generate a PageTransitionData event.
+    messaging.sendMessageToTab(tabId, {
+        type: "webScience.pageTransition.backgroundScriptUpdate",
+        url,
+        timeStamp,
+        transitionType,
+        transitionQualifiers,
+        pageVisitTimeCache,
+        isHistoryChange
     });
-}
 
-/**
- * A callback function for removing a page transition data listener.
- * @param {pageTransitionDataListener} listener - The listener that is being removed.
- * @private
- */
-function removeListener(listener) {
-    const listenerRecord = pageTransitionDataListeners.get(listener);
-    if(listenerRecord === undefined) {
-        return;
+    // Remove stale page visits from the time-based transition cache, retaining the most recent page
+    // visit in any window and the most recent page visit in only non-private windows. We have to
+    // track the most recent non-private page separately, since a listener might only be registered
+    // for transitions involving non-private pages. We perform this expiration after sending a
+    // message to the content script, for the reasons explained in the pageManager.onPageVisitStart
+    // listener.
+    const nowTimeStamp = Date.now();
+    const expiredCachePageIds = new Set();
+    let mostRecentPageId = "";
+    let mostRecentPageVisitStartTime = 0;
+    let mostRecentNonPrivatePageId = "";
+    let mostRecentNonPrivatePageVisitStartTime = 0;
+    for(const cachePageId in pageVisitTimeCache) {
+        if(pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentPageVisitStartTime) {
+            mostRecentPageId = cachePageId;
+            mostRecentPageVisitStartTime = pageVisitTimeCache[cachePageId].pageVisitStartTime;
+        }
+        if(!pageVisitTimeCache[cachePageId].privateWindow && (pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentNonPrivatePageVisitStartTime)) {
+            mostRecentNonPrivatePageId = cachePageId;
+            mostRecentNonPrivatePageVisitStartTime = pageVisitTimeCache[cachePageId].pageVisitStartTime;
+        }
+        if((nowTimeStamp - pageVisitTimeCache[cachePageId].pageVisitStartTime) > pageVisitTimeCacheExpiry) {
+            expiredCachePageIds.add(cachePageId);
+        }
     }
-    listenerRecord.contentScript.unregister();
-    pageTransitionDataListeners.delete(listenerRecord);
+    expiredCachePageIds.delete(mostRecentPageId);
+    expiredCachePageIds.delete(mostRecentNonPrivatePageId);
+    for(const expiredCachePageId of expiredCachePageIds) {
+        delete pageVisitTimeCache[expiredCachePageId];
+    }
 }

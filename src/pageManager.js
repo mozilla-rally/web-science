@@ -439,6 +439,7 @@ export async function initialize() {
     // The background script sends a webScience.pageManager.urlChanged message when
     // the URL changes for a tab, indicating a possible page load with the History API
     messaging.registerSchema("webScience.pageManager.urlChanged", {
+        url: "string",
         timeStamp: "number"
     });
 
@@ -476,6 +477,7 @@ export async function initialize() {
 
         messaging.sendMessageToTab(details.tabId, {
             type: "webScience.pageManager.urlChanged",
+            url: details.url,
             // We can use details.timeStamp because, contrary to the MDN and Chrome documentation,
             // the timestamp is for the history API change rather than when the navigation was
             // committed. See: https://github.com/mdn/content/issues/4469

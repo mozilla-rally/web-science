@@ -8,6 +8,8 @@
  *     * `referrer` - The HTTP referrer for the page. Note that, when a page loads via
  *       the History API, the referrer is unchanged because there is no document-level
  *       HTTP request. 
+ *     * `isHistoryChange` - Whether the page visit was caused by a change via the
+ *       History API rather than ordinary web navigation.
  *   * Page Events
  *     * `onPageVisitStart` - An event that fires when a page visit begins. Note that
  *       the page visit start event may have already fired by the time another
@@ -267,6 +269,8 @@ import { createEvent } from "../events.js";
         pageManager.pageHasAudio = isHistoryChange ? pageManager.pageHasAudio : false;
         // Store whether the page visit event has completed firing
         pageManager.pageVisitStarted = false;
+        // Store whether the page visit is a History API change
+        pageManager.isHistoryChange = isHistoryChange;
 
         // Send the page visit start event to the background page
         pageManager.sendMessage({
@@ -368,17 +372,26 @@ import { createEvent } from "../events.js";
             return;
         }
 
-        // If the background page detected a URL change, this could be belated
-        // notification about a conventional navigation or it could be a page
-        // load via the History API
-        // We can distinguish these two scenarios by checking whether the URL
-        // visible to the user (`window.location.href`) has changed since the
-        // page visit start
-        if((message.type === "webScience.pageManager.urlChanged") &&
-            (locationHrefWithoutHash() !== pageManager.url)) {
-            pageVisitStop(message.timeStamp);
-            pageVisitStart(message.timeStamp, true);
-            return;
+        // If the background page detected a URL change, this could be a page
+        // load via the History API. If the `window.location` URL does not
+        // match the pageManager URL, and if the new URL from the background
+        // page does match the `window.location` URL, then we have a page
+        // load via the History API. We need to check the background page
+        // URL against the `window.location` URL to make sure we're
+        // using the right timestamp, which is important for syncing
+        // pageManager.onPageVisitStart history API events with
+        // pageTransition.onPageTransitionData history API events.
+        if(message.type === "webScience.pageManager.urlChanged") {
+            const windowLocationHrefWithoutHash = locationHrefWithoutHash();
+            const messageUrlObj = new URL(message.url);
+            messageUrlObj.hash = "";
+            const messageUrl = messageUrlObj.href;
+            if((windowLocationHrefWithoutHash !== pageManager.url) &&
+               (windowLocationHrefWithoutHash === messageUrl)) {
+                pageVisitStop(message.timeStamp);
+                pageVisitStart(message.timeStamp, true);
+                return;
+            }
         }
 
         if(message.type === "webScience.pageManager.pageAudioUpdate") {
