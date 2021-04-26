@@ -225,7 +225,9 @@ const pageTransitionDataListeners = new Map();
  */
 
 /**
- * An event that fires when data about a page transition is available.
+ * An event that fires when data about a page transition is available. The event will fire after
+ * the pageManager.onPageVisitStart event, when DOM content has loaded (for ordinary page loads)
+ * or just after the URL changes (for History API page loads).
  * @constant {PageTransitionDataEvent}
  */
 export const onPageTransitionData = events.createEvent({
