@@ -473,11 +473,13 @@ export async function initialize() {
             return;
         if(details.frameId !== 0)
             return;
-        const timeStamp = Date.now();
 
         messaging.sendMessageToTab(details.tabId, {
             type: "webScience.pageManager.urlChanged",
-            timeStamp
+            // We can use details.timeStamp because, contrary to the MDN and Chrome documentation,
+            // the timestamp is for the history API change rather than when the navigation was
+            // committed. See: https://github.com/mdn/content/issues/4469
+            timeStamp: details.timeStamp
         });
     }, {
         url: [ { schemes: [ "http", "https" ] } ]
