@@ -62,9 +62,39 @@
                 return;
             }
 
-            // TODO: add support for tab-based transition data
-            // TODO: implement support for time-based transition data
+            // Identify the most recent page visits for time-based transition data, considering either
+            // all page visits or only non-private page visits
+            let timeSourcePageId = "";
+            let timeSourceUrl = "";
+            let mostRecentPageVisitStartTime = 0;
+            let timeSourceNonPrivatePageId = "";
+            let timeSourceNonPrivateUrl = "";
+            let mostRecentNonPrivatePageVisitStartTime = 0;
+            // Remove this page from the cache of possible time-based prior pages
+            if(pageManager.pageId in message.pageVisitTimeCache) {
+                delete message.pageVisitTimeCache[pageManager.pageId];
+            }
+            for(const cachePageId in message.pageVisitTimeCache) {
+                // Ignore pages that started after this page
+                if(message.pageVisitTimeCache[cachePageId].pageVisitStartTime > pageManager.pageVisitStartTime) {
+                    continue;
+                }
+                if(message.pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentPageVisitStartTime) {
+                    timeSourcePageId = cachePageId;
+                    timeSourceUrl = message.pageVisitTimeCache[cachePageId].url;
+                    mostRecentPageVisitStartTime = message.pageVisitTimeCache[cachePageId].pageVisitStartTime;
+                }
+                if(!message.pageVisitTimeCache[cachePageId].privateWindow &&
+                   (message.pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentNonPrivatePageVisitStartTime)) {
+                    timeSourceNonPrivatePageId = cachePageId;
+                    timeSourceNonPrivateUrl = message.pageVisitTimeCache[cachePageId].url;
+                    mostRecentNonPrivatePageVisitStartTime = message.pageVisitTimeCache[cachePageId].pageVisitStartTime;
+                }
+            }
+
+            // TODO: add support for tab-based transition data, including opener tabs
             // TODO: handle page visits via the History API
+            // TODO: confirm that immediate HTML and JS redirects work as expected
             browser.runtime.sendMessage({
                 type: "webScience.pageTransition.contentScriptUpdate",
                 pageId: pageManager.pageId,
@@ -75,8 +105,11 @@
                 tabSourcePageId: "",
                 tabSourceUrl: "",
                 tabSourceClick: false,
-                timeSourcePageId: "",
-                timeSourceUrl: ""
+                timeSourcePageId,
+                timeSourceUrl,
+                timeSourceNonPrivatePageId,
+                timeSourceNonPrivateUrl,
+                privateWindow: browser.extension.inIncognitoContext
             });
         });
     };

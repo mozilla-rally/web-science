@@ -254,6 +254,18 @@ async function initialize() {
 
     await pageManager.initialize();
 
+    // When pageManager.onPageVisit fires, store the page ID, URL, and start time in the time-based transition cache
+    pageManager.onPageVisitStart.addListener(({ pageId, url, pageVisitStartTime, privateWindow }) => {
+        // Add the page visit to the time-based cache
+        pageVisitTimeCache[pageId] = { url, pageVisitStartTime, privateWindow };
+        // We can't remove stale pages from the cache here, because otherwise we likely have a race condition
+        // where the most recent page in the time-based transition cache (from pageManager.onPageVisitStart)
+        // is the same page that's about to receive a message from the background script (because of
+        // webNavigation.onDOMContentLoaded). In that situation, we might evict an older page from the cache
+        // that was the correct page for time-based transition information.
+    });
+
+    // When webNavigation.onCommitted fires, store the details in the tab-based transition cache
     browser.webNavigation.onCommitted.addListener(details => {
         if(details.frameId !== 0) {
             return;
@@ -263,25 +275,65 @@ async function initialize() {
         url: [ { schemes: [ "http", "https" ] } ]
     });
 
+    // When webNavigation.onDOMContentLoaded fires, pull the webNavigation.onCommitted
+    // details from the cache, notify the content script, and expire stale data in the
+    // time-based transition cache
     browser.webNavigation.onDOMContentLoaded.addListener(details => {
         if(details.frameId !== 0) {
             return;
         }
+
+        // Get the cached webNavigation.onCommitted details
         const webNavigationOnCommittedDetails = webNavigationOnCommittedCache.get(details.tabId);
         if(webNavigationOnCommittedDetails === undefined) {
             return;
         }
+        // Confirm that the webNavigation.onCommitted URL matches the webNavigation.onDOMContentLoaded URL
         webNavigationOnCommittedCache.delete(details.tabId);
         if(details.url !== webNavigationOnCommittedDetails.url) {
             return;
         }
+
+        // Notify the content script with webNavigation and time-based transition data
         messaging.sendMessageToTab(details.tabId, {
             type: "webScience.pageTransition.backgroundScriptUpdate",
             url: details.url,
             DOMContentLoadedTimeStamp: details.timeStamp,
             transitionType: webNavigationOnCommittedDetails.transitionType,
-            transitionQualifiers: webNavigationOnCommittedDetails.transitionQualifiers
+            transitionQualifiers: webNavigationOnCommittedDetails.transitionQualifiers,
+            pageVisitTimeCache
         });
+
+        // Remove stale page visits from the time-based transition cache, retaining the most recent page
+        // visit in any window and the most recent page visit in only non-private windows. We have to
+        // track the most recent non-private page separately, since a listener might only be registered
+        // for transitions involving non-private pages. We perform this expiration after sending a
+        // message to the content script, for the reasons explained in the pageManager.onPageVisitStart
+        // listener.
+        const timeStamp = Date.now();
+        const expiredCachePageIds = new Set();
+        let mostRecentPageId = "";
+        let mostRecentPageVisitStartTime = 0;
+        let mostRecentNonPrivatePageId = "";
+        let mostRecentNonPrivatePageVisitStartTime = 0;
+        for(const cachePageId in pageVisitTimeCache) {
+            if(pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentPageVisitStartTime) {
+                mostRecentPageId = cachePageId;
+                mostRecentPageVisitStartTime = pageVisitTimeCache[cachePageId].pageVisitStartTime;
+            }
+            if(!pageVisitTimeCache[cachePageId].privateWindow && (pageVisitTimeCache[cachePageId].pageVisitStartTime > mostRecentNonPrivatePageVisitStartTime)) {
+                mostRecentNonPrivatePageId = cachePageId;
+                mostRecentNonPrivatePageVisitStartTime = pageVisitTimeCache[cachePageId].pageVisitStartTime;
+            }
+            if((timeStamp - pageVisitTimeCache[cachePageId].pageVisitStartTime) > pageVisitTimeCacheExpiry) {
+                expiredCachePageIds.add(cachePageId);
+            }
+        }
+        expiredCachePageIds.delete(mostRecentPageId);
+        expiredCachePageIds.delete(mostRecentNonPrivatePageId);
+        for(const expiredCachePageId of expiredCachePageIds) {
+            delete pageVisitTimeCache[expiredCachePageId];
+        }
     }, {
         url: [ { schemes: [ "http", "https" ] } ]
     });
@@ -290,14 +342,30 @@ async function initialize() {
         url: "string",
         DOMContentLoadedTimeStamp: "number",
         transitionType: "string",
-        transitionQualifiers: "object"
+        transitionQualifiers: "object",
+        pageVisitTimeCache: "object"
     });
 
+    // When the content script sends data, notify the relevant listeners
     messaging.onMessage.addListener(contentScriptUpdateMessage => {
-        delete contentScriptUpdateMessage.type;
         for(const [listener, listenerRecord] of pageTransitionDataListeners) {
+            if(contentScriptUpdateMessage.privateWindow && !listenerRecord.privateWindows) {
+                continue;
+            }
             if(listenerRecord.matchPatternSet.matches(contentScriptUpdateMessage.url)) {
-                listener(contentScriptUpdateMessage);
+                listener({
+                    pageId: contentScriptUpdateMessage.pageId,
+                    url: contentScriptUpdateMessage.url,
+                    referrer: contentScriptUpdateMessage.referrer,
+                    isHistoryChange: contentScriptUpdateMessage.isHistoryChange,
+                    transitionType: contentScriptUpdateMessage.transitionType,
+                    transitionQualifiers: contentScriptUpdateMessage.transitionQualifiers.slice(),
+                    tabSourcePageId: contentScriptUpdateMessage.tabSourcePageId,
+                    tabSourceUrl: contentScriptUpdateMessage.tabSourceUrl,
+                    tabSourceClick: contentScriptUpdateMessage.tabSourceClick,
+                    timeSourcePageId: listenerRecord.privateWindows ? contentScriptUpdateMessage.timeSourcePageId : contentScriptUpdateMessage.timeSourceNonPrivatePageId,
+                    timeSourceUrl: listenerRecord.privateWindows ? contentScriptUpdateMessage.timeSourceUrl : contentScriptUpdateMessage.timeSourceNonPrivateUrl
+                });
             }
         }
     },
@@ -313,7 +381,10 @@ async function initialize() {
             tabSourceUrl: "string",
             tabSourceClick: "boolean",
             timeSourcePageId: "string",
-            timeSourceUrl: "string"
+            timeSourceUrl: "string",
+            timeSourceNonPrivatePageId: "string",
+            timeSourceNonPrivateUrl: "string",
+            privateWindow: "boolean"
         }
     });
 }
@@ -322,9 +393,28 @@ async function initialize() {
  * A map where keys are tab IDs and values are the most recent `webNavigation.onCommitted`
  * details, removed from the map when a subsequent `webNavigation.onDOMContentLoaded` fires
  * for the tab.
+ * @constant {Map<number, Object>}
  * @private
  */
- const webNavigationOnCommittedCache = new Map();
+const webNavigationOnCommittedCache = new Map();
+
+/**
+ * A map, represented as an object, where keys are page IDs and values are objects with
+ * `pageVisitStartTime`, `url`, and `privateWindow` properties from `pageManager.onPageVisitStart`.
+ * We use an object so that it can be easily serialized. The reason we maintain this cache
+ * is to account for possible race conditions between when pages load in the content script
+ * environment and when the background script environment learns about page loads.
+ * @constant {Object}
+ * @private
+ */
+const pageVisitTimeCache = { };
+
+/**
+ * The maximum time, in milliseconds, to consider a page visit as a possible most recent
+ * page visit in the content script environment, even though it's not the most recent page
+ * visit in the background script environment.
+ */
+const pageVisitTimeCacheExpiry = 1000;
 
 /**
  * A callback function for adding a page transition data listener.
@@ -337,9 +427,12 @@ async function addListener(listener, {
     privateWindows = false
 }) {
     await initialize();
+    // Store a record for the listener
     pageTransitionDataListeners.set(listener, {
+        // Compile the listener's match pattern set
         matchPatternSet: matching.createMatchPatternSet(matchPatterns),
         privateWindows,
+        // Register a content script with the listener's match patterns
         contentScript: await browser.contentScripts.register({
             matches: matchPatterns,
             js: [{
