@@ -145,7 +145,7 @@ class KeyValueStorage {
      * Return an iterator over values in the storage area. Note that this
      * function loads and iterates all key-value pairs in extension local
      * storage, so it may have performance implications.
-     * @returns {Object} A promise that resolves to an iterator over the
+     * @returns {Promise<Object>} A promise that resolves to an iterator over the
      * values in the storage area.
      */
     async values() {
