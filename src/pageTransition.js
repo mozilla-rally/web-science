@@ -174,7 +174,8 @@ permissions.check({
  * @property {string[]} matchPatterns - Match patterns for pages where the listener should be notified about
  * transition data.
  * @property {boolean} [privateWindows=false] - Whether to notify the listener about page transitions in
- * private windows.
+ * private windows and whether to consider pages loaded in private windows when generating time-based
+ * transition information.
  */
 
 /**
@@ -182,7 +183,8 @@ permissions.check({
  * @property {matching.MatchPatternSet} matchPatternSet - Match patterns for pages where the listener should be
  * notified about transition data.
  * @property {boolean} privateWindows - Whether to notify the listener about page transitions in
- * private windows.
+ * private windows and whether to consider pages loaded in private windows when generating
+ * time-based transition information.
  * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
  */
@@ -297,15 +299,24 @@ async function initialize() {
 
     await pageManager.initialize();
 
-    // When pageManager.onPageVisit fires, store the page ID, URL, and start time in the time-based transition cache
-    pageManager.onPageVisitStart.addListener(({ pageId, url, pageVisitStartTime, privateWindow }) => {
-        // Add the page visit to the time-based cache
+    // When pageManager.onPageVisitStart fires...
+    pageManager.onPageVisitStart.addListener(({ pageId, url, pageVisitStartTime, privateWindow, tabId }) => {
+        // Add the page visit's page ID, URL, start time, and private window status to the time-based transition cache
         pageVisitTimeCache[pageId] = { url, pageVisitStartTime, privateWindow };
-        // We can't remove stale pages from the cache here, because otherwise we likely have a race condition
-        // where the most recent page in the time-based transition cache (from pageManager.onPageVisitStart)
+
+        // Add the page visit's tab ID, page ID, URL, and start time to the tab-based transition cache
+        let cachedPageVisitsForTab = pageVisitTabCache.get(tabId);
+        if(cachedPageVisitsForTab === undefined) {
+            cachedPageVisitsForTab = { };
+            pageVisitTabCache.set(tabId, cachedPageVisitsForTab);
+        }
+        cachedPageVisitsForTab[pageId] = { url, pageVisitStartTime };
+
+        // We can't remove stale pages from the time-based and tab-based caches here, because otherwise we can
+        // have a race condition where the most recent page in a cache (from pageManager.onPageVisitStart)
         // is the same page that's about to receive a message from the background script (because of
         // webNavigation.onDOMContentLoaded). In that situation, we might evict an older page from the cache
-        // that was the correct page for time-based transition information.
+        // that was the correct page for time-based or tab-based transition information.
     });
 
     // When webNavigation.onCommitted fires, store the details in the per-tab onCommitted details cache
@@ -378,7 +389,16 @@ async function initialize() {
         transitionType: "string",
         transitionQualifiers: "object",
         pageVisitTimeCache: "object",
+        cachedPageVisitsForTab: "object",
         isHistoryChange: "boolean"
+    });
+
+    // When tabs.onRemoved fires, set a timeout to expire the tab-based transition information
+    // for that tab
+    browser.tabs.onRemoved.addListener(tabId => {
+        setTimeout(() => {
+            pageVisitTabCache.delete(tabId);
+        }, tabRemovedExpiry);
     });
 
     // When the content script sends data, notify the relevant listeners
@@ -445,11 +465,36 @@ const webNavigationOnCommittedCache = new Map();
 const pageVisitTimeCache = { };
 
 /**
- * The maximum time, in milliseconds, to consider a page visit as a possible most recent
- * page visit in the content script environment, even though it's not the most recent page
- * visit in the background script environment.
+ * The maximum time, in milliseconds, to consider a page visit in any tab as a possible most
+ * recent page visit in the content script environment, even though it's not the most recent
+ * page visit in the background script environment.
+ * @constant {number}
+ * @private
  */
 const pageVisitTimeCacheExpiry = 1000;
+
+/**
+ * A map where keys are tab IDs and values are maps, represented as objects, where keys
+ * are page IDs and values are objects with `pageVisitStartTime` and `url` properties
+ * from `pageManager.onPageVisitStart`. 
+ * @constant {Map<number, Object}
+ */
+const pageVisitTabCache = new Map();
+
+/**
+ * The maximum time, in milliseconds, to consider a page visit in a specific tab as a possible
+ * most recent page visit for that tab in the content script environment, even though it's not
+ * the most recent page visit for that tab in the background script environment.
+ * @constant {number}
+ * @private
+ */
+const pageVisitTabCacheExpiry = 1000;
+
+/**
+ * The minimum time, in milliseconds, to wait after a tab is removed before expiring the cache
+ * of page visits in that tab for tab-based transition information.
+ */
+const tabRemovedExpiry = 10000;
 
 /**
  * Send an update to the content script running on a page, called when a
@@ -478,6 +523,9 @@ const pageVisitTimeCacheExpiry = 1000;
     transitionQualifiers,
     isHistoryChange
 }) {
+    // Retrieve cached page visits for this tab
+    const cachedPageVisitsForTab = pageVisitTabCache.get(tabId);
+
     // Send a message to the content script with transition information. The content script will
     // merge this information with its local information to generate a PageTransitionData event.
     messaging.sendMessageToTab(tabId, {
@@ -486,8 +534,9 @@ const pageVisitTimeCacheExpiry = 1000;
         timeStamp,
         transitionType,
         transitionQualifiers,
+        isHistoryChange,
         pageVisitTimeCache,
-        isHistoryChange
+        cachedPageVisitsForTab: (cachedPageVisitsForTab !== undefined) ? cachedPageVisitsForTab : { }
     });
 
     // Remove stale page visits from the time-based transition cache, retaining the most recent page
@@ -519,5 +568,27 @@ const pageVisitTimeCacheExpiry = 1000;
     expiredCachePageIds.delete(mostRecentNonPrivatePageId);
     for(const expiredCachePageId of expiredCachePageIds) {
         delete pageVisitTimeCache[expiredCachePageId];
+    }
+
+    // Remove stale page visits from the tab-based transition cache. We don't have to handle private
+    // and non-private windows separately, because if a tab precedes another tab we know they have
+    // the same private window status.
+    if(cachedPageVisitsForTab !== undefined) {
+        mostRecentPageId = "";
+        mostRecentPageVisitStartTime = 0;
+        expiredCachePageIds.clear();
+        for(const cachePageId in cachedPageVisitsForTab) {
+            if(cachedPageVisitsForTab[cachePageId].pageVisitStartTime > mostRecentPageVisitStartTime) {
+                mostRecentPageId = cachePageId;
+                mostRecentPageVisitStartTime = cachedPageVisitsForTab[cachePageId].pageVisitStartTime;
+            }
+            if((nowTimeStamp - cachedPageVisitsForTab[cachePageId].pageVisitStartTime) > pageVisitTabCacheExpiry) {
+                expiredCachePageIds.add(cachePageId);
+            }
+        }
+        expiredCachePageIds.delete(mostRecentPageId);
+        for(const expiredCachePageId of expiredCachePageIds) {
+            delete cachedPageVisitsForTab[expiredCachePageId];
+        }
     }
 }

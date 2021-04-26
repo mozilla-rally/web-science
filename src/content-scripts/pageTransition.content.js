@@ -110,6 +110,9 @@
          * @param {Object} message.pageVisitTimeCache - A map, represented as an object, where keys
          * are page IDs and values are objects with `pageVisitStartTime`, `url`, and `privateWindow`
          * properties from `pageManager.onPageVisitStart`.
+         * @param {Object} message.cachedPageVisitsForTab - A map, represented as an object, where keys
+         * are page IDs and values are objects with `pageVisitStartTime` and `url` properties from
+         * `pageManager.onPageVisitStart`.
          * @returns {boolean} Whether the background script update message was successfully used to
          * generate a PageTransitionData event message back to the background script.
          */
@@ -119,7 +122,8 @@
             transitionType,
             transitionQualifiers,
             isHistoryChange,
-            pageVisitTimeCache
+            pageVisitTimeCache,
+            cachedPageVisitsForTab
         }) {
             // If no page visit has started, this must be a background script update
             // for a previous page in the tab... nothing we can do in the content
@@ -201,12 +205,34 @@
 
             let tabSourcePageId = "";
             let tabSourceUrl = "";
+            let mostRecentPageVisitStartTimeInTab = 0;
+
+            // If this is a page load via the history API, we already have the prior page ID and URL cached.
             if(isHistoryChange) {
                 tabSourcePageId = lastPageId;
                 tabSourceUrl = lastPageUrl;
             }
+            // If this is an ordinary page load, use the page visit tab cache in the background script page message
+            // to identify the most recent page visit for time-based transition data.
+            else {
+                // Remove this page from the cache of possible tab-based prior pages
+                if(pageManager.pageId in cachedPageVisitsForTab) {
+                    delete cachedPageVisitsForTab[pageManager.pageId];
+                }
+                for(const cachePageId in cachedPageVisitsForTab) {
+                    // Ignore pages that started after this page
+                    if(cachedPageVisitsForTab[cachePageId].pageVisitStartTime > pageManager.pageVisitStartTime) {
+                        continue;
+                    }
+                    if(cachedPageVisitsForTab[cachePageId].pageVisitStartTime > mostRecentPageVisitStartTimeInTab) {
+                        tabSourcePageId = cachePageId;
+                        tabSourceUrl = cachedPageVisitsForTab[cachePageId].url;
+                        mostRecentPageVisitStartTimeInTab = cachedPageVisitsForTab[cachePageId].pageVisitStartTime;
+                    }
+                }
+            }
 
-            // TODO: add support for tab-based transition data, including opener tabs
+            // TODO: add support for opener tabs in tab-based transition data
             // TODO: add support for click data
             // TODO: confirm that immediate HTML and JS redirects work as expected
 
