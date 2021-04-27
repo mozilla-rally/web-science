@@ -145,6 +145,7 @@ permissions.check({
  * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer. Note that we
  * recommend against using referrers for analyzing page transitions.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
+ * @property {boolean} isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
  * @property {string} transitionType - The transition type, from `webNavigation.onCommitted`.
  * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted`.
  * @property {string} tabSourcePageId - The ID for the most recent page in the same tab. If the page is opening
@@ -331,20 +332,22 @@ async function initialize() {
     });
 
     // When webNavigation.onDOMContentLoaded fires, pull the webNavigation.onCommitted
-    // details from the per-tab cache and notify the content script
+    // details from the per-tab cache, pull the opener tab details from the opener
+    // tab cache (if any), and notify the content script
     browser.webNavigation.onDOMContentLoaded.addListener(details => {
         // Ignore subframe navigation
         if(details.frameId !== 0) {
             return;
         }
 
-        // Get the cached webNavigation.onCommitted details
+        // Get the cached webNavigation.onCommitted details and expire the cache
         const webNavigationOnCommittedDetails = webNavigationOnCommittedCache.get(details.tabId);
         if(webNavigationOnCommittedDetails === undefined) {
             return;
         }
-        // Confirm that the webNavigation.onCommitted URL matches the webNavigation.onDOMContentLoaded URL
         webNavigationOnCommittedCache.delete(details.tabId);
+
+        // Confirm that the webNavigation.onCommitted URL matches the webNavigation.onDOMContentLoaded URL
         if(details.url !== webNavigationOnCommittedDetails.url) {
             return;
         }
@@ -390,14 +393,56 @@ async function initialize() {
         transitionQualifiers: "object",
         pageVisitTimeCache: "object",
         cachedPageVisitsForTab: "object",
-        isHistoryChange: "boolean"
+        isHistoryChange: "boolean",
+        isOpenedTab: "boolean",
+        tabOpeningTimeStamp: "number"
+    });
+
+    // When webNavigation.onCreatedNavigationTarget fires, update the the opener tab cache.
+    // This event fires for all opened tabs regardless of window, except for a regression
+    // since Firefox 65 where the event does not fire for tabs opened by clicking a link
+    // with a target="_blank" attribute. We observe those tab openings tabs.onCreated,
+    // since the tabs are always in the same window. We do not use the URL from
+    // webNavigation.onCreatedNavigationTarget, because an HTTP redirect might change the
+    // URL before webNavigation.onCommitted and webNavigation.onDOMContentLoaded fire.
+    browser.webNavigation.onCreatedNavigationTarget.addListener(details => {
+        openerTabCache.set(details.tabId, {
+            openerTabId: details.sourceTabId,
+            timeStamp: details.timeStamp
+        });
+    }, {
+        url: [ { schemes: [ "http", "https" ] } ]
+    });
+
+    // When tabs.onCreated fires, update the opener tab cache. This event fires for all opened
+    // tabs in the same window, but not opened tabs in a new window. We observe tabs that open
+    // in new windows with webNavigation.onCreatedNavigationTarget.
+    browser.tabs.onCreated.addListener(tab => {
+        // Ignore non-content tabs
+        if(!("id" in tab) || (tab.id === browser.tabs.TAB_ID_NONE)) {
+            return;
+        }
+        // Ignore tabs without content opener tabs
+        if(!("openerTabId" in tab) || (tab.openerTabId === browser.tabs.TAB_ID_NONE)) {
+            return;
+        }
+        // If we've already populated the opener tab cache for this tab with data from a more
+        // detailed webNavigation.onCreatedNavigationTarget event, ignore this event
+        if(openerTabCache.get(tab.id) !== undefined) {
+            return;
+        }
+        openerTabCache.set(tab.id, {
+            openerTabId: tab.openerTabId,
+            timeStamp: Date.now()
+        });
     });
 
     // When tabs.onRemoved fires, set a timeout to expire the tab-based transition information
-    // for that tab
+    // and opener information for that tab
     browser.tabs.onRemoved.addListener(tabId => {
         setTimeout(() => {
             pageVisitTabCache.delete(tabId);
+            openerTabCache.delete(tabId);
         }, tabRemovedExpiry);
     });
 
@@ -413,6 +458,7 @@ async function initialize() {
                     url: contentScriptUpdateMessage.url,
                     referrer: contentScriptUpdateMessage.referrer,
                     isHistoryChange: contentScriptUpdateMessage.isHistoryChange,
+                    isOpenedTab: contentScriptUpdateMessage.isOpenedTab,
                     transitionType: contentScriptUpdateMessage.transitionType,
                     transitionQualifiers: contentScriptUpdateMessage.transitionQualifiers.slice(),
                     tabSourcePageId: contentScriptUpdateMessage.tabSourcePageId,
@@ -430,6 +476,7 @@ async function initialize() {
             pageId: "string",
             url: "string",
             isHistoryChange: "boolean",
+            isOpenedTab: "boolean",
             transitionType: "string",
             transitionQualifiers: "object",
             tabSourcePageId: "string",
@@ -492,9 +539,18 @@ const pageVisitTabCacheExpiry = 1000;
 
 /**
  * The minimum time, in milliseconds, to wait after a tab is removed before expiring the cache
- * of page visits in that tab for tab-based transition information.
+ * of page visits in that tab for tab-based transition information and the cached opener tab
+ * for that tab.
  */
 const tabRemovedExpiry = 10000;
+
+/**
+ * A map where keys are tab IDs and values are objects with `openerTabId` and `timeStamp`
+ * properties.
+ * @constant {Map<number, Object>}
+ * @private
+ */
+const openerTabCache = new Map();
 
 /**
  * Send an update to the content script running on a page, called when a
@@ -523,8 +579,26 @@ const tabRemovedExpiry = 10000;
     transitionQualifiers,
     isHistoryChange
 }) {
-    // Retrieve cached page visits for this tab
-    const cachedPageVisitsForTab = pageVisitTabCache.get(tabId);
+    // Retrieve cached page visits for this tab if this is not a history API change
+    let cachedPageVisitsForTab = { };
+    if(!isHistoryChange) {
+        cachedPageVisitsForTab = pageVisitTabCache.get(tabId);
+    }
+
+    // Get the cached opener tab details if this is not a history API change
+    let isOpenedTab = false;
+    let tabOpeningTimeStamp = 0;
+    if(!isHistoryChange) {
+        const openerTabDetails = openerTabCache.get(tabId);
+        // If there are cached opener tab details, expire the cache and swap in the cached page
+        // visits for the opener tab
+        if(openerTabDetails !== undefined) {
+            openerTabCache.delete(tabId);
+            isOpenedTab = true;
+            tabOpeningTimeStamp = openerTabDetails.timeStamp;
+            cachedPageVisitsForTab = pageVisitTabCache.get(openerTabDetails.openerTabId);
+        }
+    }
 
     // Send a message to the content script with transition information. The content script will
     // merge this information with its local information to generate a PageTransitionData event.
@@ -536,7 +610,9 @@ const tabRemovedExpiry = 10000;
         transitionQualifiers,
         isHistoryChange,
         pageVisitTimeCache,
-        cachedPageVisitsForTab: (cachedPageVisitsForTab !== undefined) ? cachedPageVisitsForTab : { }
+        cachedPageVisitsForTab: (cachedPageVisitsForTab !== undefined) ? cachedPageVisitsForTab : { },
+        isOpenedTab,
+        tabOpeningTimeStamp
     });
 
     // Remove stale page visits from the time-based transition cache, retaining the most recent page

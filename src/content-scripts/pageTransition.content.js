@@ -112,7 +112,12 @@
          * properties from `pageManager.onPageVisitStart`.
          * @param {Object} message.cachedPageVisitsForTab - A map, represented as an object, where keys
          * are page IDs and values are objects with `pageVisitStartTime` and `url` properties from
-         * `pageManager.onPageVisitStart`.
+         * `pageManager.onPageVisitStart`. These are cached page visits from the same tab as this page
+         * or, if the page is opened in a new tab, cached page visits from the opener tab.
+         * @param {boolean} message.isOpenedTab - Whether the page is loading in a new tab that was
+         * opened by another tab.
+         * @param {number} message.tabOpeningTimeStamp - The timestamp of when this page's tab was
+         * opened, if the page is loading in a new tab that was opened by another tab. Otherwise 0.
          * @returns {boolean} Whether the background script update message was successfully used to
          * generate a PageTransitionData event message back to the background script.
          */
@@ -123,7 +128,9 @@
             transitionQualifiers,
             isHistoryChange,
             pageVisitTimeCache,
-            cachedPageVisitsForTab
+            cachedPageVisitsForTab,
+            isOpenedTab,
+            tabOpeningTimeStamp
         }) {
             // If no page visit has started, this must be a background script update
             // for a previous page in the tab... nothing we can do in the content
@@ -219,9 +226,16 @@
                 if(pageManager.pageId in cachedPageVisitsForTab) {
                     delete cachedPageVisitsForTab[pageManager.pageId];
                 }
+                // If this is a page in a new tab opened by another tab, we should select the most recent page
+                // based on when the tab was opened rather then the page visit start time. Otherwise we could
+                // have a race condition where tab 1 opens tab 2, the page in tab 2 is slow to load, tab 1
+                // navigates to another page, then we incorrectly associate the new page in tab 2 with the later
+                // page in tab 1.
+                const pageVisitComparisonTime = isOpenedTab ? tabOpeningTimeStamp : pageManager.pageVisitStartTime;
                 for(const cachePageId in cachedPageVisitsForTab) {
-                    // Ignore pages that started after this page
-                    if(cachedPageVisitsForTab[cachePageId].pageVisitStartTime > pageManager.pageVisitStartTime) {
+                    // Ignore pages that started after this page started or, if this is a tab newly opened by 
+                    // another tab, ignore pages that started after this tab was opened
+                    if(cachedPageVisitsForTab[cachePageId].pageVisitStartTime > pageVisitComparisonTime) {
                         continue;
                     }
                     if(cachedPageVisitsForTab[cachePageId].pageVisitStartTime > mostRecentPageVisitStartTimeInTab) {
@@ -232,7 +246,6 @@
                 }
             }
 
-            // TODO: add support for opener tabs in tab-based transition data
             // TODO: add support for click data
             // TODO: confirm that immediate HTML and JS redirects work as expected
 
@@ -242,6 +255,7 @@
                 pageId: pageManager.pageId,
                 url: pageManager.url,
                 isHistoryChange,
+                isOpenedTab,
                 transitionType: transitionType,
                 transitionQualifiers: transitionQualifiers,
                 tabSourcePageId,
