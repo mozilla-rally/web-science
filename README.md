@@ -50,6 +50,7 @@ We will have documentation for the WebScience API online shortly. In the interim
 | `pageManager`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `pageNavigation`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `pageText`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| `pageTransition`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `permissions`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `randomization`          | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
 | `scheduling`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
