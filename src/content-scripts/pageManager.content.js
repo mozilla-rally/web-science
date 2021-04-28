@@ -290,8 +290,6 @@ import { createEvent } from "../events.js";
         }]);
 
         pageManager.pageVisitStarted = true;
-
-        debugLog(`Page visit start: ${JSON.stringify(pageManager)}`);
     }
 
     /**
@@ -317,8 +315,6 @@ import { createEvent } from "../events.js";
         pageManager.onPageVisitStop.notifyListeners([{
             timeStamp
         }]);
-
-        debugLog(`Page visit stop: ${JSON.stringify(pageManager)}`);
     }
 
     /**
@@ -339,8 +335,6 @@ import { createEvent } from "../events.js";
         pageManager.onPageAttentionUpdate.notifyListeners([{
             timeStamp
         }]);
-
-        debugLog(`Page attention update: ${JSON.stringify(pageManager)}`);
     }
 
     /**
@@ -361,8 +355,6 @@ import { createEvent } from "../events.js";
         pageManager.onPageAudioUpdate.notifyListeners([{
             timeStamp
         }]);
-
-        debugLog(`Page audio update: ${JSON.stringify(pageManager)}`);
     }
 
     // Handle events sent from the background page
