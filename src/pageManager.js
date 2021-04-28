@@ -654,9 +654,9 @@ export async function initialize() {
         }
     }
 
-    // Register the pageManager content script for all HTTP(S) URLs
+    // Register the pageManager content script for all URLs permitted by the extension manifest
     browser.contentScripts.register({
-        matches: [ "http://*/*", "https://*/*" ],
+        matches: permissions.getManifestOriginMatchPatterns(),
         js: [{
             code: inline.dataUrlToString(pageManagerContentScript)
         }],

@@ -1,22 +1,25 @@
 /**
- * Content script for the pageTransition module.
+ * Content script for the pageTransition module that merges background script transition data with
+ * content script data to generate a `pageTransition.onPageTransitionData` event. We use a separate
+ * pageTransition content script for observing clicks on pages, because that content script should
+ * run on a different set of pages.
  *
- * @module webScience.pageTransition.content
+ * @module webScience.pageTransition.event.content
  */
 
 // IIFE encapsulation to allow early return
 (function () {
 
-    // If the pageTransition content script is already running on this page, no need for this instance
+    // If the pageTransition event content script is already running on this page, no need for this instance
     if("webScience" in window) {
-        if("pageTransitionActive" in window.webScience) {
+        if("pageTransitionEventActive" in window.webScience) {
             return;
         }
-        window.webScience.pageTransitionActive = true;
+        window.webScience.pageTransitionEventActive = true;
     }
     else {
         window.webScience = {
-            pageTransitionActive: true
+            pageTransitionEventActive: true
         }
     }
 
@@ -27,7 +30,7 @@
      * for matching background script events to content script events. The background script and content
      * script environments separately apply their own timestamps, so these values can differ more than
      * one might expect (sometimes by over 100 ms).
-     * @constant
+     * @constant {number}
      */
     const maxDOMContentLoadedTimeStampDifference = 200;
 
@@ -37,9 +40,18 @@
      * timestamp (also from `webNavigation.onHistoryStateUpdated`). We compare this values as a heuristic
      * for matching background script events to content script events. While the underlying values are
      * identical, rounding the values when converting them to numbers can lead to off-by-one differences.
-     * @constant
+     * @constant {number}
      */
     const maxHistoryStateUpdatedTimeStampDifference = 1;
+
+    /**
+     * The maximum difference, in milliseconds, between a click timestamp on a prior page and a
+     * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated` timestamp for a
+     * subsequent page where we consider the click to have caused the page load. We only consider
+     * click timestamps for the prior page in the same tab or, if this is a page in a newly opened
+     * tab, for the prior page in the opener tab.
+     */
+    const maxClickDelay = 5000;
 
     // Function encapsulation to wait for pageManager load
     const pageTransition = function() {
@@ -54,7 +66,7 @@
 
         // Handle background script update messages
         browser.runtime.onMessage.addListener(message => {
-            if(message.type !== "webScience.pageTransition.backgroundScriptUpdate") {
+            if(message.type !== "webScience.pageTransition.backgroundScriptEventUpdate") {
                 return;
             }
             const handledUpdate = handleBackgroundScriptUpdate(message);
@@ -111,9 +123,11 @@
          * are page IDs and values are objects with `pageVisitStartTime`, `url`, and `privateWindow`
          * properties from `pageManager.onPageVisitStart`.
          * @param {Object} message.cachedPageVisitsForTab - A map, represented as an object, where keys
-         * are page IDs and values are objects with `pageVisitStartTime` and `url` properties from
-         * `pageManager.onPageVisitStart`. These are cached page visits from the same tab as this page
-         * or, if the page is opened in a new tab, cached page visits from the opener tab.
+         * are page IDs and values are objects with `pageVisitStartTime` (number) and `url` (string) 
+         * properties from `pageManager.onPageVisitStart`, as well as a `clickTimeStamps` (number[])
+         * property from this module's click content script and background script. The cached page
+         * visits are from the same tab as this page or, if the page is opened in a new tab, the cached
+         * page visits are from the opener tab.
          * @param {boolean} message.isOpenedTab - Whether the page is loading in a new tab that was
          * opened by another tab.
          * @param {number} message.tabOpeningTimeStamp - The timestamp of when this page's tab was
@@ -174,9 +188,9 @@
                 return false;
             }
 
-            // Step 2: Populate time-based transition data, using the page visit cache from the background
-            // script. We need to separately report data for all windows and only non-private windows,
-            // since a background script listener might only be listening for non-private windows.
+            // Step 2: Populate time-based transition data, using the time-based page visit cache from the
+            // background script. We need to separately report data for all windows and only non-private
+            // windows, since a background script listener might only be listening for non-private windows.
 
             // Identify the most recent page visits for time-based transition data, considering either
             // all page visits or only non-private page visits
@@ -208,18 +222,21 @@
                 }
             }
 
-            // Step 3: Populate tab-based transition data.
+            // Step 3: Populate tab-based transition data, using the tab-based page visit cache from the
+            // background script for ordinary page loads and using locally stored prior page data for
+            // history API page loads.
 
             let tabSourcePageId = "";
             let tabSourceUrl = "";
             let mostRecentPageVisitStartTimeInTab = 0;
 
-            // If this is a page load via the history API, we already have the prior page ID and URL cached.
+            // If this is a page load via the history API, we already have the prior page ID and URL cached
+            // in the content script.
             if(isHistoryChange) {
                 tabSourcePageId = lastPageId;
                 tabSourceUrl = lastPageUrl;
             }
-            // If this is an ordinary page load, use the page visit tab cache in the background script page message
+            // If this is an ordinary page load, use the page visit tab cache in the background script message
             // to identify the most recent page visit for time-based transition data.
             else {
                 // Remove this page from the cache of possible tab-based prior pages
@@ -246,12 +263,45 @@
                 }
             }
 
-            // TODO: add support for click data
-            // TODO: confirm that immediate HTML and JS redirects work as expected
+            // Step 4: Populate click-based transition data, using the tab-based page visit cache from the
+            // background script for ordinary page loads and using the local click data for history API
+            // page loads.
+
+            let tabSourceClick = false;
+            let clickTimeStamps = [ ];
+
+            // Only try to populate click-based transition data if we have already identified a prior tab
+            if(tabSourcePageId !== "") {
+                // If this is a history API page visit, use the latest click from the prior page
+                // stored in the window global object by the click content script
+                if(isHistoryChange) {
+                    if(("webScience" in window) && 
+                        ("pageTransition" in window.webScience) && 
+                        ("lastClickPageId" in window.webScience.pageTransition) &&
+                        (tabSourcePageId === window.webScience.pageTransition.lastClickPageId)) {
+                        clickTimeStamps = [ window.webScience.pageTransition.lastClickTimeStamp ];
+                    }
+                }
+
+                // If this is an ordinary page load, use the most recent clicks from the visit tab cache
+                // in the background script message
+                else {
+                    clickTimeStamps = cachedPageVisitsForTab[tabSourcePageId].clickTimeStamps;
+                }
+
+                // If there is a click within maxClickDelay of the webNavigation timeStamp for this page,
+                // treat that as a click on the prior page
+                for(const clickTimeStamp of clickTimeStamps) {
+                    if((clickTimeStamp < timeStamp) && (clickTimeStamp >= (timeStamp - maxClickDelay))) {
+                        tabSourceClick = true;
+                        break;
+                    }
+                }
+            }
 
             // Send the completed PageTransitionData event to the background script
             browser.runtime.sendMessage({
-                type: "webScience.pageTransition.contentScriptUpdate",
+                type: "webScience.pageTransition.contentScriptEventUpdate",
                 pageId: pageManager.pageId,
                 url: pageManager.url,
                 isHistoryChange,
@@ -260,7 +310,7 @@
                 transitionQualifiers: transitionQualifiers,
                 tabSourcePageId,
                 tabSourceUrl,
-                tabSourceClick: false,
+                tabSourceClick,
                 timeSourcePageId,
                 timeSourceUrl,
                 timeSourceNonPrivatePageId,

@@ -56,7 +56,9 @@
  * This module builds on the page tracking provided by the `pageManager`
  * module and uses browser events, DOM events, and a set of heuristics to
  * associate transition information with each page visit. The module relies on
- * the following sources of data about page transitions:
+ * the following sources of data about page transitions, in addition to the
+ * page visit tracking, attention tracking, and URL normalization provided by
+ * `pageManager`:
  *   * Background Script Data Sources
  *     * `webNavigation.onCommitted` - provides tab ID, url,
  *       `webNavigation.TransitionType`, and `webNavigation.TransitionQualifier`
@@ -68,18 +70,19 @@
  *       `webNavigation.TransitionType`, and `webNavigation.TransitionQualifier`
  *       values when a new page loads in a tab via the History API.
  *     * `webNavigation.onCreatedNavigationTarget` - provides tab ID, source
- *       tab ID, and url whan a new tab is created to load a page.
- *     * `pageManager.onPageVisitStart` - provides tab ID, page ID, and url
- *       when a page loads in a tab.
+ *       tab ID, and url when a page loads in a tab newly created by another
+ *       tab. Because of a regression, this event does not currently fire
+ *       in Firefox for a click on a link with the target="_blank" attribute.
+ *     * `tabs.onCreated` - provides tab ID and source tab ID when a page
+ *       loads in a tab newly created by another tab, except if the new
+ *       tab is in a different window.
  *   * Content Script Data Sources
  *     * The `click` event on the `document` element - detects possible link
- *       clicks via the mouse.
+ *       clicks via the mouse (e.g., left click).
+ *     * The `contextmenu` event on the `document` element - detects possible
+ *       link clicks via the mouse (e.g., right click or control + click).
  *     * The `keyup` event on the document element - detects possible link
  *       clicks via the keyboard.
- *     * `pageManager.onPageVisitStart` - provides page ID and whether the page
- *       visit is a History API URL change.
- *     * `pageManager.pageHasAttention` - provides the page's current attention
- *       state.
  * 
  * # Combining Data Sources into a Page Transition
  * Merging these data sources into a page transition event poses several
@@ -90,7 +93,7 @@
  *     environments. We use the same general approach in this module as in
  *     `pageManager`, converting background script events into messages posted
  *     to content scripts. We have to be a bit more careful about race
- *     condititions than in `pageManager`, though, because if a tab property
+ *     conditions than in `pageManager`, though, because if a tab property
  *     event handled in that module goes to the wrong content script the
  *     consequences are minimal (because correct event data will quickly
  *     arrive afterward). In this module, by contrast, an error could mean 
@@ -111,9 +114,15 @@
  *     recent `webNavigation.onCommitted` event in the tab.
  *   * We have to sync content script data for a page with content script
  *     data for a prior page (either loaded in the same tab, loaded in an
- *     opener tab, or loaded immediately before in time). We accomplish this by
- *     maintaining a cache of page visit data and assuming that page visit
- *     event ordering is preserved by the background page event loop.
+ *     opener tab, or loaded immediately before in time). We accomplish this for
+ *     ordinary page loads by maintaining a cache of page visit data in the
+ *     in the background script. We accomplish this for history API page loads
+ *     by passing information in the content script environment.
+ *   * We have to account for a regression in Firefox where
+ *     `webNavigation.onCreatedNavigationTarget` does not currently fire for
+ *     a click on a link with the target="_blank" attribute. We accomplish this
+ *     by using `tabs.onCreated` event data when
+ *     `webNavigation.onCreatedNavigationTarget` event data is not available.
  *  
  * @see {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webNavigation/onCommitted}
  * @see {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webNavigation/TransitionType}
@@ -129,7 +138,8 @@ import * as messaging from "./messaging.js";
 import * as matching from "./matching.js";
 import * as inline from "./inline.js";
 import * as pageManager from "./pageManager.js";
-import pageTransitionContentScript from "./content-scripts/pageTransition.content.js";
+import pageTransitionEventContentScript from "./content-scripts/pageTransition.event.content.js";
+import pageTransitionClickContentScript from "./content-scripts/pageTransition.click.content.js";
  
 permissions.check({
     module: "webScience.pageTransition",
@@ -256,11 +266,11 @@ export const onPageTransitionData = events.createEvent({
         // Compile the listener's match pattern set
         matchPatternSet: matching.createMatchPatternSet(matchPatterns),
         privateWindows,
-        // Register a content script with the listener's match patterns
+        // Register the event content script with the listener's match patterns
         contentScript: await browser.contentScripts.register({
             matches: matchPatterns,
             js: [{
-                code: inline.dataUrlToString(pageTransitionContentScript)
+                code: inline.dataUrlToString(pageTransitionEventContentScript)
             }],
             runAt: "document_start"
         })
@@ -300,6 +310,15 @@ async function initialize() {
 
     await pageManager.initialize();
 
+    // Register the click content script for all URLs permitted by the extension manifest
+    await browser.contentScripts.register({
+        matches: permissions.getManifestOriginMatchPatterns(),
+        js: [{
+            code: inline.dataUrlToString(pageTransitionClickContentScript)
+        }],
+        runAt: "document_start"
+    });
+
     // When pageManager.onPageVisitStart fires...
     pageManager.onPageVisitStart.addListener(({ pageId, url, pageVisitStartTime, privateWindow, tabId }) => {
         // Add the page visit's page ID, URL, start time, and private window status to the time-based transition cache
@@ -311,7 +330,7 @@ async function initialize() {
             cachedPageVisitsForTab = { };
             pageVisitTabCache.set(tabId, cachedPageVisitsForTab);
         }
-        cachedPageVisitsForTab[pageId] = { url, pageVisitStartTime };
+        cachedPageVisitsForTab[pageId] = { url, pageVisitStartTime, clickTimeStamps: [ ] };
 
         // We can't remove stale pages from the time-based and tab-based caches here, because otherwise we can
         // have a race condition where the most recent page in a cache (from pageManager.onPageVisitStart)
@@ -385,8 +404,8 @@ async function initialize() {
         url: [ { schemes: [ "http", "https" ] } ]
     });
 
-    // Register the message schema for background script updates
-    messaging.registerSchema("webScience.pageTransition.backgroundScriptUpdate", {
+    // Register the message schemas for background script updates
+    messaging.registerSchema("webScience.pageTransition.backgroundScriptEventUpdate", {
         url: "string",
         timeStamp: "number",
         transitionType: "string",
@@ -401,10 +420,11 @@ async function initialize() {
     // When webNavigation.onCreatedNavigationTarget fires, update the the opener tab cache.
     // This event fires for all opened tabs regardless of window, except for a regression
     // since Firefox 65 where the event does not fire for tabs opened by clicking a link
-    // with a target="_blank" attribute. We observe those tab openings tabs.onCreated,
-    // since the tabs are always in the same window. We do not use the URL from
-    // webNavigation.onCreatedNavigationTarget, because an HTTP redirect might change the
-    // URL before webNavigation.onCommitted and webNavigation.onDOMContentLoaded fire.
+    // with a target="_blank" attribute. See https://github.com/mdn/content/issues/4507.
+    // We observe those tab openings tabs.onCreated, since the tabs are always in the same
+    // window. We do not use the URL from webNavigation.onCreatedNavigationTarget, because
+    // an HTTP redirect might change the URL before webNavigation.onCommitted and
+    // webNavigation.onDOMContentLoaded fire.
     browser.webNavigation.onCreatedNavigationTarget.addListener(details => {
         openerTabCache.set(details.tabId, {
             openerTabId: details.sourceTabId,
@@ -446,32 +466,32 @@ async function initialize() {
         }, tabRemovedExpiry);
     });
 
-    // When the content script sends data, notify the relevant listeners
-    messaging.onMessage.addListener(contentScriptUpdateMessage => {
+    // When the event content script sends an update message, notify the relevant listeners
+    messaging.onMessage.addListener(eventUpdateMessage => {
         for(const [listener, listenerRecord] of pageTransitionDataListeners) {
-            if(contentScriptUpdateMessage.privateWindow && !listenerRecord.privateWindows) {
+            if(eventUpdateMessage.privateWindow && !listenerRecord.privateWindows) {
                 continue;
             }
-            if(listenerRecord.matchPatternSet.matches(contentScriptUpdateMessage.url)) {
+            if(listenerRecord.matchPatternSet.matches(eventUpdateMessage.url)) {
                 listener({
-                    pageId: contentScriptUpdateMessage.pageId,
-                    url: contentScriptUpdateMessage.url,
-                    referrer: contentScriptUpdateMessage.referrer,
-                    isHistoryChange: contentScriptUpdateMessage.isHistoryChange,
-                    isOpenedTab: contentScriptUpdateMessage.isOpenedTab,
-                    transitionType: contentScriptUpdateMessage.transitionType,
-                    transitionQualifiers: contentScriptUpdateMessage.transitionQualifiers.slice(),
-                    tabSourcePageId: contentScriptUpdateMessage.tabSourcePageId,
-                    tabSourceUrl: contentScriptUpdateMessage.tabSourceUrl,
-                    tabSourceClick: contentScriptUpdateMessage.tabSourceClick,
-                    timeSourcePageId: listenerRecord.privateWindows ? contentScriptUpdateMessage.timeSourcePageId : contentScriptUpdateMessage.timeSourceNonPrivatePageId,
-                    timeSourceUrl: listenerRecord.privateWindows ? contentScriptUpdateMessage.timeSourceUrl : contentScriptUpdateMessage.timeSourceNonPrivateUrl
+                    pageId: eventUpdateMessage.pageId,
+                    url: eventUpdateMessage.url,
+                    referrer: eventUpdateMessage.referrer,
+                    isHistoryChange: eventUpdateMessage.isHistoryChange,
+                    isOpenedTab: eventUpdateMessage.isOpenedTab,
+                    transitionType: eventUpdateMessage.transitionType,
+                    transitionQualifiers: eventUpdateMessage.transitionQualifiers.slice(),
+                    tabSourcePageId: eventUpdateMessage.tabSourcePageId,
+                    tabSourceUrl: eventUpdateMessage.tabSourceUrl,
+                    tabSourceClick: eventUpdateMessage.tabSourceClick,
+                    timeSourcePageId: listenerRecord.privateWindows ? eventUpdateMessage.timeSourcePageId : eventUpdateMessage.timeSourceNonPrivatePageId,
+                    timeSourceUrl: listenerRecord.privateWindows ? eventUpdateMessage.timeSourceUrl : eventUpdateMessage.timeSourceNonPrivateUrl
                 });
             }
         }
     },
     {
-        type: "webScience.pageTransition.contentScriptUpdate",
+        type: "webScience.pageTransition.contentScriptEventUpdate",
         schema: {
             pageId: "string",
             url: "string",
@@ -487,6 +507,28 @@ async function initialize() {
             timeSourceNonPrivatePageId: "string",
             timeSourceNonPrivateUrl: "string",
             privateWindow: "boolean"
+        }
+    });
+
+    // When the click content script sends an update message, update the tab-based transition cache
+    messaging.onMessage.addListener((clickUpdateMessage, sender) => {
+        // There should be a tab ID associated with the message, but might as well make certain
+        if(!("tab" in sender) || !("id" in sender.tab)) {
+            return;
+        }
+
+        // Update the cached link clicks for the page
+        const cachedPageVisitsForTab = pageVisitTabCache.get(sender.tab.id);
+        if((cachedPageVisitsForTab === undefined) || !(clickUpdateMessage.pageId in cachedPageVisitsForTab)) {
+            return;
+        }
+        cachedPageVisitsForTab[clickUpdateMessage.pageId].clickTimeStamps = cachedPageVisitsForTab[clickUpdateMessage.pageId].clickTimeStamps.concat(clickUpdateMessage.clickTimeStamps);
+    },
+    {
+        type: "webScience.pageTransition.contentScriptClickUpdate",
+        schema: {
+            pageId: "string",
+            clickTimeStamps: "object"
         }
     });
 }
@@ -521,10 +563,19 @@ const pageVisitTimeCache = { };
 const pageVisitTimeCacheExpiry = 1000;
 
 /**
+ * @typedef {Object} PageVisitCachedDetails
+ * @property {number} pageVisitStartTime - The page visit start time from `pageManager`.
+ * @property {string} url - The URL from `pageManager`.
+ * @property {number[]} clickTimeStamps - Timestamps for recent clicks on the page, from
+ * the module's click content script.
+ * @private
+ */
+
+/**
  * A map where keys are tab IDs and values are maps, represented as objects, where keys
- * are page IDs and values are objects with `pageVisitStartTime` and `url` properties
- * from `pageManager.onPageVisitStart`. 
+ * are page IDs and values are PageVisitCachedDetails objects.
  * @constant {Map<number, Object}
+ * @private
  */
 const pageVisitTabCache = new Map();
 
@@ -535,7 +586,16 @@ const pageVisitTabCache = new Map();
  * @constant {number}
  * @private
  */
-const pageVisitTabCacheExpiry = 1000;
+const pageVisitTabCacheExpiry = 5000;
+
+/**
+ * The maximum time, in milliseconds, to consider a click on a page as a possible most recent
+ * click on the page in the content script environment, even though it's not the most recent
+ * click in the background script environment.
+ * @constant {number}
+ * @private
+ */
+const clickCacheExpiry = 5000;
 
 /**
  * The minimum time, in milliseconds, to wait after a tab is removed before expiring the cache
@@ -603,7 +663,7 @@ const openerTabCache = new Map();
     // Send a message to the content script with transition information. The content script will
     // merge this information with its local information to generate a PageTransitionData event.
     messaging.sendMessageToTab(tabId, {
-        type: "webScience.pageTransition.backgroundScriptUpdate",
+        type: "webScience.pageTransition.backgroundScriptEventUpdate",
         url,
         timeStamp,
         transitionType,
@@ -646,10 +706,11 @@ const openerTabCache = new Map();
         delete pageVisitTimeCache[expiredCachePageId];
     }
 
-    // Remove stale page visits from the tab-based transition cache. We don't have to handle private
-    // and non-private windows separately, because if a tab precedes another tab we know they have
-    // the same private window status.
+    // Remove stale page visits and clicks from the tab-based transition cache. We don't have to
+    // handle private and non-private windows separately, because if a tab precedes another tab
+    // we know they have the same private window status.
     if(cachedPageVisitsForTab !== undefined) {
+        // Expire stale pages, expect for the most recent page if it's also stale
         mostRecentPageId = "";
         mostRecentPageVisitStartTime = 0;
         expiredCachePageIds.clear();
@@ -665,6 +726,23 @@ const openerTabCache = new Map();
         expiredCachePageIds.delete(mostRecentPageId);
         for(const expiredCachePageId of expiredCachePageIds) {
             delete cachedPageVisitsForTab[expiredCachePageId];
+        }
+
+        // Expire stale clicks on the remaining pages, except for the most recent click if it's
+        // also stale
+        for(const cachePageId in cachedPageVisitsForTab) {
+            let mostRecentClickOnPage = 0;
+            const clickTimeStamps = [ ];
+            for(const clickTimeStamp of cachedPageVisitsForTab[cachePageId].clickTimeStamps) {
+                if((nowTimeStamp - clickTimeStamp) <= clickCacheExpiry) {
+                    clickTimeStamps.push(clickTimeStamp);
+                }
+                mostRecentClickOnPage = Math.max(mostRecentClickOnPage, clickTimeStamp);
+            }
+            if((clickTimeStamps.length === 0) && (mostRecentClickOnPage > 0)) {
+                clickTimeStamps.push(mostRecentClickOnPage);
+            }
+            cachedPageVisitsForTab[cachePageId].clickTimeStamps = clickTimeStamps;
         }
     }
 }
