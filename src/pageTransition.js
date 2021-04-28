@@ -16,7 +16,9 @@
  *       are two types of transition data: `TransitionType` (e.g., "link" or
  *       "typed") and `TransitionQualifier` (e.g., "from_address_bar" or
  *       "forward_back"). Note that Firefox's support for these values is mostly
- *       but not entirely complete and defaults to a "link" transition type. We
+ *       but not entirely complete and defaults to a "link" transition type. The 
+ *       MDN documentation for Firefox's implementation is also currently out of
+ *       date, see: https://github.com/mdn/browser-compat-data/issues/9019. We
  *       recommend checking click transition data to confirm whether the user
  *       clicked on a link.
  *     * Tab-based Transitions - This module reports the webpage that was
