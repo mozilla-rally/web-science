@@ -116,7 +116,7 @@
  *     data for a prior page (either loaded in the same tab, loaded in an
  *     opener tab, or loaded immediately before in time). We accomplish this for
  *     ordinary page loads by maintaining a cache of page visit data in the
- *     in the background script. We accomplish this for history API page loads
+ *     in the background script. We accomplish this for History API page loads
  *     by passing information in the content script environment.
  *   * We have to account for a regression in Firefox where
  *     `webNavigation.onCreatedNavigationTarget` does not currently fire for
@@ -156,8 +156,10 @@ permissions.check({
  * recommend against using referrers for analyzing page transitions.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
  * @property {boolean} isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
- * @property {string} transitionType - The transition type, from `webNavigation.onCommitted`.
- * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted`.
+ * @property {string} transitionType - The transition type, from `webNavigation.onCommitted` or
+ * `webNavigation.onHistoryStateUpdated`.
+ * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted` or
+ * `webNavigation.onHistoryStateUpdated`.
  * @property {string} tabSourcePageId - The ID for the most recent page in the same tab. If the page is opening
  * in a new tab, then the ID of the most recent page in the opener tab. The value is `""` if there is no such page.
  * @property {string} tabSourceUrl - The URL, without any hash, for the most recent page in the same tab. If the page
@@ -639,13 +641,13 @@ const openerTabCache = new Map();
     transitionQualifiers,
     isHistoryChange
 }) {
-    // Retrieve cached page visits for this tab if this is not a history API change
+    // Retrieve cached page visits for this tab if this is not a History API change
     let cachedPageVisitsForTab = { };
     if(!isHistoryChange) {
         cachedPageVisitsForTab = pageVisitTabCache.get(tabId);
     }
 
-    // Get the cached opener tab details if this is not a history API change
+    // Get the cached opener tab details if this is not a History API change
     let isOpenedTab = false;
     let tabOpeningTimeStamp = 0;
     if(!isHistoryChange) {

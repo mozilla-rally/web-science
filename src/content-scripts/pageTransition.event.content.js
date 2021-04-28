@@ -35,7 +35,7 @@
     const maxDOMContentLoadedTimeStampDifference = 200;
 
     /**
-     * The maximum difference, in milliseconds, between the background script timestamp in a history API
+     * The maximum difference, in milliseconds, between the background script timestamp in a History API
      * page load (from `webNavigation.onHistoryStateUpdated`) and the content script page visit start
      * timestamp (also from `webNavigation.onHistoryStateUpdated`). We compare this values as a heuristic
      * for matching background script events to content script events. While the underlying values are
@@ -57,7 +57,7 @@
     const pageTransition = function() {
         const pageManager = window.webScience.pageManager;
 
-        // Maintain a cache of the last history API change message, because it might
+        // Maintain a cache of the last History API change message, because it might
         // arrive before onPageVisitStart fires (i.e., the pageManager background
         // script message triggered by `webNavigation.onHistoryStateUpdated` might
         // arrive just after the pageTransition background script message triggered
@@ -70,7 +70,7 @@
                 return;
             }
             const handledUpdate = handleBackgroundScriptUpdate(message);
-            // If there's a history API change message and it didn't match the current page,
+            // If there's a History API change message and it didn't match the current page,
             // that might mean the message arrived before onPageVisitStart fired. We cache
             // the message and check it again when onPageVisitStart fires.
             if(message.isHistoryChange) {
@@ -84,7 +84,7 @@
         });
 
         // Handle onPageVisitStart events by trying to generate page transition data with
-        // the cached history API change message, if there is one
+        // the cached History API change message, if there is one
         pageManager.onPageVisitStart.addListener(() => {
             if(lastHistoryChangeMessage === null) {
                 return;
@@ -96,7 +96,7 @@
         });
 
         // Handle onPageVisitStop events by storing the page ID and URL, because this
-        // might be a history API change and we'll need them for tab-based transition
+        // might be a History API change and we'll need them for tab-based transition
         // data
         let lastPageId = "";
         let lastPageUrl = "";
@@ -153,7 +153,7 @@
                 return false;
             }
 
-            // Step 1: Check URL, timestamp, and history API values from the background script
+            // Step 1: Check URL, timestamp, and History API values from the background script
             // against the content script. This check ensures we're matching a background
             // script webNavigation event with the right content script page visit.
 
@@ -180,9 +180,9 @@
                     return false;
                 }
             }
-            // If this is a history API page load, we require a near-exact timestamp match because the 
+            // If this is a History API page load, we require a near-exact timestamp match because the 
             // timestamp in `pageManager.onPageVisitStart` is copied from ``webNavigation.onHistoryStateUpdated`.
-            // We also require that the page load was via the history API.
+            // We also require that the page load was via the History API.
             else if((Math.abs(pageManager.pageVisitStartTime - timeStamp) > maxHistoryStateUpdatedTimeStampDifference) || 
                     !pageManager.isHistoryChange) {
                 return false;
@@ -224,13 +224,13 @@
 
             // Step 3: Populate tab-based transition data, using the tab-based page visit cache from the
             // background script for ordinary page loads and using locally stored prior page data for
-            // history API page loads.
+            // History API page loads.
 
             let tabSourcePageId = "";
             let tabSourceUrl = "";
             let mostRecentPageVisitStartTimeInTab = 0;
 
-            // If this is a page load via the history API, we already have the prior page ID and URL cached
+            // If this is a page load via the History API, we already have the prior page ID and URL cached
             // in the content script.
             if(isHistoryChange) {
                 tabSourcePageId = lastPageId;
@@ -264,7 +264,7 @@
             }
 
             // Step 4: Populate click-based transition data, using the tab-based page visit cache from the
-            // background script for ordinary page loads and using the local click data for history API
+            // background script for ordinary page loads and using the local click data for History API
             // page loads.
 
             let tabSourceClick = false;
@@ -272,7 +272,7 @@
 
             // Only try to populate click-based transition data if we have already identified a prior tab
             if(tabSourcePageId !== "") {
-                // If this is a history API page visit, use the latest click from the prior page
+                // If this is a History API page visit, use the latest click from the prior page
                 // stored in the window global object by the click content script
                 if(isHistoryChange) {
                     if(("webScience" in window) && 

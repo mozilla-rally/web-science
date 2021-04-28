@@ -112,7 +112,7 @@
 
         // When the page visit stop event fires, store page click data in the window
         // global for the event content script. We use this stored data if there's
-        // a history API load.
+        // a History API load.
         pageManager.onPageVisitStop.addListener(() => {
             if(!("webScience" in window)) {
                 window.webScience = { };
