@@ -454,7 +454,7 @@ function onBeforeSendHeadersListener(details) {
  * @param {Object} details - Details about the request.
  * @private
  */
- function onBeforeRedirectListener(details) {
+function onBeforeRedirectListener(details) {
     const linkResolutionId = requestIdToLinkResolutionId.get(details.requestId);
     if(linkResolutionId !== undefined) {
         const linkResolutionData = linkResolutionIdToData.get(linkResolutionId);

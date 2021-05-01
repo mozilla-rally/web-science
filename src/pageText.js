@@ -59,7 +59,7 @@ import pageTextContentScript from "./content-scripts/pageText.content.js";
 /**
  * Additional information about the page data event.
  * @typedef {Object} TextParsedDetails
- * @property {number} pageId - The ID for the page, unique across browsing sessions.
+ * @property {string} pageId - The ID for the page, unique across browsing sessions.
  * @property {string} url - The URL of the page, without any hash.
  * @property {string} title - The title of the document, parsed by Readability.
  * @property {string} content - The document text content as an HTML string, parsed by Readability.

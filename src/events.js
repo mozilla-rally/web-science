@@ -173,7 +173,7 @@ class EventSingleton extends Event {
  * Create a new Event object that implements WebExtensions event syntax, with the
  * provided options.
  * @param {Object} [options] - The options for the event.
- * @param {string} name - The name of the event.
+ * @param {string} options.name - The name of the event.
  * @param {addListenerCallback} [options.addListenerCallback] - A function that is
  * called when a listener function is added.
  * @param {removeListenerCallback} [options.removeListenerCallback] - A function

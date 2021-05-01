@@ -5,6 +5,8 @@
  * @module webScience.permissions
  */
 
+import * as matching from "./matching.js";
+
 /**
  * An object where keys are Content Security Policy directive names and values are arrays of directive values.
  * @typedef {Object} ContentSecurityPolicy
@@ -188,4 +190,24 @@ export async function check({
     }
 
     return passed;
+}
+
+/**
+ * Retrieve the origin match patterns permitted by the extension manifest.
+ */
+export function getManifestOriginMatchPatterns() {
+    const manifest = browser.runtime.getManifest();
+    const matchPatterns = [ ];
+    if(("permissions" in manifest) && Array.isArray(manifest.permissions)) {
+        for(const permission of manifest.permissions) {
+            try {
+                matching.matchPatternsToRegExp([ permission ]);
+                matchPatterns.push(permission);
+            }
+            catch(error) {
+                continue;
+            }
+        }
+    }
+    return matchPatterns;
 }

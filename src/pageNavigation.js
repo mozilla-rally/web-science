@@ -15,7 +15,7 @@ import pageNavigationContentScript from "./content-scripts/pageNavigation.conten
 /**
  * Additional information about the page data event.
  * @typedef {Object} PageDataDetails
- * @property {number} pageId - The ID for the page, unique across browsing sessions.
+ * @property {string} pageId - The ID for the page, unique across browsing sessions.
  * @property {string} url - The URL of the page, without any hash.
  * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer.
  * @property {number} pageVisitStartTime - The time when the page visit started, in ms since
@@ -162,7 +162,7 @@ async function addListener(listener, {
  * @param {pageDataCallback} listener - The listener that is being removed.
  * @private
  */
- function removeListener(listener) {
+function removeListener(listener) {
     // If there is a record of the listener, unregister its content script
     // and delete the record
     const listenerRecord = pageDataListeners.get(listener);
@@ -178,7 +178,7 @@ async function addListener(listener, {
  * @param {PageDataDetails} pageData - Information about the page.
  * @private
  */
- function messageListener(pageData) {
+function messageListener(pageData) {
     // Remove the type string from the content script message
     delete pageData.type;
 

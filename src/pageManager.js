@@ -152,7 +152,7 @@ const considerUserInputForAttention = true;
 /**
  * Additional information about a page visit start event.
  * @typedef {Object} PageVisitStartDetails
- * @param {number} pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} pageId - The ID for the page, unique across browsing sessions.
  * @param {number} tabId - The ID for the tab containing the page, unique to the browsing session.
  * @param {number} windowId - The ID for the window containing the page, unique to the browsing session.
  * Note that tabs can subsequently move between windows.
@@ -204,7 +204,7 @@ function pageVisitStart(details) {
 /**
  * Additional information about a page visit stop event.
  * @typedef {Object} PageVisitStopDetails
- * @param {number} pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} pageId - The ID for the page, unique across browsing sessions.
  * @param {string} url - The URL of the page loading in the tab, without any hash.
  * @param {string} referrer - The referrer URL for the page loading in the tab, or `""` if
  * there is no referrer.
@@ -439,6 +439,7 @@ export async function initialize() {
     // The background script sends a webScience.pageManager.urlChanged message when
     // the URL changes for a tab, indicating a possible page load with the History API
     messaging.registerSchema("webScience.pageManager.urlChanged", {
+        url: "string",
         timeStamp: "number"
     });
 
@@ -471,11 +472,16 @@ export async function initialize() {
     browser.webNavigation.onHistoryStateUpdated.addListener((details) => {
         if(!initialized)
             return;
-        const timeStamp = Date.now();
+        if(details.frameId !== 0)
+            return;
 
         messaging.sendMessageToTab(details.tabId, {
             type: "webScience.pageManager.urlChanged",
-            timeStamp
+            url: details.url,
+            // We can use details.timeStamp because, contrary to the MDN and Chrome documentation,
+            // the timestamp is for the history API change rather than when the navigation was
+            // committed. See: https://github.com/mdn/content/issues/4469
+            timeStamp: details.timeStamp
         });
     }, {
         url: [ { schemes: [ "http", "https" ] } ]
@@ -648,9 +654,9 @@ export async function initialize() {
         }
     }
 
-    // Register the pageManager content script for all HTTP(S) URLs
+    // Register the pageManager content script for all URLs permitted by the extension manifest
     browser.contentScripts.register({
-        matches: [ "http://*/*", "https://*/*" ],
+        matches: permissions.getManifestOriginMatchPatterns(),
         js: [{
             code: inline.dataUrlToString(pageManagerContentScript)
         }],
