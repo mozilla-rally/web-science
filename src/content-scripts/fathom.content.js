@@ -2,7 +2,13 @@
  * Content script for the Fathom module. Uses Mozilla Fathom
  * to classify the DOM elements of a page.
  * @module webScience.fathom.content
+ *
+ * TODO: 
+ * - rerun fathom on mutation observer?
+ * - keep track of viewTime of classified elements using intersection observer?
+ * - draw borders as an option?
  */
+
 
 (function() {
     // Check if content script is already running
@@ -39,14 +45,22 @@
                 return;
             }
 
+            if (pageClassified) {
+                console.log("Page already classified, returning");
+                return;
+            }
+
+            console.log("Running fathom");
             // run Fathom here
             pageClassified = true;
 
             // Send results to background script
+            console.log("Sending fathom results");
             pageManager.sendMessage({
                 type: "webScience.fathom.fathomData",
                 test: "hello from content script"
             });
+            console.log("Fathom results sent");
         });
     }
 
