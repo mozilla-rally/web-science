@@ -7,10 +7,12 @@ import * as matching from "./matching.js";
 import * as permissions from "./permissions.js";
 import * as id from "./id.js";
 import * as pageManager from "./pageManager.js";
+import * as inline from "./inline.js";
 import * as messaging from "./messaging.js";
 import { urlShortenerMatchPatterns } from "./data/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "./data/ampCachesAndViewers.js";
 import { parse as tldtsParse } from "tldts";
+import linkResolutionGoogleNewsContentScript from "./content-scripts/linkResolution.googleNews.content.js";
 
 permissions.check({
     module: "webScience.linkResolution",
@@ -516,6 +518,20 @@ export function initialize() {
 
     // Listen for the page visit stop event, because we should discard URL mappings for that page shortly afterward
     pageManager.onPageVisitStop.addListener(pageVisitStopListener);
+
+    // Register the content script for parsing URL mappings on Google News, if the extension has permission for
+    // Google News URLs
+    browser.permissions.contains({ origins: [ "*://*.news.google.com/*" ]}).then(hasPermission => {
+        if(hasPermission) {
+            browser.contentScripts.register({
+                matches: [ "*://*.news.google.com/*" ],
+                js: [{
+                    code: inline.dataUrlToString(linkResolutionGoogleNewsContentScript)
+                }],
+                runAt: "document_idle"
+            });
+        }
+    });
 
     // Register a message listener for URL mappings parsed by content scripts
     messaging.onMessage.addListener(urlMappingsContentScriptMessageListener, {
