@@ -12,6 +12,7 @@ import * as messaging from "./messaging.js";
 import { urlShortenerMatchPatterns } from "./data/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "./data/ampCachesAndViewers.js";
 import { parse as tldtsParse } from "tldts";
+import linkResolutionTwitterContentScript from "./content-scripts/linkResolution.twitter.content.js";
 import linkResolutionGoogleNewsContentScript from "./content-scripts/linkResolution.googleNews.content.js";
 
 permissions.check({
@@ -518,6 +519,20 @@ export function initialize() {
 
     // Listen for the page visit stop event, because we should discard URL mappings for that page shortly afterward
     pageManager.onPageVisitStop.addListener(pageVisitStopListener);
+
+    // Register the content script for parsing URL mappings on Twitter, if the extension has permission for
+    // Twitter URLs
+    browser.permissions.contains({ origins: [ "*://*.twitter.com/*" ]}).then(hasPermission => {
+        if(hasPermission) {
+            browser.contentScripts.register({
+                matches: [ "*://*.twitter.com/*" ],
+                js: [{
+                    code: inline.dataUrlToString(linkResolutionTwitterContentScript)
+                }],
+                runAt: "document_idle"
+            });
+        }
+    });
 
     // Register the content script for parsing URL mappings on Google News, if the extension has permission for
     // Google News URLs

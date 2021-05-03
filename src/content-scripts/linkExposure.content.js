@@ -155,9 +155,9 @@ import { createMatchPatternSet } from "../matching.js";
         if(!linkInfo.observing) {
             return;
         }
-        // If user is currently exposed to the link (i.e., the page has attention, the link is in the
-        // viewport, and the link is visible), accumulate how long the link exposure lasted and
-        // move up the link exposure start time
+        // If the user is currently exposed to the link (i.e., the page has attention, the link is
+        // in the viewport, and the link is visible), accumulate how long the link exposure lasted
+        // and move up the link exposure start time
         if(pageManager.pageHasAttention && linkInfo.inViewport && isElementVisible(anchorElement)) {
             if(linkInfo.lastExposureStartTime > 0) {
                 linkInfo.totalTimeExposed += timeStamp - linkInfo.lastExposureStartTime;
