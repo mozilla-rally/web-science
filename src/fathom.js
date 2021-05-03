@@ -125,6 +125,7 @@ async function addListener(listener, {matchPatterns, trainees}) {
                 type: "webScience.fathom.fathomData",
                 schema: {
                     test: "string",
+                    results: "object"
                 }
             }
         );
@@ -135,26 +136,29 @@ async function addListener(listener, {matchPatterns, trainees}) {
             trainees: "object"
         })
 
-        // TODO: is onUpdated correct?
+        // When a tab is updated, send it a message if the page should be 
+        // classified with Fathom
         browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             if ("url" in tab) {
                 classifiable = false;
-                traineesSet = {};
+                traineesSet = {}
                 for (const listenerRecord of fathomDataListeners.values()) {
                     if (listenerRecord.matchPatternSet.matches(tab.url)) {
                         // Get all the relevant trainees, merge to traineesSet
-                        for (const trainee in listenerRecord.trainees) {
+                        for (const trainee of listenerRecord.trainees.keys()) {
                             if (trainee in traineesSet) {
                                 console.warn("Duplicate trainees found: " + trainee);
                             }
-                            traineesSet[trainee] = listenerRecord.trainees[trainee];
+                            traineesSet[trainee] = listenerRecord.trainees.get(trainee);
+                            // traineesSet[trainee].rulesetMaker = traineesSet[trainee].rulesetMaker.toString();
                             classifiable = true;
                         }
                     }
                 }
                 messaging.sendMessageToTab(tabId, {
                     type: "webScience.fathom.isClassifiable",
-                    isClassifiable: classifiable,
+                    // isClassifiable: classifiable,
+                    isClassifiable: true,
                     trainees: traineesSet
                 })
             }
