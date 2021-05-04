@@ -2,13 +2,15 @@
  * Content script for the pageTransition module that observes clicks on pages and notifies the
  * module's background script. We use a separate pageTransition content script for generating
  * `pageTransition.onPageTransitionData` event data, because the content scripts should run on
- * different sets of pages. We consider document `click`, `contextmenu`, and `keyup`
+ * different sets of pages. We consider document `mouseup`, `contextmenu`, and `keyup`
  * enter/return key events to be identical, since the use could open a link in any of these
  * ways. We also require that a page have the user's attention to consider a click, since
  * otherwise the click was initiated by a script.
  *
  * @module webScience.pageTransition.click.content
  */
+
+import * as timing from "../timing.js";
 
 // IIFE encapsulation to allow early return
 (function () {
@@ -57,7 +59,7 @@
             }
 
             // Queue the click for reporting to the background script
-            clickTimeStamps.push(Date.now());
+            clickTimeStamps.push(timing.now());
 
             // If there's already a pending debounce timer, let it handle the click
             if(clickDebounceTimeoutID > 0) {
@@ -110,9 +112,14 @@
             lastSentClickTimeStamp = 0;
         });
 
-        // When the page visit stop event fires, store page click data in the window
-        // global for the event content script. We use this stored data if there's
-        // a History API load.
+        // When the page visit stop event fires, send the most recent click
+        // even if we haven't waited the debounce time. This is important
+        // for handling a race condition in the interaction between the
+        // debounce delay and how recently the user must have clicked on a
+        // page to treat the click as a click transition for another page.
+        // Also store page click data in the window global for the event
+        // content script. We use this stored data if there's a History API
+        // load.
         pageManager.onPageVisitStop.addListener(() => {
             if(!("webScience" in window)) {
                 window.webScience = { };
@@ -120,21 +127,17 @@
             if(!("pageTransition" in window.webScience)) {
                 window.webScience.pageTransition = { };
             }
+            notifyBackgroundScript();
             window.webScience.pageTransition.lastClickPageId = pageManager.pageId;
             window.webScience.pageTransition.lastClickTimeStamp = lastSentClickTimeStamp;
         });
 
-        // When the page visit stop event fires, send the most recent click
-        // even if we haven't waited the debounce time. This is important
-        // for handling a race condition in the interaction between the
-        // debounce delay and how recently the user must have clicked on a
-        // page to treat the click as a click transition for another page.
-        pageManager.onPageVisitStop.addListener(notifyBackgroundScript);
-
-        // Handle mouse click events. The click event captures all clicks, except those
+        // Handle mouse click events. The mouseup event captures all clicks, except those
         // that trigger the context menu (e.g., right click or control + click). We observe
-        // those events with the contextmenu event.
-        document.addEventListener("click", handleClickEvent);
+        // those events with the contextmenu event. We listen for the mousup event rather
+        // than the click event because certain websites (e.g., YouTube) cancel the click
+        // event for clicks on links.
+        document.addEventListener("mouseup", handleClickEvent);
         document.addEventListener("contextmenu", handleClickEvent);
 
         // Handle keyboard events.

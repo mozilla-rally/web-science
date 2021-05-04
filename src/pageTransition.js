@@ -139,6 +139,7 @@ import * as permissions from "./permissions.js";
 import * as messaging from "./messaging.js";
 import * as matching from "./matching.js";
 import * as inline from "./inline.js";
+import * as timing from "./timing.js";
 import * as pageManager from "./pageManager.js";
 import pageTransitionEventContentScript from "./content-scripts/pageTransition.event.content.js";
 import pageTransitionClickContentScript from "./content-scripts/pageTransition.click.content.js";
@@ -355,8 +356,7 @@ async function initialize() {
     });
 
     // When webNavigation.onDOMContentLoaded fires, pull the webNavigation.onCommitted
-    // details from the per-tab cache, pull the opener tab details from the opener
-    // tab cache (if any), and notify the content script
+    // details from the per-tab cache and notify the content script
     browser.webNavigation.onDOMContentLoaded.addListener(details => {
         // Ignore subframe navigation
         if(details.frameId !== 0) {
@@ -379,7 +379,8 @@ async function initialize() {
         sendUpdateToContentScript({
             tabId: details.tabId,
             url: details.url,
-            timeStamp: details.timeStamp,
+            timeStamp: timing.systemToGlobalMonotonic(details.timeStamp),
+            webNavigationTimeStamp: details.timeStamp,
             transitionType: webNavigationOnCommittedDetails.transitionType,
             transitionQualifiers: webNavigationOnCommittedDetails.transitionQualifiers,
             isHistoryChange: false
@@ -399,7 +400,8 @@ async function initialize() {
         sendUpdateToContentScript({
             tabId: details.tabId,
             url: details.url,
-            timeStamp: details.timeStamp,
+            timeStamp: timing.systemToGlobalMonotonic(details.timeStamp),
+            webNavigationTimeStamp: details.timeStamp,
             transitionType: details.transitionType,
             transitionQualifiers: details.transitionQualifiers,
             isHistoryChange: true
@@ -412,6 +414,7 @@ async function initialize() {
     messaging.registerSchema("webScience.pageTransition.backgroundScriptEventUpdate", {
         url: "string",
         timeStamp: "number",
+        webNavigationTimeStamp: "number",
         transitionType: "string",
         transitionQualifiers: "object",
         pageVisitTimeCache: "object",
@@ -457,7 +460,7 @@ async function initialize() {
         }
         openerTabCache.set(tab.id, {
             openerTabId: tab.openerTabId,
-            timeStamp: Date.now()
+            timeStamp: timing.now()
         });
     });
 
@@ -623,8 +626,13 @@ const openerTabCache = new Map();
  * @param {Object} details - Details for the update to the content script.
  * @param {number} details.tabId - The tab ID for the tab where the page is loading.
  * @param {string} details.url - The URL for the page.
- * @param {number} details.timeStamp - The timestamp for the page that is loading,
+ * @param {number} details.timeStamp - The timestamp for the page that is loading, either from
+ * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`, adjusted to
+ * the global monotonic clock.
+ * @param {number} details.webNavigationTimeStamp - The timestamp for the page that is loading,
  * either from `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
+ * This timestamp, from the event, is on the system clock rather than the global monotonic
+ * clock.
  * @param {string} details.transitionType - The transition type for the page that is loading,
  * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
  * @param {string[]} details.transitionQualifiers - The transition qualifiers for the page
@@ -639,6 +647,7 @@ const openerTabCache = new Map();
     tabId,
     url,
     timeStamp,
+    webNavigationTimeStamp,
     transitionType,
     transitionQualifiers,
     isHistoryChange
@@ -670,6 +679,7 @@ const openerTabCache = new Map();
         type: "webScience.pageTransition.backgroundScriptEventUpdate",
         url,
         timeStamp,
+        webNavigationTimeStamp,
         transitionType,
         transitionQualifiers,
         isHistoryChange,
@@ -685,7 +695,7 @@ const openerTabCache = new Map();
     // for transitions involving non-private pages. We perform this expiration after sending a
     // message to the content script, for the reasons explained in the pageManager.onPageVisitStart
     // listener.
-    const nowTimeStamp = Date.now();
+    const nowTimeStamp = timing.now();
     const expiredCachePageIds = new Set();
     let mostRecentPageId = "";
     let mostRecentPageVisitStartTime = 0;

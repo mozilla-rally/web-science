@@ -11,6 +11,8 @@
  * @module webScience.pageNavigation.content
  */
 
+import * as timing from "../timing.js";
+
 // Function encapsulation to wait for pageManager load
 const pageNavigation = function () {
 
@@ -121,6 +123,7 @@ const pageNavigation = function () {
      * A timer tick callback function that updates the maximum relative scroll depth on the page.
      */
     function updateMaxRelativeScrollDepth() {
+        const nowTimeStamp = timing.now();
         /* Don't measure scroll depth if:
          *   * The page doesn't have the user's attention
          *   * Scroll depth measurement doesn't wait on attention and the page load is too recent
@@ -128,8 +131,8 @@ const pageNavigation = function () {
          *   * The content height and user scrolling are below a minimum amount
          */
         if(!pageManager.pageHasAttention ||
-            (!scrollDepthWaitForAttention && (Date.now() - pageManager.pageVisitStartTime) < scrollDepthUpdateDelay) || 
-            (scrollDepthWaitForAttention && ((firstAttentionTime <= 0) || ((Date.now() - firstAttentionTime) < scrollDepthUpdateDelay))) ||
+            (!scrollDepthWaitForAttention && (nowTimeStamp - pageManager.pageVisitStartTime) < scrollDepthUpdateDelay) || 
+            (scrollDepthWaitForAttention && ((firstAttentionTime <= 0) || ((nowTimeStamp - firstAttentionTime) < scrollDepthUpdateDelay))) ||
             (Math.max(document.documentElement.offsetHeight, window.scrollY) < scrollDepthMinimumHeight)) {
             return;
         }

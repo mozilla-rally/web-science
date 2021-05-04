@@ -10,6 +10,9 @@
  *       HTTP request. 
  *     * `isHistoryChange` - Whether the page visit was caused by a change via the
  *       History API rather than ordinary web navigation.
+ *     * `webNavigationTimeStamp` - If the page visit was caused by a change via the
+ *       History API, the timestamp on the system clock for the
+ *       webNavigation.onHistoryStateUpdated event. Otherwise, 0. 
  *   * Page Events
  *     * `onPageVisitStart` - An event that fires when a page visit begins. Note that
  *       the page visit start event may have already fired by the time another
@@ -255,8 +258,10 @@ import { createEvent } from "../events.js";
      * @param {number} timeStamp - The time when the underlying event fired.
      * @param {boolean} [isHistoryChange=false] - Whether this page load was caused by the
      * History API.
+     * @param {number} [webNavigationTimeStamp=0] - If this is a History API change, the
+     * timestamp for the webNavigation.onHistoryStateUpdated event.
      */
-    function pageVisitStart(timeStamp, isHistoryChange = false) {
+    function pageVisitStart(timeStamp, isHistoryChange = false, webNavigationTimeStamp = 0) {
         // Assign a new page ID
         pageManager.pageId = generateId();
         // Store a copy of the URL, because we use it to check for History API page loads
@@ -271,6 +276,8 @@ import { createEvent } from "../events.js";
         pageManager.pageVisitStarted = false;
         // Store whether the page visit is a History API change
         pageManager.isHistoryChange = isHistoryChange;
+        // Store the webNavigation timestamp
+        pageManager.webNavigationTimeStamp = webNavigationTimeStamp;
 
         // Send the page visit start event to the background page
         pageManager.sendMessage({
@@ -381,7 +388,7 @@ import { createEvent } from "../events.js";
             if((windowLocationHrefWithoutHash !== pageManager.url) &&
                (windowLocationHrefWithoutHash === messageUrl)) {
                 pageVisitStop(message.timeStamp);
-                pageVisitStart(message.timeStamp, true);
+                pageVisitStart(message.timeStamp, true, message.webNavigationTimeStamp);
                 return;
             }
         }
@@ -409,11 +416,13 @@ import { createEvent } from "../events.js";
     }
 
     // Send the page visit start event for the first time
-    pageVisitStart(Math.floor(window.performance.timeOrigin));
+    pageVisitStart(window.performance.timeOrigin);
 
-    // Send the page visit stop event on the window unload event
+    // Send the page visit stop event on the window unload event,
+    // using the timestamp for the unload event on the global
+    // monotonic clock 
     window.addEventListener("unload", (event) => {
-        pageVisitStop(Date.now());
+        pageVisitStop(window.performance.timeOrigin + event.timeStamp);
     });
     
 })();

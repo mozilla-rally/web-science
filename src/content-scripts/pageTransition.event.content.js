@@ -109,8 +109,13 @@
          * Handle a background script update message.
          * @param {Object} message - The message from the background script.
          * @param {string} message.url - The URL for the page.
-         * @param {number} message.timeStamp - The timestamp for the page that is loading,
+         * @param {number} message.timeStamp - The timestamp for the page that is loading, either from
+         * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`, adjusted to
+         * the global monotonic clock.
+         * @param {number} message.webNavigationTimeStamp - The timestamp for the page that is loading,
          * either from `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
+         * This timestamp, from the event, is on the system clock rather than the global monotonic
+         * clock.
          * @param {string} message.transitionType - The transition type for the page that is loading,
          * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
          * @param {string[]} message.transitionQualifiers - The transition qualifiers for the page
@@ -138,6 +143,7 @@
         const handleBackgroundScriptUpdate = function({
             url,
             timeStamp,
+            webNavigationTimeStamp,
             transitionType,
             transitionQualifiers,
             isHistoryChange,
@@ -175,15 +181,16 @@
                 if((performanceNavigationTimingEntries.length === 0) || !("domContentLoadedEventStart" in performanceNavigationTimingEntries[0])) {
                     return false;
                 }
-                const DOMContentLoadedTimeStamp = window.performance.timeOrigin + performanceNavigationTimingEntries[0].domContentLoadedEventStart;
-                if(Math.abs(DOMContentLoadedTimeStamp - timeStamp) > maxDOMContentLoadedTimeStampDifference) {
+                // Calculate the DOMContentLoaded timestamp on the global monotonic clock from the High Resolution Time and Navigation Timing APIs
+                const PerformanceDOMContentLoadedTimeStamp = window.performance.timeOrigin + performanceNavigationTimingEntries[0].domContentLoadedEventStart;
+                if(Math.abs(PerformanceDOMContentLoadedTimeStamp - timeStamp) > maxDOMContentLoadedTimeStampDifference) {
                     return false;
                 }
             }
             // If this is a History API page load, we require a near-exact timestamp match because the 
-            // timestamp in `pageManager.onPageVisitStart` is copied from ``webNavigation.onHistoryStateUpdated`.
+            // timestamp in `pageManager.webNavigationTimeStamp` is copied from ``webNavigation.onHistoryStateUpdated`.
             // We also require that the page load was via the History API.
-            else if((Math.abs(pageManager.pageVisitStartTime - timeStamp) > maxHistoryStateUpdatedTimeStampDifference) || 
+            else if((Math.abs(pageManager.webNavigationTimeStamp - webNavigationTimeStamp) > maxHistoryStateUpdatedTimeStampDifference) || 
                     !pageManager.isHistoryChange) {
                 return false;
             }
