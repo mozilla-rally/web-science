@@ -1,7 +1,7 @@
 /**
  * This module facilitates timestamping events. We use the global monotonic
- * clock specified by the High Resolution Time Level 2 standard, rather than
- * the ordinary system clock.
+ * clock specified by the W3C High Resolution Time Level 2 recommendation,
+ * rather than the ordinary system clock.
  * 
  * The global monotonic clock has important advantages over the system
  * clock: from browser startup to shutdown it only counts up, and it is
@@ -13,20 +13,36 @@
  * browser-based research depends on timestamps. A clock change during study
  * execution could introduce subtle bugs or other unexpected behavior.
  * 
- * There is a downside to be aware of with the global monotonic clock: it can
- * experience clock drift, resulting in clock skew from the system clock and
- * the correct time. Anecdotally, the clock drift for a modern device should
- * be less than a couple of seconds per day in ordinary use, which should
- * result in tolerable levels of clock skew even when a participant leaves
- * their browser running for a lengthy period of time.
+ * There is a downside to be aware of with the global monotonic clock: it is
+ * set with reference to the ordinary system clock on browser startup, but
+ * it can then experience clock drift, resulting in clock skew from the
+ * system clock and the correct time. Anecdotally, the clock drift for a
+ * modern device should be less than a couple of seconds per day in ordinary
+ * use, which should result in tolerable levels of clock skew even when a
+ * participant leaves their browser running for a lengthy period of time.
  * 
- * Note that Chrome does not correctly implement the High Resolution Time
- * Level 2 standard at present. The monotonic clock is per-process rather
- * than global, and the clock suspends when a process is not active. As a
- * result, there can be significant clock skew between tab monotonic clocks
- * and between a tab monotonic clock and the system clock.
+ * # Additional Notes
+ *   * The High Resolution Time Level 2 recommendation describes the global
+ *     monotonic clock (which must be used to generate the time origin for
+ *     each context) and per-context monotonic clocks. The recommendation also
+ *     states a goal of enabling timestamps that can be synchronized and
+ *     compared across contexts, specifies that the per-context clock must not
+ *     suspend when a context is inactive, and provides a non-normative
+ *     example of comparing `performance.timeOrigin + performance.now()`
+ *     across contexts. For these reasons, we treat
+ *     `performance.timeOrigin + performance.now()` as the current time on the
+ *     global monotonic clock, even though the recommendation doesn't _quite_
+ *     say that.
+ *   * Chrome departs from the High Resolution Time Level 2 spec at present.
+ *     Each process maintains its own monotonic clock, and the clock suspends
+ *     when the process is not active. As a result, timestamps generated
+ *     with `performance.timeOrigin + performance.now()` can differ
+ *     significantly from the system clock and across tabs. When we implement
+ *     support for Chrome, if this issue is not resolved, we might be stuck
+ *     stuck using the system clock.
  *  
  * @see {@link https://www.w3.org/TR/hr-time-2/}
+ * @see {@link https://github.com/mdn/content/issues/4713}
  * @see {@link https://github.com/w3c/hr-time/issues/65}
  * @see {@link https://bugs.chromium.org/p/chromium/issues/detail?id=948384}
  * @see {@link https://bugs.chromium.org/p/chromium/issues/detail?id=166153}
