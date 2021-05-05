@@ -12,10 +12,12 @@
 
 import {ruleset, type} from "fathom-web";
 
+// TODO: change trainee to a Map
+
 // Add user rulesets to the window global
 function addTrainees(trainees) {
     for (const [name, rules] of trainees) {
-        window.webScience.fathom.trainees[name] = rules;
+        window.webScience.fathom.trainees.set(name, rules);
     }
 }
 
@@ -23,17 +25,22 @@ function addTrainees(trainees) {
 function runTrainee(ruleName, results, color = "red") { 
     const trainees = window.webScience.fathom.trainees;
 
-    let rules = trainees[ruleName].rulesetMaker().rules();
-    let coeffs = trainees[ruleName].coeffs;
-    let bias = [[ruleName, trainees[ruleName].bias]];
-    let finalRuleset = ruleset(rules, coeffs, bias);
+    // let rules = trainees.get(ruleName).rulesetMaker().rules();
+    // let coeffs = trainees.get(ruleName).coeffs;
+    // let bias = [[ruleName, trainees.get(ruleName).bias]];
+    // let finalRuleset = ruleset(rules, coeffs, bias);
+
+    const trainee = trainees.get(ruleName);
+    const facts = trainee.rulesetMaker().against(document);
+    facts.setCoeffsAndBiases(trainee.coeffs, [[ruleName, trainee.bias]]); // bias not working properly
+
 
     // Run the ruleset
-    const facts = finalRuleset.against(document);
+    // const facts = finalRuleset.against(document);
     const allNodes = facts.get(type(ruleName)); 
 
     // For all candidate nodes, observe/borderize those with high scores
-    for (fnode of allNodes) {
+    for (const fnode of allNodes) {
         let score = fnode.scoreFor(ruleName);
         if (score >= 0.5) {
             fnode.element.style.border = "5px solid " + color;
@@ -58,9 +65,9 @@ function runTrainee(ruleName, results, color = "red") {
 function runAllTrainees() {
     const trainees = window.webScience.fathom.trainees;
     let results = new Map();
-    for (const ruleName in trainees) {
+    for (const [ruleName, rules] of trainees) {
         runTrainee(ruleName, results)
-        break;//TODO:remove
+        // break;//TODO:remove
     }
     return results;
 }
@@ -74,7 +81,7 @@ function runAllTrainees() {
         }
         else {
             window.webScience.fathom = {
-                trainees: {},
+                trainees: new Map(),
                 addTrainees: addTrainees,
             }
         }
@@ -83,7 +90,7 @@ function runAllTrainees() {
         // Else, this is the first webScience initialization
         window.webScience = {};
         window.webScience.fathom = {
-            trainees: {},
+            trainees: new Map(),
             addTrainees: addTrainees,
         }
     }
