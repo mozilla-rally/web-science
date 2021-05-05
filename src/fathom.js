@@ -27,6 +27,7 @@ import * as messaging from "./messaging.js";
 import * as events from "./events.js";
 import * as matching from "./matching.js";
 import * as inline from "./inline.js";
+import addTrainees from "./content-scripts/fathom.content.js";
 import fathomContentScript from "./content-scripts/fathom.content.js";
 
 export function test() {
@@ -107,7 +108,7 @@ let initialized = false;
  * @param {Object} options - Options for the listener.
  * @param {string[] options.matchPatterns} matchPatterns - The match patterns 
  * for pages where the listener should be notified.
- * @param {fathom.Trainees} trainees - The trainees for this listener.
+ * @param {fathom.Trainees} trainees - The trainees for this listener, a Map.
  * @private
  */
 async function addListener(listener, {matchPatterns, trainees}) {
@@ -133,7 +134,6 @@ async function addListener(listener, {matchPatterns, trainees}) {
         // Message to send to content script if this page should be classified
         messaging.registerSchema("webScience.fathom.isClassifiable", {
             isClassifiable: "boolean",
-            trainees: "object"
         })
 
         // When a tab is updated, send it a message if the page should be 
@@ -155,12 +155,13 @@ async function addListener(listener, {matchPatterns, trainees}) {
                         }
                     }
                 }
-                messaging.sendMessageToTab(tabId, {
-                    type: "webScience.fathom.isClassifiable",
-                    // isClassifiable: classifiable,
-                    isClassifiable: true,
-                    trainees: traineesSet
-                })
+                function sendIsClassifiable() {
+                    messaging.sendMessageToTab(tabId, {
+                        type: "webScience.fathom.isClassifiable",
+                        isClassifiable: classifiable,
+                    });
+                }
+                setTimeout(sendIsClassifiable, 3000); //TODO: remove
             }
         });
     }

@@ -12,14 +12,20 @@
 
 import {ruleset, type} from "fathom-web";
 
+// Add user rulesets to the window global
+function addTrainees(trainees) {
+    for (const [name, rules] of trainees) {
+        window.webScience.fathom.trainees[name] = rules;
+    }
+}
 
-function runTrainee(trainees, ruleName, color = "red", results) {
-    let trainee = trainees[ruleName];
-    let rulesetMaker = Function('"use strict";return (' + trainee.rulesetMaker + ')')();
 
-    let rules = rulesetMaker().rules();
-    let coeffs = trainees.get(ruleName).coeffs;
-    let bias = [[rulenName, trainees.get(ruleName).bias]];
+function runTrainee(ruleName, results, color = "red") { 
+    const trainees = window.webScience.fathom.trainees;
+
+    let rules = trainees[ruleName].rulesetMaker().rules();
+    let coeffs = trainees[ruleName].coeffs;
+    let bias = [[ruleName, trainees[ruleName].bias]];
     let finalRuleset = ruleset(rules, coeffs, bias);
 
     // Run the ruleset
@@ -49,10 +55,12 @@ function runTrainee(trainees, ruleName, color = "red", results) {
     console.log("Finished ruleset " + ruleName);
 }
 
-function runAllTrainees(trainees) {
+function runAllTrainees() {
+    const trainees = window.webScience.fathom.trainees;
     let results = new Map();
     for (const ruleName in trainees) {
-        runTrainee(trainees, ruleName, results)
+        runTrainee(ruleName, results)
+        break;//TODO:remove
     }
     return results;
 }
@@ -61,15 +69,22 @@ function runAllTrainees(trainees) {
 (function() {
     // Check if content script is already running
     if ("webScience" in window) {
-        if ("fathomActive" in window.webScience) {
+        if ("fathom" in window.webScience) {
             return;
         }
-        window.webScience.fathomActive = true;
+        else {
+            window.webScience.fathom = {
+                trainees: {},
+                addTrainees: addTrainees,
+            }
+        }
     }
     else {
         // Else, this is the first webScience initialization
-        window.webScience = {
-            fathomActive: true
+        window.webScience = {};
+        window.webScience.fathom = {
+            trainees: {},
+            addTrainees: addTrainees,
         }
     }
 
@@ -79,7 +94,6 @@ function runAllTrainees(trainees) {
      */
     let pageClassified = false;
 
-    
     // Function to call once pageManager is loaded
     function pageManagerLoaded() {
         console.log("pageManager loaded, running fathom content script");
@@ -99,13 +113,13 @@ function runAllTrainees(trainees) {
                 return;
             }
 
-            console.log("Running fathom");
-
             // Set to true before we run to avoid parallel runs
             pageClassified = true;
 
+            console.log("Running fathom");
+
             // run Fathom here
-            results = runAllTrainees(message.trainees);
+            let results = runAllTrainees(message.trainees);
 
             // Send results to background script
             console.log("Sending fathom results");
@@ -123,6 +137,7 @@ function runAllTrainees(trainees) {
     if ("webScience" in window && "pageManager" in window.webScience) {
         pageManagerLoaded();
     }
+
     // If pageManager is not loaded, push our main function to queue
     else {
         if (!("pageManagerHasLoaded" in window)) {
