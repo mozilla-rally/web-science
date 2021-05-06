@@ -4,16 +4,14 @@
  * @module webScience.fathom.content
  *
  * TODO:
- * High priority:
+ * - configurations (fathom run time limit, etc)
+ * - memoizations to optimize fath
+ * - jsdoc comments
  * - rerun fathom on mutation observer?
  * - keep track of viewTime of classified elements using intersection observer?
- * - memoizations
- * - fallbacks?
- * - add documentation
- *
- *
+ * - fallback nodes based on regex?
  * - draw borders as an option
- * - implement results sending
+ * - Finalize results schema
  */
 
 import {ruleset, type} from "fathom-web";
@@ -41,10 +39,7 @@ import {ruleset, type} from "fathom-web";
         }
     }
 
-    /**
-     * Whether the elements of this page have been classified.
-     * @type {boolean}
-     */
+    //Whether the elements of this page have been classified.
     let pageClassified = false;
 
     // Fathom cannot be started before trainees are added by user
@@ -95,9 +90,10 @@ import {ruleset, type} from "fathom-web";
             // Send results to background script
             console.log("Sending fathom results");
             console.log(results);
+            let resultsObj = Object.fromEntries(results);
             pageManager.sendMessage({
                 type: "webScience.fathom.fathomData",
-                results: results
+                results: resultsObj
             });
             console.log("Fathom results sent");
         });
@@ -124,7 +120,7 @@ import {ruleset, type} from "fathom-web";
     }
 
     // Run a specific ruleset from the window global
-    function runTrainee(ruleName, results, color = "red") { 
+    function runTrainee(ruleName, results, color = null) { 
         const trainees = window.webScience.fathom.trainees;
         const trainee = trainees.get(ruleName);
         const facts = trainee.rulesetMaker().against(document);
@@ -138,16 +134,19 @@ import {ruleset, type} from "fathom-web";
             let score = fnode.scoreFor(ruleName);
             // TODO: Allow configuration of confidence threshold
             if (score >= 0.5) {
-                fnode.element.style.border = "5px solid " + color;
-                console.log("*** Found " + ruleName + " node ***\n" +
-                            "Confidence: " + score.toString(10));
-                fnode.element.dataset.totalViewTime = 0;
-                fnode.element.dataset.lastViewStarted = 0;
 
+                // Borderize if any colors are specified
+                if (color !== null) {
+					fnode.element.style.border = "5px solid " + color;
+					console.log("Found " + ruleName + " node " + 
+                                "(confidence: " + score.toString(10) + ")");
+                }
+
+                // TODO: Finalize what results to send
                 results.set(fnode.element, {
                     "score": score,
                     "type": ruleName,
-                    "fnode": fnode,
+                    // "fnode": fnode,
                     "vector": fnode._types.get(ruleName).score,
                     "clicked": false,
                 });
@@ -162,7 +161,7 @@ import {ruleset, type} from "fathom-web";
         const trainees = window.webScience.fathom.trainees;
         let results = new Map();
         for (const [ruleName, rules] of trainees) {
-            runTrainee(ruleName, results)
+            runTrainee(ruleName, results, "red") // TODO: Make color configurable
         }
         return results;
     }
