@@ -158,12 +158,13 @@ permissions.check({
  * recommend against using referrers for analyzing page transitions.
  * @property {number} tabId - The ID of the tab that the page is loaded in. Can be used to send messages to the
  * page's content scripts. Note that if using this value to send a message to a content script on the page, we
- * recommend also sending pageId for the content script to check in order to avoid possible race conditions.
+ * recommend also sending pageId for the content script to check against its current pageId in order to avoid
+ * possible race conditions.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
  * @property {number} openerTabId - If the page is loading in a tab that was newly opened from another tab, the tab
  * ID of the opening tab. Otherwise -1. Note that if using this value to send a message to a content script on
- * the opening page, we recommend also sending tabSourcePageId for the content script to check in order to avoid
- * possible race conditions.
+ * the opening page, we recommend also sending tabSourcePageId for the content script to check against its current
+ * pageId in order to avoid possible race conditions.
  * @property {string} transitionType - The transition type, from `webNavigation.onCommitted` or
  * `webNavigation.onHistoryStateUpdated`.
  * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted` or
