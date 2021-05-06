@@ -102,7 +102,6 @@ async function addListener(listener, {matchPatterns}) {
             {
                 type: "webScience.fathom.fathomData",
                 schema: {
-                    test: "string",
                     results: "object"
                 }
             }
