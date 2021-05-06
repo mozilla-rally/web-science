@@ -156,16 +156,19 @@ permissions.check({
  * @property {string} url - The URL of the page, without any hash.
  * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer. Note that we
  * recommend against using referrers for analyzing page transitions.
- * @property {number} tabId - The ID of the tab that the page is loaded in. Can be used to send messages to the
- * page's content scripts. Note that if using this value to send a message to a content script on the page, we
- * recommend also sending pageId for the content script to check against its current pageId in order to avoid
- * possible race conditions.
+ * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session. Note that if
+ * you send a message to the content script in the tab, there is a possible race condition where the page in 
+ * the tab changes before your message arrives. You should specify a page ID in your message to the content 
+ * script, and the content script should check that page ID against its current page ID to ensure that the 
+ * message was received by the intended page.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
  * @property {boolean} isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
- * @property {number} openerTabId - If the page is loading in a tab that was newly opened from another tab, the tab
- * ID of the opening tab. Otherwise -1. Note that if using this value to send a message to a content script on
- * the opening page, we recommend also sending tabSourcePageId for the content script to check against its current
- * pageId in order to avoid possible race conditions.
+ * @property {number} openerTabId - If the page is loading in a tab that was newly opened from another tab
+ * (i.e., `isOpenedTab` is `true`), the tab ID of the opener tab. Otherwise, `tabs.TAB_ID_NONE`. Note that if
+ * you send a message to the content script in the tab, there is a possible race condition where the page in 
+ * the tab changes before your message arrives. You should specify a page ID (tabSourcePageId in this case) in your
+ * message to the content script, and the content script should check that page ID against its current page ID to
+ * ensure that the message was received by the intended page.
  * @property {string} transitionType - The transition type, from `webNavigation.onCommitted` or
  * `webNavigation.onHistoryStateUpdated`.
  * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted` or
