@@ -35,8 +35,11 @@ import fathomContentScript from "./content-scripts/fathom.content.js";
 /**
  * Fathom classification results sent by the content script.
  * @typedef {Object} FathomDataObject
- * @property {number} pageId - The ID for the page, unique across browsing sessions.
- * @property {string} url - The URL of the page, without any hash.
+ *
+ * TODO: Finalize data schema
+ * Likely would involve the URL, pageID, and the fathom classification results.
+ * Currently, just sends an object containing every element with greater than
+ * 0.5 confidence score (key), along with their feature vector and actual score (value).
  */
 
 /**

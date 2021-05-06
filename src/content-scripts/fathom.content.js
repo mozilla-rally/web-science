@@ -145,7 +145,7 @@ import {ruleset, type} from "fathom-web";
                     "type": ruleName,
                     // "fnode": fnode,
                     "vector": fnode._types.get(ruleName).score,
-                    "clicked": false,
+                    // "clicked": false,
                 });
             }
         }
