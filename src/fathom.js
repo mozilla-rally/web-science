@@ -2,19 +2,22 @@
  * This module enables machine learning classification of DOM elements using
  * Mozilla Fathom.
  *
- * A client will call addListener on the webScience.fathom.onFathomData event, specifiying
- * their callback, trainees, and matchPatterns (specifying which URLs to run fathom on).
- * This background script then stores this information in a Map, with the key being the client's
- * callback, and the value being the client's preferences.
+ * A client will call addListener on the webScience.fathom.onFathomData event,
+ * specifiying their callback and matchPatterns (specifying which URLs to run
+ * fathom on).  This background script then stores this information in a Map,
+ * with the key being the client's callback, and the value being the client's
+ * preferences.
  *
- * When a page is opened, the background script will determine which trainees to use
- * and if the page matches the matchPattern. A message will then be
- * sent to the content script containing the relevant trainees. The content script will
- * then run Fathom to classify elements in the page.
+ * When a page is opened, this background script will send an isClassifiable
+ * message to the page's content script, only if the page url matches any
+ * listener matchPattern. The client content script will call
+ * window.webScience.fathom.addTrainees to add their rulesets. When the fathom
+ * content script receives an isClassifiable message, it will pull these
+ * rulesets from the global window to run Fathom on the page.
  *
- * Once the content script is done with classification, it will send a message
- * to the background script, which contains the results. These messages are
- * then processed using the client's callbacks.
+ * Once the content script is done with classification, a fathomData message
+ * containing the results is sent to the background script, which contains the
+ * results. These messages are then processed using the client's callbacks.
  *
  * @module webScience.fathom
  */
@@ -43,15 +46,6 @@ export function test() {
     console.log("Fathom module test message.");
 }
 
-/**
- * @typedef {Object} Trainees
- * https://mozilla.github.io/fathom/example.html?highlight=trainees
- * 
- * The Trainees object is a set of rules for the Fathom trainer. This object
- * contains coefficients, bias, viewportSize, and the set of rules (which
- * specifies which DOM elements to process, and how to calculate scores) that
- * will be applied to the page. 
- */
 
 /**
  * Fathom classification results sent by the content script.
@@ -69,7 +63,6 @@ export function test() {
 /**
  * @typedef {Object} FathomDataListenerRecord
  * @property {matching.MatchPatternSet} matchPatternSet - The match patterns for the listener.
- * @property {Trainees} trainees - The trainees (rulesets) for this listener
  * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
  */
@@ -108,10 +101,9 @@ let initialized = false;
  * @param {Object} options - Options for the listener.
  * @param {string[] options.matchPatterns} matchPatterns - The match patterns 
  * for pages where the listener should be notified.
- * @param {fathom.Trainees} trainees - The trainees for this listener, a Map.
  * @private
  */
-async function addListener(listener, {matchPatterns, trainees}) {
+async function addListener(listener, {matchPatterns}) {
     // Initialize the listener
     if (!initialized) {
         initialized = true;
@@ -176,7 +168,6 @@ async function addListener(listener, {matchPatterns, trainees}) {
     // Add listener to fathomDataListeners map
     fathomDataListeners.set(listener, {
         matchPatternSet,
-        trainees,
         contentScript
     });
 }
