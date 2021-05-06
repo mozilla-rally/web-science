@@ -30,22 +30,7 @@ import * as messaging from "./messaging.js";
 import * as events from "./events.js";
 import * as matching from "./matching.js";
 import * as inline from "./inline.js";
-import addTrainees from "./content-scripts/fathom.content.js";
 import fathomContentScript from "./content-scripts/fathom.content.js";
-
-export function test() {
-    const rules = ruleset([
-		// Look at all divs
-		rule(dom('div'), type('test')),
-        // Score based on visibility
-		rule(type('test'), score(isVisible), {name: 'visible'}),
-        // Output max score
-		rule(type('test').max(), out('test'))
-    ])
-
-    console.log("Fathom module test message.");
-}
-
 
 /**
  * Fathom classification results sent by the content script.
@@ -111,7 +96,7 @@ async function addListener(listener, {matchPatterns}) {
         // Initialize pageManager
         await pageManager.initialize();
         
-        // Listen for Fathom classification messages
+        // Listen for Fathom classification results, sent by content script
         // This messageListener receives a fathomDataObject from a content script.
         messaging.onMessage.addListener(messageListener,
             {
@@ -141,14 +126,10 @@ async function addListener(listener, {matchPatterns}) {
                     }
                 }
 
-                function sendIsClassifiable() {
-                    messaging.sendMessageToTab(tabId, {
-                        type: "webScience.fathom.isClassifiable",
-                        isClassifiable: classifiable,
-                    });
-                }
-                // setTimeout(sendIsClassifiable, 100); //TODO: remove
-                sendIsClassifiable();
+                messaging.sendMessageToTab(tabId, {
+                    type: "webScience.fathom.isClassifiable",
+                    isClassifiable: classifiable,
+                });
             }
         });
     }

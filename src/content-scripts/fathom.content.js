@@ -3,11 +3,14 @@
  * to classify the DOM elements of a page.
  * @module webScience.fathom.content
  *
- * TODO: 
+ * TODO:
+ * High priority:
  * - rerun fathom on mutation observer?
  * - keep track of viewTime of classified elements using intersection observer?
- * - draw borders as an option?
  * - memoizations
+ * - 
+ * - fallbacks?
+ * - draw borders as an option
  */
 
 import {ruleset, type} from "fathom-web";
@@ -27,7 +30,7 @@ function runTrainee(ruleName, results, color = "red") {
     const trainees = window.webScience.fathom.trainees;
     const trainee = trainees.get(ruleName);
     const facts = trainee.rulesetMaker().against(document);
-    facts.setCoeffsAndBiases(trainee.coeffs, [[ruleName, trainee.bias]]); // bias not working properly
+    facts.setCoeffsAndBiases(trainee.coeffs, [[ruleName, trainee.bias]]); // check bias code
 
     // Run the ruleset
     const allNodes = facts.get(type(ruleName)); 
@@ -35,6 +38,7 @@ function runTrainee(ruleName, results, color = "red") {
     // For all candidate nodes, observe/borderize those with high scores
     for (const fnode of allNodes) {
         let score = fnode.scoreFor(ruleName);
+        // TODO: Allow configuration of confidence threshold
         if (score >= 0.5) {
             fnode.element.style.border = "5px solid " + color;
             console.log("*** Found " + ruleName + " node ***\n" +
