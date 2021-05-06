@@ -114,17 +114,18 @@ async function addListener(listener, {matchPatterns}) {
 
         // When a tab is updated, send it a message if the page should be 
         // classified with Fathom
+        // TODO: onUpdated may not be the right event
         browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             if ("url" in tab) {
-                classifiable = false;
                 // Iterate over listenerRecords, check if this url matches any
+                classifiable = false;
                 for (const listenerRecord of fathomDataListeners.values()) {
                     if (listenerRecord.matchPatternSet.matches(tab.url)) {
                         classifiable = true;
                         break;
                     }
                 }
-
+                // Send the message to content script
                 messaging.sendMessageToTab(tabId, {
                     type: "webScience.fathom.isClassifiable",
                     isClassifiable: classifiable,

@@ -39,7 +39,7 @@ import {ruleset, type} from "fathom-web";
         }
     }
 
-    //Whether the elements of this page have been classified.
+    // Whether the elements of this page have been classified.
     let pageClassified = false;
 
     // Fathom cannot be started before trainees are added by user
@@ -52,7 +52,7 @@ import {ruleset, type} from "fathom-web";
     // Function to initalize fathom once conditions are fulfilled 
     function fathomInit() {
 
-        // Sanity check
+        // Sanity check for the conditions
         if (!pageManagerLoaded || !traineesAdded) {
             console.log("fathomInit called before conditions are fulfilled");
             return;
@@ -84,25 +84,22 @@ import {ruleset, type} from "fathom-web";
 
             console.log("Running fathom");
 
-            // run Fathom here
+            // Run all Fathom rulesets
             let results = runAllTrainees(message.trainees);
 
             // Send results to background script
             console.log("Sending fathom results");
-            console.log(results);
-            let resultsObj = Object.fromEntries(results);
             pageManager.sendMessage({
                 type: "webScience.fathom.fathomData",
-                results: resultsObj
+                results: Object.fromEntries(results)
             });
             console.log("Fathom results sent");
         });
     }
 
-    // Handle race conditions 
-    // Flags are only set to true through this function
+    // Handle race conditions
     // When trainees are added or pageManager is loaded, set the flag to true
-    // If all flags are set to true then initialize fathom
+    // If all flags are set to true then call fathomInit
     function fathomInitWrapper(traineesAddedIn, pageManagerLoadedIn) {
         traineesAdded = traineesAddedIn;
         pageManagerLoaded = pageManagerLoadedIn;
@@ -121,15 +118,15 @@ import {ruleset, type} from "fathom-web";
 
     // Run a specific ruleset from the window global
     function runTrainee(ruleName, results, color = null) { 
+
+        // Set up Fathom and run the rule
         const trainees = window.webScience.fathom.trainees;
         const trainee = trainees.get(ruleName);
         const facts = trainee.rulesetMaker().against(document);
         facts.setCoeffsAndBiases(trainee.coeffs, [[ruleName, trainee.bias]]); // check bias code
-
-        // Run the ruleset
         const allNodes = facts.get(type(ruleName)); 
 
-        // For all candidate nodes, observe/borderize those with high scores
+        // For all candidate nodes, borderize those with high scores
         for (const fnode of allNodes) {
             let score = fnode.scoreFor(ruleName);
             // TODO: Allow configuration of confidence threshold
@@ -137,8 +134,8 @@ import {ruleset, type} from "fathom-web";
 
                 // Borderize if any colors are specified
                 if (color !== null) {
-					fnode.element.style.border = "5px solid " + color;
-					console.log("Found " + ruleName + " node " + 
+                    fnode.element.style.border = "5px solid " + color;
+                    console.log("Found " + ruleName + " node " + 
                                 "(confidence: " + score.toString(10) + ")");
                 }
 
