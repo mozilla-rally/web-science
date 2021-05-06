@@ -161,6 +161,7 @@ permissions.check({
  * recommend also sending pageId for the content script to check against its current pageId in order to avoid
  * possible race conditions.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
+ * @property {boolean} isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
  * @property {number} openerTabId - If the page is loading in a tab that was newly opened from another tab, the tab
  * ID of the opening tab. Otherwise -1. Note that if using this value to send a message to a content script on
  * the opening page, we recommend also sending tabSourcePageId for the content script to check against its current
@@ -424,6 +425,7 @@ async function initialize() {
         pageVisitTimeCache: "object",
         cachedPageVisitsForTab: "object",
         isHistoryChange: "boolean",
+        isOpenedTab: "boolean",
         openerTabId: "number",
         tabOpeningTimeStamp: "number"
     });
@@ -490,6 +492,7 @@ async function initialize() {
                     referrer: eventUpdateMessage.referrer,
                     tabId: sender.tab.id,
                     isHistoryChange: eventUpdateMessage.isHistoryChange,
+                    isOpenedTab: eventUpdateMessage.isOpenedTab,
                     openerTabId: eventUpdateMessage.openerTabId,
                     transitionType: eventUpdateMessage.transitionType,
                     transitionQualifiers: eventUpdateMessage.transitionQualifiers.slice(),
@@ -508,6 +511,7 @@ async function initialize() {
             pageId: "string",
             url: "string",
             isHistoryChange: "boolean",
+            isOpenedTab: "boolean",
             openerTabId: "number",
             transitionType: "string",
             transitionQualifiers: "object",
@@ -658,7 +662,8 @@ const openerTabCache = new Map();
     }
 
     // Get the cached opener tab details if this is not a History API change
-    let openerTabId = -1;
+    let isOpenedTab = false;
+    let openerTabId = browser.tabs.TAB_ID_NONE;
     let tabOpeningTimeStamp = 0;
     if(!isHistoryChange) {
         const openerTabDetails = openerTabCache.get(tabId);
@@ -666,8 +671,9 @@ const openerTabCache = new Map();
         // visits for the opener tab
         if(openerTabDetails !== undefined) {
             openerTabCache.delete(tabId);
-            tabOpeningTimeStamp = openerTabDetails.timeStamp;
+            isOpenedTab = true;
             openerTabId = openerTabDetails.openerTabId;
+            tabOpeningTimeStamp = openerTabDetails.timeStamp;
             cachedPageVisitsForTab = pageVisitTabCache.get(openerTabDetails.openerTabId);
         }
     }
@@ -683,6 +689,7 @@ const openerTabCache = new Map();
         isHistoryChange,
         pageVisitTimeCache,
         cachedPageVisitsForTab: (cachedPageVisitsForTab !== undefined) ? cachedPageVisitsForTab : { },
+        isOpenedTab,
         openerTabId,
         tabOpeningTimeStamp
     });

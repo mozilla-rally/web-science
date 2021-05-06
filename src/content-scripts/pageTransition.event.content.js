@@ -128,6 +128,8 @@
          * property from this module's click content script and background script. The cached page
          * visits are from the same tab as this page or, if the page is opened in a new tab, the cached
          * page visits are from the opener tab.
+         * @param {boolean} message.isOpenedTab - Whether the page is loading in a new tab that was
+         * opened by another tab.
          * @property {number} message.openerTabId - If the page is loading in a tab that was newly
          * opened from another tab, the tab ID of the opening tab. Otherwise -1.
          * @param {number} message.tabOpeningTimeStamp - The timestamp of when this page's tab was
@@ -143,6 +145,7 @@
             isHistoryChange,
             pageVisitTimeCache,
             cachedPageVisitsForTab,
+            isOpenedTab,
             openerTabId,
             tabOpeningTimeStamp
         }) {
@@ -248,7 +251,7 @@
                 // have a race condition where tab 1 opens tab 2, the page in tab 2 is slow to load, tab 1
                 // navigates to another page, then we incorrectly associate the new page in tab 2 with the later
                 // page in tab 1.
-                const pageVisitComparisonTime = openerTabId !== -1 ? tabOpeningTimeStamp : pageManager.pageVisitStartTime;
+                const pageVisitComparisonTime = isOpenedTab ? tabOpeningTimeStamp : pageManager.pageVisitStartTime;
                 for(const cachePageId in cachedPageVisitsForTab) {
                     // Ignore pages that started after this page started or, if this is a tab newly opened by 
                     // another tab, ignore pages that started after this tab was opened
@@ -305,6 +308,7 @@
                 pageId: pageManager.pageId,
                 url: pageManager.url,
                 isHistoryChange,
+                isOpenedTab,
                 openerTabId,
                 transitionType: transitionType,
                 transitionQualifiers: transitionQualifiers,
