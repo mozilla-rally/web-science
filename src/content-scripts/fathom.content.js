@@ -12,31 +12,24 @@
 
 import {ruleset, type} from "fathom-web";
 
-// TODO: change trainee to a Map
+let traineesAdded = false;
 
 // Add user rulesets to the window global
-function addTrainees(trainees) {
+function addTrainees(trainees, runFathom = true) {
     for (const [name, rules] of trainees) {
         window.webScience.fathom.trainees.set(name, rules);
     }
+    traineesAdded = true;
 }
 
 
 function runTrainee(ruleName, results, color = "red") { 
     const trainees = window.webScience.fathom.trainees;
-
-    // let rules = trainees.get(ruleName).rulesetMaker().rules();
-    // let coeffs = trainees.get(ruleName).coeffs;
-    // let bias = [[ruleName, trainees.get(ruleName).bias]];
-    // let finalRuleset = ruleset(rules, coeffs, bias);
-
     const trainee = trainees.get(ruleName);
     const facts = trainee.rulesetMaker().against(document);
     facts.setCoeffsAndBiases(trainee.coeffs, [[ruleName, trainee.bias]]); // bias not working properly
 
-
     // Run the ruleset
-    // const facts = finalRuleset.against(document);
     const allNodes = facts.get(type(ruleName)); 
 
     // For all candidate nodes, observe/borderize those with high scores
@@ -67,7 +60,6 @@ function runAllTrainees() {
     let results = new Map();
     for (const [ruleName, rules] of trainees) {
         runTrainee(ruleName, results)
-        // break;//TODO:remove
     }
     return results;
 }
@@ -101,6 +93,7 @@ function runAllTrainees() {
      */
     let pageClassified = false;
 
+
     // Function to call once pageManager is loaded
     function pageManagerLoaded() {
         console.log("pageManager loaded, running fathom content script");
@@ -110,33 +103,46 @@ function runAllTrainees() {
         // Background script will tell us if this page should be classified
         // and what Fathom rulesets to use
         browser.runtime.onMessage.addListener((message) => {
+
+            // Don't do anything if isClassifiable == false
             if (message.type !== "webScience.fathom.isClassifiable" ||
                 !message.isClassifiable) {
                 return;
             }
 
+            // Don't do anything if this page already ran fathom once
             if (pageClassified) {
                 console.log("Page already classified, returning");
                 return;
             }
 
-            // Set to true before we run to avoid parallel runs
-            pageClassified = true;
+            // Run fathom, but wait until trainees are added
+            function runFathom() {
+                if (!traineesAdded) {
+                    console.log("trainees not yet added");
+                    setTimeout(runFathom, 200);
+                }
+                else {
+                    // Set to true before we run to avoid parallel runs
+                    pageClassified = true;
 
-            console.log("Running fathom");
+                    console.log("Running fathom");
 
-            // run Fathom here
-            let results = runAllTrainees(message.trainees);
+                    // run Fathom here
+                    let results = runAllTrainees(message.trainees);
 
-            // Send results to background script
-            console.log("Sending fathom results");
-            console.log(results);
-            pageManager.sendMessage({
-                type: "webScience.fathom.fathomData",
-                test: "hello from content script",
-                results: results
-            });
-            console.log("Fathom results sent");
+                    // Send results to background script
+                    console.log("Sending fathom results");
+                    console.log(results);
+                    pageManager.sendMessage({
+                        type: "webScience.fathom.fathomData",
+                        test: "hello from content script",
+                        results: results
+                    });
+                    console.log("Fathom results sent");
+                }
+            }
+            runFathom();
         });
     }
 

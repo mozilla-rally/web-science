@@ -141,27 +141,22 @@ async function addListener(listener, {matchPatterns, trainees}) {
         browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             if ("url" in tab) {
                 classifiable = false;
-                traineesSet = {}
+                // Iterate over listenerRecords, check if this url matches any
                 for (const listenerRecord of fathomDataListeners.values()) {
                     if (listenerRecord.matchPatternSet.matches(tab.url)) {
-                        // Get all the relevant trainees, merge to traineesSet
-                        for (const trainee of listenerRecord.trainees.keys()) {
-                            if (trainee in traineesSet) {
-                                console.warn("Duplicate trainees found: " + trainee);
-                            }
-                            traineesSet[trainee] = listenerRecord.trainees.get(trainee);
-                            // traineesSet[trainee].rulesetMaker = traineesSet[trainee].rulesetMaker.toString();
-                            classifiable = true;
-                        }
+                        classifiable = true;
+                        break;
                     }
                 }
+
                 function sendIsClassifiable() {
                     messaging.sendMessageToTab(tabId, {
                         type: "webScience.fathom.isClassifiable",
                         isClassifiable: classifiable,
                     });
                 }
-                setTimeout(sendIsClassifiable, 3000); //TODO: remove
+                // setTimeout(sendIsClassifiable, 100); //TODO: remove
+                sendIsClassifiable();
             }
         });
     }
