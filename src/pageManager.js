@@ -153,7 +153,11 @@ const considerUserInputForAttention = true;
  * Additional information about a page visit start event.
  * @typedef {Object} PageVisitStartDetails
  * @param {string} pageId - The ID for the page, unique across browsing sessions.
- * @param {number} tabId - The ID for the tab containing the page, unique to the browsing session.
+ * @param {number} tabId - The ID for the tab containing the page, unique to the browsing session. Note that if
+ * you send a message to the content script in the tab, there is a possible race condition where the page in 
+ * the tab changes before your message arrives. You should specify a page ID (e.g., `pageId`) in your message to
+ * the content script, and the content script should check that page ID against its current page ID to ensure that
+ * the message was received by the intended page.
  * @param {number} windowId - The ID for the window containing the page, unique to the browsing session.
  * Note that tabs can subsequently move between windows.
  * @param {string} url - The URL of the page loading in the tab, without any hash.

@@ -130,6 +130,9 @@
          * page visits are from the opener tab.
          * @param {boolean} message.isOpenedTab - Whether the page is loading in a new tab that was
          * opened by another tab.
+         * @property {number} message.openerTabId - If the page is loading in a tab that was newly
+         * opened from another tab (i.e., `isOpenedTab` is `true`), the tab ID of the opener tab.
+         * Otherwise, `tabs.TAB_ID_NONE`.
          * @param {number} message.tabOpeningTimeStamp - The timestamp of when this page's tab was
          * opened, if the page is loading in a new tab that was opened by another tab. Otherwise 0.
          * @returns {boolean} Whether the background script update message was successfully used to
@@ -144,6 +147,7 @@
             pageVisitTimeCache,
             cachedPageVisitsForTab,
             isOpenedTab,
+            openerTabId,
             tabOpeningTimeStamp
         }) {
             // If no page visit has started, this must be a background script update
@@ -306,6 +310,7 @@
                 url: pageManager.url,
                 isHistoryChange,
                 isOpenedTab,
+                openerTabId,
                 transitionType: transitionType,
                 transitionQualifiers: transitionQualifiers,
                 tabSourcePageId,
