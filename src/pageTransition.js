@@ -158,15 +158,15 @@ permissions.check({
  * recommend against using referrers for analyzing page transitions.
  * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session. Note that if
  * you send a message to the content script in the tab, there is a possible race condition where the page in 
- * the tab changes before your message arrives. You should specify a page ID in your message to the content 
- * script, and the content script should check that page ID against its current page ID to ensure that the 
+ * the tab changes before your message arrives. You should specify a page ID (e.g., `pageId`) in your message to the
+ * content script, and the content script should check that page ID against its current page ID to ensure that the 
  * message was received by the intended page.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
  * @property {boolean} isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
  * @property {number} openerTabId - If the page is loading in a tab that was newly opened from another tab
  * (i.e., `isOpenedTab` is `true`), the tab ID of the opener tab. Otherwise, `tabs.TAB_ID_NONE`. Note that if
  * you send a message to the content script in the tab, there is a possible race condition where the page in 
- * the tab changes before your message arrives. You should specify a page ID (tabSourcePageId in this case) in your
+ * the tab changes before your message arrives. You should specify a page ID (e.g., `tabSourcePageId`) in your
  * message to the content script, and the content script should check that page ID against its current page ID to
  * ensure that the message was received by the intended page.
  * @property {string} transitionType - The transition type, from `webNavigation.onCommitted` or
@@ -179,8 +179,9 @@ permissions.check({
  * is opening in a new tab, then the URL of the most recent page in the opener tab. The value is `""` if there is no
  * such page.
  * @property {boolean} tabSourceClick - Whether the user recently clicked or pressed enter/return on the most recent
- * page in the same tab. If the page is opening in a new tab, then whether the user  URL of the most recent page in
- * the opener tab. The value is `false` if there is no such page.
+ * page in the same tab. If the page is loading in a tab that was newly opened by another tab, then whether the user
+ * recently clicked or pressed enter/return on the most recent page in the opener tab. The value is `false` if there
+ * is no such page.
  * @property {string} timeSourcePageId - The ID for the most recent page that loaded into any tab. If this is the
  * first page visit after the extension starts, the value is "". Note that we recommend against using time-based
  * page transition data.
