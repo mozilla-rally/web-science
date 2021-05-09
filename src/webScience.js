@@ -64,3 +64,6 @@ export { workers }
 
 import * as pageTransition from "./pageTransition.js"
 export { pageTransition }
+
+import * as fathom from "./fathom.js"
+export { fathom }
