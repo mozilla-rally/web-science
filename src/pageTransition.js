@@ -157,8 +157,19 @@ permissions.check({
  * @property {string} url - The URL of the page, without any hash.
  * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer. Note that we
  * recommend against using referrers for analyzing page transitions.
+ * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session. Note that if
+ * you send a message to the content script in the tab, there is a possible race condition where the page in 
+ * the tab changes before your message arrives. You should specify a page ID (e.g., `pageId`) in your message to the
+ * content script, and the content script should check that page ID against its current page ID to ensure that the 
+ * message was received by the intended page.
  * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
  * @property {boolean} isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
+ * @property {number} openerTabId - If the page is loading in a tab that was newly opened from another tab
+ * (i.e., `isOpenedTab` is `true`), the tab ID of the opener tab. Otherwise, `tabs.TAB_ID_NONE`. Note that if
+ * you send a message to the content script in the tab, there is a possible race condition where the page in 
+ * the tab changes before your message arrives. You should specify a page ID (e.g., `tabSourcePageId`) in your
+ * message to the content script, and the content script should check that page ID against its current page ID to
+ * ensure that the message was received by the intended page.
  * @property {string} transitionType - The transition type, from `webNavigation.onCommitted` or
  * `webNavigation.onHistoryStateUpdated`.
  * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted` or
@@ -169,8 +180,9 @@ permissions.check({
  * is opening in a new tab, then the URL of the most recent page in the opener tab. The value is `""` if there is no
  * such page.
  * @property {boolean} tabSourceClick - Whether the user recently clicked or pressed enter/return on the most recent
- * page in the same tab. If the page is opening in a new tab, then whether the user  URL of the most recent page in
- * the opener tab. The value is `false` if there is no such page.
+ * page in the same tab. If the page is loading in a tab that was newly opened by another tab, then whether the user
+ * recently clicked or pressed enter/return on the most recent page in the opener tab. The value is `false` if there
+ * is no such page.
  * @property {string} timeSourcePageId - The ID for the most recent page that loaded into any tab. If this is the
  * first page visit after the extension starts, the value is "". Note that we recommend against using time-based
  * page transition data.
@@ -421,6 +433,7 @@ async function initialize() {
         cachedPageVisitsForTab: "object",
         isHistoryChange: "boolean",
         isOpenedTab: "boolean",
+        openerTabId: "number",
         tabOpeningTimeStamp: "number"
     });
 
@@ -474,7 +487,7 @@ async function initialize() {
     });
 
     // When the event content script sends an update message, notify the relevant listeners
-    messaging.onMessage.addListener(eventUpdateMessage => {
+    messaging.onMessage.addListener((eventUpdateMessage, sender) => {
         for(const [listener, listenerRecord] of pageTransitionDataListeners) {
             if(eventUpdateMessage.privateWindow && !listenerRecord.privateWindows) {
                 continue;
@@ -484,8 +497,10 @@ async function initialize() {
                     pageId: eventUpdateMessage.pageId,
                     url: eventUpdateMessage.url,
                     referrer: eventUpdateMessage.referrer,
+                    tabId: sender.tab.id,
                     isHistoryChange: eventUpdateMessage.isHistoryChange,
                     isOpenedTab: eventUpdateMessage.isOpenedTab,
+                    openerTabId: eventUpdateMessage.openerTabId,
                     transitionType: eventUpdateMessage.transitionType,
                     transitionQualifiers: eventUpdateMessage.transitionQualifiers.slice(),
                     tabSourcePageId: eventUpdateMessage.tabSourcePageId,
@@ -504,6 +519,7 @@ async function initialize() {
             url: "string",
             isHistoryChange: "boolean",
             isOpenedTab: "boolean",
+            openerTabId: "number",
             transitionType: "string",
             transitionQualifiers: "object",
             tabSourcePageId: "string",
@@ -660,6 +676,7 @@ const openerTabCache = new Map();
 
     // Get the cached opener tab details if this is not a History API change
     let isOpenedTab = false;
+    let openerTabId = browser.tabs.TAB_ID_NONE;
     let tabOpeningTimeStamp = 0;
     if(!isHistoryChange) {
         const openerTabDetails = openerTabCache.get(tabId);
@@ -668,6 +685,7 @@ const openerTabCache = new Map();
         if(openerTabDetails !== undefined) {
             openerTabCache.delete(tabId);
             isOpenedTab = true;
+            openerTabId = openerTabDetails.openerTabId;
             tabOpeningTimeStamp = openerTabDetails.timeStamp;
             cachedPageVisitsForTab = pageVisitTabCache.get(openerTabDetails.openerTabId);
         }
@@ -686,6 +704,7 @@ const openerTabCache = new Map();
         pageVisitTimeCache,
         cachedPageVisitsForTab: (cachedPageVisitsForTab !== undefined) ? cachedPageVisitsForTab : { },
         isOpenedTab,
+        openerTabId,
         tabOpeningTimeStamp
     });
 
