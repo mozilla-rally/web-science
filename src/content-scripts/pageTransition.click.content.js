@@ -2,10 +2,11 @@
  * Content script for the pageTransition module that observes clicks on pages and notifies the
  * module's background script. We use a separate pageTransition content script for generating
  * `pageTransition.onPageTransitionData` event data, because the content scripts should run on
- * different sets of pages. We consider document `click`, `contextmenu`, and `keyup`
- * enter/return key events to be identical, since the use could open a link in any of these
- * ways. We also require that a page have the user's attention to consider a click, since
- * otherwise the click was initiated by a script.
+ * different sets of pages. We consider document `mouseup`, `contextmenu`, and `keyup`
+ * enter/return key events to be identical, since the user could open a link with a left click,
+ * a right click (using the context menu), or pressing enter/return on a selected link. We also
+ * require that a page have the user's attention to consider a click, since otherwise the click
+ * was likely initiated by a script.
  *
  * @module webScience.pageTransition.click.content
  */
@@ -48,16 +49,20 @@
         let lastSentClickTimeStamp = 0;
 
         /**
-         * Handle document `click` and `keyup` events.
+         * Handle document `mouseup`, `contextmenu`, and `keyup` (with the enter key) events.
+         * @param {Event} event - The DOM event.
          */
-        const handleClickEvent = function() {
+        const handleClickEvent = function(event) {
             // If the page doesn't have the user's attention, ignore the click
             if(!pageManager.pageHasAttention) {
                 return;
             }
 
+            // Compute the event timestamp on the global monotonic clock
+            const timeStamp = window.performance.timeOrigin + event.timeStamp;
+
             // Queue the click for reporting to the background script
-            clickTimeStamps.push(Date.now());
+            clickTimeStamps.push(timeStamp);
 
             // If there's already a pending debounce timer, let it handle the click
             if(clickDebounceTimeoutID > 0) {
@@ -110,10 +115,19 @@
             lastSentClickTimeStamp = 0;
         });
 
-        // When the page visit stop event fires, store page click data in the window
-        // global for the event content script. We use this stored data if there's
-        // a History API load.
+        // When the page visit stop event fires, send the most recent click
+        // even if we haven't waited the debounce time. This is important
+        // for handling a race condition in the interaction between the
+        // debounce delay and how recently the user must have clicked on a
+        // page to treat the click as a click transition for another page.
+        // Also store page click data in the window global for the event
+        // content script. We use this stored data if there's a History API
+        // load.
         pageManager.onPageVisitStop.addListener(() => {
+            // We have to call notifyBackgroundScript before storing the most
+            // recent click in window.webScience.pageTransition, because
+            // notifyBackgroundScript could update the lastSentClickTimeStamp.
+            notifyBackgroundScript();
             if(!("webScience" in window)) {
                 window.webScience = { };
             }
@@ -124,23 +138,21 @@
             window.webScience.pageTransition.lastClickTimeStamp = lastSentClickTimeStamp;
         });
 
-        // When the page visit stop event fires, send the most recent click
-        // even if we haven't waited the debounce time. This is important
-        // for handling a race condition in the interaction between the
-        // debounce delay and how recently the user must have clicked on a
-        // page to treat the click as a click transition for another page.
-        pageManager.onPageVisitStop.addListener(notifyBackgroundScript);
-
-        // Handle mouse click events. The click event captures all clicks, except those
-        // that trigger the context menu (e.g., right click or control + click). We observe
-        // those events with the contextmenu event.
-        document.addEventListener("click", handleClickEvent);
+        // Handle mouse click events. We listen for the mouseup event rather than the
+        // click event because certain websites (e.g., YouTube) cancel the click event
+        // for a link as it bubbles through the DOM. We also listen for the contextmenu
+        // event because mouseup does not consistently fire for right clicks in Firefox
+        // (it does not fire if the user chooses to open a link in a new tab or window
+        // before releasing the right mouse button) and because mouseup does not fire
+        // at all for right clicks in Chrome. It's OK if handleClickEvent is called
+        // for more than one event caused by the same click.
+        document.addEventListener("mouseup", handleClickEvent);
         document.addEventListener("contextmenu", handleClickEvent);
 
         // Handle keyboard events.
         document.addEventListener("keyup", event => {
             if(event.code === "Enter") {
-                handleClickEvent();
+                handleClickEvent(event);
             }
         });
     };

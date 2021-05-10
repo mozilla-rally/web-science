@@ -32,6 +32,7 @@
  * @module webScience.userSurvey
  */
 import * as id from "./id.js";
+import * as timing from "./timing.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
 import * as inline from "./inline.js";
@@ -169,7 +170,7 @@ async function openSurveyInNewTab() {
  * @private
  */
 function scheduleReminderForUser() {
-    reminderTimeoutId = setTimeout(remindUser, Math.max((lastSurveyRequest + reminderInterval * millisecondsPerSecond) - Date.now(), 0));
+    reminderTimeoutId = setTimeout(remindUser, Math.max((lastSurveyRequest + reminderInterval * millisecondsPerSecond) - timing.now(), 0));
 }
 
 /**
@@ -182,7 +183,7 @@ async function remindUser() {
     if (surveyCompleted || surveyCancelled) {
         return;
     }
-    lastSurveyRequest = Date.now();
+    lastSurveyRequest = timing.now();
     await storageSpace.set("lastSurveyRequest", lastSurveyRequest);
     browser.notifications.create({
         type: "image",
@@ -260,7 +261,7 @@ export async function setSurvey(options) {
         throw new Error("userSurvey only supports one survey at a time. Complete the survey that has previously been set.");
     }
 
-    const currentTime = Date.now();
+    const currentTime = timing.now();
     ({surveyUrl,reminderInterval, reminderTitle, reminderMessage } = surveyDetails);
     browser.storage.local.set({
         "webScience.userSurvey.popupPromptMessage": surveyDetails.popupPromptMessage

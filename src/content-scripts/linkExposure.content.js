@@ -4,6 +4,7 @@
  */
 
 import { urlToPS1 } from "../linkResolution.js";
+import * as timing from "../timing.js";
 import { urlShortenerWithContentMatchPatterns } from "../data/urlShortenersWithContent.js";
 import { createMatchPatternSet } from "../matching.js";
 
@@ -193,7 +194,7 @@ import { createMatchPatternSet } from "../matching.js";
      * A timer callback function that checks links (anchor elements) in the DOM.
      */
     function timerTick() {
-        const timeStamp = Date.now();
+        const timeStamp = timing.now();
 
         // Iterate all the links currently on the page (i.e., anchor elements with an href attribute)
         forEachAnchorElement(anchorElement => {
@@ -274,7 +275,7 @@ import { createMatchPatternSet } from "../matching.js";
      * @param {IntersectionObserverEntry[]} entries - Updates from the IntersectionObserver that is observing anchor elements.
      */
     function anchorObserverCallback(entries) {
-        const timeStamp = Date.now();
+        const timeStamp = timing.now();
         entries.forEach(entry => {
             const anchorElement = entry.target;
             const linkInfo = anchorElements.get(anchorElement);

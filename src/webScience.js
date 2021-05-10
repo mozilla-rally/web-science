@@ -8,6 +8,9 @@ export { inline }
 import * as debugging from "./debugging.js"
 export { debugging }
 
+import * as timing from "./timing.js"
+export { timing }
+
 import * as permissions from "./permissions.js"
 export { permissions }
 
