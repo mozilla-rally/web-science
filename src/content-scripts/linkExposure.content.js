@@ -4,6 +4,8 @@
  */
 
 import { urlToPS1 } from "../linkResolution.js";
+import { urlShortenerWithContentMatchPatterns } from "../data/urlShortenersWithContent.js";
+import { createMatchPatternSet } from "../matching.js";
 
 // async IIFE wrapper to enable await syntax and early returns
 (async function () {
@@ -43,6 +45,13 @@ import { urlToPS1 } from "../linkResolution.js";
      * @constant {boolean}
      */
     const ignoreSelfLinks = true;
+
+    /**
+     * A match pattern set of URL shorteners with content. We except these URL
+     * shorteners from immediately being considered self-links, since they
+     * might resolve to a URL that isn't a self-link.
+     */
+    const urlShortenerWithContentMatchPatternSet = createMatchPatternSet(urlShortenerWithContentMatchPatterns);
 
     /**
      * The minimum duration (in milliseconds) that a link must be visible to treat it as an exposure.
@@ -129,6 +138,7 @@ import { urlToPS1 } from "../linkResolution.js";
 
     /**
      * The public suffix + 1 for the page URL.
+     * @type {string}
      */
     let pagePS1 = "";
 
@@ -145,9 +155,9 @@ import { urlToPS1 } from "../linkResolution.js";
         if(!linkInfo.observing) {
             return;
         }
-        // If user is currently exposed to the link (i.e., the page has attention, the link is in the
-        // viewport, and the link is visible), accumulate how long the link exposure lasted and
-        // move up the link exposure start time
+        // If the user is currently exposed to the link (i.e., the page has attention, the link is
+        // in the viewport, and the link is visible), accumulate how long the link exposure lasted
+        // and move up the link exposure start time
         if(pageManager.pageHasAttention && linkInfo.inViewport && isElementVisible(anchorElement)) {
             if(linkInfo.lastExposureStartTime > 0) {
                 linkInfo.totalTimeExposed += timeStamp - linkInfo.lastExposureStartTime;
@@ -193,10 +203,14 @@ import { urlToPS1 } from "../linkResolution.js";
             if (linkInfo === undefined) {
                 const url = linkUrlToAbsoluteUrl(anchorElement.href);
 
-                // Check if the link URL PS+1 matches the page PS+1
+                // Check if the link URL PS+1 matches the page PS+1.
                 // If there's a match and we're ignoring self links,
-                // don't observe the link
-                if(ignoreSelfLinks && (urlToPS1(url) === pagePS1)) {
+                // don't observe the link.
+                // We exempt URL shorteners with content from this
+                // check, since the resolved URL might not be a self-link.
+                if(ignoreSelfLinks &&
+                    (urlToPS1(url) === pagePS1) &&
+                    !urlShortenerWithContentMatchPatternSet.matches(url)) {
                     anchorElements.set(anchorElement, { observing: false });
                     return;
                 }
@@ -288,6 +302,7 @@ import { urlToPS1 } from "../linkResolution.js";
         lastLostAttention = -1;
         anchorElements = new WeakMap();
         pagePS1 = urlToPS1(pageManager.url);
+
         exposedLinkURLs = [];
 
         // Start the timer ticking

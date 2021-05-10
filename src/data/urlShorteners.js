@@ -4,6 +4,11 @@
  * website-specific shorteners that we might encounter performance issues).
  * We extract URL shortener domains from each source, lowercase, sort,
  * deduplicate, and convert to match patterns with wildcard scheme and path.
+ * 
+ * Additional manual curation:
+ *   * Added Google News article links.
+ *   * Removed Newsday.
+ * 
  * @constant {string[]}
  * @see {@link https://github.com/apache/spamassassin/blob/trunk/rulesrc/sandbox/pds/20_urlshort.cf}
  * @see {@link https://github.com/boutetnico/url-shorteners/blob/master/list.txt}
@@ -1089,7 +1094,7 @@ export const urlShortenerMatchPatterns = [
     "*://net46.net/*",
     "*://netnet.me/*",
     "*://netshortcut.com/*",
-    "*://newsday.com/*",
+    "*://news.google.com/articles/*",
     "*://newser.me/*",
     "*://newspr.es/*",
     "*://newsy.com/*",
