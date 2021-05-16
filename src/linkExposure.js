@@ -18,12 +18,6 @@ import * as inline from "./inline.js";
 import * as permissions from "./permissions.js";
 import linkExposureContentScript from "./content-scripts/linkExposure.content.js";
 
-permissions.check({
-    module: "webScience.linkExposure",
-    requiredPermissions: [ "storage" ],
-    suggestedPermissions: [ "unlimitedStorage" ]
-});
-
 /**
  * Ignore links where the link URL PS+1 is identical to the page URL PS+1.
  * Note that there is another ignoreSelfLinks constant in the linkExposure
@@ -136,11 +130,12 @@ export const onLinkExposureUpdate = events.createEvent({
 });
 
 /**
- * Whether the messaging.onMessage listener has been added.
+ * Whether the module has been initialized by checking permissions and adding a
+ * messaging.onMessage listener.
  * @type {boolean}
  * @private
  */
-let addedMessageListener = false;
+let initialized = false;
 
 /**
  * Callback for adding an onLinkExposureUpdate listener.
@@ -151,7 +146,15 @@ let addedMessageListener = false;
 async function addUpdateListener(listener, { linkMatchPatterns, pageMatchPatterns, privateWindows = false }) {
     // Initialization
     await pageManager.initialize();
-    if(!addedMessageListener) {
+    if(!initialized) {
+        initialized = true;
+        
+        permissions.check({
+            module: "webScience.linkExposure",
+            requiredPermissions: [ "storage" ],
+            suggestedPermissions: [ "unlimitedStorage" ]
+        });
+
         messaging.onMessage.addListener(messageListener, {
             type: "webScience.linkExposure.linkExposureUpdate",
             schema: {
@@ -161,7 +164,6 @@ async function addUpdateListener(listener, { linkMatchPatterns, pageMatchPattern
                 linkUrls: "object"
             }
         });
-        addedMessageListener = true;
     }
 
     // Compile the match patterns for link URLs and page URLs

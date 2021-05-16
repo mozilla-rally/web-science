@@ -127,12 +127,6 @@ import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
 import pageManagerContentScript from "./content-scripts/pageManager.content.js";
 
-permissions.check({
-    module: "webScience.pageManager",
-    requiredPermissions: [ "webNavigation" ],
-    suggestedOrigins: [ "<all_urls>" ]
-});
-
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,
  * based on mouse and keyboard input.
@@ -377,6 +371,12 @@ export async function initialize() {
         return;
     }
     initializing = true;
+
+    permissions.check({
+        module: "webScience.pageManager",
+        requiredPermissions: [ "webNavigation" ],
+        suggestedOrigins: [ "<all_urls>" ]
+    });
 
     // Register message listeners and schemas for communicating with the content script
 

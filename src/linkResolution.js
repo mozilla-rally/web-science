@@ -15,12 +15,6 @@ import { parse as tldtsParse } from "tldts";
 import linkResolutionTwitterContentScript from "./content-scripts/linkResolution.twitter.content.js";
 import linkResolutionGoogleNewsContentScript from "./content-scripts/linkResolution.googleNews.content.js";
 
-permissions.check({
-    module: "webScience.linkResolution",
-    requiredPermissions: [ "webRequest", "webRequestBlocking" ],
-    suggestedOrigins: [ "<all_urls>" ]
-});
-
 // AMP caches and viewers
 
 /**
@@ -487,6 +481,12 @@ export function initialize() {
         return;
     }
     initialized = true;
+
+    permissions.check({
+        module: "webScience.linkResolution",
+        requiredPermissions: [ "webRequest", "webRequestBlocking" ],
+        suggestedOrigins: [ "<all_urls>" ]
+    });
 
     // URL resolution via HTTP requests
     

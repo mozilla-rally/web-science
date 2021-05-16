@@ -29,6 +29,7 @@
  * are currently the following additional `script-src` values.
  *   * `'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='`
  *   * `'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='`
+ * 
  * @module webScience.userSurvey
  */
 import * as id from "./id.js";
@@ -39,14 +40,6 @@ import * as inline from "./inline.js";
 import * as permissions from "./permissions.js";
 import popupPromptPage from "./html/userSurvey.popupPrompt.html";
 import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
-
-permissions.check({
-    module: "webScience.userSurvey",
-    requiredPermissions: [ "notifications", "webRequest" ],
-    requiredContentSecurityPolicy: {
-        "script-src": [ "'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='", "'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='" ]
-    }
-});
 
 /**
  * A persistent storage space for data about surveys.
@@ -244,6 +237,14 @@ function surveyCompletionUrlListener() {
  * @param {SurveyOptions} options - The options for the survey.
  */
 export async function setSurvey(options) {
+    permissions.check({
+        module: "webScience.userSurvey",
+        requiredPermissions: [ "notifications", "webRequest" ],
+        requiredContentSecurityPolicy: {
+            "script-src": [ "'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='", "'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='" ]
+        }
+    });
+
     initializeStorage();
 
     let surveyDetails = await storageSpace.get("surveyDetails");

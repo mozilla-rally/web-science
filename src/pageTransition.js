@@ -143,12 +143,6 @@ import * as timing from "./timing.js";
 import * as pageManager from "./pageManager.js";
 import pageTransitionEventContentScript from "./content-scripts/pageTransition.event.content.js";
 import pageTransitionClickContentScript from "./content-scripts/pageTransition.click.content.js";
- 
-permissions.check({
-    module: "webScience.pageTransition",
-    requiredPermissions: [ "webNavigation" ],
-    suggestedOrigins: [ "<all_urls>" ]
-});
 
 /**
  * The details of a page transition data event.
@@ -324,6 +318,12 @@ async function initialize() {
         return;
     }
     initialized = true;
+
+    permissions.check({
+        module: "webScience.pageTransition",
+        requiredPermissions: [ "webNavigation" ],
+        suggestedOrigins: [ "<all_urls>" ]
+    });
 
     await pageManager.initialize();
 

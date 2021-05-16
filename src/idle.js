@@ -42,11 +42,6 @@ import * as events from "./events.js";
 import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
 
-permissions.check({
-    module: "webScience.idle",
-    requiredPermissions: [ "idle" ]
-});
-
 /**
  * The minimum idle state detection interval (in seconds) supported by
  * the `idle` API.
@@ -110,11 +105,19 @@ async function initialize() {
         return;
     }
     initialized = true;
+
+    permissions.check({
+        module: "webScience.idle",
+        requiredPermissions: [ "idle" ]
+    });
+
     browser.idle.setDetectionInterval(minimumIdleStateDetectionIntervalInSeconds);
+
     currentIdleState = await browser.idle.queryState(minimumIdleStateDetectionIntervalInSeconds);
     if(currentIdleState === "idle") {
         lastIdleTime = timing.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000);
     }
+    
     browser.idle.onStateChanged.addListener(idleOnStateChangedListener);
 }
 

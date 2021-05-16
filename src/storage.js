@@ -13,11 +13,28 @@
 
 import * as permissions from "./permissions.js";
 
-permissions.check({
-    module: "webScience.storage",
-    requiredPermissions: [ "storage" ],
-    suggestedPermissions: [ "unlimitedStorage" ]
-});
+/**
+ * Whether permissions have been checked for the module.
+ * @type {boolean}
+ * @private
+ */
+let checkedPermissions = false;
+
+/**
+ * Check permissions for the module.
+ * @private
+ */
+function checkPermissions() {
+    if(checkedPermissions) {
+        return;
+    }
+    checkedPermissions = true;
+    permissions.check({
+        module: "webScience.storage",
+        requiredPermissions: [ "storage" ],
+        suggestedPermissions: [ "unlimitedStorage" ]
+    });
+}
 
 /**
  * Create a key-value storage area.
@@ -26,6 +43,7 @@ permissions.check({
  * @example const exampleStorage = createKeyValueStorage("exampleName"));
  */
 export function createKeyValueStorage(storageAreaName) {
+    checkPermissions();
     return new KeyValueStorage(storageAreaName);
 }
 
@@ -176,6 +194,7 @@ class KeyValueStorage {
  * @returns {Counter} The new Counter object.
  */
 export async function createCounter(counterName) {
+    checkPermissions();
     const counter = new Counter(counterName);
     await counter.initialize();
     return counter;
