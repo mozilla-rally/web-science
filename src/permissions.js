@@ -164,7 +164,7 @@ export async function check({
     // See https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_Security_Policy
     let manifestContentSecurityPolicyString = "script-src 'self'; object-src 'self';";
     const manifest = browser.runtime.getManifest();
-    if("content_security_policy" in manifest) {
+    if(("content_security_policy" in manifest) && (manifest["content_security_policy"] !== null)) {
         manifestContentSecurityPolicyString = manifest["content_security_policy"];
     }
     const manifestContentSecurityPolicy = parseContentSecurityPolicy(manifestContentSecurityPolicyString);
