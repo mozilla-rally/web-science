@@ -581,7 +581,7 @@ const registeredUrlMappings = new Map();
 /**
  * A map of page IDs to sets of registered URL mappings. The mappings are automatically unregistered shortly after
  * a page visit ends.
- * @constant {Map<string, Set<RegisteredUrlMappings>}
+ * @constant {Map<string, Set<RegisteredUrlMappings>>}
  * @private
  */
 const pageIdsWithRegisteredUrlMappings = new Map();

@@ -597,7 +597,7 @@ const pageVisitTimeCacheExpiry = 1000;
 /**
  * A map where keys are tab IDs and values are maps, represented as objects, where keys
  * are page IDs and values are PageVisitCachedDetails objects.
- * @constant {Map<number, Object}
+ * @constant {Map<number, Object>}
  * @private
  */
 const pageVisitTabCache = new Map();
