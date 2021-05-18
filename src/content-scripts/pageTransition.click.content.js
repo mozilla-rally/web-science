@@ -8,7 +8,7 @@
  * require that a page have the user's attention to consider a click, since otherwise the click
  * was likely initiated by a script.
  *
- * @module webScience.pageTransition.click.content
+ * @module pageTransition.click.content
  */
 
 // IIFE encapsulation to allow early return
@@ -58,7 +58,7 @@
                 return;
             }
 
-            // Compute the event timestamp on the global monotonic clock
+            // Compute the event timestamp on the shared monotonic clock
             const timeStamp = window.performance.timeOrigin + event.timeStamp;
 
             // Queue the click for reporting to the background script

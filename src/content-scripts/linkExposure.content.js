@@ -1,6 +1,6 @@
 /**
  * Content script for the linkExposure module.
- * @module webScience.linkExposure.content
+ * @module linkExposure.content
  */
 
 import { urlToPS1 } from "../linkResolution.js";
@@ -295,7 +295,7 @@ import { createMatchPatternSet } from "../matching.js";
     const observer = new IntersectionObserver(anchorObserverCallback, { threshold: linkMinimumVisibility });
 
     /**
-     * A listener function for pageManager.onPageVisitStart. Resets page-specific data and starts the
+     * A listener for pageManager.onPageVisitStart. Resets page-specific data and starts the
      * timer ticking.
      */
     function pageVisitStartListener () {
@@ -311,7 +311,7 @@ import { createMatchPatternSet } from "../matching.js";
     }
 
     /**
-     * A listener function for pageManager.onPageVisitStop. Clears the timer and intersection observer.
+     * A listener for pageManager.onPageVisitStop. Clears the timer and intersection observer.
      */
     function pageVisitStopListener() {
         // There might be links queued for reporting, so report them
@@ -322,7 +322,7 @@ import { createMatchPatternSet } from "../matching.js";
     }
 
     /**
-     * A listener function for pageManager.onPageAttentionUpdate.
+     * A listener for pageManager.onPageAttentionUpdate.
      * @param {Options} details
      * @param {number} details.timeStamp
      */

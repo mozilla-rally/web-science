@@ -3,21 +3,21 @@
  * background page and content script environments. Messages between the
  * environments are easily malformed, and minor errors in message handlers
  * can have cascading effects. These problems can be quite difficult to debug.
- * This module addresses these issue by providing a simple message type and
+ * This module addresses these issues by providing a simple message type and
  * type checking system on top of `browser.runtime.onMessage` and
  * `browser.tabs.sendMessage`.
  * 
- * # Messages
+ * ## Messages
  * A message, for purposes of this module, must be an object and must have a
  * type property with a string value.
  * 
- * # Schemas
+ * ## Schemas
  * A schema, for purposes of this module, must be an object. Each property in
  * the schema object is a property that is required in a corresponding message
  * object. Each value in the schema object is a string that must match the
  * `typeof` value for that property in a corresponding message.
  * 
- * @module webScience.messaging
+ * @module messaging
  */
 
 import * as debugging from "./debugging.js";
@@ -149,12 +149,22 @@ function browserRuntimeListener(message, sender, sendResponse) {
 
 
 /**
+ * A listener for the `onMessage` event. See the documentation for
+ * `browser.runtime.onMessage` for additional detail on the parameters and
+ * using a `Promise` return value to send an asynchronous response.
  * @callback onMessageListener
+ * @memberof module:messaging.onMessage
  * @param {Object} message - The received message with a matching type string.
+ * @param {browser.runtime.MessageSender} sender - The sender of the message.
+ * @param {Function} sendResponse - A function that, when called, sends a
+ * response to the message.
+ * @returns {Promise|undefined} 
  */
 
 /**
- * @callback OnMessageAddListener
+ * Add a listener for the `onMessage` event.
+ * @function addListener
+ * @memberof module:messaging.onMessage
  * @param {onMessageListener} listener - The listener to add.
  * @param {Object} options - Options for the listener.
  * @param {string} options.type - A unique string that identifies the message type.
@@ -162,33 +172,31 @@ function browserRuntimeListener(message, sender, sendResponse) {
  */
 
 /**
- * @callback OnMessageRemoveListener
+ * Remove a listener for the `onMessage` event.
+ * @function removeListener
+ * @memberof module:messaging.onMessage
  * @param {onMessageListener} listener - The listener to remove.
  */
 
 /**
- * @callback OnMessageHasListener
+ * Whether a specified listener has been added for the `onMessage` event.
+ * @function hasListener
+ * @memberof module:messaging.onMessage
  * @param {onMessageListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
 
 /**
- * @callback OnMessageHasAnyListeners
+ * Whether the `onMessage` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:messaging.onMessage
  * @returns {boolean} Whether the event has any listeners.
- */
-
-/**
- * @typedef {Object} OnMessageEvent
- * @property {OnMessageAddListener} addListener - Add a listener for messages.
- * @property {OnMessageRemoveListener} removeListener - Remove a listener for messages.
- * @property {OnMessageHasListener} hasListener - Whether a specified listener has been added.
- * @property {OnMessageHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
  */
 
 /**
  * An event that fires when the background script environment receives a message, usually from
  * a content script.
- * @constant {OnMessageEvent}
+ * @namespace
  */
 export const onMessage = events.createEvent({
     name: "webScience.messaging.onMessage",
@@ -203,8 +211,8 @@ export const onMessage = events.createEvent({
 
 /**
  * Registers a message listener.
- * @param {string} messageType - The type of message that triggers the listener function.
- * @param {Function} messageListener - The listener function, which receives the same
+ * @param {string} messageType - The type of message that triggers the listener.
+ * @param {Function} messageListener - The listener, which receives the same
  * parameters as if it had been called by `browser.runtime.onMessage`, and that can
  * return the same values as a listener to `browser.runtime.onMessage`.
  * @param {Object} [messageSchema] - An optional schema to register for the message type.
@@ -230,8 +238,8 @@ function registerListener(messageType, messageListener, messageSchema) {
 
 /**
  * Unregisters a message listener.
- * @param {string} messageType - The type of message that triggers the listener function.
- * @param {Function} messageListener - The listener function.
+ * @param {string} messageType - The type of message that triggers the listener.
+ * @param {Function} messageListener - The listener.
  * @private
  */
 function unregisterListener(messageType, messageListener) {

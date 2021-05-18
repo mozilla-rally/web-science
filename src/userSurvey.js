@@ -1,7 +1,8 @@
 /**
- * A module to facilitate surveys of study participants.
+ * A module to facilitate surveys of study participants. See the
+ * documentation for `setSurvey` for additional details about usage.
  * 
- * # User Experience
+ * ## User Experience
  *   * If the user has not been previously prompted for the survey,
  *     the survey will open in a new tab.
  *   * The study's browser action popup will contain either a page
@@ -12,17 +13,14 @@
  *     has not completed or declined the survey, the user will be
  *     reminded to complete the survey with a browser notification
  *     at a set interval.
- *   * View the documentation for the exported functions for additional
- *     details about usage.
  * 
- * 
- * # Limitations
+ * ## Limitations
  * Note that this module is currently very limited: it only supports
  * one survey at a time per study, with few options and a constrained design.
  * We have not yet decided whether to build out this module or implement
  * survey functionality in the Rally core add-on.
  * 
- * # Content Security Policy Requirements
+ * ## Content Security Policy Requirements
  * This module depends on inline scripts in browser action popups, which
  * require special Content Security Policy permissions in the extension
  * manifest (the `"content_security_policy"` key). Those permissions
@@ -30,8 +28,9 @@
  *   * `'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='`
  *   * `'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='`
  * 
- * @module webScience.userSurvey
+ * @module userSurvey
  */
+
 import * as id from "./id.js";
 import * as timing from "./timing.js";
 import * as storage from "./storage.js";
@@ -115,33 +114,6 @@ let surveyUrl = "";
 const millisecondsPerSecond = 1000;
 
 /**
- * Options for configuring a survey.
- * @typedef {Object} SurveyOptions
- * @param {string} surveyName - A unique name for the survey within the study.
- * @param {string} popupNoPromptMessage - A message to present to the
- * user when there is no survey to prompt.
- * @param {string} popupPromptMessage - A message to present to the user
- * when there is a survey to prompt.
- * @param {string} [popupIcon] - A path to an icon file, relative
- * to the study extension's root, to use for for the browser action popup.
- * This property is optional as the popup does not need to display an icon.
- * @param {string} [reminderIcon] - A path to an icon file, relative
- * to the study extension's root, to use for for reminding the user with a
- * notification to complete the survey. This property is optional as the
- * notification does not need to display an icon.
- * @param {number} reminderInterval - How often, in seconds, to wait before
- * reminding the user with a notification to participate in the survey.
- * @param {string} reminderMessage - The message to use for reminding the
- * user with a notification to complete the survey.
- * @param {string} reminderTitle - The title to use for reminding the
- * user with a notification to complete the survey.
- * @param {string} surveyCompletionUrl - A URL that, when loaded,
- * indicates the user has completed the survey.
- * @param {string} surveyUrl - The URL for the survey on an external
- * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
- */
-
-/**
  * Opens the survey URL in a new browser tab, appending parameters
  * for the participant's survey ID (surveyID) and timezone offset
  * (timezone).
@@ -219,22 +191,52 @@ function surveyCompletionUrlListener() {
 }
 
 /**
- * Prompt the user to respond to a survey. There can only be one survey running at a time.
- * To run a single survey in a study, simply call setSurvey with the specified SurveyOptions object.
- * If there is more than one survey in a study, endSurvey must be called after every survey
- * before starting the next survey.
+ * Prompt the user to respond to a survey. There can only be one current survey at a time.
  * 
- * # Usage Notes
- *   * If there is no active survey, saves the options parameter to storage and
- *     starts the survey based on this parameter.
- *   * If there is an active survey and options.surveyName matches the name of
- *     the active survey, continues the survey based on the options in storage.
- *     This allows for studies with only one survey to simply call this function
- *     with the survey options on study extension startup.
- *   * If there is already an active survey and options.surveyName does not match
- *     the name of the active survey, throws an error as there can only be one
- *     active survey at a time.
- * @param {SurveyOptions} options - The options for the survey.
+ * ##### Survey Behavior
+ *   * If there is no current survey (i.e., if `setSurvey` was not previously called or
+ *     `endSurvey` was called after `setSurvey`), this function creates a new current
+ *     survey with the provided options, persists current survey details in storage, and
+ *     configures survey UX.
+ *   * If there is a current survey and `options.surveyName` matches the name of the
+ *     current survey, this function continues the current survey with the details persisted
+ *     in storage and configures survey UX.
+ *   * If there is already a current survey and `options.surveyName` does not match the
+ *     name of the current survey, throws an `Error` as there can only be one current survey
+ *     at a time.
+ * 
+ * ##### Single-Survey Studies
+ *   If your study involves a single survey, call `setSurvey` when you first want to prompt
+ *   the user to complete the survey, then call `setSurvey` with an identical survey name on
+ *   subsequent extension startups to continue the survey.
+ * 
+ * ##### Multi-Survey Studies
+ *   If there is more than one survey in your study, you must call `endSurvey` for the current
+ *   survey before calling `setSurvey` for the next survey.
+ * 
+ * @param {Object} options - The options for the survey.
+ * @param {string} options.surveyName - A unique name for the survey within the study.
+ * @param {string} options.popupNoPromptMessage - A message to present to the
+ * user when there is no survey to prompt.
+ * @param {string} options.popupPromptMessage - A message to present to the user
+ * when there is a survey to prompt.
+ * @param {string} [options.popupIcon] - A path to an icon file, relative
+ * to the study extension's root, to use for for the browser action popup.
+ * This property is optional as the popup does not need to display an icon.
+ * @param {string} [options.reminderIcon] - A path to an icon file, relative
+ * to the study extension's root, to use for for reminding the user with a
+ * notification to complete the survey. This property is optional as the
+ * notification does not need to display an icon.
+ * @param {number} options.reminderInterval - How often, in seconds, to wait before
+ * reminding the user with a notification to participate in the survey.
+ * @param {string} options.reminderMessage - The message to use for reminding the
+ * user with a notification to complete the survey.
+ * @param {string} options.reminderTitle - The title to use for reminding the
+ * user with a notification to complete the survey.
+ * @param {string} options.surveyCompletionUrl - A URL that, when loaded,
+ * indicates the user has completed the survey.
+ * @param {string} options.surveyUrl - The URL for the survey on an external
+ * platform (e.g., SurveyMonkey, Typeform, Qualtrics, etc.).
  */
 export async function setSurvey(options) {
     permissions.check({
@@ -338,11 +340,11 @@ export async function setSurvey(options) {
 
 /**
  * Each study participant has a persistent survey ID, generated with
- * the id module. The ID is automatically added as a parameter to
+ * the `id` module. The ID is automatically added as a parameter to
  * the survey URL, enabling researchers to import survey data from an
  * external platform and sync it with Rally data. This method returns the
  * survey ID, generating it if it does not already exist.
- * @returns {string} - The participant's survey ID.
+ * @returns {Promise<string>} - The participant's survey ID.
  */
 export async function getSurveyId() {
     initializeStorage();
@@ -357,8 +359,9 @@ export async function getSurveyId() {
 /**
  * Gets the status of the current survey. Can be used if a
  * subsequent survey depends on the status of the previous survey.
- * @returns {string|null} - The status of the survey (either "completed",
- * "cancelled", or "active") or null if there is no survey.
+ * @returns {Promise<string>|Promise<null>} - The status of the current
+ * survey ("completed", "cancelled", or "active"), or null if there is no
+ * current survey.
  */
 export async function getSurveyStatus() {
     initializeStorage();
@@ -380,7 +383,7 @@ export async function getSurveyStatus() {
 
 /**
  * Gets the name of the current survey.
- * @returns {string|null} - The name of the current survey. Returns null
+ * @returns {Promise<string>|Promise<null>} - The name of the current survey. Returns null
  * if there is no current survey.
  */
 export async function getSurveyName() {
@@ -390,7 +393,10 @@ export async function getSurveyName() {
 }
 
 /**
- * End the current survey. Should be called before a subsequent survey is started.
+ * End the current survey. If there is a current survey, you must call
+ * this function before starting a new survey.
+ * @returns {Promise} A Promise that resolves when the survey has been
+ * ended.
  */
 export async function endSurvey() {
     // Stop prompting for the survey.

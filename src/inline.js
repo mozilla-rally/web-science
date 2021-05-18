@@ -1,7 +1,7 @@
 /**
  * This module provides utilities for working with inlined content.
  * 
- * @module webScience.inline
+ * @module inline
  */
 
 /**

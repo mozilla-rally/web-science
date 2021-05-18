@@ -106,7 +106,7 @@
  *     message sending Promise remains open. This error does not affect functionality,
  *     because we do not depend on resolving the Promise (i.e., a response to the
  *     page visit stop message).
- * @module webScience.pageManager.content
+ * @module pageManager.content
  */
 
 import { generateId } from "../id.js";
@@ -202,10 +202,10 @@ import { createEvent } from "../events.js";
     /**
      * @typedef {Object} PageManagerEvent
      * @template {ListenerFunction}
-     * @property {PageManagerAddListener<ListenerFunction>} addListener - Add a listener function for the event.
-     * @property {PageManagerRemoveListener<ListenerFunction>} removeListener - Remove a listener function for the event.
-     * @property {PageManagerHasListener<ListenerFunction>} hasListener - Whether a listener function has been added for the event.
-     * @property {PageManagerHasAnyListeners} hasAnyListeners - Whether any listener functions have been added for the event.
+     * @property {PageManagerAddListener<ListenerFunction>} addListener - Add a listener for the event.
+     * @property {PageManagerRemoveListener<ListenerFunction>} removeListener - Remove a listener for the event.
+     * @property {PageManagerHasListener<ListenerFunction>} hasListener - Whether a listener has been added for the event.
+     * @property {PageManagerHasAnyListeners} hasAnyListeners - Whether any listeners have been added for the event.
      */
 
     /**

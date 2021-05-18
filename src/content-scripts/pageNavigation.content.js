@@ -8,7 +8,7 @@
  *     message sending Promise remains open. This error does not affect functionality,
  *     because we do not depend on resolving the Promise (i.e., a response to the
  *     page visit stop message).
- * @module webScience.pageNavigation.content
+ * @module pageNavigation.content
  */
 
 import * as timing from "../timing.js";

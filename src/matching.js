@@ -1,19 +1,19 @@
 /**
  * This module provides utilities for matching URLs against criteria.
  *
- * # Matching Criteria
+ * ## Matching Criteria
  * The module supports two types of criteria:
  *   * Match Patterns (preferred) - a syntax used in the WebExtensions API for expressing possible URL matches.
  *     See: {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns}.
  *   * Domains - a simple list of domain names, which are converted into match patterns.
  * 
- * # Matching Output
+ * ## Matching Output
  * The module supports three types of output for matching URLs:
  *   * Match Pattern Sets (preferred) - optimized objects that compare a URL against the criteria.
  *   * Regular Expressions - `RegExp` objects that compare a URL against the criteria.
  *   * Regular Expression Strings - strings expressing regular expressions for comparing a URL against the criteria.
  * 
- * # Implementation Notes
+ * ## Implementation Notes
  * We use Rollup pure annotations (`@__PURE__` comments) because Rollup assumes that iterators might have side 
  * effects (including subtle cases of iteration like `Array.map` and `Array.join`). Without the annotations, Rollup
  * would mark arguments for many of this module's functions (which might be large string arrays) as tainted by side
@@ -22,7 +22,7 @@
  *
  * @see {@link https://github.com/rollup/rollup/issues/3127}
  * 
- * @module webScience.matching
+ * @module matching
  */
 
 /**
@@ -109,11 +109,13 @@ function parseMatchPattern(matchPattern) {
 
     // Parse the scheme
     let index = matchPattern.indexOf(":");
-    if(index <= 0)
+    if(index <= 0) {
         throw new Error(`Invalid match pattern, missing : after scheme: ${matchPattern}`);
+    }
     const scheme = matchPattern.substr(0, index);
-    if(!permittedMatchPatternSchemes.has(scheme))
+    if(!permittedMatchPatternSchemes.has(scheme)) {
         throw new Error(`Invalid match pattern, unsupported scheme: ${matchPattern}`);
+    }
     const hostLocatorScheme = hostLocatorMatchPatternSchemes.has(scheme);
     parsedMatchPattern.scheme = scheme;
 
@@ -121,18 +123,21 @@ function parseMatchPattern(matchPattern) {
     let offset = index + 1;
     tail = matchPattern.substr(offset);
     if(hostLocatorScheme) {
-        if(!tail.startsWith("//"))
+        if(!tail.startsWith("//")) {
             throw new Error(`Invalid match pattern, missing // required by scheme: ${matchPattern}`);
+        }
 
         offset += 2;
         tail = matchPattern.substr(offset);
         index = tail.indexOf("/");
-        if(index < 0)
+        if(index < 0) {
             index = tail.length;
+        }
 
         let host = tail.substring(0, index);
-        if((host === "") && (scheme !== "file"))
+        if((host === "") && (scheme !== "file")) {
             throw new Error(`Invalid match pattern, missing host required by scheme: ${matchPattern}`);
+        }
 
         offset += index;
         tail = matchPattern.substring(offset);
@@ -140,8 +145,9 @@ function parseMatchPattern(matchPattern) {
         if(host !== "*") {
             if(host.startsWith("*.")) {
                 host = host.substring(2);
-                if(host === "*")
+                if(host === "*") {
                     throw new Error(`Invalid match pattern, subdomain wildcard with host wildcard: ${matchPattern}`);
+                }
                 parsedMatchPattern.matchSubdomains = true;
             }
         }
@@ -150,8 +156,9 @@ function parseMatchPattern(matchPattern) {
 
     // Parse the path
     const path = tail;
-    if(path === "")
+    if(path === "") {
         throw new Error(`Invalid match pattern, missing path: ${matchPattern}`);
+    }
     parsedMatchPattern.path = path;
 
     return parsedMatchPattern;
@@ -163,7 +170,7 @@ function parseMatchPattern(matchPattern) {
  * @returns {MatchPatternSet} - The new MatchPatternSet.
  */
 export function createMatchPatternSet(matchPatterns) {
-    return /*@__PURE__*/new _MatchPatternSet(matchPatterns);
+    return /*@__PURE__*/new MatchPatternSet(matchPatterns);
 }
 
 /**
@@ -177,28 +184,10 @@ export function createMatchPatternSet(matchPatterns) {
  * const matchPatternSet2 = webScience.matching.importMatchPatternSet(exportedMatchPatternSet);
  */
 export function importMatchPatternSet(exportedMatchPatternSet) {
-    const matchPatternSet = new _MatchPatternSet([]);
+    const matchPatternSet = new MatchPatternSet([]);
     matchPatternSet.import(exportedMatchPatternSet);
     return matchPatternSet;
 }
-
-/**
- * @callback MatchPatternSetMatches
- * @param {string} url - The URL to test against the set of match patterns.
- * @returns {boolean} Whether at least one match pattern in the set matches the URL.
- */
-
-/**
- * @callback MatchPatternSetExport
- * @returns {Object} The MatchPatternSet serialized to an object.
- */
-
-/**
- * @typedef {Object} MatchPatternSet
- * An optimized object for matching against match patterns.
- * @property {MatchPatternSetMatches} matches - Test a URL against the set of match patterns.
- * @property {MatchPatternSetExport} export - Export the MatchPatternSet to a serialized object. 
- */
 
 /**
  * An optimized object for matching against match patterns. A `MatchPatternSet` can provide
@@ -220,13 +209,12 @@ export function importMatchPatternSet(exportedMatchPatternSet) {
  * Future performance improvements could include:
  *   * Replacing the path matching implementation to eliminate regular expressions entirely.
  *   * Replacing the match pattern index, such as by implementing a trie.
- * @private
+ * @hideconstructor
  */
-class _MatchPatternSet {
+class MatchPatternSet {
     /**
      * Creates a match pattern set from an array of match patterns.
      * @param {string[]} matchPatterns - The match patterns for the set.
-     * @private
      */
     constructor(matchPatterns) {
         // Defining the special sets of `<all_url>` and wildcard schemes inside the class so
@@ -319,8 +307,9 @@ class _MatchPatternSet {
         const path = parsedUrl.pathname;
 
         // Check the special `<all_urls>` match pattern
-        if(this.allUrls && this.allUrlsSchemeSet.has(scheme))
+        if(this.allUrls && this.allUrlsSchemeSet.has(scheme)) {
             return true;
+        }
 
         // Identify candidate match patterns
         let candidatePatterns = [ ];
@@ -330,8 +319,9 @@ class _MatchPatternSet {
         for(let i = hostComponents.length - 1; i >= 0; i--) {
             hostSuffix = hostComponents[i] + (i < hostComponents.length - 1 ? "." : "") + hostSuffix;
             const hostSuffixPatterns = this.patternsByHost[hostSuffix];
-            if(hostSuffixPatterns !== undefined)
+            if(hostSuffixPatterns !== undefined) {
                 candidatePatterns = candidatePatterns.concat(hostSuffixPatterns);
+            }
         }
 
         // Add match patterns with a wildcard host to the set of candidates
@@ -343,23 +333,25 @@ class _MatchPatternSet {
         for(const candidatePattern of candidatePatterns) {
             if((candidatePattern.scheme === scheme) ||
                ((candidatePattern.scheme === "*") && this.wildcardSchemeSet.has(scheme))) {
-                   if(candidatePattern.matchSubdomains ||
-                      (candidatePattern.host === "*") ||
-                      (candidatePattern.host === host)) {
-                          if(candidatePattern.wildcardPath ||
-                             candidatePattern.pathRegExp.test(path))
-                             return true;
-                      }
-               }
+                if(candidatePattern.matchSubdomains ||
+                   (candidatePattern.host === "*") ||
+                   (candidatePattern.host === host)) {
+                    if(candidatePattern.wildcardPath ||
+                       candidatePattern.pathRegExp.test(path)) {
+                        return true;
+                    }
+                }
+            }
         }
 
         return false;
     }
 
     /**
-     * Exports the internals of the match pattern set for purposes of saving to extension
-     * local storage.
-     * @returns {object} - An opaque object representing the match pattern set internals.
+     * Serializes the internals of the match pattern set to a serializable object, for purposes
+     * of saving to extension local storage or messaging across contexts.
+     * @returns {Object} - An opaque serializable object representing the match pattern set
+     * internals.
      */
     export() {
         return {
@@ -492,7 +484,7 @@ export function matchPatternsToRegExp(matchPatterns) {
 
 /**
  * Generates a set of match patterns for a set of domains. The match patterns will use the special
- * "*" wildcard scheme (matching "http", "https", "ws", and "wss") and the special "/*" wildcard
+ * "\*" wildcard scheme (matching "http", "https", "ws", and "wss") and the special "/*" wildcard
  * path (matching any path).
  * @param {string[]} domains - The set of domains to match against.
  * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.

@@ -8,7 +8,7 @@
  * (e.g., Dexie.js).
  * 
  * @see {@link https://dexie.org/}
- * @module webScience.storage
+ * @module storage
  */
 
 import * as permissions from "./permissions.js";
@@ -40,7 +40,7 @@ function checkPermissions() {
  * Create a key-value storage area.
  * @param {string} storageAreaName - A name that uniquely identifies the storage area.
  * @returns {KeyValueStorage} The new KeyValueStorage object.
- * @example const exampleStorage = createKeyValueStorage("exampleName"));
+ * @example const exampleStorage = webScience.storage.createKeyValueStorage("exampleName");
  */
 export function createKeyValueStorage(storageAreaName) {
     checkPermissions();
@@ -50,13 +50,14 @@ export function createKeyValueStorage(storageAreaName) {
 /**
  * Class for a key-value storage area, where the key is a string and the value can have
  * any of a number of basic types. The class is modeled on the built-in Map type, but
- * backed by persistent storage and using Promise return values.
+ * backed by persistent storage and using Promise return values. Create instances of the
+ * class with `createKeyValueStorage`.
+ * @hideconstructor
  */
 class KeyValueStorage {
     /**
      * Create a key-value storage area. Storage is implemented with extension local storage.
      * @param {string} storageAreaName - A name that uniquely identifies the storage area.
-     * @private
      */
     constructor(storageAreaName) {
         this.storageAreaName = storageAreaName;
@@ -67,6 +68,7 @@ class KeyValueStorage {
      * Convert a key used in a storage area to a key in extension local storage. 
      * @param {string} key - The key used in the storage area.
      * @returns {string} A key in extension local storage.
+     * @private
      */
     keyToExtensionLocalStorageKey(key) {
         return `webScience.storage.keyValueStorage.${this.storageAreaName}.${key}`;
@@ -75,8 +77,9 @@ class KeyValueStorage {
     /**
      * Get a value from storage by its key.
      * @param {string} key - The key to use in the storage area.
-     * @returns {Promise} A Promise that resolves to the value in the storage area,
-     * or null if the value is not in the storage area.
+     * @returns {Promise} A Promise that resolves to the key's value in the storage
+     * area, or null if the key is not in the storage area. Note that this is slightly
+     * different behavior from Map, which returns undefined if a key is not present.
      */
     async get(key) {
         const storageResult = await browser.storage.local.get({ [this.keyToExtensionLocalStorageKey(key)]: null });
@@ -138,10 +141,10 @@ class KeyValueStorage {
     }
 
     /**
-     * Return an iterator over key-value pairs in the storage area. Note
+     * Create an iterator over key-value pairs in the storage area. Note
      * that this function loads and iterates all key-value pairs in extension
      * local storage, so it may have performance implications.
-     * @returns {Promise<Object>} A promise that resolves to an iterator over
+     * @returns {Promise<Object>} A Promise that resolves to an iterator over
      * the key-value pairs in the storage area.
      */
     async entries() {
@@ -149,10 +152,10 @@ class KeyValueStorage {
     }
 
     /**
-     * Return an iterator over keys in the storage area. Note that this
+     * Create an iterator over keys in the storage area. Note that this
      * function loads and iterates all key-value pairs in extension local
      * storage, so it may have performance implications.
-     * @returns {Promise<Object>} A promise that resolves to an iterator over
+     * @returns {Promise<Object>} A Promise that resolves to an iterator over
      * the keys in the storage area.
      */
     async keys() {
@@ -160,10 +163,10 @@ class KeyValueStorage {
     }
 
     /**
-     * Return an iterator over values in the storage area. Note that this
+     * Create an iterator over values in the storage area. Note that this
      * function loads and iterates all key-value pairs in extension local
      * storage, so it may have performance implications.
-     * @returns {Promise<Object>} A promise that resolves to an iterator over the
+     * @returns {Promise<Object>} A Promise that resolves to an iterator over the
      * values in the storage area.
      */
     async values() {
@@ -191,7 +194,7 @@ class KeyValueStorage {
 /**
  * Create a persistent counter.
  * @param {string} counterName - A name that uniquely identifies the counter.
- * @returns {Counter} The new Counter object.
+ * @returns {Promise<Counter>} A Promise that resolves to the new Counter object.
  */
 export async function createCounter(counterName) {
     checkPermissions();
@@ -201,7 +204,9 @@ export async function createCounter(counterName) {
 }
 
 /**
- * Class for maintaining persistent counters (e.g., unique IDs).
+ * Class for maintaining persistent counters (e.g., unique IDs). Create instances of the
+ * class with `createCounter`.
+ * @hideconstructor
  */
 class Counter {
     /**
@@ -219,6 +224,7 @@ class Counter {
     /**
      * Complete creation of the persistent counter. Returns itself for convenience.
      * @returns {Object} The persistent counter.
+     * @private
      */
     async initialize() {
         if(Counter.storage === null) {

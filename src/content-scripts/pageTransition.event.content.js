@@ -4,7 +4,7 @@
  * pageTransition content script for observing clicks on pages, because that content script should
  * run on a different set of pages.
  *
- * @module webScience.pageTransition.event.content
+ * @module pageTransition.event.content
  */
 
 // IIFE encapsulation to allow early return
@@ -111,10 +111,10 @@
          * @param {string} message.url - The URL for the page.
          * @param {number} message.timeStamp - The timestamp for the page that is loading, either from
          * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`, adjusted to
-         * the global monotonic clock.
+         * the shared monotonic clock.
          * @param {number} message.webNavigationTimeStamp - The timestamp for the page that is loading,
          * either from `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
-         * This timestamp, from the event, is on the system clock rather than the global monotonic
+         * This timestamp, from the event, is on the system clock rather than the shared monotonic
          * clock.
          * @param {string} message.transitionType - The transition type for the page that is loading,
          * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
@@ -185,7 +185,7 @@
                 if((performanceNavigationTimingEntries.length === 0) || !("domContentLoadedEventStart" in performanceNavigationTimingEntries[0])) {
                     return false;
                 }
-                // Calculate the DOMContentLoaded timestamp on the global monotonic clock from the High Resolution Time and Navigation Timing APIs
+                // Calculate the DOMContentLoaded timestamp on the shared monotonic clock from the High Resolution Time and Navigation Timing APIs
                 const PerformanceDOMContentLoadedTimeStamp = window.performance.timeOrigin + performanceNavigationTimingEntries[0].domContentLoadedEventStart;
                 if(Math.abs(PerformanceDOMContentLoadedTimeStamp - timeStamp) > maxDOMContentLoadedTimeStampDifference) {
                     return false;

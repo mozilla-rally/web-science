@@ -2,7 +2,7 @@
  * This module provides utilities for logging debugging events.
  * The module currently just outputs events with `console.debug`.
  * 
- * @module webScience.debugging
+ * @module debugging
  */
 
 /**

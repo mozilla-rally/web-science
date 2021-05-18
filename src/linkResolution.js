@@ -1,6 +1,6 @@
 /**
  * This module provides functionality for resolving shortened and shimmed URLs.
- * @module webScience.linkResolution
+ * @module linkResolution
  */
 
 import * as matching from "./matching.js";
@@ -189,6 +189,7 @@ const requestIdToLinkResolutionId = new Map();
  * redirect to an origin that isn't a known shortener, treat that redirection target as the resolved URL). When
  * this value is false, resolution will follow all redirects until either loading completes, the redirect limit is
  * reached, or there is an error.
+ * @private
  */
 
 /**
@@ -490,7 +491,7 @@ export function initialize() {
 
     // URL resolution via HTTP requests
     
-    // Set listener functions for webRequest lifecycle events
+    // Set listeners for webRequest lifecycle events
     // By setting the windowId filter to WINDOW_ID_NONE, we can
     // ignore requests associated with ordinary web content
     browser.webRequest.onBeforeSendHeaders.addListener(onBeforeSendHeadersListener,
@@ -560,9 +561,9 @@ export function initialize() {
 
 /**
  * @typedef {Object} UrlMapping
- * @param {string} sourceUrl - The source URL for the mapping.
- * @param {string} destinationUrl - The destination URL for the mapping.
- * @param {boolean} ignoreSourceUrlParameters - Whether to ignore parameters when matching URLs against the source URL.
+ * @property {string} sourceUrl - The source URL for the mapping.
+ * @property {string} destinationUrl - The destination URL for the mapping.
+ * @property {boolean} ignoreSourceUrlParameters - Whether to ignore parameters when matching URLs against the source URL.
  */
 
 /**

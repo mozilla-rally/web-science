@@ -2,7 +2,7 @@
  * This module facilitates checking that required permissions are
  * provided in the WebExtensions manifest.
  * 
- * @module webScience.permissions
+ * @module permissions
  */
 
 import * as matching from "./matching.js";
@@ -12,7 +12,7 @@ import * as matching from "./matching.js";
  * @typedef {Object} ContentSecurityPolicy
  * @example
  * {
- *   "script-src": [ "'self'", "www.example.com"],
+ *   "script-src": [ "'self'", "www.example.com" ],
  *   "object-src": [ 'self' ]
  * }
  */
@@ -106,9 +106,11 @@ function checkContentSecurityPolicyDirective(directiveName, directiveValue, cont
  * @param {string[]} [options.suggestedOrigins=[]] - Origin permissions that are recommended.
  * @param {ContentSecurityPolicy} [options.requiredContentSecurityPolicy = {}] - Content Security Policy directives that are required.
  * @param {ContentSecurityPolicy} [options.suggestedContentSecurityPolicy = {}] - Content Security Policy directives that are recommended.
- * @param {string} [options.warn=true] - Whether to output any permissions errors on console.warn.
- * @param {string} [options.module="moduleNameNotProvided"] - The name of the module having its permissions checked.
- * @returns {boolean} Whether the permissions check passed.
+ * @param {string} [options.warn=true] - Whether to output any missing required or suggested permissions with `console.warn()`.
+ * @param {string} [options.module="moduleNameNotProvided"] - The name of the module having its permissions checked, used in warning
+ * output.
+ * @returns {boolean} Whether the WebExtensions manifest includes the required WebExtensions API permissions, origin permissions, and
+ * Content Security Policy directives.
  */
 export async function check({
     requiredPermissions = [],

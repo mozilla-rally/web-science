@@ -1,7 +1,7 @@
 /**
  * This module enables observing when the user shares a link on social media.
  *
- * @module webScience.socialMediaLinkSharing
+ * @module socialMediaLinkSharing
  */
 
 import * as events from "./events.js";

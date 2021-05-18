@@ -35,7 +35,7 @@
  *     persistent storage, so it is not a problem that timeouts do not
  *     persist between browser sessions.
  * 
- * @module webScience.scheduling
+ * @module scheduling
  */
 
 import * as idle from "./idle.js";
@@ -119,17 +119,75 @@ let storageSpace = null;
 let timeoutId = -1;
 
 /**
+ * Add a listener for the `onIdleDaily` event.
+ * @function addListener
+ * @memberof module:scheduling.onIdleDaily
+ * @param {Function} listener - The listener to add.
+ */
+
+/**
+ * Remove a listener for the `onIdleDaily` event.
+ * @function removeListener
+ * @memberof module:scheduling.onIdleDaily
+ * @param {Function} listener - The listener to remove.
+ */
+
+/**
+ * Check whether a specified listener has been added for the `onIdleDaily` event.
+ * @function hasListener
+ * @memberof module:scheduling.onIdleDaily
+ * @param {Function} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * Whether the `onIdleDaily` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:scheduling.onIdleDaily
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
  * An event that fires about once a day, when the browser is idle.
- * @constant {events.Event<events.callbackWithoutParameters, undefined>}
+ * @namespace
  */
 export const onIdleDaily = events.createEvent({
     name: "webScience.scheduling.onIdleDaily",
     addListenerCallback: function() { initialize(); }
-})
+});
+
+/**
+ * Add a listener for the `onIdleWeekly` event.
+ * @function addListener
+ * @memberof module:scheduling.onIdleWeekly
+ * @param {Function} listener - The listener to add.
+ */
+
+/**
+ * Remove a listener for the `onIdleWeekly` event.
+ * @function removeListener
+ * @memberof module:scheduling.onIdleWeekly
+ * @param {Function} listener - The listener to remove.
+ */
+
+/**
+ * Check whether a specified listener has been added for the `onIdleWeekly` event.
+ * @function hasListener
+ * @memberof module:scheduling.onIdleWeekly
+ * @param {Function} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * Whether the `onIdleWeekly` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:scheduling.onIdleWeekly
+ * @returns {boolean} Whether the event has any listeners.
+ */
 
 /**
  * An event that fires about once a week, when the browser is idle.
- * @constant {events.Event<events.callbackWithoutParameters, undefined>}
+ * @namespace
  */
 export const onIdleWeekly = events.createEvent({
     name: "webScience.scheduling.onIdleWeekly",

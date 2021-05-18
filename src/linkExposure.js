@@ -6,7 +6,7 @@
  * `onLinkExposureUpdate` fires throughout a page's lifespan as link exposures
  * occur. For most use cases, `onLinkExposureData` is the right event to use.
  *
- * @module webScience.linkExposure
+ * @module linkExposure
  */
 
 import * as events from "./events.js";
@@ -28,7 +28,8 @@ import linkExposureContentScript from "./content-scripts/linkExposure.content.js
 const ignoreSelfLinks = true;
 
 /**
- * The details of a link exposure update event.
+ * The details of a link exposure update event. This private type must be kept in
+ * sync with the public `linkExposureUpdateListener` type.
  * @typedef {Object} LinkExposureUpdateDetails
  * @property {string} pageId - The ID for the page, unique across browsing sessions.
  * @property {string} url - The URL of the page, without any hash.
@@ -36,16 +37,27 @@ const ignoreSelfLinks = true;
  * on the page that the user was exposed to and that matched a provided match pattern.
  * @property {number} nonmatchingLinkCount - The number of resolved links on the page that
  * the user was exposed to and that did not match a provided match pattern.
+ * @private
  */
 
 /**
- * A callback function for the link exposure update event.
+ * A listener for the `onLinkExposureUpdate` event.
  * @callback linkExposureUpdateListener
- * @param {LinkExposureUpdateDetails} details - Additional information about the link
+ * @memberof module:linkExposure.onLinkExposureUpdate
+ * @param {Object} details - Additional information about the link
  * exposure update event.
+ * @param {string} details.pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} details.url - The URL of the page, without any hash.
+ * @param {string[]} details.matchingLinkUrls - An array containing the resolved URLs of links
+ * on the page that the user was exposed to and that matched a provided match pattern.
+ * @param {number} details.nonmatchingLinkCount - The number of resolved links on the page that
+ * the user was exposed to and that did not match a provided match pattern.
  */
 
 /**
+ * Options when adding a listener for the `onLinkExposureUpdate` event. This
+ * private type must be kept in sync with the public `onLinkExposureUpdate.addListener`
+ * type.
  * @typedef {Object} LinkExposureUpdateOptions
  * @property {string[]} linkMatchPatterns - Match patterns for links where the listener
  * should receive individual resolved URLs. Links that do not match this match pattern are
@@ -53,6 +65,7 @@ const ignoreSelfLinks = true;
  * @property {string[]} pageMatchPatterns - Match patterns for pages where the listener
  * should be provided link exposure data.
  * @property {boolean} [privateWindows=false] - Whether to measure links in private windows.
+ * @private
  */
 
 /**
@@ -62,10 +75,11 @@ const ignoreSelfLinks = true;
  * @property {boolean} privateWindows - Whether to report exposures in private windows.
  * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
+ * @private
  */
 
 /**
- * A map where each key is a listener function and each value is a record for that listener function.
+ * A map where each key is a listener and each value is a record for that listener.
  * @constant {Map<linkExposureUpdateListener, LinkExposureUpdateListenerRecord>}
  * @private
  */
@@ -88,39 +102,45 @@ const pendingPageLinkExposureUpdates = new Map();
 const pendingPageLinkExposureCallbacks = new Map();
 
 /**
- * @callback LinkExposureUpdateAddListener
+ * Add a listener for the `onLinkExposureUpdate` event.
+ * @function addListener
+ * @memberof module:linkExposure.onLinkExposureUpdate
  * @param {linkExposureUpdateListener} listener - The listener to add.
- * @param {LinkExposureUpdateOptions} options - Options for the listener.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} options.linkMatchPatterns - Match patterns for links where the listener
+ * should receive individual resolved URLs. Links that do not match this match pattern are
+ * included in an aggregate count.
+ * @param {string[]} options.pageMatchPatterns - Match patterns for pages where the listener
+ * should be provided link exposure data.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure links in private windows.
  */
 
 /**
- * @callback LinkExposureUpdateRemoveListener
+ * Remove a listener for the `onLinkExposureUpdate` event.
+ * @function removeListener
+ * @memberof module:linkExposure.onLinkExposureUpdate
  * @param {linkExposureUpdateListener} listener - The listener to remove.
  */
 
 /**
- * @callback LinkExposureUpdateHasListener
+ * Whether a specified listener has been added for the `onLinkExposureUpdate` event.
+ * @function hasListener
+ * @memberof module:linkExposure.onLinkExposureUpdate
  * @param {linkExposureUpdateListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
 
 /**
- * @callback LinkExposureUpdateHasAnyListeners
+ * Whether the `onLinkExposureUpdate` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:linkExposure.onLinkExposureUpdate
  * @returns {boolean} Whether the event has any listeners.
- */
-
-/**
- * @typedef {Object} LinkExposureUpdateEvent
- * @property {LinkExposureUpdateAddListener} addListener - Add a listener for link exposure updates.
- * @property {LinkExposureUpdateRemoveListener} removeListener - Remove a listener for link exposure updates.
- * @property {LinkExposureUpdateHasListener} hasListener - Whether a specified listener has been added.
- * @property {LinkExposureUpdateHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
  */
 
 /**
  * An event that fires when data about link exposures on a page is available. This event can fire multiple
  * times for one page, as link exposures occur and the URLs for those links are resolved.
- * @constant {LinkExposureUpdateEvent}
+ * @namespace
  */
 export const onLinkExposureUpdate = events.createEvent({
     name: "webScience.linkExposure.onLinkExposureUpdate",
@@ -139,7 +159,7 @@ let initialized = false;
 
 /**
  * Callback for adding an onLinkExposureUpdate listener.
- * @param {linkExposureUpdateListener} listener - The listener function.
+ * @param {linkExposureUpdateListener} listener - The listener.
  * @param {LinkExposureUpdateOptions} options - A set of options for the listener.
  * @private
  */
@@ -214,6 +234,7 @@ function removeUpdateListener(listener) {
  * content script is running is in a private window.
  * @param {string[]} linkExposureUpdate.linkUrls - The links on the page that the
  * user was exposed to.
+ * @private
  */
 function messageListener({ pageId, url, privateWindow, linkUrls }) {
     // Increment the count of pending link exposure updates for the page
@@ -305,7 +326,8 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
 }
 
 /**
- * The details of a link exposure data event.
+ * The details of a link exposure data event. This private type must be kept in sync with
+ * the public `linkExposureDataListener` type.
  * @typedef {Object} LinkExposureDataDetails
  * @property {string} pageId - The ID for the page, unique across browsing sessions.
  * @property {string} url - The URL of the page, without any hash.
@@ -313,16 +335,25 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
  * on the page that the user was exposed to and that matched a provided match pattern.
  * @property {number} nonmatchingLinkCount - The number of resolved links on the page that
  * the user was exposed to and that did not match a provided match pattern.
+ * @private
  */
 
 /**
  * A callback function for the link exposure data event.
  * @callback linkExposureDataListener
- * @param {LinkExposureDataDetails} details - Additional information about the link
- * exposure update event.
+ * @memberof module:linkExposure.onLinkExposureData
+ * @param {Object} details - Additional information about the link exposure date event.
+ * @param {string} details.pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} details.url - The URL of the page, without any hash.
+ * @param {string[]} details.matchingLinkUrls - An array containing the resolved URLs of links
+ * on the page that the user was exposed to and that matched a provided match pattern.
+ * @param {number} details.nonmatchingLinkCount - The number of resolved links on the page that
+ * the user was exposed to and that did not match a provided match pattern.
  */
 
 /**
+ * Options when adding a listener for the `onLinkExposureData` event. This private type must
+ * be kept in sync with the public `onLinkExposureData.addListener` type.
  * @typedef {Object} LinkExposureDataOptions
  * @property {string[]} linkMatchPatterns - Match patterns for links where the listener
  * should receive individual resolved URLs. Links that do not match this match pattern are
@@ -330,6 +361,7 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
  * @property {string[]} pageMatchPatterns - Match patterns for pages where the listener
  * should be provided link exposure data.
  * @property {boolean} [privateWindows=false] - Whether to measure links in private windows.
+ * @private
  */
 
 /**
@@ -337,44 +369,51 @@ function messageListener({ pageId, url, privateWindow, linkUrls }) {
  * @property {linkExposureUpdateListener} linkExposureUpdateListener - The listener for onLinkExposureUpdate
  * that was created for this onLinkExposureData listener.
  * @property {Map<string,LinkExposureDataDetails>} pageLinkExposureData - A map where keys are page IDs and values
- * are LinkExposureDataDetails reflecting partial link exposure data for a page.  
+ * are LinkExposureDataDetails reflecting partial link exposure data for a page.
+ * @private
  */
 
 /**
- * A map where each key is a listener function and each value is a record for that listener function.
+ * A map where each key is a listener and each value is a record for that listener.
  * @constant {Map<linkExposureDataListener, LinkExposureDataListenerRecord>}
  * @private
  */
 const linkExposureDataListeners = new Map();
 
 /**
- * @callback LinkExposureDataAddListener
+ * Add a listener for the `onLinkExposureData` event.
+ * @function addListener
+ * @memberof module:linkExposure.onLinkExposureData
  * @param {linkExposureDataListener} listener - The listener to add.
- * @param {LinkExposureDataOptions} options - Options for the listener.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} options.linkMatchPatterns - Match patterns for links where the listener
+ * should receive individual resolved URLs. Links that do not match this match pattern are
+ * included in an aggregate count.
+ * @param {string[]} options.pageMatchPatterns - Match patterns for pages where the listener
+ * should be provided link exposure data.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure links in private windows.
  */
 
 /**
- * @callback LinkExposureDataRemoveListener
+ * Remove a listener for the `onLinkExposureData` event.
+ * @function removeListener
+ * @memberof module:linkExposure.onLinkExposureData
  * @param {linkExposureDataListener} listener - The listener to remove.
  */
 
 /**
- * @callback LinkExposureDataHasListener
+ * Whether a specified listener has been added for the `onLinkExposureData` event.
+ * @function hasListener
+ * @memberof module:linkExposure.onLinkExposureData
  * @param {linkExposureDataListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
 
 /**
- * @callback LinkExposureDataHasAnyListeners
+ * Whether the `onLinkExposureData` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:linkExposure.onLinkExposureData
  * @returns {boolean} Whether the event has any listeners.
- */
-
-/**
- * @typedef {Object} LinkExposureDataEvent
- * @property {LinkExposureDataAddListener} addListener - Add a listener for link exposure data.
- * @property {LinkExposureDataRemoveListener} removeListener - Remove a listener for link exposure data.
- * @property {LinkExposureDataHasListener} hasListener - Whether a specified listener has been added.
- * @property {LinkExposureDataHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
  */
 
 /**
@@ -387,7 +426,7 @@ let addedPageVisitListeners = false;
 /**
  * An event that fires when a complete set of data about link exposures on a page is available. This event
  * only fires once per page, after the page visit has ended.
- * @constant {LinkExposureDataEvent}
+ * @namespace
  */
 export const onLinkExposureData = events.createEvent({
     name: "webScience.linkExposure.onLinkExposureData",
@@ -408,7 +447,7 @@ const pageVisitStopDelay = 500;
 
 /**
  * Callback for adding an onLinkExposureData listener.
- * @param {linkExposureDataListener} listener - The listener function.
+ * @param {linkExposureDataListener} listener - The listener.
  * @param {LinkExposureDataOptions} options - A set of options for the listener.
  * @private
  */

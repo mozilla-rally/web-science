@@ -2,7 +2,7 @@
  * Content script for the `linkResolution` module that parses links from Twitter pages.
  * This parsing is fragile and, by design, degrades gracefully to resolving links with
  * HTTP requests.
- * @module webScience.linkResolution.twitter.content
+ * @module linkResolution.twitter.content
  */
 
 function pageManagerLoaded() {

@@ -2,7 +2,7 @@
  * Content script for the `linkResolution` module that parses links from Google News pages.
  * This parsing is fragile and, by design, degrades gracefully to resolving links with
  * HTTP requests.
- * @module webScience.linkResolution.googleNews.content
+ * @module linkResolution.googleNews.content
  */
 
 import { Base64 } from "js-base64";

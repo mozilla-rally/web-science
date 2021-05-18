@@ -35,7 +35,7 @@
  *     even though it supports varying idle state detection intervals, in
  *     order to minimize privileged extension code.
  * 
- * @module webScience.idle
+ * @module idle
  */
 
 import * as events from "./events.js";
@@ -199,12 +199,16 @@ function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detec
 }
 
 /**
+ * A listener for the `onStateChanged` event.
  * @callback idleStateChangeListener
+ * @memberof module:idle.onStateChanged
  * @param {string} idleState - The current idle state: "idle" or "active".
  */
 
 /**
- * @callback IdleStateChangeAddListener
+ * Add a listener for the `onStateChanged` event.
+ * @function addListener
+ * @memberof module:idle.onStateChanged
  * @param {idleStateChangeListener} listener - The listener to add.
  * @param {Object} options - Options for the listener.
  * @param {number} options.detectionInterval - The idle state detection interval
@@ -212,33 +216,31 @@ function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detec
  */
 
 /**
- * @callback IdleStateChangeRemoveListener
+ * Remove a listener for the `onStateChanged` event.
+ * @function removeListener
+ * @memberof module:idle.onStateChanged
  * @param {idleStateChangeListener} listener - The listener to remove.
  */
 
 /**
- * @callback IdleStateChangeHasListener
+ * Whether a specified listener for the `onStateChanged` event has been added.
+ * @function hasListener
+ * @memberof module:idle.onStateChanged
  * @param {idleStateChangeListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
 
 /**
- * @callback IdleStateChangeHasAnyListeners
+ * Whether the `onStateChanged` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:idle.onStateChanged
  * @returns {boolean} Whether the event has any listeners.
  */
 
 /**
- * @typedef {Object} IdleStateChangeEvent
- * @property {IdleStateChangeAddListener} addListener - Add a listener for idle state changes.
- * @property {IdleStateChangeRemoveListener} removeListener - Remove a listener for idle state changes.
- * @property {IdleStateChangeHasListener} hasListener - Whether a specified listener has been added.
- * @property {IdleStateChangeHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
- */
-
-/**
  * An event that fires when the browser's idle state changes. This event supports multiple idle
- * detection intervals, unlike the WebExtensions idle.onStateChanged event.
- * @constant {IdleStateChangeEvent}
+ * detection intervals, unlike the WebExtensions `idle.onStateChanged` event.
+ * @namespace
  */
 export const onStateChanged = events.createEvent({
     name: "webScience.idle.onStateChanged",
@@ -252,8 +254,8 @@ export const onStateChanged = events.createEvent({
 });
 
 /**
- * Add a listener function for browser idle state.
- * @param {idleStateChangeListener} idleStateListener - The listener function.
+ * Add a listener for browser idle state.
+ * @param {idleStateChangeListener} idleStateListener - The listener.
  * The function will receive the same `browser.idle.IdleState` parameter
  * as if it had subscribed to idle state events with
  * `browser.idle.onStateChanged.addListener`.
@@ -290,8 +292,8 @@ async function addListener(idleStateListener, detectionIntervalInSeconds) {
 }
 
 /**
- * Remove a listener function for browser idle state.
- * @param {idleStateChangeListener} idleStateListener - The listener function.
+ * Remove a listener for browser idle state.
+ * @param {idleStateChangeListener} idleStateListener - The listener.
  * @param {number} detectionIntervalInSeconds - The detection
  * interval for firing the idle state listener.
  * @private

@@ -3,7 +3,7 @@
  * transition data that may be valuable for browser-based studies. See the
  * `onPageTransitionData` event for details.
  * 
- * # Types of Page Transition Data
+ * ## Types of Page Transition Data
  * This module supports several types of page transition data. Some types are
  * supported and recommended, because the data is consistently available, has
  * consistent meaning, and reflects discrete categories of user interactions.
@@ -54,7 +54,7 @@
  *       activity or perception (e.g., a webpage might automatically reload in the
  *       background before a user navigates to a new page).
  *  
- * # Page Transition Data Sources
+ * ## Page Transition Data Sources
  * This module builds on the page tracking provided by the `pageManager`
  * module and uses browser events, DOM events, and a set of heuristics to
  * associate transition information with each page visit. The module relies on
@@ -86,7 +86,7 @@
  *     * The `keyup` event on the document element - detects possible link
  *       clicks via the keyboard.
  * 
- * # Combining Data Sources into a Page Transition
+ * ## Combining Data Sources into a Page Transition
  * Merging these data sources into a page transition event poses several
  * challenges.
  *   * We have to sync background script `webNavigation` events with content
@@ -131,7 +131,7 @@
  * @see {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webNavigation/TransitionQualifier}
  * @see {@link https://github.com/mdn/browser-compat-data/issues/9019}
  * @see {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/onCreated}
- * @module webScience.pageTransition
+ * @module pageTransition
  */
 
 import * as events from "./events.js";
@@ -145,59 +145,46 @@ import pageTransitionEventContentScript from "./content-scripts/pageTransition.e
 import pageTransitionClickContentScript from "./content-scripts/pageTransition.click.content.js";
 
 /**
- * The details of a page transition data event.
- * @typedef {Object} PageTransitionDataDetails
- * @property {string} pageId - The ID for the page, unique across browsing sessions.
- * @property {string} url - The URL of the page, without any hash.
- * @property {string} referrer - The referrer URL for the page, or `""` if there is no referrer. Note that we
+ * A listener for the `onPageTransitionData` event.
+ * @callback pageTransitionDataListener
+ * @memberof module:pageTransition.onPageTransitionData
+ * @param {Object} details - Additional information about the page transition data event.
+ * @param {string} details.pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} details.url - The URL of the page, without any hash.
+ * @param {string} details.referrer - The referrer URL for the page, or `""` if there is no referrer. Note that we
  * recommend against using referrers for analyzing page transitions.
- * @property {number} tabId - The ID for the tab containing the page, unique to the browsing session. Note that if
+ * @param {number} details.tabId - The ID for the tab containing the page, unique to the browsing session. Note that if
  * you send a message to the content script in the tab, there is a possible race condition where the page in 
  * the tab changes before your message arrives. You should specify a page ID (e.g., `pageId`) in your message to the
  * content script, and the content script should check that page ID against its current page ID to ensure that the 
  * message was received by the intended page.
- * @property {boolean} isHistoryChange - Whether the page transition was caused by a URL change via the History API.
- * @property {boolean} isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
- * @property {number} openerTabId - If the page is loading in a tab that was newly opened from another tab
+ * @param {boolean} details.isHistoryChange - Whether the page transition was caused by a URL change via the History API.
+ * @param {boolean} details.isOpenedTab - Whether the page is loading in a tab that was newly opened from another tab.
+ * @param {number} details.openerTabId - If the page is loading in a tab that was newly opened from another tab
  * (i.e., `isOpenedTab` is `true`), the tab ID of the opener tab. Otherwise, `tabs.TAB_ID_NONE`. Note that if
  * you send a message to the content script in the tab, there is a possible race condition where the page in 
  * the tab changes before your message arrives. You should specify a page ID (e.g., `tabSourcePageId`) in your
  * message to the content script, and the content script should check that page ID against its current page ID to
  * ensure that the message was received by the intended page.
- * @property {string} transitionType - The transition type, from `webNavigation.onCommitted` or
+ * @param {string} details.transitionType - The transition type, from `webNavigation.onCommitted` or
  * `webNavigation.onHistoryStateUpdated`.
- * @property {string[]} transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted` or
+ * @param {string[]} details.transitionQualifiers - The transition qualifiers, from `webNavigation.onCommitted` or
  * `webNavigation.onHistoryStateUpdated`.
- * @property {string} tabSourcePageId - The ID for the most recent page in the same tab. If the page is opening
+ * @param {string} details.tabSourcePageId - The ID for the most recent page in the same tab. If the page is opening
  * in a new tab, then the ID of the most recent page in the opener tab. The value is `""` if there is no such page.
- * @property {string} tabSourceUrl - The URL, without any hash, for the most recent page in the same tab. If the page
+ * @param {string} details.tabSourceUrl - The URL, without any hash, for the most recent page in the same tab. If the page
  * is opening in a new tab, then the URL of the most recent page in the opener tab. The value is `""` if there is no
  * such page.
- * @property {boolean} tabSourceClick - Whether the user recently clicked or pressed enter/return on the most recent
+ * @param {boolean} details.tabSourceClick - Whether the user recently clicked or pressed enter/return on the most recent
  * page in the same tab. If the page is loading in a tab that was newly opened by another tab, then whether the user
  * recently clicked or pressed enter/return on the most recent page in the opener tab. The value is `false` if there
  * is no such page.
- * @property {string} timeSourcePageId - The ID for the most recent page that loaded into any tab. If this is the
+ * @param {string} details.timeSourcePageId - The ID for the most recent page that loaded into any tab. If this is the
  * first page visit after the extension starts, the value is "". Note that we recommend against using time-based
  * page transition data.
- * @property {string} timeSourceUrl - The URL for the most recent page that loaded into any tab. If this is the
+ * @param {string} details.timeSourceUrl - The URL for the most recent page that loaded into any tab. If this is the
  * first page visit after the extension starts, the value is "". Note that we recommend against using time-based
  * page transition data.
- */
-
-/**
- * A callback function for the page transition data event.
- * @callback pageTransitionDataListener
- * @param {PageTransitionDataDetails} details - Additional information about the page transition data event.
- */
-
-/**
- * @typedef {Object} PageTransitionDataOptions
- * @property {string[]} matchPatterns - Match patterns for pages where the listener should be notified about
- * transition data.
- * @property {boolean} [privateWindows=false] - Whether to notify the listener about page transitions in
- * private windows and whether to consider pages loaded in private windows when generating time-based
- * transition information.
  */
 
 /**
@@ -209,50 +196,56 @@ import pageTransitionClickContentScript from "./content-scripts/pageTransition.c
  * time-based transition information.
  * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
+ * @private
  */
 
 /**
- * A map where each key is a listener function and each value is a record for that listener function.
+ * A map where each key is a listener and each value is a record for that listener.
  * @constant {Map<pageTransitionDataListener, PageTransitionDataListenerRecord>}
  * @private
  */
 const pageTransitionDataListeners = new Map();
 
 /**
- * @callback PageTransitionDataAddListener
+ * Add a listener for the `onPageTransitionData` event.
+ * @function addListener
+ * @memberof module:pageTransition.onPageTransitionData
  * @param {pageTransitionDataListener} listener - The listener to add.
- * @param {PageTransitionDataOptions} options - Options for the listener.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} options.matchPatterns - Match patterns for pages where the listener should be notified about
+ * transition data.
+ * @param {boolean} [options.privateWindows=false] - Whether to notify the listener about page transitions in
+ * private windows and whether to consider pages loaded in private windows when generating time-based
+ * transition information.
  */
 
 /**
- * @callback PageTransitionDataRemoveListener
+ * Remove a listener for the `onPageTransitionData` event.
+ * @function removeListener
+ * @memberof module:pageTransition.onPageTransitionData
  * @param {pageTransitionDataListener} listener - The listener to remove.
  */
 
 /**
- * @callback PageTransitionDataHasListener
+ * Whether a specified listener has been added for the `onPageTransitionData` event.
+ * @function hasListener
+ * @memberof module:pageTransition.onPageTransitionData
  * @param {pageTransitionDataListener} listener - The listener to check.
  * @returns {boolean} Whether the listener has been added for the event.
  */
 
 /**
- * @callback PageTransitionDataHasAnyListeners
+ * Whether the `onPageTransitionData` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:pageTransition.onPageTransitionData
  * @returns {boolean} Whether the event has any listeners.
  */
 
 /**
- * @typedef {Object} PageTransitionDataEvent
- * @property {PageTransitionDataAddListener} addListener - Add a listener for page transition data.
- * @property {PageTransitionDataRemoveListener} removeListener - Remove a listener for page transition data.
- * @property {PageTransitionDataHasListener} hasListener - Whether a specified listener has been added.
- * @property {PageTransitionDataHasAnyListeners} hasAnyListeners - Whether the event has any listeners.
- */
-
-/**
  * An event that fires when data about a page transition is available. The event will fire after
- * the pageManager.onPageVisitStart event, when DOM content has loaded (for ordinary page loads)
+ * the `pageManager.onPageVisitStart` event, when DOM content has loaded (for ordinary page loads)
  * or just after the URL changes (for History API page loads).
- * @constant {PageTransitionDataEvent}
+ * @namespace
  */
 export const onPageTransitionData = events.createEvent({
     name: "webScience.pageTransition.onPageTransitionData",
@@ -262,9 +255,15 @@ export const onPageTransitionData = events.createEvent({
 });
 
 /**
- * A callback function for adding a page transition data listener.
- * @param {pageTransitionDataListener} listener - The listener function being added.
- * @param {PageTransitionDataOptions} options - Options for the listener.
+ * A callback function for adding a page transition data listener. The options for the listener must be kept in
+ * sync with the public `onPageTransitionData.addListener` type.
+ * @param {pageTransitionDataListener} listener - The listener being added.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} options.matchPatterns - Match patterns for pages where the listener should be notified about
+ * transition data.
+ * @param {boolean} [options.privateWindows=false] - Whether to notify the listener about page transitions in
+ * private windows and whether to consider pages loaded in private windows when generating time-based
+ * transition information.
  * @private
  */
  async function addListener(listener, {
@@ -391,7 +390,7 @@ async function initialize() {
         sendUpdateToContentScript({
             tabId: details.tabId,
             url: details.url,
-            timeStamp: timing.systemToGlobalMonotonic(details.timeStamp),
+            timeStamp: timing.systemToSharedMonotonic(details.timeStamp),
             webNavigationTimeStamp: details.timeStamp,
             transitionType: webNavigationOnCommittedDetails.transitionType,
             transitionQualifiers: webNavigationOnCommittedDetails.transitionQualifiers,
@@ -412,7 +411,7 @@ async function initialize() {
         sendUpdateToContentScript({
             tabId: details.tabId,
             url: details.url,
-            timeStamp: timing.systemToGlobalMonotonic(details.timeStamp),
+            timeStamp: timing.systemToSharedMonotonic(details.timeStamp),
             webNavigationTimeStamp: details.timeStamp,
             transitionType: details.transitionType,
             transitionQualifiers: details.transitionQualifiers,
@@ -624,6 +623,8 @@ const clickCacheExpiry = 5000;
  * The minimum time, in milliseconds, to wait after a tab is removed before expiring the cache
  * of page visits in that tab for tab-based transition information and the cached opener tab
  * for that tab.
+ * @constant {number}
+ * @private
  */
 const tabRemovedExpiry = 10000;
 
@@ -644,10 +645,10 @@ const openerTabCache = new Map();
  * @param {string} details.url - The URL for the page.
  * @param {number} details.timeStamp - The timestamp for the page that is loading, either from
  * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`, adjusted to
- * the global monotonic clock.
+ * the shared monotonic clock.
  * @param {number} details.webNavigationTimeStamp - The timestamp for the page that is loading,
  * either from `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.
- * This timestamp, from the event, is on the system clock rather than the global monotonic
+ * This timestamp, from the event, is on the system clock rather than the shared monotonic
  * clock.
  * @param {string} details.transitionType - The transition type for the page that is loading,
  * `webNavigation.onDOMContentLoaded` or `webNavigation.onHistoryStateUpdated`.

@@ -2,7 +2,7 @@
  * This module enables running measurements and interventions with randomization,
  * such as A/B tests, multivariate tests, and randomized controlled trials.
  * 
- * @module webScience.randomization
+ * @module randomization
  */
 
 import * as permissions from "./permissions.js";

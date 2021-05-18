@@ -1,7 +1,7 @@
 /**
  * Content script for the pageText module. Uses Mozilla Readability
  * to parse text content from the page.
- * @module webScience.pageText.content
+ * @module pageText.content
  */
 
 // We need to use import * rather than import Readability here, because the

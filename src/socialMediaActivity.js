@@ -1,8 +1,9 @@
 /**
  * This module provides utility functions for tracking social media posts.
  *
- * @module webScience.socialMediaActivity
+ * @module socialMediaActivity
  */
+
 import * as debugging from "./debugging.js";
 import * as messaging from "./messaging.js";
 import * as inline from "./inline.js";

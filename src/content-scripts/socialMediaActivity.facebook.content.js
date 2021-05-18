@@ -1,6 +1,6 @@
 /**
  * Content script for getting Facebook post contents
- * @module webScience.socialMediaActivity.facebook.content
+ * @module socialMediaActivity.facebook.content
  */
 
 import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecoration } from "../linkResolution.js";
