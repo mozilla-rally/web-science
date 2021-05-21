@@ -111,6 +111,7 @@
 
 import { generateId } from "../id.js";
 import { createEvent } from "../events.js";
+import { fromMonotonicClock } from "../timing.js";
 
 // IIFE wrapper to allow early return
 (function () {
@@ -416,13 +417,13 @@ import { createEvent } from "../events.js";
     }
 
     // Send the page visit start event for the first time
-    pageVisitStart(window.performance.timeOrigin);
+    pageVisitStart(fromMonotonicClock(window.performance.timeOrigin, false));
 
     // Send the page visit stop event on the window unload event,
     // using the timestamp for the unload event on the global
     // monotonic clock 
     window.addEventListener("unload", (event) => {
-        pageVisitStop(window.performance.timeOrigin + event.timeStamp);
+        pageVisitStop(fromMonotonicClock(event.timeStamp, true));
     });
     
 })();

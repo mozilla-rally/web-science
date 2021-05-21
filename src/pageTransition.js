@@ -390,7 +390,7 @@ async function initialize() {
         sendUpdateToContentScript({
             tabId: details.tabId,
             url: details.url,
-            timeStamp: timing.systemToSharedMonotonic(details.timeStamp),
+            timeStamp: timing.fromSystemClock(details.timeStamp),
             webNavigationTimeStamp: details.timeStamp,
             transitionType: webNavigationOnCommittedDetails.transitionType,
             transitionQualifiers: webNavigationOnCommittedDetails.transitionQualifiers,
@@ -411,7 +411,7 @@ async function initialize() {
         sendUpdateToContentScript({
             tabId: details.tabId,
             url: details.url,
-            timeStamp: timing.systemToSharedMonotonic(details.timeStamp),
+            timeStamp: timing.fromSystemClock(details.timeStamp),
             webNavigationTimeStamp: details.timeStamp,
             transitionType: details.transitionType,
             transitionQualifiers: details.transitionQualifiers,
