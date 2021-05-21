@@ -7,10 +7,10 @@
 import * as debugging from "./debugging.js";
 import * as messaging from "./messaging.js";
 import * as inline from "./inline.js";
-import * as permissions from "./permissions";
+import * as permissions from "./permissions.js";
+import * as timing from "./timing.js";
 import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js";
 import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js";
-import { timing } from "./webScience.js";
 
 permissions.check({
     module: "webScience.socialMediaActivity",

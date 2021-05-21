@@ -122,10 +122,13 @@ export async function check({
     warn = true,
     module = "moduleNameNotProvided"
 }) {
-    // If this function is called in an environment other than a background script (e.g., a content script),
-    // that very likely means the call was left in as a possible side effect during bundling when we wanted
-    // it to be tree shaken out. If that's the case, just return true.
-    if(!("permissions" in browser)) {
+    // If this function is called in an environment other than a background script (e.g., a content script
+    // or a worker script), that could mean the call isn't in the right location (i.e., the check is running
+    // on a code path that doesn't depend on the permissions), or that could mean the call reflects incorrect
+    // use of background script code in a non-background environment. Since we cannot distinguish these
+    // situations, we output a warning to the console and return true.
+    if((typeof browser !== "object") || !("permissions" in browser)) {
+        console.warn(`Unable to check ${module} permissions in an environment without browser.permissions. This warning may indicate incorrect use of a background script function in a content script or worker script.`);
         return true;
     }
 
