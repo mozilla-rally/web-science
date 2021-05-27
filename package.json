@@ -16,7 +16,7 @@
         "@rollup/plugin-url": "^6.0.0",
         "eslint": "^7.22.0",
         "eslint-plugin-import": "^2.22.1",
-        "eslint-plugin-mocha": "^8.1.0",
+        "eslint-plugin-mocha": "^9.0.0",
         "eslint-plugin-node": "^11.1.0",
         "globby": "^11.0.0",
         "js-base64": "^3.6.0",
