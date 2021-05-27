@@ -11,6 +11,8 @@
  * @module pageTransition.click.content
  */
 
+import { fromMonotonicClock } from "../timing.js";
+
 // IIFE encapsulation to allow early return
 (function () {
 
@@ -59,7 +61,7 @@
             }
 
             // Compute the event timestamp on the shared monotonic clock
-            const timeStamp = window.performance.timeOrigin + event.timeStamp;
+            const timeStamp = fromMonotonicClock(event.timeStamp, true);
 
             // Queue the click for reporting to the background script
             clickTimeStamps.push(timeStamp);

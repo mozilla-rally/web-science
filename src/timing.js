@@ -1,20 +1,37 @@
 /**
- * This module facilitates timestamping events. We use the shared monotonic
- * clock specified by the W3C High Resolution Time spec, rather than the
- * ordinary system clock (i.e., `performance.timeOrigin + performance.now()`
- * instead of `Date.now()`).
+ * This module facilitates timestamping events, using a standardized clock.
+ * When supported by the browser, WebScience uses the shared monotonic clock
+ * specified by the W3C High Resolution Time recommendation. Otherwise,
+ * WebScience uses the system clock.
  * 
- * The shared monotonic clock has important advantages over the system
- * clock: from browser startup to shutdown it only counts up, and it is
- * unaffected by user, application, or operating system adjustments other
- * than monotonic and small or gradual adjustments. The system clock, by
- * contrast, can change at any time, without any notice, to any value. The
- * user might manually adjust the clock, for example, or the operating
- * system might synchronize the clock to account for clock skew (e.g., NTP).
- * We use the shared monotonic clock because so much of WebScience and
- * browser-based research depends on accurate timestamps. A clock change
- * during study execution could introduce subtle bugs or other unexpected
- * behavior.
+ * ## Web Browser Clocks
+ * There are two clocks supported in modern web browsers.
+ *   * __System Clock__ (`Date.now()` or `new Date`). The system clock is
+ *     the ordinary time provided by the operating system. Using the
+ *     system clock to timestamp events poses a risk: the user or operating
+ *     system can adjust the clock at any time, for any reason, without any
+ *     notice, to any value. The user might manually adjust the clock, for
+ *     example, or the operating system might synchronize the clock to account
+ *     for clock skew (e.g., NTP time sync). These adjustments can be large and
+ *     non-monotonic, breaking assumptions that WebScience makes about timestamp
+ *     proximity and ordering. A clock change during study execution could
+ *     introduce subtle bugs or other unexpected behavior.
+ *   * __Shared Monotonic Clock__
+ *    (`performance.timeOrigin + performance.now()`). The W3C High Resolution
+ *    Time recommendation specifies a shared monotonic clock. This clock
+ *    should have the following properties:
+ *      * strictly monotonic;
+ *      * not subject to large or non-monotonic adjustments from any source;
+ *      * consistent across cores, processes, threads, and globals down to the
+ *        hardware level; and
+ *      * synchronized to the system clock just once, on browser startup.
+ *      
+ * Our goal is to migrate WebScience and Rally studies to the shared monotonic
+ * clock, because it does not have clock change risks like the system clock.
+ * Unfortunately, browser implementations of High Resolution Time currently
+ * depart from the W3C recommendation in significant ways that prevent reliance
+ * on the shared monotonic clock. We will update this module as browsers correct
+ * their implementations.
  * 
  * ## Additional Notes
  *   * The High Resolution Time spec describes a shared monotonic clock (which
@@ -28,8 +45,7 @@
  *     spec in significant ways: `performance.timeOrigin` is sometimes set from
  *     the system clock rather than the shared monotonic clock, and
  *     `performance.now()` (and other uses of `DOMHighResTimeStamp`) do not
- *     tick during system sleep on certain platforms. Our aim is to have these
- *     bugs resolved on Firefox for Windows and macOS before launch.
+ *     tick during system sleep on certain platforms.
  *  
  * @see {@link https://www.w3.org/TR/hr-time-2/}
  * @see {@link https://github.com/mdn/content/issues/4713}
@@ -38,26 +54,85 @@
  */
 
 /**
- * Get the current time from the shared monotonic clock, in milliseconds
- * since the epoch. This function is similar to `Date.now()`, but with
- * a different clock and submillisecond resolution. See the documentation
- * for the `timing` module for explanation of how the shared monotonic
- * clock compares to the ordinary system clock.
- * @returns {DOMHighResTimeStamp} The current time.
+ * Get whether the browser supports the High Resolution Time shared
+ * monotonic clock. Currently always returns `false`. We will update
+ * this function as browser support improves.
+ * @returns {boolean} Whether the browser supports the shared monotonic
+ * clock.
+ * @private
  */
-export function now() {
-    return window.performance.timeOrigin + window.performance.now();
+function sharedMonotonicClockSupport() {
+    return false;
 }
 
 /**
- * Convert a timestamp on the system clock to a timestamp on the shared
- * monotonic clock. Use this function only where strictly necessary,
+ * Get the current time, in milliseconds since the epoch, using a
+ * standardized clock.
+ * @returns {number} The current time, in milliseconds since the epoch.
+ */
+export function now() {
+    if(sharedMonotonicClockSupport()) {
+        return window.performance.timeOrigin + window.performance.now();
+    }
+    return Date.now();
+}
+
+/**
+ * Convert a timestamp on the system clock to a timestamp on the
+ * standardized clock. Use this function only where strictly necessary,
  * and where it can be used immediately after the timestamp on the
  * system clock. There is a risk that the system clock will have
  * changed between the timestamp and now.
  * @param {number} timeStamp - A timestamp, in milliseconds since the
  * epoch, on the system clock.
+ * @returns {number} A timestamp, in milliseconds since the epoch, on
+ * the standardized clock.
+ * @example
+ * const systemTimeStamp = Date.now();
+ * const standardizedTimeStamp = webScience.timing.fromSystemClock(systemTimeStamp);
  */
-export function systemToSharedMonotonic(timeStamp) {
-    return timeStamp - Date.now() + now();
+export function fromSystemClock(timeStamp) {
+    if(sharedMonotonicClockSupport()) {
+        return timeStamp - Date.now() + window.performance.timeOrigin + window.performance.now();
+    }
+    return timeStamp;
+}
+
+/**
+ * Convert a timestamp on the shared monotonic clock to a timestamp
+ * on the standardized clock. Use this function only where strictly
+ * necessary, and where it can be used immediately after the timestamp
+ * on the monotonic clock. There is a risk that the system clock will
+ * have changed between the timestamp and now or that the monotonic
+ * clock was affected by an implementation bug.
+ * @param {number} timeStamp - A timestamp, in milliseconds since the
+ * epoch, on the shared monotonic clock.
+ * @param {boolean} relativeToTimeOrigin - Whether the timestamp
+ * is relative to a time origin (e.g., a DOM event or Performance API
+ * timestamp), or the time origin has already been added to the
+ * timestamp (e.g., `performance.timeOrigin` or
+ * `performance.timeOrigin + performance.now()`).
+ * @returns {number} A timestamp, in milliseconds since the epoch, on
+ * the standardized clock.
+ * @example
+ * const monotonicTimeStamp = performance.timeOrigin;
+ * const standardizedTimeStamp = webScience.timing.fromMonotonicClock(monotonicTimeStamp, false);
+ * @example
+ * const monotonicTimeStamp = performance.timeOrigin + performance.now();
+ * const standardizedTimeStamp = webScience.timing.fromMonotonicClock(monotonicTimeStamp, false);
+ * @example
+ * const relativeMonotonicTimeStamp = performance.now();
+ * const standardizedTimeStamp = webScience.timing.fromMonotonicClock(relativeMonotonicTimeStamp, true);
+ */
+export function fromMonotonicClock(timeStamp, relativeToTimeOrigin) {
+    if(sharedMonotonicClockSupport()) {
+        if(relativeToTimeOrigin) {
+            return window.performance.timeOrigin + timeStamp;
+        }
+        return timeStamp;
+    }
+    if(relativeToTimeOrigin) {
+        return timeStamp - window.performance.now() + Date.now();
+    }
+    return timeStamp - window.performance.now() - window.performance.timeOrigin + Date.now();
 }

@@ -7,6 +7,8 @@
  * @module pageTransition.event.content
  */
 
+import { fromMonotonicClock } from "../timing.js";
+
 // IIFE encapsulation to allow early return
 (function () {
 
@@ -37,7 +39,7 @@
     /**
      * The maximum difference, in milliseconds, between the background script timestamp in a History API
      * page load (from `webNavigation.onHistoryStateUpdated`) and the content script page visit start
-     * timestamp (also from `webNavigation.onHistoryStateUpdated`). We compare this values as a heuristic
+     * timestamp (also from `webNavigation.onHistoryStateUpdated`). We compare these values as a heuristic
      * for matching background script events to content script events. While the underlying values are
      * identical, rounding the values when converting them to numbers can lead to off-by-one differences.
      * @constant {number}
@@ -186,7 +188,7 @@
                     return false;
                 }
                 // Calculate the DOMContentLoaded timestamp on the shared monotonic clock from the High Resolution Time and Navigation Timing APIs
-                const PerformanceDOMContentLoadedTimeStamp = window.performance.timeOrigin + performanceNavigationTimingEntries[0].domContentLoadedEventStart;
+                const PerformanceDOMContentLoadedTimeStamp = fromMonotonicClock(performanceNavigationTimingEntries[0].domContentLoadedEventStart, true);
                 if(Math.abs(PerformanceDOMContentLoadedTimeStamp - timeStamp) > maxDOMContentLoadedTimeStampDifference) {
                     return false;
                 }
