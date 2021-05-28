@@ -186,7 +186,7 @@ async function twitterLinks(details) {
             debugLog("failed parsing possible quote tweet");
         }
         try {
-            await extractRelevantUrlsFromTokens([details.postAttachments],
+            await extractRelevantUrlsFromTokens(details.postAttachments,
                 urlsToSave, urlsNotToSave);
         } catch {
             debugLog("failed extracting urls from tweet attachment");
@@ -251,14 +251,14 @@ async function twitterLinks(details) {
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (const urlToSave of urlsToSave) {
-        const shareRecord = await createShareRecord({
+        const shareRecord = {
             shareTime: details.eventTime,
             platform: "twitter",
             url: urlToSave,
             audience: twitterPrivacySetting,
             eventType: details.eventType
-        });
-        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
+        };
+        onShare.notifyListeners([ {type: "tracked", ...shareRecord} ]);
         debugLog("Twitter: " + JSON.stringify(shareRecord));
     }
     let newUntracked = 0;
@@ -269,8 +269,11 @@ async function twitterLinks(details) {
         }
     }
     onShare.notifyListeners([ {
-        "type": "untrackedTwitter",
-        "value": newUntracked }]);
+        type: "untracked",
+        platform: "twitter",
+        untrackedCount: newUntracked,
+        shareTime: details.eventTime
+    }]);
 }
 
 /**
@@ -312,19 +315,22 @@ async function facebookLinks(details) {
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (const urlToSave of urlsToSave) {
-        const shareRecord = await createShareRecord({shareTime: details.eventTime,
-                                                   platform: "facebook",
-                                                   audience: details.audience,
-                                                   url: urlToSave,
-                                                   eventType: details.eventType,
-                                                   source: details.source});
-        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
+        const shareRecord = {shareTime: details.eventTime,
+                             platform: "facebook",
+                             audience: details.audience,
+                             url: urlToSave,
+                             eventType: details.eventType,
+                             source: details.source};
+        onShare.notifyListeners([ {type: "tracked", ...shareRecord} ]);
         debugLog("Facebook: " + JSON.stringify(shareRecord));
     }
     urlsNotToSave = deduplicateUrls(urlsNotToSave);
     onShare.notifyListeners([ {
-        "type": "untrackedFacebook",
-        "value": urlsNotToSave.size }]);
+        type: "untracked",
+        platform: "facebook",
+        untrackedCount: urlsNotToSave.size,
+        shareTime: details.eventTime
+    }]);
 }
 
 
@@ -352,50 +358,24 @@ async function redditLinks(details) {
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (const urlToSave of urlsToSave) {
-        const shareRecord = await createShareRecord({shareTime: details.eventTime,
-                                                   platform: "reddit",
-                                                   url: urlToSave,
-                                                   audience: audience,
-                                                   eventType: details.eventType});
-        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
+        const shareRecord = {shareTime: details.eventTime,
+                             platform: "reddit",
+                             url: urlToSave,
+                             audience: audience,
+                             eventType: details.eventType};
+        onShare.notifyListeners([ {type: "tracked", ...shareRecord} ]);
         debugLog("Reddit: " + JSON.stringify(shareRecord));
     }
     urlsNotToSave = deduplicateUrls(urlsNotToSave);
     onShare.notifyListeners([ {
-        "type": "untrackedReddit",
-        "value": urlsNotToSave.size }]);
+        type: "untracked",
+        platform: "reddit",
+        untrackedCount: urlsNotToSave.size,
+        shareTime: details.eventTime
+    }]);
 }
 
 /* Utilities */
-
-/**
- * Create an object that records a sharing event.
- * @param {number} shareTime - The time that the user shared the URL.
- * @param {string} platform - The social media platform where the user
- * shared the URL.
- * @param {string} url - The URL that the user shared.
- * @param {string} event - The type of sharing event.
- * @returns {Object} - An object containing the `shareTime`, `platform`,
- * `url`, `audience`, `source`, and `event` as properties.
- * @private
- */
-async function createShareRecord({shareTime = "",
-                                  platform = "",
-                                  url = "",
-                                  eventType = "",
-                                  audience = "",
-                                  source = ""}) {
-    // Not currently reported in pings
-    /*
-    const historyVisits = await browser.history.search({
-        text: url,
-        startTime: 0
-    });
-    */
-    const type = "linkShare";
-    return { type, shareTime, platform, url, eventType,/* classifierResults,*/
-             audience, source};
-}
 
 /**
  * Normalize urls by stripping url parameters and then remove duplicates
