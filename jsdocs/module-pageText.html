@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Module: pageText</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Module: pageText</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        
+            
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description"><p>This module enables analyzing the text content of webpages, including with
+natural language processing methods. The module uses Mozilla Readability
+in a content script to parse document title and content when possible.</p>
+<h2>Training, Testing, and Deploying Natural Language Processing Models</h2>
+<p>A motivating use case for this module is applying natural language
+processing methods to webpage text. The module provides infrastructure for
+NLP models, but leaves implementation and evaluation of models to study
+authors. We recommend using existing toolkits for NLP feature generation
+(e.g., Natural or NLP.js) and for working with models (e.g., TensorFlow.js,
+ONNX.js, WebDNN, or sklearn-porter). We also recommend using the same
+codebase for collecting data (e.g., with web crawls), constructing models,
+evaluating models, and deploying models in browser-based studies. When
+maintaining multiple NLP codebases for a browser-based study, subtle
+inconsistencies are easy to introduce and can call into question NLP model
+performance.</p>
+<h2>Web Crawls to Collect Natural Language Processing Training Data</h2>
+<p>Because WebScience integrates with ordinary browser extensions, you can
+use this module in a web crawl to collect page text content as NLP training
+data. All the major browser automation toolkits (e.g., Selenium, Puppeteer,
+Playwright, and WebdriverIO) support running web crawls with browser
+extensions installed. We recommend running an online crawl to collect NLP
+data, using this module to extract webpage text, then training and testing
+models offline. If you use web crawl data to construct an NLP model for a
+browser-based study, be sure to carefully consider how the distribution
+of pages in the crawl compares to the distribution of pages that a user in
+the study might visit. If a crawl is not representative of user browsing,
+NLP model performance on crawl data might significantly differ from
+performance when deployed in a browser-based study.</p>
+<h2>Implementing Natural Language Processing in Web Workers</h2>
+<p>Because natural language processing methods can be computationally
+expensive, it is very important to offload NLP tasks from an extension's
+main thread. We recommend pairing this module with the <code>workers</code> module to
+implement NLP tasks inside of Web Workers, which run in separate threads
+and will not block the extension's main thread. Some NLP toolkits support
+additional optimizations, such as WebAssembly or WebGL, and we recommend
+enabling all available optimizations to minimize the possibility of impact
+on the user's browsing experience.</p></div>
+        
+
+        
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="pageText.js.html">pageText.js</a>, <a href="pageText.js.html#line1">line 1</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://github.com/mozilla/readability">https://github.com/mozilla/readability</a></li>
+        
+            <li><a href="https://github.com/NaturalNode/natural">https://github.com/NaturalNode/natural</a></li>
+        
+            <li><a href="https://github.com/axa-group/nlp.js">https://github.com/axa-group/nlp.js</a></li>
+        
+            <li><a href="https://www.tensorflow.org/js">https://www.tensorflow.org/js</a></li>
+        
+            <li><a href="https://github.com/microsoft/onnxjs">https://github.com/microsoft/onnxjs</a></li>
+        
+            <li><a href="https://mil-tokyo.github.io/webdnn/">https://mil-tokyo.github.io/webdnn/</a></li>
+        
+            <li><a href="https://github.com/nok/sklearn-porter">https://github.com/nok/sklearn-porter</a></li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Namespaces</h3>
+
+        <dl>
+            <dt><a href="module-pageText.onTextParsed.html">onTextParsed</a></dt>
+            <dd></dd>
+        </dl>
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Jun 01 2021 08:53:41 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

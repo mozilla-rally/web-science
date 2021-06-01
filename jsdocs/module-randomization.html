@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Module: randomization</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Module: randomization</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        
+            
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description"><p>This module enables running measurements and interventions with randomization,
+such as A/B tests, multivariate tests, and randomized controlled trials.</p></div>
+        
+
+        
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="randomization.js.html">randomization.js</a>, <a href="randomization.js.html#line1">line 1</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".selectCondition"><span class="type-signature">(static) </span>selectCondition<span class="signature">(conditionSet)</span><span class="type-signature"> &rarr; {string}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Selects a condition from a set of conditions. If a condition has previously
+been selected from the set, that same condition will be returned. If not,
+a condition will be randomly selected according to the provided weights.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>conditionSet</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">ConditionSet</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The set of conditions.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="randomization.js.html">randomization.js</a>, <a href="randomization.js.html#line64">line 64</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <ul>
+<li>The name of the selected condition in the condition set.</li>
+</ul>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// on first run, returns "red" with 0.5 probability and "blue" with 0.5 probability
+// on subsequent runs, returns the same value as before
+randomization.selectCondition({
+  name: "color",
+  conditions: [
+    {
+      name: "red",
+      weight: 1
+    },
+    {
+      name: "blue",
+      weight: 1
+    }
+  ]
+});</code></pre>
+
+
+
+        
+    
+
+    
+        <h3 class="subsection-title">Type Definitions</h3>
+
+        
+                
+<h4 class="name" id="~Condition">Condition</h4>
+
+
+
+
+<div class="description">
+    <p>A condition for a measurement or intervention that can be randomly selected.</p>
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">Object</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    
+
+<table class="props">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A name that uniquely identifies the condition within
+the set of conditions.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>weight</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The positive weight to give this condition when randomly
+selecting a condition from a set.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="randomization.js.html">randomization.js</a>, <a href="randomization.js.html#line10">line 10</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+            
+                
+<h4 class="name" id="~ConditionSet">ConditionSet</h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">Object</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    
+
+<table class="props">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A name that uniquely identifies the set of conditions.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>conditions</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;Condition></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The conditions in the set.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="randomization.js.html">randomization.js</a>, <a href="randomization.js.html#line19">line 19</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+            
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Jun 01 2021 08:53:41 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: debugging.js</title>
+    <title>JSDoc: Module: scheduling</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,57 +17,177 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: debugging.js</h1>
+    <h1 class="page-title">Module: scheduling</h1>
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>/**
- * This module provides utilities for logging debugging events.
- * The module currently just outputs events with `console.debug`.
- * 
- * @module debugging
- */
+        
+            
+        
+    
+</header>
 
-/**
- * Whether to log debugging events.
- * @private
- * @type {boolean}
- * @default
- */
-let debug = false;
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description"><p>This module enables subscribing to periodic events, currently on a daily or
+weekly schedule.</p>
+<p>The module guarantees a lower bound on when the event will fire, rather than
+a precise time for when the event will fire. This constraint is because
+the browser may not be open when the event would next fire, and because the
+module attempts to wait for an idle state to avoid browser jank.</p>
+<p>The heuristic for determining when to fire the next idle daily event is
+identical to the heuristic used for the <code>idle-daily</code> event issued by the
+Firefox <a href="https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XPCOM/Reference/Interface/nsIIdleService"><code>nsIdleService</code></a>.</p>
+<ol>
+<li>Wait a day since the most recent idle daily event, or if the extension
+was just installed, wait a day after install.</li>
+<li>Listen for the next idle state, with a detection interval of 3 minutes.</li>
+<li>If an idle state does not occur within 24 hours, shorten the detection
+interval to 1 minute.</li>
+</ol>
+<p>The idle daily event fires as soon as the browser enters an idle state that
+satisfies the heuristic. The idle weekly event fires just after an idle
+daily event when it has been at least 7 days since the last idle weekly
+event.</p>
+<p>Some implementation quirks to be aware of for use and future development:</p>
+<ul>
+<li>
+<p>This module does not subscribe to the <code>idle-daily</code> event from the
+<code>nsIdleService</code> to minimize privileged extension code and so that it
+runs on a different schedule from Firefox daily tasks (e.g., Telemetry).</p>
+</li>
+<li>
+<p>This module uses <code>setTimeout</code> to handle corner cases where the browser
+goes idle before the idle daily event should fire and remains idle
+through when the idle daily event should fire. The timeouts are
+configured on startup (and periodically) based on timestamps in
+persistent storage, so it is not a problem that timeouts do not
+persist between browser sessions.</p>
+</li>
+</ul></div>
+        
 
-/**
- * Enable logging for debugging events.
- */
-export function enableDebugging() {
-    debug = true;
-}
+        
+            
 
-/**
- * A function that outputs a message to `console.debug` in a consistent format.
- * @callback debuggingLogger
- * @param {string} message - The message to output to `console.debug`.
- */
 
-/**
- * Create a debugging logger, a function that logs debugging events (as strings).
- * @param {string} moduleName - A name that uniquely identifies the module
- * generating the debugging events.
- * @returns {debuggingLogger} - A debugging logger.
- */
-export function getDebuggingLog(moduleName) {
-    return ((text) => {
-        if (debug) console.debug("webScience." + moduleName + ": " + text);
-    });
-}
-</code></pre>
-        </article>
-    </section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="scheduling.js.html">scheduling.js</a>, <a href="scheduling.js.html#line1">line 1</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Namespaces</h3>
+
+        <dl>
+            <dt><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></dt>
+            <dd></dd>
+        
+            <dt><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></dt>
+            <dd></dd>
+        </dl>
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 

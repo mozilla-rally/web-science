@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: debugging.js</title>
+    <title>JSDoc: Source: id.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: debugging.js</h1>
+    <h1 class="page-title">Source: id.js</h1>
 
     
 
@@ -27,43 +27,21 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * This module provides utilities for logging debugging events.
- * The module currently just outputs events with `console.debug`.
- * 
- * @module debugging
+ * This module provides functionality for generating random identifiers.
+ * Studies can use these identifiers to uniquely label events and other
+ * items of interest.
+ * @module id
  */
 
-/**
- * Whether to log debugging events.
- * @private
- * @type {boolean}
- * @default
- */
-let debug = false;
+import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Enable logging for debugging events.
+ * Generate a random (v4) UUID, consistent with RFC4122. These values
+ * include 122 bits of cryptographic randomness.
+ * @returns {string} The new UUID.
  */
-export function enableDebugging() {
-    debug = true;
-}
-
-/**
- * A function that outputs a message to `console.debug` in a consistent format.
- * @callback debuggingLogger
- * @param {string} message - The message to output to `console.debug`.
- */
-
-/**
- * Create a debugging logger, a function that logs debugging events (as strings).
- * @param {string} moduleName - A name that uniquely identifies the module
- * generating the debugging events.
- * @returns {debuggingLogger} - A debugging logger.
- */
-export function getDebuggingLog(moduleName) {
-    return ((text) => {
-        if (debug) console.debug("webScience." + moduleName + ": " + text);
-    });
+export function generateId() {
+    return uuidv4();
 }
 </code></pre>
         </article>

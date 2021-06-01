@@ -29,14 +29,32 @@
             <pre class="prettyprint source linenums"><code>/**
  * This module provides utility functions for tracking social media posts.
  *
- * @module webScience.socialMediaActivity
+ * @module socialMediaActivity
  */
-import * as debugging from "./debugging.js"
-import * as messaging from "./messaging.js"
-import * as contentScripts from "./contentScripts.js"
-import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js"
-import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js"
 
+import * as debugging from "./debugging.js";
+import * as messaging from "./messaging.js";
+import * as inline from "./inline.js";
+import * as permissions from "./permissions.js";
+import * as timing from "./timing.js";
+import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js";
+import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js";
+
+permissions.check({
+    module: "webScience.socialMediaActivity",
+    requiredPermissions: [ "webRequest" ],
+    requiredOrigins: [
+        "*://*.facebook.com/*",
+        "*://*.twitter.com/*",
+        "*://*.reddit.com/*"
+    ],
+    suggestedPermissions: [ "unlimitedStorage" ]
+});
+
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("socialMediaActivity");
 
 let privateWindows = false;
@@ -65,6 +83,7 @@ export function enablePrivateWindows() {
  * @param eventType - which type of event we're registering
  * @param blockingType - whether the handler should be blocking or not
  * @param callback - the client function to call when the event occurs
+ * @private
  */
 function registerPlatformListener(platform, eventType, blockingType, callback) {
     debugLog("Registering listener for " + platform + eventType);
@@ -180,12 +199,13 @@ export function registerRedditActivityTracker(
  * @param platform - which social media platform this event is from
  * @param eventType - which event this request should be
  * @param blockingType - whether a blocking listener should run
+ * @private
  */
 async function handleGenericEvent({requestDetails = null,
                              platform = null, eventType = null,
                              blockingType = null}) {
     const handler = platformHandlers[platform][eventType];
-    const eventTime = Date.now();
+    const eventTime = timing.now();
     let verified = null;
     for (const verifier of handler.verifiers) {
         verified = await verifier({requestDetails: requestDetails, platform: platform,
@@ -226,6 +246,7 @@ async function handleGenericEvent({requestDetails = null,
 /**
  * A generic verifier that makes sure a request is a POST.
  * @param requestDetails - the raw request
+ * @private
  */
 function verifyPostReq({requestDetails = null}) {
     if (!requestDetails) return null;
@@ -236,6 +257,7 @@ function verifyPostReq({requestDetails = null}) {
 /**
  * A generic verifier that makes sure the formData field is present.
  * @param requestDetails - the raw request
+ * @private
  */
 function verifyReadableFormData({requestDetails = null}) {
     if (!requestDetails.requestBody) return null;
@@ -250,6 +272,7 @@ function verifyReadableFormData({requestDetails = null}) {
  * Note: if multiple events listen to the same URL and distinguish events by
  * request contents, this verifier must be the LAST in the list
  * @param requestDetails - the raw request
+ * @private
  */
 function verifyNewRequest({requestDetails = null}) {
     if (!requestDetails.requestId) return null;
@@ -262,6 +285,7 @@ function verifyNewRequest({requestDetails = null}) {
 
 /**
  * Stores the callback functions the client has registered.
+ * @private
  */
 const clientCallbacks = {
     twitter: {
@@ -285,6 +309,7 @@ const clientCallbacks = {
 
 /**
  * Holds the configuration for each type of handler.
+ * @private
  */
 const platformHandlers = {
     twitter: {
@@ -410,6 +435,7 @@ platformHandlers.reddit.commentVote = {
  * @param requestDetails - the raw request
  * @returns - null when invalid, otherwise an object indicating whether the request comes from
  *  a service worker (not currently used).
+ * @private
  */
 function verifyTwitterTweet({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.status)) return null;
@@ -423,6 +449,7 @@ function verifyTwitterTweet({requestDetails = null}) {
  * Extract info from a tweet.
  * @param {Object} requestDetails
  * @returns {Object} - the tweet info extracted into an object
+ * @private
  */
 function extractTwitterTweet({requestDetails = null}) {
     const details = {};
@@ -444,6 +471,7 @@ function extractTwitterTweet({requestDetails = null}) {
  * @param requestDetails - the raw request
  * @returns - null when invalid, otherwise an object indicating whether the request comes from
  *  a service worker (not currently used).
+ * @private
  */
 function verifyTwitterRetweet({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id)) return null;
@@ -456,6 +484,7 @@ function verifyTwitterRetweet({requestDetails = null}) {
  * Extract info from a retweet.
  * @param {Object} requestDetails
  * @returns {Object} - the retweet info extracted into an object
+ * @private
  */
 function extractTwitterRetweet({requestDetails = null, eventTime = null}) {
     const tweetId = requestDetails.requestBody.formData.id[0];
@@ -472,6 +501,7 @@ function extractTwitterRetweet({requestDetails = null, eventTime = null}) {
  * @param requestDetails - the raw request
  * @returns - null when invalid, otherwise an object indicating whether the request comes from
  *  a service worker (not currently used).
+ * @private
  */
 function verifyTwitterFavorite({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id)) return null;
@@ -485,6 +515,7 @@ function verifyTwitterFavorite({requestDetails = null}) {
  * Extract info from a favorite.
  * @param {Object} requestDetails
  * @returns {Object} - the favorite info extracted into an object
+ * @private
  */
 function extractTwitterFavorite({requestDetails = null,
                                  details = null, verified = null,
@@ -522,6 +553,7 @@ export function getTweetContent(tweetId) {
  * register the content script and listen for it to tell us which tab ID it's inside.
  * We also need two additional fields to construct valid requests. To deal with these
  * changing periodically, we log them each time we see them sent.
+ * @private
  */
 function tweetContentInit() {
     if (tweetContentSetUp) { return; }
@@ -529,7 +561,7 @@ function tweetContentInit() {
     browser.contentScripts.register({
         matches: ["https://twitter.com/*", "https://twitter.com/"],
         js: [{
-            code: contentScripts.unpack(twitterContentScript)
+            code: inline.dataUrlToString(twitterContentScript)
         }],
         runAt: "document_idle"
     });
@@ -552,21 +584,22 @@ function tweetContentInit() {
  * A content script inside the page allows us to seach for a post or send a request.
  * When the first Facebook tracker is registered, register the content script
  * and listen for it to tell us which tab ID it's in.
+ * @private
  */
 async function fbPostContentInit() {
     if (fbPostContentSetUp) { return; }
     fbPostContentSetUp = true;
-    messaging.registerListener("webScience.socialMediaActivity",
+    messaging.onMessage.addListener(
         (message, sender) => {
             if (message.platform == "facebook") {
                 facebookTabId = sender.tab.id;
             }
-        });
+        }, { type: "webScience.socialMediaActivity" });
     // Register the content script that will find posts inside the page when reshares happen
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
         js: [{
-            code: contentScripts.unpack(facebookContentScript)
+            code: inline.dataUrlToString(facebookContentScript)
         }],
         runAt: "document_start"
     });
@@ -576,6 +609,7 @@ async function fbPostContentInit() {
  * Parse a react request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 function extractFacebookReact({requestDetails = null, eventTime = null, verified = null}) {
     const reactionRequest = verified.reactionRequest;
@@ -622,6 +656,7 @@ function extractFacebookReact({requestDetails = null, eventTime = null, verified
  * Check that a request is a valid react request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid react, empty object otherwise
+ * @private
  */
 function verifyFacebookReact({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
@@ -638,6 +673,7 @@ function verifyFacebookReact({requestDetails = null}) {
  * Check that a request is a valid post request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid post, empty object otherwise
+ * @private
  */
 function verifyFacebookPost({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.variables)) { return null; }
@@ -653,6 +689,7 @@ function verifyFacebookPost({requestDetails = null}) {
  * Parse a post request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 function extractFacebookPost({requestDetails = null, eventTime = null}) {
     let postText = "";
@@ -691,6 +728,7 @@ function extractFacebookPost({requestDetails = null, eventTime = null}) {
  * Parse a comment request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 function extractFacebookComment({requestDetails = null, eventTime = null}) {
     const variables = findFieldFacebook(requestDetails.requestBody.formData, "variables");
@@ -716,6 +754,7 @@ function extractFacebookComment({requestDetails = null, eventTime = null}) {
  * Check that a request is a valid comment request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid comment, empty object otherwise
+ * @private
  */
 function verifyFacebookComment({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.fb_api_req_friendly_name)) { return null; }
@@ -724,7 +763,9 @@ function verifyFacebookComment({requestDetails = null}) {
 
     return {};
 }
-
+/**
+ * @private
+ */
 function checkFacebookPostAudience(requestDetails) {
     let base_state = "unknown";
     let audience = "unknown";
@@ -764,6 +805,9 @@ function checkFacebookPostAudience(requestDetails) {
     return audience;
 }
 
+/**
+ * @private
+ */
 function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 5) {
     if (recurseLevel &lt;= 0) return null;
     if (object == null) return null;
@@ -809,6 +853,7 @@ function findFieldFacebook(object, fieldName, enterArray = true, recurseLevel = 
  * Parse a reshare request into an event.
  * @param requestDetails - the raw request
  * @returns - the parsed event
+ * @private
  */
 async function extractFacebookReshare({requestDetails = null, verified = null, eventTime = null}) {
     // New FB
@@ -836,12 +881,18 @@ async function extractFacebookReshare({requestDetails = null, verified = null, e
     }
 }
 
+/**
+ * @private
+ */
 async function getReshareInfo() {
     return browser.tabs.sendMessage(facebookTabId, {"recentReshare": true}).then((response) => {
         return response;
     }, (e) => { console.log("ERROR", e); } );
 }
 
+/**
+ * @private
+ */
 function isThisPostAReshare(requestDetails) {
     const friendlyName = findFieldFacebook(requestDetails.requestBody.formData,
         "fb_api_req_friendly_name");
@@ -861,6 +912,7 @@ function isThisPostAReshare(requestDetails) {
  * Check that a request is a valid reshare request
  * @param requestDetails - the raw request
  * @returns - null if the request is not a valid reshare, empty object otherwise
+ * @private
  */
 function verifyFacebookReshare({requestDetails = null }) {
     if (requestDetails.url.includes("api/graphql")) {
@@ -926,6 +978,7 @@ export function getFacebookPostContents(postId) {
 
 /**
  * Reddit posts don't currently have validation needs.
+ * @private
  */
 function verifyRedditPost({requestDetails = null}) {
     return {};
@@ -935,9 +988,10 @@ function verifyRedditPost({requestDetails = null}) {
  * Parse a Reddit post request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditPost({requestDetails = null}) {
-    const shareTime = Date.now();
+    const shareTime = timing.now();
     const details = {};
     details.eventTime = shareTime;
     details.postBody = [];
@@ -997,6 +1051,7 @@ function extractRedditPost({requestDetails = null}) {
  * Check that a request is a valid Reddit comment
  * @param requestDetails - the raw request
  * @returns - null if the request is not valid, empty object otherwise
+ * @private
  */
 function verifyRedditComment({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.thing_id &amp;&amp;
@@ -1009,6 +1064,7 @@ function verifyRedditComment({requestDetails = null}) {
  * Parse a Reddit comment request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditComment({requestDetails = null, eventTime = null}) {
     const details = {};
@@ -1024,6 +1080,7 @@ function extractRedditComment({requestDetails = null, eventTime = null}) {
  * Check that a request is a valid Reddit post vote
  * @param requestDetails - the raw request
  * @returns - null if the request is not valid, empty object otherwise
+ * @private
  */
 function verifyRedditPostVote({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id &amp;&amp;
@@ -1038,6 +1095,7 @@ function verifyRedditPostVote({requestDetails = null}) {
  * Parse a Reddit post vote request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditPostVote({requestDetails = null, eventTime = null}) {
     const details = {};
@@ -1052,6 +1110,7 @@ function extractRedditPostVote({requestDetails = null, eventTime = null}) {
  * Check that a request is a valid Reddit comment vote
  * @param requestDetails - the raw request
  * @returns - null if the request is not valid, empty object otherwise
+ * @private
  */
 function verifyRedditCommentVote({requestDetails = null}) {
     if (!(requestDetails.requestBody.formData.id &amp;&amp;
@@ -1066,6 +1125,7 @@ function verifyRedditCommentVote({requestDetails = null}) {
  * Parse a Reddit comment vote request into an object.
  * @param requestDetails - the raw request
  * @returns - the parsed object
+ * @private
  */
 function extractRedditCommentVote({requestDetails = null, eventTime = null}) {
     return new Promise((resolve, reject) => {
@@ -1133,13 +1193,13 @@ export function getRedditThingContents(thingId) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="webScience.module_contentScripts.html">contentScripts</a></li><li><a href="webScience.module_dataAnalysis.html">dataAnalysis</a></li><li><a href="webScience.module_debugging.html">debugging</a></li><li><a href="webScience.module_events.html">events</a></li><li><a href="webScience.module_idle.html">idle</a></li><li><a href="webScience.module_linkExposure.html">linkExposure</a></li><li><a href="webScience.module_linkResolution.html">linkResolution</a></li><li><a href="webScience.module_matching.html">matching</a></li><li><a href="webScience.module_messaging.html">messaging</a></li><li><a href="webScience.module_pageClassification.html">pageClassification</a></li><li><a href="webScience.module_pageManager.html">pageManager</a></li><li><a href="webScience.module_pageNavigation.html">pageNavigation</a></li><li><a href="webScience.module_scheduling.html">scheduling</a></li><li><a href="webScience.module_socialMediaActivity.html">socialMediaActivity</a></li><li><a href="webScience.module_socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="webScience.module_storage.html">storage</a></li><li><a href="webScience.module_userSurvey.html">userSurvey</a></li></ul><h3>Classes</h3><ul><li><a href="webScience.module_events.Event.html">Event</a></li><li><a href="webScience.module_events.EventSingleton.html">EventSingleton</a></li><li><a href="webScience.module_events.EventWithoutOptions.html">EventWithoutOptions</a></li><li><a href="webScience.module_matching.MatchPatternSet.html">MatchPatternSet</a></li><li><a href="webScience.module_storage.Counter.html">Counter</a></li><li><a href="webScience.module_storage.IndexedStorage.html">IndexedStorage</a></li><li><a href="webScience.module_storage.KeyValueStorage.html">KeyValueStorage</a></li></ul><h3>Interfaces</h3><ul><li><a href="webScience.module_linkExposure-LinkExposureDetails.html">LinkExposureDetails</a></li><li><a href="webScience.module_pageNavigation-PageDataDetails.html">PageDataDetails</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Tue Apr 06 2021 12:42:55 GMT-0700 (Pacific Daylight Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Jun 01 2021 08:53:41 GMT-0700 (Pacific Daylight Time)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -63,17 +63,18 @@
  *     persistent storage, so it is not a problem that timeouts do not
  *     persist between browser sessions.
  * 
- * @module webScience.scheduling
+ * @module scheduling
  */
 
 import * as idle from "./idle.js";
 import * as storage from "./storage.js";
 import * as events from "./events.js";
+import * as timing from "./timing.js";
 
 /**
  * The number of seconds in a day.
  * @private
- * @const {number}
+ * @constant {number}
  * @default
  */
 const secondsPerDay = 86400;
@@ -83,7 +84,7 @@ const secondsPerDay = 86400;
  * firing idle daily and idle weekly events. This is the same value
  * (180 seconds = 3 minutes) used in the Firefox `nsIdleService`.
  * @private
- * @const {number}
+ * @constant {number}
  * @default
  */
 const idleIntervalInSeconds = 180;
@@ -96,7 +97,7 @@ const idleIntervalInSeconds = 180;
  * same value (60 seconds = 1 minute) used in the Firefox
  * `nsIdleService`.
  * @private
- * @const {number}
+ * @constant {number}
  * @default
  */
 const shortenedIdleIntervalInSeconds = 60;
@@ -107,7 +108,7 @@ const shortenedIdleIntervalInSeconds = 60;
  * interval. This is the same value (86400 seconds = 1 day) used
  * in the Firefox `nsIdleService`.
  * @private
- * @const {number}
+ * @constant {number}
  * @default [secondsPerDay]
  */
 const shortenedIdleIntervalThresholdInSeconds = secondsPerDay;
@@ -146,20 +147,78 @@ let storageSpace = null;
 let timeoutId = -1;
 
 /**
- * An event that fires about once a day, when the browser is idle.
- * @constant
- * @type {Events.EventWithoutOptions&lt;Events.callbackWithoutParameters>}
+ * Add a listener for the `onIdleDaily` event.
+ * @function addListener
+ * @memberof module:scheduling.onIdleDaily
+ * @param {Function} listener - The listener to add.
  */
-export const onIdleDaily = new events.Event({
+
+/**
+ * Remove a listener for the `onIdleDaily` event.
+ * @function removeListener
+ * @memberof module:scheduling.onIdleDaily
+ * @param {Function} listener - The listener to remove.
+ */
+
+/**
+ * Check whether a specified listener has been added for the `onIdleDaily` event.
+ * @function hasListener
+ * @memberof module:scheduling.onIdleDaily
+ * @param {Function} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * Whether the `onIdleDaily` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:scheduling.onIdleDaily
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
+ * An event that fires about once a day, when the browser is idle.
+ * @namespace
+ */
+export const onIdleDaily = events.createEvent({
+    name: "webScience.scheduling.onIdleDaily",
     addListenerCallback: function() { initialize(); }
-})
+});
+
+/**
+ * Add a listener for the `onIdleWeekly` event.
+ * @function addListener
+ * @memberof module:scheduling.onIdleWeekly
+ * @param {Function} listener - The listener to add.
+ */
+
+/**
+ * Remove a listener for the `onIdleWeekly` event.
+ * @function removeListener
+ * @memberof module:scheduling.onIdleWeekly
+ * @param {Function} listener - The listener to remove.
+ */
+
+/**
+ * Check whether a specified listener has been added for the `onIdleWeekly` event.
+ * @function hasListener
+ * @memberof module:scheduling.onIdleWeekly
+ * @param {Function} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * Whether the `onIdleWeekly` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:scheduling.onIdleWeekly
+ * @returns {boolean} Whether the event has any listeners.
+ */
 
 /**
  * An event that fires about once a week, when the browser is idle.
- * @constant
- * @type {Events.EventWithoutOptions&lt;Events.callbackWithoutParameters>}
+ * @namespace
  */
-export const onIdleWeekly = new events.Event({
+export const onIdleWeekly = events.createEvent({
+    name: "webScience.scheduling.onIdleWeekly",
     addListenerCallback: function() { initialize(); }
 });
 
@@ -187,7 +246,7 @@ function setIdleStateDetectionTimeout() {
     // recent idle daily event. Thresholded with a delay of 0 (fire
     // immediately) since the time could be in the past (e.g., if the
     // browser has not been open for a day).
-    let timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) - Date.now(), 0);
+    let timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) - timing.now(), 0);
     timeoutId = setTimeout(function() {
         // If the browser is already in an idle state with the ordinary
         // idle state detection interval, fire the idle events.
@@ -199,13 +258,14 @@ function setIdleStateDetectionTimeout() {
         // a delay for when we should start using the shortened idle
         // state detection interval. As above, the delay is thresholded
         // at 0. 
-        timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) + (shortenedIdleIntervalThresholdInSeconds * 1000) - Date.now(), 0);
+        timeoutDelay = Math.max(lastIdleDailyTime + (secondsPerDay * 1000) + (shortenedIdleIntervalThresholdInSeconds * 1000) - timing.now(), 0);
         timeoutId = setTimeout(function() {
             // If the browser is already in an idle state with the
             // shortened idle state detection interval, fire the idle
             // events.
-            if(idle.queryState(shortenedIdleIntervalInSeconds) === "idle")
+            if(idle.queryState(shortenedIdleIntervalInSeconds) === "idle") {
                 notifyListeners();
+            }
         }, timeoutDelay);
     }, timeoutDelay);
 }
@@ -218,7 +278,7 @@ function setIdleStateDetectionTimeout() {
 async function notifyListeners() {
     // Remember the new idle daily event time to reset the scheduling
     // heuristic.
-    lastIdleDailyTime = Date.now();
+    lastIdleDailyTime = timing.now();
     await storageSpace.set("lastIdleDailyTime", lastIdleDailyTime);
 
     onIdleDaily.notifyListeners();
@@ -228,8 +288,9 @@ async function notifyListeners() {
 
     // If it's been less than a week since the most recent idle
     // weekly event, we're done.
-    if(lastIdleDailyTime &lt; (lastIdleWeeklyTime + (7 * secondsPerDay * 1000)))
+    if(lastIdleDailyTime &lt; (lastIdleWeeklyTime + (7 * secondsPerDay * 1000))) {
         return;
+    }
     
     // Remember the new idle weekly event time to update scheduling
     // for the next idle weekly event.
@@ -248,12 +309,14 @@ async function notifyListeners() {
 async function idleStateListener(newState) {
     // If it's been less than a day since the most recent idle
     // daily event, ignore the idle state event.
-    if(Date.now() &lt; (lastIdleDailyTime + (secondsPerDay * 1000)))
+    if(timing.now() &lt; (lastIdleDailyTime + (secondsPerDay * 1000))) {
         return;
+    }
     // If the browser has entered an idle state, fire the idle
     // events.
-    if(newState === "idle")
+    if(newState === "idle") {
         await notifyListeners();
+    }
 }
 
 /**
@@ -265,13 +328,15 @@ async function idleStateListener(newState) {
 async function shortenedIdleStateListener(newState) {
     // If it's been less than two days since the most recent idle
     // daily event, ignore the idle state event.
-    if(Date.now() &lt; (lastIdleDailyTime + (secondsPerDay * 1000) + (shortenedIdleIntervalThresholdInSeconds * 1000)))
+    if(timing.now() &lt; (lastIdleDailyTime + (secondsPerDay * 1000) + (shortenedIdleIntervalThresholdInSeconds * 1000))) {
         return;
+    }
     
     // If the browser has entered an idle state, fire the idle
     // events.
-    if(newState === "idle")
+    if(newState === "idle") {
         await notifyListeners();
+    }
 }
 
 /**
@@ -286,16 +351,17 @@ let initialized = false;
  * @private
  */
 async function initialize() {
-    if(initialized)
+    if(initialized) {
         return;
+    }
     initialized = true;
 
     // Load the most recent idle daily and idle weekly event times
     // from persistent storage. If there are no stored times, that
     // means the extension has just been installed, and we should
     // use the current time.
-    const currentTime = Date.now();
-    storageSpace = new storage.KeyValueStorage("webScience.scheduling");
+    const currentTime = timing.now();
+    storageSpace = storage.createKeyValueStorage("webScience.scheduling");
 
     lastIdleDailyTime = await storageSpace.get("lastIdleDailyTime");
     if(lastIdleDailyTime === null) {
@@ -312,8 +378,8 @@ async function initialize() {
     // Register two listeners for idle state events from the Idle
     // module. One listener uses the ordinary idle state detection
     // interval and the other uses the shortened interval.
-    idle.registerIdleStateListener(idleStateListener, idleIntervalInSeconds);
-    idle.registerIdleStateListener(shortenedIdleStateListener, shortenedIdleIntervalInSeconds);
+    idle.onStateChanged.addListener(idleStateListener, idleIntervalInSeconds);
+    idle.onStateChanged.addListener(shortenedIdleStateListener, shortenedIdleIntervalInSeconds);
 
     // Set a timeout to account for corner cases with idle state
     // events.
@@ -329,13 +395,13 @@ async function initialize() {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="webScience.module_contentScripts.html">contentScripts</a></li><li><a href="webScience.module_dataAnalysis.html">dataAnalysis</a></li><li><a href="webScience.module_debugging.html">debugging</a></li><li><a href="webScience.module_events.html">events</a></li><li><a href="webScience.module_idle.html">idle</a></li><li><a href="webScience.module_linkExposure.html">linkExposure</a></li><li><a href="webScience.module_linkResolution.html">linkResolution</a></li><li><a href="webScience.module_matching.html">matching</a></li><li><a href="webScience.module_messaging.html">messaging</a></li><li><a href="webScience.module_pageClassification.html">pageClassification</a></li><li><a href="webScience.module_pageManager.html">pageManager</a></li><li><a href="webScience.module_pageNavigation.html">pageNavigation</a></li><li><a href="webScience.module_scheduling.html">scheduling</a></li><li><a href="webScience.module_socialMediaActivity.html">socialMediaActivity</a></li><li><a href="webScience.module_socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="webScience.module_storage.html">storage</a></li><li><a href="webScience.module_userSurvey.html">userSurvey</a></li></ul><h3>Classes</h3><ul><li><a href="webScience.module_events.Event.html">Event</a></li><li><a href="webScience.module_events.EventSingleton.html">EventSingleton</a></li><li><a href="webScience.module_events.EventWithoutOptions.html">EventWithoutOptions</a></li><li><a href="webScience.module_matching.MatchPatternSet.html">MatchPatternSet</a></li><li><a href="webScience.module_storage.Counter.html">Counter</a></li><li><a href="webScience.module_storage.IndexedStorage.html">IndexedStorage</a></li><li><a href="webScience.module_storage.KeyValueStorage.html">KeyValueStorage</a></li></ul><h3>Interfaces</h3><ul><li><a href="webScience.module_linkExposure-LinkExposureDetails.html">LinkExposureDetails</a></li><li><a href="webScience.module_pageNavigation-PageDataDetails.html">PageDataDetails</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Tue Apr 06 2021 12:42:55 GMT-0700 (Pacific Daylight Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Jun 01 2021 08:53:41 GMT-0700 (Pacific Daylight Time)
 </footer>
 
 <script> prettyPrint(); </script>

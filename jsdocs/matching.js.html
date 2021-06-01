@@ -29,17 +29,28 @@
             <pre class="prettyprint source linenums"><code>/**
  * This module provides utilities for matching URLs against criteria.
  *
+ * ## Matching Criteria
  * The module supports two types of criteria:
  *   * Match Patterns (preferred) - a syntax used in the WebExtensions API for expressing possible URL matches.
  *     See: {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns}.
  *   * Domains - a simple list of domain names, which are converted into match patterns.
- *
- * The module supports two types of output for matching URLs:
+ * 
+ * ## Matching Output
+ * The module supports three types of output for matching URLs:
  *   * Match Pattern Sets (preferred) - optimized objects that compare a URL against the criteria.
  *   * Regular Expressions - `RegExp` objects that compare a URL against the criteria.
  *   * Regular Expression Strings - strings expressing regular expressions for comparing a URL against the criteria.
+ * 
+ * ## Implementation Notes
+ * We use Rollup pure annotations (`@__PURE__` comments) because Rollup assumes that iterators might have side 
+ * effects (including subtle cases of iteration like `Array.map` and `Array.join`). Without the annotations, Rollup
+ * would mark arguments for many of this module's functions (which might be large string arrays) as tainted by side
+ * effects and always include those arguments in bundled output. The pure annotations are associated with either
+ * iteration functions or class instantiation to provide clarity about why they're needed.
  *
- * @module webScience.matching
+ * @see {@link https://github.com/rollup/rollup/issues/3127}
+ * 
+ * @module matching
  */
 
 /**
@@ -55,8 +66,7 @@ const matchPatternValidationRegExp = new RegExp("(^&lt;all_urls>$)|(^(https?|wss
 /**
  * A Set of URL schemes permitted in WebExtensions match patterns.
  * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
- * @constant
- * @type {Set&lt;string>}
+ * @constant {Set&lt;string>}
  * @private
  */
 const permittedMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "data", "file"]);
@@ -64,8 +74,7 @@ const permittedMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss",
 /**
  * A Set of URL schemes that require a host locator (i.e., are followed by `://` rather than `:`).
  * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
- * @constant
- * @type {Set&lt;string>}
+ * @constant {Set&lt;string>}
  * @private
  */
 const hostLocatorMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss", "file", "ftp", "moz-extension", "chrome", "resource", "moz", "moz-icon", "moz-gio"]);
@@ -75,8 +84,7 @@ const hostLocatorMatchPatternSchemes = new Set(["*", "http", "https", "ws", "wss
  * "http", "https", "ws", "wss", "ftp", "file", and "data" schemes with any hostname and path.
  * This regular expression includes a little sanity checking: hostnames are limited to alphanumerics,
  * hyphen, period, and brackets at the start and end (for IPv6 literals).
- * @constant
- * @type {string}
+ * @constant {string}
  * @private
  */
 const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\\-\\.]+\\]?(?::[0-9]+)?(?:(?:)|(?:/.*)))|(?:file://[?[a-zA-Z0-9\\-\\.]*\\]?/.*)|(?:data:.*)$";
@@ -129,11 +137,13 @@ function parseMatchPattern(matchPattern) {
 
     // Parse the scheme
     let index = matchPattern.indexOf(":");
-    if(index &lt;= 0)
+    if(index &lt;= 0) {
         throw new Error(`Invalid match pattern, missing : after scheme: ${matchPattern}`);
+    }
     const scheme = matchPattern.substr(0, index);
-    if(!permittedMatchPatternSchemes.has(scheme))
+    if(!permittedMatchPatternSchemes.has(scheme)) {
         throw new Error(`Invalid match pattern, unsupported scheme: ${matchPattern}`);
+    }
     const hostLocatorScheme = hostLocatorMatchPatternSchemes.has(scheme);
     parsedMatchPattern.scheme = scheme;
 
@@ -141,18 +151,21 @@ function parseMatchPattern(matchPattern) {
     let offset = index + 1;
     tail = matchPattern.substr(offset);
     if(hostLocatorScheme) {
-        if(!tail.startsWith("//"))
+        if(!tail.startsWith("//")) {
             throw new Error(`Invalid match pattern, missing // required by scheme: ${matchPattern}`);
+        }
 
         offset += 2;
         tail = matchPattern.substr(offset);
         index = tail.indexOf("/");
-        if(index &lt; 0)
+        if(index &lt; 0) {
             index = tail.length;
+        }
 
         let host = tail.substring(0, index);
-        if((host === "") &amp;&amp; (scheme !== "file"))
+        if((host === "") &amp;&amp; (scheme !== "file")) {
             throw new Error(`Invalid match pattern, missing host required by scheme: ${matchPattern}`);
+        }
 
         offset += index;
         tail = matchPattern.substring(offset);
@@ -160,8 +173,9 @@ function parseMatchPattern(matchPattern) {
         if(host !== "*") {
             if(host.startsWith("*.")) {
                 host = host.substring(2);
-                if(host === "*")
+                if(host === "*") {
                     throw new Error(`Invalid match pattern, subdomain wildcard with host wildcard: ${matchPattern}`);
+                }
                 parsedMatchPattern.matchSubdomains = true;
             }
         }
@@ -170,11 +184,37 @@ function parseMatchPattern(matchPattern) {
 
     // Parse the path
     const path = tail;
-    if(path === "")
+    if(path === "") {
         throw new Error(`Invalid match pattern, missing path: ${matchPattern}`);
+    }
     parsedMatchPattern.path = path;
 
     return parsedMatchPattern;
+}
+
+/**
+ * Create a new MatchPatternSet for matching a set of match patterns.
+ * @param {string[]} matchPatterns - An array of match pattern strings.
+ * @returns {MatchPatternSet} - The new MatchPatternSet.
+ */
+export function createMatchPatternSet(matchPatterns) {
+    return /*@__PURE__*/new MatchPatternSet(matchPatterns);
+}
+
+/**
+ * Restore a MatchPatternSet that was serialized to an object with
+ * the `export` function.
+ * @param {Object} exportedMatchPatternSet - A serialized MatchPatternSet.
+ * @returns {MatchPatternSet} - The new MatchPatternSet.
+ * @example &lt;caption>Example usage of import.&lt;/caption>
+ * const matchPatternSet1 = webScience.matching.createMatchPatternSet([ "*://example.com/*" ]);
+ * const exportedMatchPatternSet = matchPatternSet.export();
+ * const matchPatternSet2 = webScience.matching.importMatchPatternSet(exportedMatchPatternSet);
+ */
+export function importMatchPatternSet(exportedMatchPatternSet) {
+    const matchPatternSet = new MatchPatternSet([]);
+    matchPatternSet.import(exportedMatchPatternSet);
+    return matchPatternSet;
 }
 
 /**
@@ -197,8 +237,9 @@ function parseMatchPattern(matchPattern) {
  * Future performance improvements could include:
  *   * Replacing the path matching implementation to eliminate regular expressions entirely.
  *   * Replacing the match pattern index, such as by implementing a trie.
+ * @hideconstructor
  */
-export class MatchPatternSet {
+class MatchPatternSet {
     /**
      * Creates a match pattern set from an array of match patterns.
      * @param {string[]} matchPatterns - The match patterns for the set.
@@ -294,8 +335,9 @@ export class MatchPatternSet {
         const path = parsedUrl.pathname;
 
         // Check the special `&lt;all_urls>` match pattern
-        if(this.allUrls &amp;&amp; this.allUrlsSchemeSet.has(scheme))
+        if(this.allUrls &amp;&amp; this.allUrlsSchemeSet.has(scheme)) {
             return true;
+        }
 
         // Identify candidate match patterns
         let candidatePatterns = [ ];
@@ -305,8 +347,9 @@ export class MatchPatternSet {
         for(let i = hostComponents.length - 1; i >= 0; i--) {
             hostSuffix = hostComponents[i] + (i &lt; hostComponents.length - 1 ? "." : "") + hostSuffix;
             const hostSuffixPatterns = this.patternsByHost[hostSuffix];
-            if(hostSuffixPatterns !== undefined)
+            if(hostSuffixPatterns !== undefined) {
                 candidatePatterns = candidatePatterns.concat(hostSuffixPatterns);
+            }
         }
 
         // Add match patterns with a wildcard host to the set of candidates
@@ -318,23 +361,25 @@ export class MatchPatternSet {
         for(const candidatePattern of candidatePatterns) {
             if((candidatePattern.scheme === scheme) ||
                ((candidatePattern.scheme === "*") &amp;&amp; this.wildcardSchemeSet.has(scheme))) {
-                   if(candidatePattern.matchSubdomains ||
-                      (candidatePattern.host === "*") ||
-                      (candidatePattern.host === host)) {
-                          if(candidatePattern.wildcardPath ||
-                             candidatePattern.pathRegExp.test(path))
-                             return true;
-                      }
-               }
+                if(candidatePattern.matchSubdomains ||
+                   (candidatePattern.host === "*") ||
+                   (candidatePattern.host === host)) {
+                    if(candidatePattern.wildcardPath ||
+                       candidatePattern.pathRegExp.test(path)) {
+                        return true;
+                    }
+                }
+            }
         }
 
         return false;
     }
 
     /**
-     * Exports the internals of the match pattern set for purposes of saving to extension
-     * local storage.
-     * @returns {object} - An opaque object representing the match pattern set internals.
+     * Serializes the internals of the match pattern set to a serializable object, for purposes
+     * of saving to extension local storage or messaging across contexts.
+     * @returns {Object} - An opaque serializable object representing the match pattern set
+     * internals.
      */
     export() {
         return {
@@ -346,10 +391,7 @@ export class MatchPatternSet {
     /**
      * Imports the match pattern set from an opaque object previously generated by `export`.
      * @param {exportedInternals} - The previously exported internals for the match pattern set.
-     * @example &lt;caption>Example usage of import.&lt;/caption>
-     * // const matchPatternSet1 = new MatchPatternSet([ "*://example.com/*" ]);
-     * // const exportedInternals = matchPatternSet.export();
-     * // const matchPatternSet2 = (new MatchPatternSet([])).import(exportedInternals);
+     * @private
      */
     import(exportedInternals) {
         this.allUrls = exportedInternals.allUrls;
@@ -443,7 +485,7 @@ function matchPatternToRegExpString(matchPattern) {
  * @private
  */
 function combineRegExpStrings(regExpStrings) {
-    return "(?:" + (regExpStrings.map((regExpString) => { return regExpStrings.length > 1 ? `(?:${regExpString})` : regExpString; })).join("|") + ")";
+    return "(?:" + /*@__PURE__*/(/*@__PURE__*/regExpStrings.map((regExpString) => { return regExpStrings.length > 1 ? `(?:${regExpString})` : regExpString; })).join("|") + ")";
 }
 
 /**
@@ -453,7 +495,7 @@ function combineRegExpStrings(regExpStrings) {
  * @returns {string} The regular expression string.
  */
 export function matchPatternsToRegExpString(matchPatterns) {
-    return combineRegExpStrings(matchPatterns.map(matchPattern => { return matchPatternToRegExpString(matchPattern); }));
+    return combineRegExpStrings(/*@__PURE__*/matchPatterns.map(matchPattern => { return matchPatternToRegExpString(matchPattern); }));
 }
 
 /**
@@ -470,14 +512,14 @@ export function matchPatternsToRegExp(matchPatterns) {
 
 /**
  * Generates a set of match patterns for a set of domains. The match patterns will use the special
- * "*" wildcard scheme (matching "http", "https", "ws", and "wss") and the special "/*" wildcard
+ * "\*" wildcard scheme (matching "http", "https", "ws", and "wss") and the special "/*" wildcard
  * path (matching any path).
  * @param {string[]} domains - The set of domains to match against.
  * @param {boolean} [matchSubdomains=true] - Whether to match subdomains of domains in the set.
  * @returns {string[]} Match patterns for the domains in the set.
  */
 export function domainsToMatchPatterns(domains, matchSubdomains = true) {
-    return domains.map(domain => { return `*://${matchSubdomains ? "*." : ""}${domain}/*` });
+    return /*@__PURE__*/domains.map(domain => { return `*://${matchSubdomains ? "*." : ""}${domain}/*` });
 }
 
 /**
@@ -533,13 +575,13 @@ export function normalizeUrl(url) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="webScience.module_contentScripts.html">contentScripts</a></li><li><a href="webScience.module_dataAnalysis.html">dataAnalysis</a></li><li><a href="webScience.module_debugging.html">debugging</a></li><li><a href="webScience.module_events.html">events</a></li><li><a href="webScience.module_idle.html">idle</a></li><li><a href="webScience.module_linkExposure.html">linkExposure</a></li><li><a href="webScience.module_linkResolution.html">linkResolution</a></li><li><a href="webScience.module_matching.html">matching</a></li><li><a href="webScience.module_messaging.html">messaging</a></li><li><a href="webScience.module_pageClassification.html">pageClassification</a></li><li><a href="webScience.module_pageManager.html">pageManager</a></li><li><a href="webScience.module_pageNavigation.html">pageNavigation</a></li><li><a href="webScience.module_scheduling.html">scheduling</a></li><li><a href="webScience.module_socialMediaActivity.html">socialMediaActivity</a></li><li><a href="webScience.module_socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="webScience.module_storage.html">storage</a></li><li><a href="webScience.module_userSurvey.html">userSurvey</a></li></ul><h3>Classes</h3><ul><li><a href="webScience.module_events.Event.html">Event</a></li><li><a href="webScience.module_events.EventSingleton.html">EventSingleton</a></li><li><a href="webScience.module_events.EventWithoutOptions.html">EventWithoutOptions</a></li><li><a href="webScience.module_matching.MatchPatternSet.html">MatchPatternSet</a></li><li><a href="webScience.module_storage.Counter.html">Counter</a></li><li><a href="webScience.module_storage.IndexedStorage.html">IndexedStorage</a></li><li><a href="webScience.module_storage.KeyValueStorage.html">KeyValueStorage</a></li></ul><h3>Interfaces</h3><ul><li><a href="webScience.module_linkExposure-LinkExposureDetails.html">LinkExposureDetails</a></li><li><a href="webScience.module_pageNavigation-PageDataDetails.html">PageDataDetails</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Tue Apr 06 2021 12:42:55 GMT-0700 (Pacific Daylight Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Jun 01 2021 08:53:41 GMT-0700 (Pacific Daylight Time)
 </footer>
 
 <script> prettyPrint(); </script>

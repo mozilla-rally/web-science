@@ -27,10 +27,9 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * This module is used to run studies that track the user's
- * social media sharing of links.
+ * This module enables observing when the user shares a link on social media.
  *
- * @module webScience.socialMediaLinkSharing
+ * @module socialMediaLinkSharing
  */
 
 import * as events from "./events.js";
@@ -39,11 +38,15 @@ import * as matching from "./matching.js";
 import * as socialMediaActivity from "./socialMediaActivity.js";
 import * as linkResolution from "./linkResolution.js";
 
+/**
+ * @constant {debugging.debuggingLogger}
+ * @private
+ */
 const debugLog = debugging.getDebuggingLog("socialMediaLinkSharing");
 
 /**
- * A MatchPatternSet object for testing urls
- * @type {Object}
+ * The match patterns for URLs of interest.
+ * @type {matching.MatchPatternSet}
  * @private
  */
 let destinationMatcher = null;
@@ -59,7 +62,7 @@ let twitterPrivacySetting = "unknown";
 /**
  * Options when adding a social media share event listener.
  * @typedef {Object} SocialMediaShareOptions
- * @property {Array&lt;string>} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
+ * @property {string[]} [matchPattern=[]] - The webpages of interest for the measurement, specified with WebExtensions match patterns.
  */
 
 /**
@@ -67,6 +70,7 @@ let twitterPrivacySetting = "unknown";
  * TODO: deal with multiple listeners with different match patterns
  * @param {socialMediaShareCallback} listener - new listener being added
  * @param {SocialMediaShareOptions} options - configuration for the events to be sent to this listener
+ * @private
  */
 function addListener(listener, options) {
     startMeasurement(options);
@@ -75,6 +79,7 @@ function addListener(listener, options) {
 /**
  * Function to end measurement when the last listener is removed
  * @param {socialMediaShareCallback} listener - listener that was just removed
+ * @private
  */
 function removeListener(listener) {
     if (!this.hasAnyListeners()) {
@@ -85,9 +90,11 @@ function removeListener(listener) {
 /**
  * @type {Events.Event&lt;socialMediaShareCallback, SocialMediaShareOptions>}
  */
-export const onShare = new events.Event({
+export const onShare = events.createEvent({
+    name: "webScience.socialMediaLinkSharing.onShare",
     addListenerCallback: addListener,
-    removeListenerCallback: removeListener});
+    removeListenerCallback: removeListener
+});
 
 /**
  * Start a social media sharing study. Note that only one study is supported per extension.
@@ -96,6 +103,7 @@ export const onShare = new events.Event({
  * @param {boolean} [options.facebook=false] - Whether to track URL shares on Facebook.
  * @param {boolean} [options.twitter=false] - Whether to track URL shares on Twitter.
  * @param {boolean} [options.reddit=false] - Whether to track URL shares on Reddit.
+ * @private
  */
 async function startMeasurement({
     destinationMatchPatterns = [],
@@ -113,24 +121,36 @@ async function startMeasurement({
         socialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet", "favorite"]);
     }
 
-    destinationMatcher = new matching.MatchPatternSet(destinationMatchPatterns);
+    destinationMatcher = matching.createMatchPatternSet(destinationMatchPatterns);
 }
 
+/**
+ * @private
+ */
 function stopMeasurement() {
     //TODO
 }
 
+/**
+ * @private
+ */
 function isTwitterLink(url) {
     const twitterLink = /twitter\.com\/[0-9|a-z|A-Z|_]*\/status\/([0-9]*)\//;
     return twitterLink.exec(url);
 }
 
+/**
+ * @private
+ */
 async function parsePossibleTwitterQuoteTweet(twitterUrl, urlsToSave, urlsNotToSave) {
     const matchTwitter = isTwitterLink(twitterUrl);
     if (matchTwitter == null) return;
     await parseTwitterQuoteTweet(matchTwitter[1], urlsToSave, urlsNotToSave, []);
 }
 
+/**
+ * @private
+ */
 async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets) {
     if (!tweetId) return;
     if (!(tweetId in tweets)) {
@@ -154,6 +174,9 @@ async function parseTwitterQuoteTweet(tweetId, urlsToSave, urlsNotToSave, tweets
     }
 }
 
+/**
+ * @private
+ */
 function parseTwitterUrlObject(urlObject) {
     if ("expanded_url" in urlObject) return urlObject.expanded_url;
     if ("url" in urlObject) return urlObject.url;
@@ -165,6 +188,7 @@ function parseTwitterUrlObject(urlObject) {
  * We track tweets and retweets, and only care about links within them. Note that "tweet"s contains
  *  reply tweets and retweet-with-comment.
  * @param details - the description of the event
+ * @private
  */
 async function twitterLinks(details) {
     // This is the callback for any kind of tracked Twitter event
@@ -190,7 +214,7 @@ async function twitterLinks(details) {
             debugLog("failed parsing possible quote tweet");
         }
         try {
-            await extractRelevantUrlsFromTokens([details.postAttachments],
+            await extractRelevantUrlsFromTokens(details.postAttachments,
                 urlsToSave, urlsNotToSave);
         } catch {
             debugLog("failed extracting urls from tweet attachment");
@@ -255,14 +279,14 @@ async function twitterLinks(details) {
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (const urlToSave of urlsToSave) {
-        const shareRecord = await createShareRecord({
+        const shareRecord = {
             shareTime: details.eventTime,
             platform: "twitter",
             url: urlToSave,
             audience: twitterPrivacySetting,
             eventType: details.eventType
-        });
-        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
+        };
+        onShare.notifyListeners([ {type: "tracked", ...shareRecord} ]);
         debugLog("Twitter: " + JSON.stringify(shareRecord));
     }
     let newUntracked = 0;
@@ -273,14 +297,18 @@ async function twitterLinks(details) {
         }
     }
     onShare.notifyListeners([ {
-        "type": "untrackedTwitter",
-        "value": newUntracked }]);
+        type: "untracked",
+        platform: "twitter",
+        untrackedCount: newUntracked,
+        shareTime: details.eventTime
+    }]);
 }
 
 /**
  * The callback for Facebook events.
  * We track posts and reshares of posts, and only care about links within them.
  * @param details - the description of the event
+ * @private
  */
 async function facebookLinks(details) {
     let urlsToSave = [];
@@ -315,19 +343,22 @@ async function facebookLinks(details) {
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (const urlToSave of urlsToSave) {
-        const shareRecord = await createShareRecord({shareTime: details.eventTime,
-                                                   platform: "facebook",
-                                                   audience: details.audience,
-                                                   url: urlToSave,
-                                                   eventType: details.eventType,
-                                                   source: details.source});
-        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
+        const shareRecord = {shareTime: details.eventTime,
+                             platform: "facebook",
+                             audience: details.audience,
+                             url: urlToSave,
+                             eventType: details.eventType,
+                             source: details.source};
+        onShare.notifyListeners([ {type: "tracked", ...shareRecord} ]);
         debugLog("Facebook: " + JSON.stringify(shareRecord));
     }
     urlsNotToSave = deduplicateUrls(urlsNotToSave);
     onShare.notifyListeners([ {
-        "type": "untrackedFacebook",
-        "value": urlsNotToSave.size }]);
+        type: "untracked",
+        platform: "facebook",
+        untrackedCount: urlsNotToSave.size,
+        shareTime: details.eventTime
+    }]);
 }
 
 
@@ -335,6 +366,7 @@ async function facebookLinks(details) {
  * The callback for Reddit events.
  * We track posts, and only care about links within them,
  * @param details - the description of the event
+ * @private
  */
 async function redditLinks(details) {
     let urlsToSave = [];
@@ -354,54 +386,30 @@ async function redditLinks(details) {
     }
     urlsToSave = deduplicateUrls(urlsToSave);
     for (const urlToSave of urlsToSave) {
-        const shareRecord = await createShareRecord({shareTime: details.eventTime,
-                                                   platform: "reddit",
-                                                   url: urlToSave,
-                                                   audience: audience,
-                                                   eventType: details.eventType});
-        onShare.notifyListeners([ {"type": "share", "value": shareRecord} ]);
+        const shareRecord = {shareTime: details.eventTime,
+                             platform: "reddit",
+                             url: urlToSave,
+                             audience: audience,
+                             eventType: details.eventType};
+        onShare.notifyListeners([ {type: "tracked", ...shareRecord} ]);
         debugLog("Reddit: " + JSON.stringify(shareRecord));
     }
     urlsNotToSave = deduplicateUrls(urlsNotToSave);
     onShare.notifyListeners([ {
-        "type": "untrackedReddit",
-        "value": urlsNotToSave.size }]);
+        type: "untracked",
+        platform: "reddit",
+        untrackedCount: urlsNotToSave.size,
+        shareTime: details.eventTime
+    }]);
 }
 
 /* Utilities */
 
 /**
- * Create an object that records a sharing event.
- * @param {number} shareTime - The time that the user shared the URL.
- * @param {string} platform - The social media platform where the user
- * shared the URL.
- * @param {string} url - The URL that the user shared.
- * @param {string} event - The type of sharing event.
- * @returns {Object} - An object containing the `shareTime`, `platform`,
- * `url`, `audience`, `source`, and `event` as properties.
- */
-async function createShareRecord({shareTime = "",
-                                  platform = "",
-                                  url = "",
-                                  eventType = "",
-                                  audience = "",
-                                  source = ""}) {
-    // Not currently reported in pings
-    /*
-    const historyVisits = await browser.history.search({
-        text: url,
-        startTime: 0
-    });
-    */
-    const type = "linkShare";
-    return { type, shareTime, platform, url, eventType,/* classifierResults,*/
-             audience, source};
-}
-
-/**
  * Normalize urls by stripping url parameters and then remove duplicates
  * @param {string[]} urls - the urls to normalize and deduplicate
  * @returns {Set} - unique normalized urls
+ * @private
  */
 function deduplicateUrls(urls) {
     const uniqueUrls = new Set();
@@ -414,13 +422,14 @@ function deduplicateUrls(urls) {
 /**
  * Check whether a given token is a known short url, and resolve if so.
  * @param {string} url - a token that might be a short url
- * @return {string} - the resolved short url, or the original token if it was not a short url
+ * @returns {string} - the resolved short url, or the original token if it was not a short url
+ * @private
  */
 async function expandShortUrl(token) {
     try {
         if (linkResolution.urlShortenerRegExp.test(token)) {
             const resolved = await linkResolution.resolveUrl(token)
-            if (resolved &amp;&amp; resolved.dest) return resolved.dest;
+            if (resolved) return resolved;
         }
         return token;
     } catch {
@@ -428,7 +437,9 @@ async function expandShortUrl(token) {
     }
 }
 
-
+/**
+ * @private
+ */
 function isUrl(token) {
     let url;
     try { url = new URL(token); }
@@ -440,6 +451,7 @@ function isUrl(token) {
  * Filter an array of tokens into relevant urls, including resolving short urls.
  * @param {String[]} unfilteredTokens - array of tokens
  * @param {String[]} urlsToSave - an array to add the relevant urls to
+ * @private
  */
 async function extractRelevantUrlsFromTokens(unfilteredTokens, urlsToSave, urlsNotToSave) {
     for (let unfilteredToken of unfilteredTokens) {
@@ -456,6 +468,9 @@ async function extractRelevantUrlsFromTokens(unfilteredTokens, urlsToSave, urlsN
     }
 }
 
+/**
+ * @private
+ */
 function checkTwitterAccountStatus() {
     fetch("https://twitter.com", {credentials: "include"}).then((response) => {
         response.text().then(resp => {
@@ -477,7 +492,8 @@ function checkTwitterAccountStatus() {
  * or enclosed in quotes or parantheses. Most URLs don't end in such punctuation,
  * and we will fail to match these URLs without stripping the extraneous characters.
  * @param {string} token - text to have punctuation stripped
- * @return {string} - the token with leading and trailing punctuation stripped.
+ * @returns {string} - the token with leading and trailing punctuation stripped.
+ * @private
  */
 function stripToken(token) {
     token = token.replace(/[.,'")(]+$/, "");
@@ -494,13 +510,13 @@ function stripToken(token) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="webScience.module_contentScripts.html">contentScripts</a></li><li><a href="webScience.module_dataAnalysis.html">dataAnalysis</a></li><li><a href="webScience.module_debugging.html">debugging</a></li><li><a href="webScience.module_events.html">events</a></li><li><a href="webScience.module_idle.html">idle</a></li><li><a href="webScience.module_linkExposure.html">linkExposure</a></li><li><a href="webScience.module_linkResolution.html">linkResolution</a></li><li><a href="webScience.module_matching.html">matching</a></li><li><a href="webScience.module_messaging.html">messaging</a></li><li><a href="webScience.module_pageClassification.html">pageClassification</a></li><li><a href="webScience.module_pageManager.html">pageManager</a></li><li><a href="webScience.module_pageNavigation.html">pageNavigation</a></li><li><a href="webScience.module_scheduling.html">scheduling</a></li><li><a href="webScience.module_socialMediaActivity.html">socialMediaActivity</a></li><li><a href="webScience.module_socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="webScience.module_storage.html">storage</a></li><li><a href="webScience.module_userSurvey.html">userSurvey</a></li></ul><h3>Classes</h3><ul><li><a href="webScience.module_events.Event.html">Event</a></li><li><a href="webScience.module_events.EventSingleton.html">EventSingleton</a></li><li><a href="webScience.module_events.EventWithoutOptions.html">EventWithoutOptions</a></li><li><a href="webScience.module_matching.MatchPatternSet.html">MatchPatternSet</a></li><li><a href="webScience.module_storage.Counter.html">Counter</a></li><li><a href="webScience.module_storage.IndexedStorage.html">IndexedStorage</a></li><li><a href="webScience.module_storage.KeyValueStorage.html">KeyValueStorage</a></li></ul><h3>Interfaces</h3><ul><li><a href="webScience.module_linkExposure-LinkExposureDetails.html">LinkExposureDetails</a></li><li><a href="webScience.module_pageNavigation-PageDataDetails.html">PageDataDetails</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Tue Apr 06 2021 12:42:55 GMT-0700 (Pacific Daylight Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Jun 01 2021 08:53:41 GMT-0700 (Pacific Daylight Time)
 </footer>
 
 <script> prettyPrint(); </script>

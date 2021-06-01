@@ -27,7 +27,7 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * This module enables registering browser idle state listeners with
+ * This module enables adding browser idle state listeners with
  * varying detection intervals. The module is needed because the
  * WebExtensions `idle` API currently only supports one detection
  * interval per extension.
@@ -35,8 +35,8 @@
  * The implementation of this module combines the WebExtensions `idle`
  * API and `setTimeout`. It configures the `idle` API to use the
  * minimum idle detection interval with `idle.setDetectionInterval()`,
- * registers a listener for the `idle.onStateChanged` event, and then
- * uses `setTimeout` after the browser goes idle to notify idle state
+ * adds a listener for the `idle.onStateChanged` event, and then uses
+ * `setTimeout` after the browser goes idle to notify idle state
  * listeners with detection intervals greater than the minimum. If there
  * are any pending idle notification timeouts when the browser goes
  * active, those timeouts are cleared.
@@ -63,24 +63,27 @@
  *     even though it supports varying idle state detection intervals, in
  *     order to minimize privileged extension code.
  * 
- * @module webScience.idle
+ * @module idle
  */
+
+import * as events from "./events.js";
+import * as permissions from "./permissions.js";
+import * as timing from "./timing.js";
 
 /**
  * The minimum idle state detection interval (in seconds) supported by
  * the `idle` API.
  * @private
- * @const {number}
+ * @constant {number}
  */
 const minimumIdleStateDetectionIntervalInSeconds = 15;
 
 /**
  * Whether we have configured  configured the idle state detection
- * interval, cached the idle state, and registered the idle state
+ * interval, cached the idle state, and added the idle state
  * listener.
  * @private
  * @type {boolean}
- * @default
  */
 let initialized = false;
 
@@ -90,8 +93,7 @@ let initialized = false;
  * idle state detection interval (converted to milliseconds) from the
  * time the browser last fired an idle state notification.
  * @private
- * @type {boolean}
- * @default
+ * @type {number}
  */
 let lastIdleTime = -1;
 
@@ -100,7 +102,6 @@ let lastIdleTime = -1;
  * synchronous checking of the current idle state.
  * @private
  * @type {string}
- * @default
  */
 let currentIdleState = "active";
 
@@ -109,7 +110,7 @@ let currentIdleState = "active";
  * detection intervals in seconds and the values are Sets of
  * browser idle state listeners.
  * @private
- * @const {Map&lt;number,Set&lt;function>>}
+ * @constant {Map&lt;number,Set&lt;function>>}
  */
 const idleStateListeners = new Map();
 
@@ -118,40 +119,53 @@ const idleStateListeners = new Map();
  * detection intervals in seconds and the values are `timeoutID`
  * values from `setTimeout()`.
  * @private
- * @const {Map&lt;number,number>}
+ * @constant {Map&lt;number,number>}
  */
 const idleStateTimeouts = new Map();
 
 /**
  * Configure the idle state detection interval, cache the idle state,
- * and register the idle state listener.
+ * and add the idle state listener.
  * @private
  */
 async function initialize() {
-    if(initialized)
+    if(initialized) {
         return;
+    }
     initialized = true;
+
+    permissions.check({
+        module: "webScience.idle",
+        requiredPermissions: [ "idle" ]
+    });
+
     browser.idle.setDetectionInterval(minimumIdleStateDetectionIntervalInSeconds);
+
     currentIdleState = await browser.idle.queryState(minimumIdleStateDetectionIntervalInSeconds);
-    if(currentIdleState === "idle")
-        lastIdleTime = Date.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000);
+    if(currentIdleState === "idle") {
+        lastIdleTime = timing.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000);
+    }
+    
     browser.idle.onStateChanged.addListener(idleOnStateChangedListener);
 }
 
 /**
  * Determine whether the browser has been idle for a specified time.
  * This function is synchronous, unlike `idle.queryState`. Note that,
- * if an idle state listener has not been registered, this function
+ * if an idle state listener has not been added, this function
  * will always return the default value of active state.
  * @param {number} detectionIntervalInSeconds - The detection interval
- * to use
+ * to use.
+ * @returns {string} - The idle state, either "idle" or "active".
  */
 export function queryState(detectionIntervalInSeconds) {
-    if(currentIdleState !== "idle")
+    if(currentIdleState !== "idle") {
         return currentIdleState;
+    }
 
-    if(Date.now() >= (lastIdleTime + (detectionIntervalInSeconds * 1000)))
+    if(timing.now() >= (lastIdleTime + (detectionIntervalInSeconds * 1000))) {
         return "idle";
+    }
 
     return "active";    
 }
@@ -159,6 +173,7 @@ export function queryState(detectionIntervalInSeconds) {
 /**
  * A listener for `idle.onStateChanged` that supports notifying
  * idle state listeners with varying detection intervals.
+ * @param {browser.idle.IdleState} - The new browser idle state.
  * @private
  */
 function idleOnStateChangedListener(newState) {
@@ -167,30 +182,34 @@ function idleOnStateChangedListener(newState) {
     // If the browser idle state transitions to non-idle...
     if(newState !== "idle") {
         // Cancel any pending notification timeouts and forget the timeout IDs
-        for(const idleStateTimeoutID of idleStateTimeouts.values())
+        for(const idleStateTimeoutID of idleStateTimeouts.values()) {
             clearTimeout(idleStateTimeoutID);
+        }
         idleStateTimeouts.clear();
 
         // Notify all the idle state listeners
-        for(const idleStateListenerSet of idleStateListeners.values())
-            for(const idleStateListener of idleStateListenerSet)
+        for(const idleStateListenerSet of idleStateListeners.values()) {
+            for(const idleStateListener of idleStateListenerSet) {
                 idleStateListener(newState.repeat(1));
+            }
+        }
         return;
     }
 
     // If the browser idle state transitions to idle...
 
     // Remember an estimate of when the browser last went into idle state
-    lastIdleTime = Date.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000);
+    lastIdleTime = timing.now() - (minimumIdleStateDetectionIntervalInSeconds * 1000);
 
     // Set timeouts for all the idle state listeners
-    for(const [detectionIntervalInSeconds, idleStateListenersWithDetectionInterval] of idleStateListeners)
+    for(const [detectionIntervalInSeconds, idleStateListenersWithDetectionInterval] of idleStateListeners) {
         scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds);
+    }
 }
 
 /**
  * Schedule a timeout for a set of idle state listeners.
- * @param {Set&lt;function>} idleStateListenersWithDetectionInterval - The set of idle state listeners.
+ * @param {Set&lt;idleStateChangeListener>} idleStateListenersWithDetectionInterval - The set of idle state listeners.
  * @param {number} detectionIntervalInSeconds - The idle state detection interval (in seconds) for this set of listeners.
  * @returns {number} The timeout ID for the scheduled timeout.
  * @private
@@ -198,18 +217,74 @@ function idleOnStateChangedListener(newState) {
 function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds) {
     // Determine how long to delay before firing the listeners
     // If the delay is negative, set it to 0 (i.e., fire as soon as possible)
-    const delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - Date.now(), 0);
+    const delayTime = Math.max(lastIdleTime + (detectionIntervalInSeconds * 1000) - timing.now(), 0);
     const timeoutId = setTimeout(function() {
-        for(const idleStateListener of idleStateListenersWithDetectionInterval)
+        for(const idleStateListener of idleStateListenersWithDetectionInterval) {
             idleStateListener("idle");
+        }
     }, delayTime);
     idleStateTimeouts.set(detectionIntervalInSeconds, timeoutId);
 }
 
 /**
- * Register a listener function for browser idle state.
- * @param {function} idleStateListener - The listener function.
- * The function will receive the same `idle.IdleState` parameter
+ * A listener for the `onStateChanged` event.
+ * @callback idleStateChangeListener
+ * @memberof module:idle.onStateChanged
+ * @param {string} idleState - The current idle state: "idle" or "active".
+ */
+
+/**
+ * Add a listener for the `onStateChanged` event.
+ * @function addListener
+ * @memberof module:idle.onStateChanged
+ * @param {idleStateChangeListener} listener - The listener to add.
+ * @param {Object} options - Options for the listener.
+ * @param {number} options.detectionInterval - The idle state detection interval
+ * for the listener, in seconds.
+ */
+
+/**
+ * Remove a listener for the `onStateChanged` event.
+ * @function removeListener
+ * @memberof module:idle.onStateChanged
+ * @param {idleStateChangeListener} listener - The listener to remove.
+ */
+
+/**
+ * Whether a specified listener for the `onStateChanged` event has been added.
+ * @function hasListener
+ * @memberof module:idle.onStateChanged
+ * @param {idleStateChangeListener} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * Whether the `onStateChanged` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:idle.onStateChanged
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
+ * An event that fires when the browser's idle state changes. This event supports multiple idle
+ * detection intervals, unlike the WebExtensions `idle.onStateChanged` event.
+ * @namespace
+ */
+export const onStateChanged = events.createEvent({
+    name: "webScience.idle.onStateChanged",
+    addListenerCallback: (listener, options) => {
+        addListener(listener, options.detectionInterval);
+    },
+    removeListenerCallback: (listener, options) => {
+        removeListener(listener, options.detectionInterval);
+    },
+    notifyListenersCallback: () => { return false; }
+});
+
+/**
+ * Add a listener for browser idle state.
+ * @param {idleStateChangeListener} idleStateListener - The listener.
+ * The function will receive the same `browser.idle.IdleState` parameter
  * as if it had subscribed to idle state events with
  * `browser.idle.onStateChanged.addListener`.
  * @param {number} detectionIntervalInSeconds - The detection
@@ -217,8 +292,9 @@ function scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detec
  * time in measured in seconds because that is how the `idle`
  * API is implemented, even though most times in the library
  * are measured in milliseconds.
+ * @private
  */
-export async function registerIdleStateListener(idleStateListener, detectionIntervalInSeconds) {
+async function addListener(idleStateListener, detectionIntervalInSeconds) {
     await initialize();
 
     // If we already have at least one idle state listener with this
@@ -238,8 +314,34 @@ export async function registerIdleStateListener(idleStateListener, detectionInte
     // than the detection interval for this listener (i.e., the listener
     // should still receive a state change notification), schedule a
     // notification
-    if((currentIdleState === "idle") &amp;&amp; (Date.now() &lt; (lastIdleTime + detectionIntervalInSeconds * 1000)))
+    if((currentIdleState === "idle") &amp;&amp; (timing.now() &lt; (lastIdleTime + detectionIntervalInSeconds * 1000))) {
         scheduleIdleStateTimeout(idleStateListenersWithDetectionInterval, detectionIntervalInSeconds);
+    }
+}
+
+/**
+ * Remove a listener for browser idle state.
+ * @param {idleStateChangeListener} idleStateListener - The listener.
+ * @param {number} detectionIntervalInSeconds - The detection
+ * interval for firing the idle state listener.
+ * @private
+ */
+async function removeListener(idleStateListener, detectionIntervalInSeconds) {
+    const idleStateListenersWithDetectionInterval = idleStateListeners.get(detectionIntervalInSeconds);
+    if(idleStateListenersWithDetectionInterval !== undefined) {
+        // Remove the listener
+        idleStateListenersWithDetectionInterval.delete(idleStateListener);
+        // If there are no other listeners with the same detection interval, remove the set of listeners
+        // for the detection interval and clear the timeout (if there is one) for the interval
+        if(idleStateListenersWithDetectionInterval.size === 0) {
+            idleStateListeners.delete(detectionIntervalInSeconds);
+            const idleStateTimeoutID = idleStateTimeouts.get(detectionIntervalInSeconds);
+            if(idleStateTimeoutID !== undefined) {
+                clearTimeout(idleStateTimeoutID);
+                idleStateTimeouts.delete(detectionIntervalInSeconds);
+            } 
+        }
+    }
 }
 </code></pre>
         </article>
@@ -251,13 +353,13 @@ export async function registerIdleStateListener(idleStateListener, detectionInte
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="webScience.module_contentScripts.html">contentScripts</a></li><li><a href="webScience.module_dataAnalysis.html">dataAnalysis</a></li><li><a href="webScience.module_debugging.html">debugging</a></li><li><a href="webScience.module_events.html">events</a></li><li><a href="webScience.module_idle.html">idle</a></li><li><a href="webScience.module_linkExposure.html">linkExposure</a></li><li><a href="webScience.module_linkResolution.html">linkResolution</a></li><li><a href="webScience.module_matching.html">matching</a></li><li><a href="webScience.module_messaging.html">messaging</a></li><li><a href="webScience.module_pageClassification.html">pageClassification</a></li><li><a href="webScience.module_pageManager.html">pageManager</a></li><li><a href="webScience.module_pageNavigation.html">pageNavigation</a></li><li><a href="webScience.module_scheduling.html">scheduling</a></li><li><a href="webScience.module_socialMediaActivity.html">socialMediaActivity</a></li><li><a href="webScience.module_socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="webScience.module_storage.html">storage</a></li><li><a href="webScience.module_userSurvey.html">userSurvey</a></li></ul><h3>Classes</h3><ul><li><a href="webScience.module_events.Event.html">Event</a></li><li><a href="webScience.module_events.EventSingleton.html">EventSingleton</a></li><li><a href="webScience.module_events.EventWithoutOptions.html">EventWithoutOptions</a></li><li><a href="webScience.module_matching.MatchPatternSet.html">MatchPatternSet</a></li><li><a href="webScience.module_storage.Counter.html">Counter</a></li><li><a href="webScience.module_storage.IndexedStorage.html">IndexedStorage</a></li><li><a href="webScience.module_storage.KeyValueStorage.html">KeyValueStorage</a></li></ul><h3>Interfaces</h3><ul><li><a href="webScience.module_linkExposure-LinkExposureDetails.html">LinkExposureDetails</a></li><li><a href="webScience.module_pageNavigation-PageDataDetails.html">PageDataDetails</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Tue Apr 06 2021 12:42:55 GMT-0700 (Pacific Daylight Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Jun 01 2021 08:53:41 GMT-0700 (Pacific Daylight Time)
 </footer>
 
 <script> prettyPrint(); </script>
