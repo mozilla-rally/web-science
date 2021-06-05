@@ -27,6 +27,10 @@
         "node": ">=14.0.0"
     },
     "browser": "./src/webScience.js",
+    "exports": {
+        ".": "./src/webScience.js",
+        "./rollup-plugin": "./rollup-plugin.js"
+    },
     "description": "WebScience is a library for building browser-based research studies.",
     "repository": {
         "type": "git",
