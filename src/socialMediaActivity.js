@@ -6,11 +6,10 @@
 
 import * as debugging from "./debugging.js";
 import * as messaging from "./messaging.js";
-import * as inline from "./inline.js";
 import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
-import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js";
-import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js";
+import facebookContentScript from "include:./content-scripts/socialMediaActivity.facebook.content.js";
+import twitterContentScript from "include:./content-scripts/socialMediaActivity.twitter.content.js";
 
 permissions.check({
     module: "webScience.socialMediaActivity",
@@ -533,7 +532,7 @@ function tweetContentInit() {
     browser.contentScripts.register({
         matches: ["https://twitter.com/*", "https://twitter.com/"],
         js: [{
-            code: inline.dataUrlToString(twitterContentScript)
+            file: twitterContentScript
         }],
         runAt: "document_idle"
     });
@@ -571,7 +570,7 @@ async function fbPostContentInit() {
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
         js: [{
-            code: inline.dataUrlToString(facebookContentScript)
+            file: facebookContentScript
         }],
         runAt: "document_start"
     });

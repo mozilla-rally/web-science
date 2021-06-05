@@ -7,13 +7,12 @@ import * as matching from "./matching.js";
 import * as permissions from "./permissions.js";
 import * as id from "./id.js";
 import * as pageManager from "./pageManager.js";
-import * as inline from "./inline.js";
 import * as messaging from "./messaging.js";
 import { urlShortenerMatchPatterns } from "./data/urlShorteners.js";
 import { ampCacheDomains, ampViewerDomainsAndPaths } from "./data/ampCachesAndViewers.js";
 import { parse as tldtsParse } from "tldts";
-import linkResolutionTwitterContentScript from "./content-scripts/linkResolution.twitter.content.js";
-import linkResolutionGoogleNewsContentScript from "./content-scripts/linkResolution.googleNews.content.js";
+import linkResolutionTwitterContentScript from "include:./content-scripts/linkResolution.twitter.content.js";
+import linkResolutionGoogleNewsContentScript from "include:./content-scripts/linkResolution.googleNews.content.js";
 
 // AMP caches and viewers
 
@@ -528,7 +527,7 @@ export function initialize() {
             browser.contentScripts.register({
                 matches: [ "*://*.twitter.com/*" ],
                 js: [{
-                    code: inline.dataUrlToString(linkResolutionTwitterContentScript)
+                    file: linkResolutionTwitterContentScript
                 }],
                 runAt: "document_idle"
             });
@@ -542,7 +541,7 @@ export function initialize() {
             browser.contentScripts.register({
                 matches: [ "*://*.news.google.com/*" ],
                 js: [{
-                    code: inline.dataUrlToString(linkResolutionGoogleNewsContentScript)
+                    file: linkResolutionGoogleNewsContentScript
                 }],
                 runAt: "document_idle"
             });

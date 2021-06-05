@@ -14,9 +14,8 @@ import * as linkResolution from "./linkResolution.js";
 import * as matching from "./matching.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
-import * as inline from "./inline.js";
 import * as permissions from "./permissions.js";
-import linkExposureContentScript from "./content-scripts/linkExposure.content.js";
+import linkExposureContentScript from "include:./content-scripts/linkExposure.content.js";
 
 /**
  * Ignore links where the link URL PS+1 is identical to the page URL PS+1.
@@ -194,7 +193,7 @@ async function addUpdateListener(listener, { linkMatchPatterns, pageMatchPattern
     const contentScript = await browser.contentScripts.register({
         matches: pageMatchPatterns,
         js: [{
-            code: inline.dataUrlToString(linkExposureContentScript)
+            file: linkExposureContentScript
         }],
         runAt: "document_idle"
     });

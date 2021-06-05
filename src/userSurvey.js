@@ -35,10 +35,9 @@ import * as id from "./id.js";
 import * as timing from "./timing.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
-import * as inline from "./inline.js";
 import * as permissions from "./permissions.js";
-import popupPromptPage from "./html/userSurvey.popupPrompt.html";
-import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
+import popupPromptPage from "include:./html/userSurvey.popupPrompt.html";
+import popupNoPromptPage from "include:./html/userSurvey.popupNoPrompt.html";
 
 /**
  * A persistent storage space for data about surveys.
@@ -165,7 +164,7 @@ async function remindUser() {
  */
 function setPopupToNoPromptPage() {
     browser.browserAction.setPopup({
-        popup: inline.dataUrlToBlobUrl(popupNoPromptPage)
+        popup: browser.runtime.getURL(popupNoPromptPage)
     });
 }
 
@@ -294,7 +293,7 @@ export async function setSurvey(options) {
     }
     else {
         browser.browserAction.setPopup({
-            popup: inline.dataUrlToBlobUrl(popupPromptPage)
+            popup: browser.runtime.getURL(popupPromptPage)
         });
     }
 
