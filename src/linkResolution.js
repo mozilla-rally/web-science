@@ -36,21 +36,21 @@ import linkResolutionGoogleNewsContentScript from "include:./content-scripts/lin
  * @see {@link https://amp.dev/documentation/guides-and-tutorials/learn/amp-caches-and-cors/amp-cache-urls/}
  * @constant {RegExp}
  */
-export const ampRegExp = new RegExp(
+export const ampRegExp = /*@__PURE__*/(() => new RegExp(
     // AMP cache regular expression
     `(?:^https?://(?:(?<ampCacheSubdomain>[a-zA-Z0-9\\-\\.]*)\\.)?(?<ampCacheDomain>${ampCacheDomains.map(matching.escapeRegExpString).join("|")})/(?<ampCacheContentType>c|i|r)/(?<ampCacheIsSecure>s/)?(?<ampCacheUrl>.*)$)`
     + `|` +
     // AMP viewer regular expression
     `(?:^https?://(?<ampViewerDomainAndPath>${ampViewerDomainsAndPaths.map(matching.escapeRegExpString).join("|")})/(?<ampViewerUrl>.*)$)`
-    , "i");
+    , "i"))();
 
 /**
  * A MatchPatternSet for AMP caches and viewers.
  * @constant {matching.MatchPatternSet}
  */
-export const ampMatchPatternSet = matching.createMatchPatternSet(
+export const ampMatchPatternSet = /*@__PURE__*/(() => matching.createMatchPatternSet(
     matching.domainsToMatchPatterns(ampCacheDomains, false).concat(
-        ampViewerDomainsAndPaths.map(ampViewerDomainAndPath => `*://${ampViewerDomainAndPath}*`)));
+        ampViewerDomainsAndPaths.map(ampViewerDomainAndPath => `*://${ampViewerDomainAndPath}*`))))();
 
 /**
  * Parse the underlying URL from an AMP cache or viewer URL, if the URL is an AMP cache or viewer URL.
