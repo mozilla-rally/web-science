@@ -36,8 +36,8 @@ import * as timing from "./timing.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
 import * as permissions from "./permissions.js";
-import popupPromptPage from "include:./html/userSurvey.popupPrompt.html";
-import popupNoPromptPage from "include:./html/userSurvey.popupNoPrompt.html";
+import popupPromptPage from "include:./browser-action-assets/userSurvey.popupPrompt.html";
+import popupNoPromptPage from "include:./browser-action-assets/userSurvey.popupNoPrompt.html";
 
 /**
  * A persistent storage space for data about surveys.
