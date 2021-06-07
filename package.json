@@ -3,7 +3,7 @@
     "version": "0.3.0",
     "scripts": {
         "lint": "eslint .",
-        "build": "cd tests/build/ && rollup -c"
+        "test": "cd tests/build/ && rollup -c"
     },
     "dependencies": {
         "rollup": "^2.41.4",
