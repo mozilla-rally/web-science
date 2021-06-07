@@ -20,14 +20,6 @@
  * We have not yet decided whether to build out this module or implement
  * survey functionality in the Rally core add-on.
  * 
- * ## Content Security Policy Requirements
- * This module depends on inline scripts in browser action popups, which
- * require special Content Security Policy permissions in the extension
- * manifest (the `"content_security_policy"` key). Those permissions
- * are currently the following additional `script-src` values.
- *   * `'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='`
- *   * `'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='`
- * 
  * @module userSurvey
  */
 
@@ -240,10 +232,7 @@ function surveyCompletionUrlListener() {
 export async function setSurvey(options) {
     permissions.check({
         module: "webScience.userSurvey",
-        requiredPermissions: [ "notifications", "webRequest" ],
-        requiredContentSecurityPolicy: {
-            "script-src": [ "'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='", "'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='" ]
-        }
+        requiredPermissions: [ "notifications", "webRequest" ]
     });
 
     initializeStorage();
