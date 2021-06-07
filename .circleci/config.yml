@@ -18,7 +18,7 @@
 version: 2.1
 
 jobs:
-  Build:
+  Build test:
     docker:
       - image: cimg/node:14.13.1
     steps:
@@ -27,8 +27,8 @@ jobs:
           name: Install the dependencies
           command: npm install
       - run:
-          name: Build 
-          command: npm run build
+          name: Run build test 
+          command: npm run test
 
 
   Code linting:
@@ -47,5 +47,5 @@ workflows:
   version: 2
   ci:
     jobs:
-      - Build
+      - Build test
       - Code linting
