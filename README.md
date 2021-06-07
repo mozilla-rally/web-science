@@ -33,7 +33,7 @@ import { pageNavigation, socialMediaLinkSharing } from "@mozilla/web-science";
 You will then be able to use those components of the API (e.g., `pageNavigation...`).
 
 ## Exploring the WebScience API
-We will have documentation for the WebScience API online shortly. In the interim, the WebScience source includes voluminous JSDoc annotations.
+Documentation for the latest release of WebScience is available at [https://mozilla-rally.github.io/web-science/jsdocs/](https://mozilla-rally.github.io/web-science/jsdocs/). The documentation is automatically generated from JSDoc annotations in the WebScience implementation.
 
 ## API Implementation Progress
 | Module                   | No Breaking Changes Planned | No Known Bugs      | Good Documentation | Good Test Coverage |   
