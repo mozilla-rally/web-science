@@ -192,14 +192,14 @@ class EventSingleton extends Event {
     singleton: false
 }) {
     if(singleton) {
-        return new EventSingleton({
+        return /*@__PURE__*/new EventSingleton({
             name,
             addListenerCallback,
             removeListenerCallback,
             notifyListenersCallback
         });
     }
-    return new Event({
+    return /*@__PURE__*/new Event({
         name,
         addListenerCallback,
         removeListenerCallback,

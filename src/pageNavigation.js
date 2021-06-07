@@ -8,9 +8,8 @@
 import * as events from "./events.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
-import * as inline from "./inline.js";
 import * as matching from "./matching.js";
-import pageNavigationContentScript from "./content-scripts/pageNavigation.content.js";
+import pageNavigationContentScript from "include:./content-scripts/pageNavigation.content.js";
 
 /**
  * A listener for the `onPageData` event.
@@ -152,7 +151,7 @@ async function addListener(listener, {
     const contentScript = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
-            code: inline.dataUrlToString(pageNavigationContentScript)
+            file: pageNavigationContentScript
         }],
         runAt: "document_start"
     });

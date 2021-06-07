@@ -123,10 +123,9 @@
 import * as events from "./events.js";
 import * as idle from "./idle.js";
 import * as messaging from "./messaging.js";
-import * as inline from "./inline.js";
 import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
-import pageManagerContentScript from "./content-scripts/pageManager.content.js";
+import pageManagerContentScript from "include:./content-scripts/pageManager.content.js";
 
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,
@@ -711,7 +710,7 @@ export async function initialize() {
     browser.contentScripts.register({
         matches: permissions.getManifestOriginMatchPatterns(),
         js: [{
-            code: inline.dataUrlToString(pageManagerContentScript)
+            file: pageManagerContentScript
         }],
         runAt: "document_start"
     });

@@ -20,14 +20,6 @@
  * We have not yet decided whether to build out this module or implement
  * survey functionality in the Rally core add-on.
  * 
- * ## Content Security Policy Requirements
- * This module depends on inline scripts in browser action popups, which
- * require special Content Security Policy permissions in the extension
- * manifest (the `"content_security_policy"` key). Those permissions
- * are currently the following additional `script-src` values.
- *   * `'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='`
- *   * `'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='`
- * 
  * @module userSurvey
  */
 
@@ -35,10 +27,9 @@ import * as id from "./id.js";
 import * as timing from "./timing.js";
 import * as storage from "./storage.js";
 import * as messaging from "./messaging.js";
-import * as inline from "./inline.js";
 import * as permissions from "./permissions.js";
-import popupPromptPage from "./html/userSurvey.popupPrompt.html";
-import popupNoPromptPage from "./html/userSurvey.popupNoPrompt.html";
+import popupPromptPage from "include:./browser-action-assets/userSurvey.popupPrompt.html";
+import popupNoPromptPage from "include:./browser-action-assets/userSurvey.popupNoPrompt.html";
 
 /**
  * A persistent storage space for data about surveys.
@@ -165,7 +156,7 @@ async function remindUser() {
  */
 function setPopupToNoPromptPage() {
     browser.browserAction.setPopup({
-        popup: inline.dataUrlToBlobUrl(popupNoPromptPage)
+        popup: browser.runtime.getURL(popupNoPromptPage)
     });
 }
 
@@ -241,10 +232,7 @@ function surveyCompletionUrlListener() {
 export async function setSurvey(options) {
     permissions.check({
         module: "webScience.userSurvey",
-        requiredPermissions: [ "notifications", "webRequest" ],
-        requiredContentSecurityPolicy: {
-            "script-src": [ "'sha256-csyiOLMfXk2f5pU99mqYFyshgnVYbdp6o9bnQ9hntPA='", "'sha256-nYNRfLKTaKqgi4+CK/mcp9hdSsmD8F17GWuo+vQGfqU='" ]
-        }
+        requiredPermissions: [ "notifications", "webRequest" ]
     });
 
     initializeStorage();
@@ -294,7 +282,7 @@ export async function setSurvey(options) {
     }
     else {
         browser.browserAction.setPopup({
-            popup: inline.dataUrlToBlobUrl(popupPromptPage)
+            popup: browser.runtime.getURL(popupPromptPage)
         });
     }
 

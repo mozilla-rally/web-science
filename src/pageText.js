@@ -53,10 +53,9 @@
 import * as messaging from "./messaging.js";
 import * as matching from "./matching.js";
 import * as events from "./events.js";
-import * as inline from "./inline.js";
 import * as pageManager from "./pageManager.js";
 import * as permissions from "./permissions.js";
-import pageTextContentScript from "./content-scripts/pageText.content.js";
+import pageTextContentScript from "include:./content-scripts/pageText.content.js";
 
 /**
  * A listener for the `onTextParsed` event.
@@ -215,7 +214,7 @@ async function addListener(listener, {
     const contentScript = await browser.contentScripts.register({
         matches: matchPatterns,
         js: [{
-            code: inline.dataUrlToString(pageTextContentScript)
+            file: pageTextContentScript
         }],
         runAt: "document_idle"
     });

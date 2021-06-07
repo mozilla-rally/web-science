@@ -1,0 +1,21 @@
+{
+  "description": "A build test for the WebScience library.",
+  "author": "Mozilla",
+  "manifest_version": 2,
+  "name": "WebScience Build Test",
+  "version": "1.0.0",
+  "homepage_url": "https://github.com/mozilla-rally/web-science",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "webScience-build-test@mozilla.org",
+      "strict_min_version": "87.0"
+    }
+  },
+
+  "background": {
+    "scripts": ["dist/background.js"]
+  },
+
+  "incognito": "not_allowed"
+}

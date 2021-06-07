@@ -138,11 +138,10 @@ import * as events from "./events.js";
 import * as permissions from "./permissions.js";
 import * as messaging from "./messaging.js";
 import * as matching from "./matching.js";
-import * as inline from "./inline.js";
 import * as timing from "./timing.js";
 import * as pageManager from "./pageManager.js";
-import pageTransitionEventContentScript from "./content-scripts/pageTransition.event.content.js";
-import pageTransitionClickContentScript from "./content-scripts/pageTransition.click.content.js";
+import pageTransitionEventContentScript from "include:./content-scripts/pageTransition.event.content.js";
+import pageTransitionClickContentScript from "include:./content-scripts/pageTransition.click.content.js";
 
 /**
  * A listener for the `onPageTransitionData` event.
@@ -280,7 +279,7 @@ export const onPageTransitionData = events.createEvent({
         contentScript: await browser.contentScripts.register({
             matches: matchPatterns,
             js: [{
-                code: inline.dataUrlToString(pageTransitionEventContentScript)
+                file: pageTransitionEventContentScript
             }],
             runAt: "document_start"
         })
@@ -330,7 +329,7 @@ async function initialize() {
     await browser.contentScripts.register({
         matches: permissions.getManifestOriginMatchPatterns(),
         js: [{
-            code: inline.dataUrlToString(pageTransitionClickContentScript)
+            file: pageTransitionClickContentScript
         }],
         runAt: "document_start"
     });

@@ -13,11 +13,11 @@ WebScience is an open-source library for building browser-based research studies
 The primary contributors to WebScience are researchers at the [Princeton University Center for Information Technology Policy](https://citp.princeton.edu/) and the [Mozilla Rally](https://rally.mozilla.org/) team.
 
 ## Getting Started with WebScience
-The easiest way to get started is with the Rally [study template](https://github.com/mozilla-rally/study-template), which has already been configured to integrate the WebScience library.
+The easiest way to get started is with the [Rally + WebScience study template](https://github.com/mozilla-rally/study-template), which has already been configured to integrate the WebScience library.
 
 If you would prefer to build a browser extension with WebScience from scratch, we recommend the following steps:
 * Use [Node.js](https://nodejs.org/en/) for managing the extension's dependencies with a [`package.json`](https://docs.npmjs.com/cli/v7/configuring-npm/package-json) file and [`npm install`](https://docs.npmjs.com/cli/v7/commands/npm-install). WebScience is available on [npm](https://www.npmjs.com/) as the package [`@mozilla/web-science`](https://www.npmjs.com/package/@mozilla/web-science).
-* Use [Rollup](https://rollupjs.org/guide/en/) with the [`node-resolve`](https://github.com/rollup/plugins/tree/master/packages/node-resolve) plugin to integrate WebScience into your bundled extension.
+* Use [Rollup](https://rollupjs.org/guide/en/) with [`@rollup/plugin-node-resolve`](https://github.com/rollup/plugins/tree/master/packages/node-resolve), [`@rollup/plugin-commonjs`](https://github.com/rollup/plugins/tree/master/packages/commonjs/), and [`@mozilla/web-science/rollup-plugin`](./rollup-plugin.js) to integrate the library into your bundled extension.
 
 ## Using WebScience in a Study Extension
 Using WebScience in your study extension is easy. At the start of the background script where you want to use WebScience, just add:
