@@ -2,7 +2,7 @@
  * This module provides functionality for generating random identifiers.
  * Studies can use these identifiers to uniquely label events and other
  * items of interest.
- * @module webScience.id
+ * @module id
  */
 
 import { v4 as uuidv4 } from 'uuid';

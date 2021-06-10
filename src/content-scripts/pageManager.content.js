@@ -5,7 +5,14 @@
  *   * Page Tracking
  *     * `pageId` - A unique ID for the page.
  *     * `url` - The URL of the page, omitting any hash.
- *     * `referrer` - The referrer for the page.
+ *     * `referrer` - The HTTP referrer for the page. Note that, when a page loads via
+ *       the History API, the referrer is unchanged because there is no document-level
+ *       HTTP request. 
+ *     * `isHistoryChange` - Whether the page visit was caused by a change via the
+ *       History API rather than ordinary web navigation.
+ *     * `webNavigationTimeStamp` - If the page visit was caused by a change via the
+ *       History API, the timestamp on the system clock for the
+ *       webNavigation.onHistoryStateUpdated event. Otherwise, 0. 
  *   * Page Events
  *     * `onPageVisitStart` - An event that fires when a page visit begins. Note that
  *       the page visit start event may have already fired by the time another
@@ -99,11 +106,12 @@
  *     message sending Promise remains open. This error does not affect functionality,
  *     because we do not depend on resolving the Promise (i.e., a response to the
  *     page visit stop message).
- * @module webScience.pageManager.content
+ * @module pageManager.content
  */
 
 import { generateId } from "../id.js";
 import { createEvent } from "../events.js";
+import { fromMonotonicClock } from "../timing.js";
 
 // IIFE wrapper to allow early return
 (function () {
@@ -195,10 +203,10 @@ import { createEvent } from "../events.js";
     /**
      * @typedef {Object} PageManagerEvent
      * @template {ListenerFunction}
-     * @property {PageManagerAddListener<ListenerFunction>} addListener - Add a listener function for the event.
-     * @property {PageManagerRemoveListener<ListenerFunction>} removeListener - Remove a listener function for the event.
-     * @property {PageManagerHasListener<ListenerFunction>} hasListener - Whether a listener function has been added for the event.
-     * @property {PageManagerHasAnyListeners} hasAnyListeners - Whether any listener functions have been added for the event.
+     * @property {PageManagerAddListener<ListenerFunction>} addListener - Add a listener for the event.
+     * @property {PageManagerRemoveListener<ListenerFunction>} removeListener - Remove a listener for the event.
+     * @property {PageManagerHasListener<ListenerFunction>} hasListener - Whether a listener has been added for the event.
+     * @property {PageManagerHasAnyListeners} hasAnyListeners - Whether any listeners have been added for the event.
      */
 
     /**
@@ -251,8 +259,10 @@ import { createEvent } from "../events.js";
      * @param {number} timeStamp - The time when the underlying event fired.
      * @param {boolean} [isHistoryChange=false] - Whether this page load was caused by the
      * History API.
+     * @param {number} [webNavigationTimeStamp=0] - If this is a History API change, the
+     * timestamp for the webNavigation.onHistoryStateUpdated event.
      */
-    function pageVisitStart(timeStamp, isHistoryChange = false) {
+    function pageVisitStart(timeStamp, isHistoryChange = false, webNavigationTimeStamp = 0) {
         // Assign a new page ID
         pageManager.pageId = generateId();
         // Store a copy of the URL, because we use it to check for History API page loads
@@ -265,6 +275,10 @@ import { createEvent } from "../events.js";
         pageManager.pageHasAudio = isHistoryChange ? pageManager.pageHasAudio : false;
         // Store whether the page visit event has completed firing
         pageManager.pageVisitStarted = false;
+        // Store whether the page visit is a History API change
+        pageManager.isHistoryChange = isHistoryChange;
+        // Store the webNavigation timestamp
+        pageManager.webNavigationTimeStamp = webNavigationTimeStamp;
 
         // Send the page visit start event to the background page
         pageManager.sendMessage({
@@ -284,8 +298,6 @@ import { createEvent } from "../events.js";
         }]);
 
         pageManager.pageVisitStarted = true;
-
-        debugLog(`Page visit start: ${JSON.stringify(pageManager)}`);
     }
 
     /**
@@ -311,8 +323,6 @@ import { createEvent } from "../events.js";
         pageManager.onPageVisitStop.notifyListeners([{
             timeStamp
         }]);
-
-        debugLog(`Page visit stop: ${JSON.stringify(pageManager)}`);
     }
 
     /**
@@ -333,8 +343,6 @@ import { createEvent } from "../events.js";
         pageManager.onPageAttentionUpdate.notifyListeners([{
             timeStamp
         }]);
-
-        debugLog(`Page attention update: ${JSON.stringify(pageManager)}`);
     }
 
     /**
@@ -355,8 +363,6 @@ import { createEvent } from "../events.js";
         pageManager.onPageAudioUpdate.notifyListeners([{
             timeStamp
         }]);
-
-        debugLog(`Page audio update: ${JSON.stringify(pageManager)}`);
     }
 
     // Handle events sent from the background page
@@ -366,17 +372,26 @@ import { createEvent } from "../events.js";
             return;
         }
 
-        // If the background page detected a URL change, this could be belated
-        // notification about a conventional navigation or it could be a page
-        // load via the History API
-        // We can distinguish these two scenarios by checking whether the URL
-        // visible to the user (`window.location.href`) has changed since the
-        // page visit start
-        if((message.type === "webScience.pageManager.urlChanged") &&
-            (locationHrefWithoutHash() !== pageManager.url)) {
-            pageVisitStop(message.timeStamp);
-            pageVisitStart(message.timeStamp, true);
-            return;
+        // If the background page detected a URL change, this could be a page
+        // load via the History API. If the `window.location` URL does not
+        // match the pageManager URL, and if the new URL from the background
+        // page does match the `window.location` URL, then we have a page
+        // load via the History API. We need to check the background page
+        // URL against the `window.location` URL to make sure we're
+        // using the right timestamp, which is important for syncing
+        // pageManager.onPageVisitStart history API events with
+        // pageTransition.onPageTransitionData history API events.
+        if(message.type === "webScience.pageManager.urlChanged") {
+            const windowLocationHrefWithoutHash = locationHrefWithoutHash();
+            const messageUrlObj = new URL(message.url);
+            messageUrlObj.hash = "";
+            const messageUrl = messageUrlObj.href;
+            if((windowLocationHrefWithoutHash !== pageManager.url) &&
+               (windowLocationHrefWithoutHash === messageUrl)) {
+                pageVisitStop(message.timeStamp);
+                pageVisitStart(message.timeStamp, true, message.webNavigationTimeStamp);
+                return;
+            }
         }
 
         if(message.type === "webScience.pageManager.pageAudioUpdate") {
@@ -402,11 +417,13 @@ import { createEvent } from "../events.js";
     }
 
     // Send the page visit start event for the first time
-    pageVisitStart(Math.floor(window.performance.timeOrigin));
+    pageVisitStart(fromMonotonicClock(window.performance.timeOrigin, false));
 
-    // Send the page visit stop event on the window unload event
+    // Send the page visit stop event on the window unload event,
+    // using the timestamp for the unload event on the global
+    // monotonic clock 
     window.addEventListener("unload", (event) => {
-        pageVisitStop(Date.now());
+        pageVisitStop(fromMonotonicClock(event.timeStamp, true));
     });
     
 })();

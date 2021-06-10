@@ -1,13 +1,15 @@
-// Assemble the webScience namespace
-
-// Note that the order of module imports matters, since the study
-// modules depend on the utility modules
+// Assemble the webScience namespace by re-exporting modules.
+// Note that the order of modules matters. When adding a new
+// module, it should come after dependencies.
 
 import * as inline from "./inline.js"
 export { inline }
 
 import * as debugging from "./debugging.js"
 export { debugging }
+
+import * as timing from "./timing.js"
+export { timing }
 
 import * as permissions from "./permissions.js"
 export { permissions }
@@ -45,8 +47,8 @@ export { userSurvey }
 import * as socialMediaActivity from "./socialMediaActivity.js"
 export { socialMediaActivity }
 
-import * as pageClassification from "./pageClassification.js"
-export { pageClassification }
+import * as pageText from "./pageText.js"
+export { pageText }
 
 import * as pageNavigation from "./pageNavigation.js"
 export { pageNavigation }
@@ -59,3 +61,9 @@ export { socialMediaLinkSharing }
 
 import * as randomization from "./randomization.js"
 export { randomization }
+
+import * as workers from "./workers.js"
+export { workers }
+
+import * as pageTransition from "./pageTransition.js"
+export { pageTransition }

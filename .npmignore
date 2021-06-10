@@ -1,5 +1,4 @@
-test/
-src/
+tests/
+dist/
 .*
-intermediate/
-rollup.config.*.js
+node_modules/

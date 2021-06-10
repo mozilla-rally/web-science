@@ -1,16 +1,16 @@
 /**
  * This module provides utility functions for tracking social media posts.
  *
- * @module webScience.socialMediaActivity
+ * @module socialMediaActivity
  */
 import * as events from "./events.js";
 
 import * as debugging from "./debugging.js";
 import * as messaging from "./messaging.js";
-import * as inline from "./inline.js";
-import * as permissions from "./permissions";
-import facebookContentScript from "./content-scripts/socialMediaActivity.facebook.content.js";
-import twitterContentScript from "./content-scripts/socialMediaActivity.twitter.content.js";
+import * as permissions from "./permissions.js";
+import * as timing from "./timing.js";
+import facebookContentScript from "include:./content-scripts/socialMediaActivity.facebook.content.js";
+import twitterContentScript from "include:./content-scripts/socialMediaActivity.twitter.content.js";
 
 permissions.check({
     module: "webScience.socialMediaActivity",
@@ -156,7 +156,7 @@ async function handleGenericEvent({requestDetails = null,
                              platform = null, eventType = null,
                              blockingType = null}) {
     const handler = platformHandlers[platform][eventType];
-    const eventTime = Date.now();
+    const eventTime = timing.now();
     let verified = null;
     for (const verifier of handler.verifiers) {
         verified = await verifier({requestDetails: requestDetails, platform: platform,
@@ -485,7 +485,7 @@ function tweetContentInit() {
     browser.contentScripts.register({
         matches: ["https://twitter.com/*", "https://twitter.com/"],
         js: [{
-            code: inline.dataUrlToString(twitterContentScript)
+            file: twitterContentScript
         }],
         runAt: "document_idle"
     });
@@ -523,7 +523,7 @@ async function fbPostContentInit() {
     await browser.contentScripts.register({
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
         js: [{
-            code: inline.dataUrlToString(facebookContentScript)
+            file: facebookContentScript
         }],
         runAt: "document_start"
     });
@@ -942,7 +942,7 @@ function verifyRedditPost({requestDetails = null}) {
  * @private
  */
 function extractRedditPost({requestDetails = null}) {
-    const shareTime = Date.now();
+    const shareTime = timing.now();
     const details = {};
     details.eventTime = shareTime;
     details.postBody = [];

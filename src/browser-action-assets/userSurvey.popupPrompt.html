@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+        <meta content="utf-8" http-equiv="encoding">
+        <style>
+            /* May need to add font bundling or revisit the font choice for cross-browser compatibility. */
+            body {
+                font-family: sans-serif;
+            }
+
+            .button-container {
+                display: table;
+                border-collapse: separate;
+                border-spacing: 0px;
+            }
+
+            .buttonBlue {
+                background-color: #145EE3;
+                width: 99px;
+                color: white;
+                padding-top: 14px;
+                padding-bottom: 14px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 16px;
+                cursor: pointer;
+                float: left;
+            }
+
+            .buttonBlue:hover {
+                background-color: #104FBF;
+            }
+
+            .buttonGray {
+                background-color: #f1f1f1;
+                width: 100px;
+                color: black;
+                padding-top: 14px;
+                padding-bottom: 14px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 16px;
+                cursor: pointer;
+                float: left;
+            }
+
+            .buttonGray:hover {
+                background-color: #e2e2e2;
+            }
+
+            .icon {
+                max-width: 50px;
+                max-height: 50px;
+                float: left;
+                padding-right: 10px;
+            }
+
+            .separator {
+                width: 1px;
+                height: 46px;
+                color: black;
+                float: left;
+                background: #d3d3d3;
+            }
+        </style>
+    </head>
+    <body>
+        <div style="display: flex; max-width: 280px; padding: 10px;">
+            <img id="icon" class="icon" style="display: none;">
+            <div id="content" class="paragraph" style="padding-left: 10px; padding-right: 10px;"></div>
+        </div>
+        <div class="button-container">
+            <a href="#" class="button buttonGray" name="later">Later</a>
+            <span class="separator"></span>
+            <a href="#" class="button buttonGray" name="never">Never</a>
+            <a href="#" class="button buttonBlue" name="agree">Continue</a>
+        </div>
+        <script src="userSurvey.popupPrompt.js"></script>
+    </body>
+</html> 

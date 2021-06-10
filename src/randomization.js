@@ -2,16 +2,10 @@
  * This module enables running measurements and interventions with randomization,
  * such as A/B tests, multivariate tests, and randomized controlled trials.
  * 
- * @module webScience.randomization
+ * @module randomization
  */
 
 import * as permissions from "./permissions.js";
-
-permissions.check({
-    module: "webScience.linkExposure",
-    requiredPermissions: [ "storage" ],
-    suggestedPermissions: [ "unlimitedStorage" ]
-});
 
 /**
  * A condition for a measurement or intervention that can be randomly selected.
@@ -68,6 +62,12 @@ const storageKey = "webScience.randomization.conditions";
  * });
  */
 export async function selectCondition(conditionSet) {
+    permissions.check({
+        module: "webScience.linkExposure",
+        requiredPermissions: [ "storage" ],
+        suggestedPermissions: [ "unlimitedStorage" ]
+    });
+    
     // Initialize the cache of selected conditions
     if(conditionCache === null) {
         const retrievedConditions = await browser.storage.local.get(storageKey);
