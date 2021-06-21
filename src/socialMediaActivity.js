@@ -746,11 +746,9 @@ async function fbPostContentInit() {
  */
 function createBaseFacebookObject() {
     return {
-        eventType: "", eventTime: 0, postText: null, postAttachments: null,
-        postAudience: null,
-
-        actedUponPostId: null, actedUponGroupId: null, actedUponOwnerId: null, reactType: null,
-        commentText: null, reshareSource: null
+        eventType: "", eventTime: 0, postText: "", postAttachments: "",
+        postAudience: "", actedUponPostId: "", actedUponGroupId: "",
+        actedUponOwnerId: "", reactType: "", commentText: "", reshareSource: ""
 
     };
 }
@@ -1065,7 +1063,7 @@ async function extractFacebookReshare({requestDetails = null, verified = null, e
  * @returns {string} - The source of the last reshare ("person" or "page").
  * @private
  */
-async function getReshareInfo() {
+function getReshareInfo() {
     return browser.tabs.sendMessage(facebookTabId, {"recentReshare": true}).then((response) => {
         return response;
     }, (e) => { console.log("ERROR", e); } );

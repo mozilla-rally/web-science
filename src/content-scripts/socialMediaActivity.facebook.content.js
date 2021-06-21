@@ -152,7 +152,7 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
      * @param {string} request.postId - the requested post's ID.
      * @returns {Object} - the complete URL and the group or user names.
      */
-    async function getFullUrl(request) {
+    function getFullUrl(request) {
         return new Promise((resolve, reject) => {
             const reqString = `https://www.facebook.com/${request.postId}`;
             fetch(reqString, {credentials: 'include'}).then((responseFromFetch) => {
@@ -287,7 +287,7 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         };
     }
 
-    browser.runtime.onMessage.addListener(async (request) => {
+    browser.runtime.onMessage.addListener((request) => {
         return new Promise((resolve, reject) => {
             if ("recentReshare" in request) {
                 resolve(mostRecentReshare);
