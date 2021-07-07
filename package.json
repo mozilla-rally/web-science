@@ -3,26 +3,41 @@
     "version": "0.4.0",
     "scripts": {
         "lint": "eslint .",
-        "test": "cd tests/build/ && rollup -c"
+        "test:integration": "pushd tests/build/ && rollup -c && web-ext build --overwrite-dest && popd && mkdir -p dist && jest --testMatch '<rootDir>/tests/integration/study.test.js' 2>&1 | tee dist/integration.log"
+    },
+    "jest": {
+        "verbose": true,
+        "moduleFileExtensions": [
+            "js",
+            "json",
+            "jsx",
+            "ts",
+            "tsx",
+            "node"
+        ]
     },
     "dependencies": {
-        "rollup": "^2.41.4",
+        "@mozilla/readability": "^0.4.1",
         "@rollup/plugin-commonjs": "19.0.0",
         "@rollup/plugin-node-resolve": "^13.0.0",
-        "rollup-plugin-copy": "^3.4.0",
         "globby": "^11.0.0",
-        "@mozilla/readability": "^0.4.1",
         "js-base64": "^3.6.0",
+        "jsdom": "^16.6.0",
+        "rollup": "^2.41.4",
+        "rollup-plugin-copy": "^3.4.0",
         "tldts": "^5.7.25",
-        "uuid": "^8.3.2",
-        "jsdom": "^16.6.0"
+        "uuid": "^8.3.2"
     },
     "devDependencies": {
         "eslint": "^7.22.0",
         "eslint-plugin-import": "^2.22.1",
         "eslint-plugin-mocha": "^9.0.0",
         "eslint-plugin-node": "^11.1.0",
-        "npm-run-all": "^4.1.5"
+        "jest": "^27.0.6",
+        "jest-transform-stub": "^2.0.0",
+        "jest-webextension-mock": "^3.7.14",
+        "npm-run-all": "^4.1.5",
+        "selenium-webdriver": "^4.0.0-beta.4"
     },
     "engines": {
         "node": ">=14.0.0"

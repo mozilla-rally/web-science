@@ -43,6 +43,18 @@ jobs:
           name: Run linting
           command: npm run lint
 
+  Integration testing:
+    docker:
+      - image: cimg/node:14.13.1
+    steps:
+      - checkout
+      - run:
+          name: Install the dependencies
+          command: npm install
+      - run:
+          name: Selenium+Jest Integration Test
+          command: npm run test:integration
+
 workflows:
   version: 2
   ci:
