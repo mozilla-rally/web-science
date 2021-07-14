@@ -82,7 +82,7 @@ const allUrlsRegExpString = "^(?:(?:(?:https?)|(?:wss?)|(?:ftp))://[?[a-zA-Z0-9\
  * Parses a match pattern string into an object that represents the match pattern. We use this internal,
  * intermediate representation to enable constructing efficient matching objects. The parsing logic is
  * nearly identical to the parsing logic in Firefox.
- * @throws {Exception} Throws an error if the match pattern is not valid.
+ * @throws Throws an error if the match pattern is not valid.
  * @param {string} matchPattern - The match pattern string.
  * @returns {ParsedMatchPattern} - The parsed match pattern.
  * @see {@link https://searchfox.org/mozilla-central/source/toolkit/components/extensions/MatchPattern.cpp}
@@ -441,7 +441,7 @@ function parsedMatchPatternToRegExpString(parsedMatchPattern) {
 
 /**
  * Converts a match pattern into a regular expression string.
- * @throws {Exception} Throws an error if the match pattern is not valid.
+ * @throws Throws an error if the match pattern is not valid.
  * @param {string} matchPattern - The match pattern.
  * @returns {string} The regular expression.
  * @private
@@ -462,7 +462,7 @@ function combineRegExpStrings(regExpStrings) {
 
 /**
  * Converts an array of match patterns into a regular expression string.
-* @throws {Exception} Throws an error if the match pattern is not valid.
+ * @throws Throws an error if the match pattern is not valid.
  * @param {string[]} matchPatterns - The match patterns.
  * @returns {string} The regular expression string.
  */
@@ -472,7 +472,7 @@ export function matchPatternsToRegExpString(matchPatterns) {
 
 /**
  * Converts an array of match patterns into a RegExp object.
-* @throws {Exception} Throws an error if the match pattern is not valid.
+ * @throws Throws an error if the match pattern is not valid.
  * @param {string[]} matchPatterns - The match patterns.
  * @returns {RegExp} The regular expression RegExp object.
  */
@@ -528,7 +528,7 @@ export function domainsToRegExp(domains, matchSubdomains = true) {
  *   * Remove the fragment identifier, if any. For example, https://www.mozilla.org/#foo becomes https://www.mozilla.org/.
  * @param {string} url - The URL string to normalize.
  * @return {string} The normalized URL string.
-*  @throws {Exception} Throws an error if the match pattern is not valid, absolute URL.
+ * @throws Throws an error if the match pattern is not valid, absolute URL.
  */
 export function normalizeUrl(url) {
     const urlObj = new URL(url);

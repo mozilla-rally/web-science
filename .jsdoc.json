@@ -23,6 +23,6 @@
         "monospaceLinks": false
     },
     "opts": {
-        "destination": "./jsdocs/"
+        "destination": "./public/jsdocs/"
     }
 }

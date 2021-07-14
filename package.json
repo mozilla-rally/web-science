@@ -4,7 +4,9 @@
     "scripts": {
         "build": "rollup -c rollup.config.intermediate.js && rollup -c rollup.config.final.js",
         "lint": "eslint .",
-        "docs": "jsdoc -c .jsdoc.json"
+        "test": "cd tests/build/ && rollup -c",
+        "docs": "jsdoc -c .jsdoc.json",
+        "gh-pages": "gh-pages --dist public"
     },
     "dependencies": {
         "@mozilla/readability": "^0.4.1",
@@ -23,6 +25,7 @@
         "eslint-plugin-import": "^2.22.1",
         "eslint-plugin-mocha": "^9.0.0",
         "eslint-plugin-node": "^11.1.0",
+        "gh-pages": "^3.2.3",
         "globby": "^11.0.0",
         "js-base64": "^3.6.0",
         "jsdoc": "^3.6.7",
