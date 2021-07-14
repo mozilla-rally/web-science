@@ -17,35 +17,65 @@
 ---
 version: 2.1
 
+orbs:
+  # The Node.js orb contains a set of prepackaged CircleCI configuration you can utilize
+  # Orbs reduce the amount of configuration required for common tasks.
+  # See the orb documentation here: https://circleci.com/developer/orbs/orb/circleci/node
+  node: circleci/node@4.1
+
 jobs:
-  Build test:
+  build-and-test:
     docker:
-      - image: cimg/node:14.13.1
+      - image: cimg/node:15.1
     steps:
       - checkout
+      - node/install-packages
       - run:
-          name: Install the dependencies
-          command: npm install
-      - run:
-          name: Run build test 
+          name: Run build test
           command: npm run test
 
-
-  Code linting:
+  linting:
     docker:
-      - image: cimg/node:14.13.1
+      - image: cimg/node:15.1
     steps:
       - checkout
-      - run:
-          name: Install the dependencies
-          command: npm install
+      - node/install-packages
       - run:
           name: Run linting
           command: npm run lint
+
+  jsdoc-deploy:
+    docker:
+      - image: cimg/node:15.1
+    steps:
+      - checkout
+      - node/install-packages
+      - run:
+          name: Generate JSDocs
+          command: npm run docs
+      - run:
+          name: Configure git for ci-build
+          command: |
+            git config user.email "ci-build@web-science"
+            git config user.name "ci-build"
+      - add_ssh_keys:
+          fingerprints:
+            - "c2:bb:84:de:5b:fb:f6:7b:90:38:2b:75:ee:b7:bf:59"
+      - run:
+          name: Deploy site to gh-pages branch
+          command: npm run gh-pages
 
 workflows:
   version: 2
   ci:
     jobs:
-      - Build test
-      - Code linting
+      - build-and-test
+      - linting
+      - jsdoc-deploy:
+          requires:
+            - build-and-test
+            - linting
+# TODO temporarily disable filtering so we can test in a PR
+#          filters:
+#            branches:
+#              only: main
