@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: pageNavigation.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: pageNavigation.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * This module enables measuring user engagement with webpages. See the `onPageData`
+ * event for specifics.
+ *
+ * @module pageNavigation
+ */
+
+import * as events from "./events.js";
+import * as messaging from "./messaging.js";
+import * as pageManager from "./pageManager.js";
+import * as inline from "./inline.js";
+import * as matching from "./matching.js";
+import pageNavigationContentScript from "./content-scripts/pageNavigation.content.js";
+
+/**
+ * A listener for the `onPageData` event.
+ * @callback pageDataListener
+ * @memberof module:pageNavigation.onPageData
+ * @param {Object} details - Additional information about the page data event.
+ * @param {string} details.pageId - The ID for the page, unique across browsing sessions.
+ * @param {string} details.url - The URL of the page, without any hash.
+ * @param {string} details.referrer - The referrer URL for the page, or `""` if there is no referrer.
+ * @param {number} details.pageVisitStartTime - The time when the page visit started, in ms since
+ * the epoch.
+ * @param {number} details.pageVisitStopTime - The time when the page visit ended, in ms since the
+ * epoch.
+ * @param {number} details.attentionDuration - The amount of time in ms that the page had user attention.
+ * @param {number} details.audioDuration - The amount of time in ms that the page was playing audio.
+ * @param {number} details.attentionAndAudioDuration - The amount of time in ms that the page both had
+ * user attention and was playing audio.
+ * @param {number} details.maxRelativeScrollDepth - The maximum relative scroll depth on the page.
+ * @param {boolean} details.privateWindow - Whether the page loaded in a private window.
+ */
+
+/**
+ * @typedef {Object} PageDataListenerRecord
+ * @property {matching.MatchPatternSet} matchPatternSet - The match patterns for the listener.
+ * @property {boolean} privateWindows - Whether to notify the listener about pages in private windows.
+ * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * script associated with the listener.
+ * @private
+ */
+
+/**
+ * A map where each key is a listener and each value is a record for that listener.
+ * @constant {Map&lt;pageDataListener, PageDataListenerRecord>}
+ * @private
+ */
+const pageDataListeners = new Map();
+
+/**
+ * Add a listener for the `onPageData` event.
+ * @function addListener
+ * @memberof module:pageNavigation.onPageData
+ * @param {pageDataListener} listener - The listener to add.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} options.matchPatterns - The webpages that the listener should be notified about, specified with WebExtensions match patterns.
+ * @param {boolean} [options.privateWindows=false] - Whether to measure pages in private windows.
+ */
+
+/**
+ * Remove a listener for the `onPageData` event.
+ * @function removeListener
+ * @memberof module:pageNavigation.onPageData
+ * @param {pageDataListener} listener - The listener to remove.
+ */
+
+/**
+ * Whether a specified listener has been added for the `onPageData` event.
+ * @function hasListener
+ * @memberof module:pageNavigation.onPageData
+ * @param {pageDataListener} listener - The listener to check.
+ * @returns {boolean} Whether the listener has been added for the event.
+ */
+
+/**
+ * Whether the `onPageData` event has any listeners.
+ * @function hasAnyListeners
+ * @memberof module:pageNavigation.onPageData
+ * @returns {boolean} Whether the event has any listeners.
+ */
+
+/**
+ * An event that fires when a page visit has ended and data about the
+ * visit is available.
+ * @namespace
+ */
+export const onPageData = events.createEvent({
+    name: "webScience.pageNavigation.onPageData",
+    addListenerCallback: addListener,
+    removeListenerCallback: removeListener,
+    notifyListenersCallback: () => { return false; }
+});
+
+/**
+ * Whether the module has completed initialization.
+ * @type {boolean}
+ * @private
+ */
+let initialized = false;
+
+/**
+ * A callback function for adding a page data listener.
+ * @param {pageDataCallback} listener - The listener being added.
+ * @param {Object} options - Options for the listener.
+ * @param {string[]} options.matchPatterns - The match patterns for pages where the listener should
+ * be notified.
+ * @param {boolean} [options.privateWindows=false] - Whether the listener should be notified for
+ * pages in private windows.
+ * @private
+ */
+async function addListener(listener, {
+    matchPatterns,
+    privateWindows = false
+}) {
+    // Initialization
+    if(!initialized) {
+        initialized = true;
+        await pageManager.initialize();
+        messaging.onMessage.addListener(pageData => {
+            // Remove the type string from the content script message
+            delete pageData.type;
+
+            // Notify listeners when the private window and match pattern requirements are met
+            for(const [listener, listenerRecord] of pageDataListeners) {
+                if((!pageData.privateWindow || listenerRecord.privateWindows)
+                &amp;&amp; (listenerRecord.matchPatternSet.matches(pageData.url))) {
+                    listener(pageData);
+                }
+            }
+        },
+        {
+            type: "webScience.pageNavigation.pageData",
+            schema: {
+                pageId: "string",
+                url: "string",
+                referrer: "string",
+                pageVisitStartTime: "number",
+                pageVisitStopTime: "number",
+                attentionDuration: "number",
+                audioDuration: "number",
+                attentionAndAudioDuration: "number",
+                maxRelativeScrollDepth: "number",
+                privateWindow: "boolean"
+            }
+        });
+    }
+
+    // Compile the match patterns for the listener
+    const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
+    // Register a content script for the listener
+    const contentScript = await browser.contentScripts.register({
+        matches: matchPatterns,
+        js: [{
+            code: inline.dataUrlToString(pageNavigationContentScript)
+        }],
+        runAt: "document_start"
+    });
+
+    // Store a record for the listener
+    pageDataListeners.set(listener, {
+        matchPatternSet,
+        contentScript,
+        privateWindows
+    });
+}
+
+/**
+ * A callback function for removing a page data listener.
+ * @param {pageDataCallback} listener - The listener that is being removed.
+ * @private
+ */
+function removeListener(listener) {
+    // If there is a record of the listener, unregister its content script
+    // and delete the record
+    const listenerRecord = pageDataListeners.get(listener);
+    if(listenerRecord === undefined) {
+        return;
+    }
+    listenerRecord.contentScript.unregister();
+    pageDataListeners.delete(listener);
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Wed Jul 14 2021 11:16:02 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

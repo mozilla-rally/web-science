@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Home</title>
+    <title>JSDoc: Source: id.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,32 +17,35 @@
 
 <div id="main">
 
-    <h1 class="page-title">Home</h1>
+    <h1 class="page-title">Source: id.js</h1>
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * This module provides functionality for generating random identifiers.
+ * Studies can use these identifiers to uniquely label events and other
+ * items of interest.
+ * @module id
+ */
 
+import { v4 as uuidv4 } from 'uuid';
 
-    <h3> </h3>
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
+/**
+ * Generate a random (v4) UUID, consistent with RFC4122. These values
+ * include 122 bits of cryptographic randomness.
+ * @returns {string} The new UUID.
+ */
+export function generateId() {
+    return uuidv4();
+}
+</code></pre>
+        </article>
+    </section>
 
 
 

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: randomization.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: randomization.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * This module enables running measurements and interventions with randomization,
+ * such as A/B tests, multivariate tests, and randomized controlled trials.
+ * 
+ * @module randomization
+ */
+
+import * as permissions from "./permissions.js";
+
+/**
+ * A condition for a measurement or intervention that can be randomly selected.
+ * @typedef {Object} Condition
+ * @property {string} name - A name that uniquely identifies the condition within
+ * the set of conditions.
+ * @property {number} weight - The positive weight to give this condition when randomly
+ * selecting a condition from a set.
+ */
+
+/**
+ * @typedef {Object} ConditionSet
+ * @property {string} name - A name that uniquely identifies the set of conditions.
+ * @property {Condition[]} conditions - The conditions in the set.
+ */
+
+/**
+ * A map of condition set names to condition names. Maintaining a cache avoids
+ * storage race conditions. The cache is an Object rather than a Map so it can
+ * be easily stored in extension local storage.
+ * @type {Object|null}
+ * @private
+ */
+let conditionCache = null;
+
+/**
+ * A unique key for storing selected conditions in extension local storage.
+ * @constant {string}
+ * @private
+ */
+const storageKey = "webScience.randomization.conditions";
+
+/**
+ * Selects a condition from a set of conditions. If a condition has previously
+ * been selected from the set, that same condition will be returned. If not,
+ * a condition will be randomly selected according to the provided weights.
+ * @param {ConditionSet} conditionSet - The set of conditions.
+ * @returns {string} - The name of the selected condition in the condition set.
+ * @example
+ * // on first run, returns "red" with 0.5 probability and "blue" with 0.5 probability
+ * // on subsequent runs, returns the same value as before
+ * randomization.selectCondition({
+ *   name: "color",
+ *   conditions: [
+ *     {
+ *       name: "red",
+ *       weight: 1
+ *     },
+ *     {
+ *       name: "blue",
+ *       weight: 1
+ *     }
+ *   ]
+ * });
+ */
+export async function selectCondition(conditionSet) {
+    permissions.check({
+        module: "webScience.linkExposure",
+        requiredPermissions: [ "storage" ],
+        suggestedPermissions: [ "unlimitedStorage" ]
+    });
+    
+    // Initialize the cache of selected conditions
+    if(conditionCache === null) {
+        const retrievedConditions = await browser.storage.local.get(storageKey);
+        // Check the cache once more, to avoid a race condition
+        if(conditionCache === null) {
+            if(storageKey in retrievedConditions)
+                conditionCache = retrievedConditions[storageKey];
+            else
+                conditionCache = { };
+        }
+    }
+
+    // Try to load the selected condition from the cache
+    if(conditionSet.name in conditionCache)
+        return conditionCache[conditionSet.name];
+
+    // If there isn't a previously selected condition, select a condition,
+    // save it to the cache and extension local storage, and return it 
+    let totalWeight = 0;
+    const conditionNames = new Set();
+    if(!Array.isArray(conditionSet.conditions) || conditionSet.length === 0)
+        throw "The condition set must include an array with at least one condition."
+    for(const condition of conditionSet.conditions) {
+        if(condition.weight &lt;= 0)
+            throw "Condition weights must be positive values."
+        totalWeight += condition.weight;
+        if(conditionNames.has(condition.name))
+            throw "Conditions must have unique names."
+        conditionNames.add(condition.name);
+    }
+    let randomValue = Math.random();
+    let selectedCondition = "";
+    for(const condition of conditionSet.conditions) {
+        randomValue -= (condition.weight / totalWeight);
+        if(randomValue &lt;= 0) {
+            selectedCondition = condition.name;
+            break;
+        }
+    }
+    conditionCache[conditionSet.name] = selectedCondition;
+    // No need to wait for storage to complete
+    browser.storage.local.set({ [storageKey]: conditionCache });
+    return selectedCondition.repeat(1);
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-debugging.html">debugging</a></li><li><a href="module-events.html">events</a></li><li><a href="module-id.html">id</a></li><li><a href="module-idle.html">idle</a></li><li><a href="module-inline.html">inline</a></li><li><a href="module-linkExposure.html">linkExposure</a></li><li><a href="module-linkResolution.html">linkResolution</a></li><li><a href="module-matching.html">matching</a></li><li><a href="module-messaging.html">messaging</a></li><li><a href="module-pageManager.html">pageManager</a></li><li><a href="module-pageNavigation.html">pageNavigation</a></li><li><a href="module-pageText.html">pageText</a></li><li><a href="module-pageTransition.html">pageTransition</a></li><li><a href="module-permissions.html">permissions</a></li><li><a href="module-randomization.html">randomization</a></li><li><a href="module-scheduling.html">scheduling</a></li><li><a href="module-socialMediaActivity.html">socialMediaActivity</a></li><li><a href="module-socialMediaLinkSharing.html">socialMediaLinkSharing</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-timing.html">timing</a></li><li><a href="module-userSurvey.html">userSurvey</a></li><li><a href="module-workers.html">workers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-idle.onStateChanged.html">onStateChanged</a></li><li><a href="module-linkExposure.onLinkExposureData.html">onLinkExposureData</a></li><li><a href="module-linkExposure.onLinkExposureUpdate.html">onLinkExposureUpdate</a></li><li><a href="module-messaging.onMessage.html">onMessage</a></li><li><a href="module-pageManager.onPageVisitStart.html">onPageVisitStart</a></li><li><a href="module-pageManager.onPageVisitStop.html">onPageVisitStop</a></li><li><a href="module-pageNavigation.onPageData.html">onPageData</a></li><li><a href="module-pageText.onTextParsed.html">onTextParsed</a></li><li><a href="module-pageTransition.onPageTransitionData.html">onPageTransitionData</a></li><li><a href="module-scheduling.onIdleDaily.html">onIdleDaily</a></li><li><a href="module-scheduling.onIdleWeekly.html">onIdleWeekly</a></li></ul><h3>Classes</h3><ul><li><a href="module-events-Event.html">Event</a></li><li><a href="module-matching-MatchPatternSet.html">MatchPatternSet</a></li><li><a href="module-storage-Counter.html">Counter</a></li><li><a href="module-storage-KeyValueStorage.html">KeyValueStorage</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Wed Jul 14 2021 11:16:02 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
