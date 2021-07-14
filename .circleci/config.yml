@@ -75,7 +75,6 @@ workflows:
           requires:
             - build-and-test
             - linting
-# TODO temporarily disable filtering so we can test in a PR
-#          filters:
-#            branches:
-#              only: main
+          filters:
+            branches:
+              only: main
