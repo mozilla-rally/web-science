@@ -7,7 +7,7 @@
     },
     "dependencies": {
         "rollup": "^2.41.4",
-        "@rollup/plugin-commonjs": "19.0.0",
+        "@rollup/plugin-commonjs": "19.0.1",
         "@rollup/plugin-node-resolve": "^13.0.0",
         "rollup-plugin-copy": "^3.4.0",
         "globby": "^11.0.0",
