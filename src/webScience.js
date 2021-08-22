@@ -56,6 +56,9 @@ export { pageNavigation }
 import * as linkExposure from "./linkExposure.js"
 export { linkExposure }
 
+import * as videoConsumption from "./videoConsumption.js"
+export { videoConsumption }
+
 import * as socialMediaLinkSharing from "./socialMediaLinkSharing.js"
 export { socialMediaLinkSharing }
 
