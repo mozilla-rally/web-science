@@ -23,6 +23,10 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
     const trackedReshares = []
     let mostRecentReshare = null;
 
+    /**
+     * Note the source of a reshare when the user clicks the button, in case it's wanted later.
+     * @param {Object} clicked - the page element that we were listening for clicks on.
+     */
     function logReshareClick(clicked) {
         const node = clicked.srcElement;
         mostRecentReshare = node;
@@ -53,6 +57,9 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         }
     }
 
+    /**
+     * Add listeners to the reshare buttons so we get notified when the user starts to share something.
+     */
     function reshareSourceTracking() {
         const reshareButtons = document.querySelectorAll("div[aria-label*='Send this to friends']");
         for (const reshareButton of reshareButtons) {
@@ -63,6 +70,7 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         }
     }
 
+    // periodically add listeners to newly-loaded posts.
     setInterval(() => reshareSourceTracking(), 3000);
 
 
@@ -72,8 +80,8 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
      * @param response -- an object to add found links to
      */
     function searchFacebookPost(node, response) {
-        response.attachedUrls = [];
-        response.content = [];
+        response.postAttachments = [];
+        response.postText = "";
         // This is the class name used for the display boxes for news articles
         // When a post contains one link and it's at the end of the post, the url
         //  isn't included in the post text, so we have to find it here instead.
@@ -82,22 +90,29 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         for (const mediaBox of mediaBoxes) {
             const rawUrl = mediaBox.getAttribute("href");
             const parsedUrl = removeShim(rawUrl).url;
-            response.attachedUrls.push(parsedUrl);
+            response.postAttachments.push(parsedUrl);
         }
 
         const postBodies = node.querySelectorAll("div[data-testid=post_message]");
         for (const postBody of postBodies) {
             for (const elem of postBody.childNodes[0].childNodes) {
                 if (elem.nodeName == "A") {
-                    response.content.push(removeShim(elem.href).url);
+                    response.postText = response.postText.concat("\n", removeShim(elem.href).url);
                 }
                 if(elem.nodeName == "#text") {
-                    response.content.push(elem.data);
+                    response.postText = response.postText.concat("\n", elem.data);
                 }
             }
         }
     }
 
+    /**
+     * Given a Facebook URL, parse out the owner or group IDs.
+     * @param {string} url - the Facebook URL to parse.
+     * @param {Object} request - the object that initiated this search.
+     * @param {string} request.postId - the unique ID of the content item.
+     * @returns {Object} - the complete URL, and the group or user names.
+     */
     function parseFacebookUrl(url, request) {
         const oldGroupRegex = /facebook\.com\/groups\/([^/]*)\/permalink\/([0-9]*)/;
         const newGroupRegex = /facebook\.com\/groups\/([^/]*)\/\?post_id=([0-9]*)/;
@@ -128,50 +143,32 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
     }
 
     /**
-     * Send a fetch request for the post we're looking for, and parse links from the result
-     * @param request -- the request post's ID and the ID of the person who shared it
-     * @param response -- an object set up with arrays for the links to return
+     * Send a fetch request for the post we're looking for, and parse links from the result.
+     * When a user shares a post, we often get just the ID of the post. To locate it in the page,
+     *  we need to know the full URL that Facebook uses it. If we issue a request for the post using
+     *  just the ID, Facebook will redirect us the full URL, which we can re-parse to construct
+     *  a URL that's structured the way Facebook structures them for posts in the newsfeed.
+     * @param {Object} request
+     * @param {string} request.postId - the requested post's ID.
+     * @returns {Object} - the complete URL and the group or user names.
      */
-    async function getFullUrl(request) {
+    function getFullUrl(request) {
         return new Promise((resolve, reject) => {
             const reqString = `https://www.facebook.com/${request.postId}`;
             fetch(reqString, {credentials: 'include'}).then((responseFromFetch) => {
                 const redir = responseFromFetch.url;
                 resolve(parseFacebookUrl(redir, request));
-                /*
-                var oldGroupRegex = /facebook\.com\/groups\/([^\/]*)\/permalink\/([0-9]*)/;
-                var newGroupRegex = /facebook\.com\/groups\/([^\/]*)\/\?post_id=([0-9]*)/;
-                var userIdRegex = /facebook\.com\/permalink\.php\?story_fbid=([0-9]*)&id=([0-9]*)/;
-                var usernameRegex = /facebook\.com\/([^\/]*)\/posts\/([0-9]*)/;
-                var username = ""; var groupName = ""; var newUrl = ""; var userId = "";
-                var oldGroupResult = oldGroupRegex.exec(redir);
-                if (oldGroupResult) {
-                    groupName = oldGroupResult[1];
-                    newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
-                }
-                var newGroupResult = newGroupRegex.exec(redir);
-                if (newGroupResult) {
-                    groupName = newGroupResult[1];
-                    newUrl = `facebook.com/groups/${groupName}/permalink/${request.postId}`;
-                }
-                var idResult = userIdRegex.exec(redir);
-                if (idResult) {
-                    userId = idResult[2];
-                    newUrl = idResult[0];
-                }
-                var nameResult = usernameRegex.exec(redir);
-                if (nameResult) {
-                    username = nameResult[1];
-                    newUrl = nameResult[0];
-                }
-                resolve({newUrl: newUrl, groupName: groupName, username: username, userId: userId});
-                */
             });
         });
     }
 
+    /**
+     * Condense the structure of a newsfeed post.
+     * @param {Object} node - the highest-level node that we want to condense.
+     * @returns {Object} - the node, but with empty nodes removed and link shims removed.
+     */
     function recStructure(node) {
-        let links = [];//node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
+        let links = [];
         let ret;
         if (node.textContent == "") {
             links = node.querySelectorAll ? node.querySelectorAll(`a[target='_blank']`) : [];
@@ -204,6 +201,11 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         return ret;
     }
 
+    /**
+     * Determine whether this section of the post's structure is the comments.
+     * @param {Object} structure - the condensed structure of the post.
+     * @returns {boolean} - whether this section is the comments.
+     */
     function isComments(structure) {
         if (structure == null) return false;
         if ("text" in structure) return false;
@@ -221,6 +223,11 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         return false;
     }
 
+    /**
+     * Find and remove the comments portion of a post.
+     * @param {Object} structure - the condensed structure of the post.
+     * @returns {Object} - the structure with the comments removed.
+     */
     function removeComments(structure) {
         let index = 0;
         for (const child of structure) {
@@ -234,21 +241,30 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         return structure;
     }
 
-    function condenseContent(structure, text, links) {
+    /**
+     * Given a condensed post with comments removed, compress the nodes
+     * into one string of text and one list of links.
+     * @param {Object} structure - the condensed structure of the post.
+     * @param {string} text - text to which to add the post's contents.
+     * @param {string[]} links - list to which to add the post's links.
+     * @returns {string} - the text of the post.
+     */
+    function compressStructure(structure, text, links) {
         if (structure == null) {
             console.log("ERROR", structure, text, links);
-            return;
+            return text;
         }
         if ("text" in structure && "links" in structure) {
-            if (structure.text != null) text.push(structure.text);
+            if (structure.text != null) text = text.concat("\n", structure.text);
             for (const link of structure.links) {
                 links.push(link);
             }
-            return;
+            return text;
         }
         for (const child of structure) {
-            condenseContent(child, text, links);
+            text = compressStructure(child, text, links);
         }
+        return text;
     }
 
     /**
@@ -271,7 +287,7 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
         };
     }
 
-    browser.runtime.onMessage.addListener(async (request) => {
+    browser.runtime.onMessage.addListener((request) => {
         return new Promise((resolve, reject) => {
             if ("recentReshare" in request) {
                 resolve(mostRecentReshare);
@@ -279,7 +295,7 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
             }
             const response = {};
             response.content = [];
-            response.attachedUrls = [];
+            response.postAttachments = [];
 
             // Try to find the post on the page (should be in view)
             const requestedPost = document.body.querySelector(`a[href*="${request.postId}"]`);
@@ -291,7 +307,6 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
                 response.groupName = groupName;
                 let node = requestedPost;
 
-                // New FB
                 try {
                     const posts = document.querySelectorAll('div[role="article"]');
                     let wantedPost;
@@ -303,16 +318,16 @@ import { facebookLinkShimRegExp, parseFacebookLinkShim, removeFacebookLinkDecora
                         }
                     }
                     const recStructureWanted = recStructure(wantedPost);
-                    const textRet = [];
+                    let textRet = "";
                     const linksRet = [];
                     removeComments(recStructureWanted);
-                    condenseContent(recStructureWanted, textRet, linksRet);
-                    response.content = textRet;
-                    response.attachedUrls = linksRet;
+                    textRet = compressStructure(recStructureWanted, textRet, linksRet);
+                    response.postText = textRet;
+                    response.postAttachments = linksRet;
                     resolve(response);
                     return;
                 } catch (error) {
-                    while (node.parentElement != null) {
+                    while (node !== null && node.parentElement !== null) {
                         node = node.parentElement;
                         if (node.hasAttribute("class") &&
                             node.getAttribute("class").includes("userContentWrapper")) {
