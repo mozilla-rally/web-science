@@ -22,6 +22,7 @@
 
 import * as debugging from "./debugging.js";
 import * as events from "./events.js";
+import browser from "webextension-polyfill";
 
 /**
  * @constant {debugging.debuggingLogger}

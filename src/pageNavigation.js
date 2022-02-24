@@ -11,6 +11,8 @@ import * as pageManager from "./pageManager.js";
 import * as matching from "./matching.js";
 import pageNavigationContentScript from "include:./content-scripts/pageNavigation.content.js";
 
+import browser from "webextension-polyfill";
+
 /**
  * A listener for the `onPageData` event.
  * @callback pageDataListener
@@ -147,19 +149,10 @@ async function addListener(listener, {
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
-    // Register a content script for the listener
-    const contentScript = await browser.contentScripts.register({
-        matches: matchPatterns,
-        js: [{
-            file: pageNavigationContentScript
-        }],
-        runAt: "document_start"
-    });
 
     // Store a record for the listener
     pageDataListeners.set(listener, {
         matchPatternSet,
-        contentScript,
         privateWindows
     });
 }
@@ -176,6 +169,5 @@ function removeListener(listener) {
     if(listenerRecord === undefined) {
         return;
     }
-    listenerRecord.contentScript.unregister();
     pageDataListeners.delete(listener);
 }

@@ -42,6 +42,8 @@ import * as events from "./events.js";
 import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
 
+import browser from "webextension-polyfill";
+
 /**
  * The minimum idle state detection interval (in seconds) supported by
  * the `idle` API.

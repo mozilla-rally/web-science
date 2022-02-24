@@ -127,6 +127,8 @@ import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
 import pageManagerContentScript from "include:./content-scripts/pageManager.content.js";
 
+import browser from "webextension-polyfill";
+
 /**
  * The threshold (in seconds) for determining whether the browser has the user's attention,
  * based on mouse and keyboard input.
@@ -498,9 +500,6 @@ export async function initialize() {
             pageHasAudio: changeInfo.audible,
             timeStamp: timing.now()
         });
-    }, {
-        urls: [ "http://*/*", "https://*/*" ],
-        properties: [ "audible" ]
     });
 
     // If a tab's URL changed because of the History API, send webScience.pageManager.urlChanged
@@ -705,15 +704,6 @@ export async function initialize() {
             currentActiveTab = activeTabInOpenWindow;
         }
     }
-
-    // Register the pageManager content script for all URLs permitted by the extension manifest
-    browser.contentScripts.register({
-        matches: permissions.getManifestOriginMatchPatterns(),
-        js: [{
-            file: pageManagerContentScript
-        }],
-        runAt: "document_start"
-    });
 
     initializing = false;
     initialized = true;
