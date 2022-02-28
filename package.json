@@ -10,7 +10,7 @@
     },
     "dependencies": {
         "@mozilla/readability": "^0.4.1",
-        "@rollup/plugin-commonjs": "21.0.1",
+        "@rollup/plugin-commonjs": "21.0.2",
         "@rollup/plugin-node-resolve": "^13.0.0",
         "globby": "^13.1.0",
         "js-base64": "^3.6.0",
