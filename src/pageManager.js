@@ -494,13 +494,12 @@ export async function initialize() {
             return;
         }
 
-        if (extraParameters.audible === true) {
-            messaging.sendMessageToTab(tabId, {
-                type: "webScience.pageManager.pageAudioUpdate",
-                pageHasAudio: changeInfo.audible,
-                timeStamp: timing.now()
-            });
-        }
+        messaging.sendMessageToTab(tabId, {
+            type: "webScience.pageManager.pageAudioUpdate",
+            pageHasAudio: Boolean(extraParameters.audible),
+            timeStamp: timing.now()
+        });
+
     });
 
     // If a tab's URL changed because of the History API, send webScience.pageManager.urlChanged
