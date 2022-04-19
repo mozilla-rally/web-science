@@ -2,21 +2,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import fs, { createReadStream } from "fs";
+import fs from "fs";
 import minimist from "minimist";
-import readline from "readline";
-import { By, until, WebDriver } from "selenium-webdriver";
+import { until, WebDriver } from "selenium-webdriver";
 import { spawn } from "child_process";
 
 import {
-  extensionLogsPresent, findAndAct,
+  extensionLogsPresent,
   getChromeDriver,
   getFirefoxDriver, WAIT_FOR_PROPERTY
 } from "./utils";
 
 
 const args = minimist(process.argv.slice(2));
-console.debug(args);
 for (const arg of ["test_browser", "load_extension", "headless_mode"]) {
   if (!(arg in args)) {
     throw new Error(`Missing required option: --${arg}`);
@@ -50,20 +48,40 @@ let driver: WebDriver;
 let screenshotCount = 0;
 let server;
 
+let logWindow;
+let testWindow;
+
 const PORT = "8000";
 const BASE_URL = `http://localhost:${PORT}`;
 const PATH = "tests/integration/webarchive/localhost";
 
-const waitForExtensionLog = async (message) => {
+/**
+ * Switch to the original window and wait for log to match regexp.
+ * Needed for Chrome, since Selenium can only access web content logs.
+ *
+ * @param match
+ */
+async function waitForLogs(match) {
+  // Preserve handle to current test window.
+  const testWindow = await driver.getWindowHandle();
+
+  // Switch to original window to read logs.
+  await driver.switchTo().window(logWindow);
+
+  // Wait until log message is present, or time out.
+  // FIXME it would be more efficient to keep track of where we are in the log vs. re-reading it each time.
   await driver.wait(
     async () =>
       await extensionLogsPresent(
         driver,
         testBrowser,
-        message
+        match
       ),
     WAIT_FOR_PROPERTY
   );
+
+  // Restore focus to test window.
+  await driver.switchTo().window(testWindow);
 }
 
 describe("WebScience Test Extension", function () {
@@ -79,6 +97,19 @@ describe("WebScience Test Extension", function () {
 
   beforeEach(async () => {
     driver = await getDriver(loadExtension, headlessMode);
+
+    await driver.get(BASE_URL);
+    await driver.wait(
+      until.titleIs("Test"),
+      WAIT_FOR_PROPERTY
+    );
+
+    // Start a new window for tests, the original will be used to collect logs from the extension.
+    // Selenium is currently not able to access Chrome extension logs directly, so they are messaged to the
+    // original window
+    // TODO save handle
+    logWindow = await driver.getWindowHandle();
+    await driver.switchTo().newWindow('window');
   });
 
   afterEach(async () => {
@@ -102,14 +133,7 @@ describe("WebScience Test Extension", function () {
   });
 
   it("tests navigation by modifying address bar in a single tab", async function () {
-
     await driver.get(BASE_URL);
-    await driver.wait(
-      until.titleIs("Test"),
-      WAIT_FOR_PROPERTY
-    );
-
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/);
 
     await driver.get(`${BASE_URL}/test1.html`);
     await driver.wait(
@@ -117,13 +141,13 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/);
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/);
+    await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/);
+    // await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/);
 
     await driver.navigate().back();
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/);
+    await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
+    // await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/);
 
     await driver.get(`${BASE_URL}/test2.html`);
     await driver.wait(
@@ -131,23 +155,11 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/);
+    // await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
+    await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/);
   });
 
   it("tests navigation by loading each site in a new window", async function () {
-
-    await driver.switchTo().newWindow('window');
-
-    await driver.get(BASE_URL);
-    await driver.wait(
-      until.titleIs("Test"),
-      WAIT_FOR_PROPERTY
-    );
-
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/);
-
-    await driver.close();
     await driver.switchTo().window((await driver.getAllWindowHandles())[0]);
 
     await driver.switchTo().newWindow('window');
@@ -158,8 +170,8 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/);
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/);
+    // await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/);
+    await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/);
 
     await driver.close();
     await driver.switchTo().window((await driver.getAllWindowHandles())[0]);
@@ -172,11 +184,8 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/);
-
-    await driver.close();
-    await driver.switchTo().window((await driver.getAllWindowHandles())[0]);
+    // await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
+    await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/);
   });
 
   it("tests navigation by loading each site in a new tab", async function () {
@@ -189,7 +198,8 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/);
+    // await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/);
+    await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/);
 
     await driver.close();
     await driver.switchTo().window((await driver.getAllWindowHandles())[0]);
@@ -202,8 +212,8 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/);
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/);
+    await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/);
+    // await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/);
 
     await driver.close();
     await driver.switchTo().window((await driver.getAllWindowHandles())[0]);
@@ -216,10 +226,7 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
-    await waitForExtensionLog(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
-    await waitForExtensionLog(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/);
-
-    await driver.close();
-    await driver.switchTo().window((await driver.getAllWindowHandles())[0]);
+    await waitForLogs(/(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/);
+    // await waitForLogs(/(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/);
   });
 });

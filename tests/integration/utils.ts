@@ -65,6 +65,8 @@ export async function findAndAct(
  *        Message to search for.
  * @returns {Promise<boolean>}
  *        Whether or not the message was found.
+ *
+ *     // FIXME it would be more efficient to keep track of where we are in the log vs. re-reading it each time.
  */
 export async function extensionLogsPresent(
   driver: WebDriver,
@@ -76,6 +78,7 @@ export async function extensionLogsPresent(
       const logEntries = await driver.manage().logs().get(logging.Type.BROWSER);
       let found = false;
       for (const logEntry of logEntries) {
+        console.debug(message.test(logEntry.message), logEntry.message, message);
         if (message.test(logEntry.message)) {
           found = true;
         }
