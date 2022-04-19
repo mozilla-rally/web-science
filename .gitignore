@@ -6,7 +6,8 @@
 .LSOverride
 
 ## Icon must end with two \r
-Icon
+Icon
+
 
 ## Thumbnails
 ._*
@@ -45,3 +46,9 @@ node_modules/
 intermediate/
 dist/
 jsdoc/
+
+# tests
+!screenshots/README.md
+screenshots/
+integration.log
+tests/integration/extension/web-ext-artifacts/

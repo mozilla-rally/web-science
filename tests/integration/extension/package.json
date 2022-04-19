@@ -1,0 +1,24 @@
+{
+  "name": "web-science-text-extension",
+  "version": "0.0.1",
+  "description": "A minimal WebScience test extension",
+  "main": "dist/background.js",
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w --config-enable-developer-mode",
+    "package": "web-ext build --overwrite-dest",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MPL-2.0",
+  "devDependencies": {
+    "@mozilla/web-science": "file:../../..",
+    "@rollup/plugin-commonjs": "^21.1.0",
+    "@rollup/plugin-node-resolve": "^13.2.1",
+    "rollup": "^2.56.3",
+    "rollup-plugin-copy": "^3.4.0",
+    "uuid": "^8.3.2",
+    "web-ext": "^6.4.0",
+    "webextension-polyfill": "^0.9.0"
+  }
+}

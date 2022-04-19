@@ -31,8 +31,16 @@ jobs:
       - checkout
       - node/install-packages
       - run:
-          name: Run build test
-          command: npm run test
+          name: Install Firefox, and dependencies for official Google Chrome package
+          command: sudo apt update && sudo apt install firefox default-jre fonts-liberation libgbm1 xdg-utils
+      - run:
+          name: Download and install official Google Chrome package
+          command: wget 'https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb' && sudo dpkg -i google-chrome-stable_current_amd64.deb
+      - run:
+          name: Run integration tests
+          command: npm run test:integration
+      - store_artifacts:
+          path: ./screenshots
 
   linting:
     docker:

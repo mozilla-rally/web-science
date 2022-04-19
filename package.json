@@ -4,7 +4,8 @@
     "scripts": {
         "build": "rollup -c rollup.config.intermediate.js && rollup -c rollup.config.final.js",
         "lint": "eslint .",
-        "test": "cd tests/build/ && rollup -c",
+        "test:integration:jest": "jest ./tests/integration/",
+        "test:integration": "./scripts/integration-test.sh",
         "docs": "jsdoc -c .jsdoc.json",
         "gh-pages": "gh-pages --dist public"
     },
@@ -21,17 +22,29 @@
         "uuid": "^8.3.2"
     },
     "devDependencies": {
+        "@babel/preset-env": "^7.16.11",
+        "@babel/preset-typescript": "^7.16.7",
+        "@tsconfig/recommended": "^1.0.1",
+        "@types/jest": "^27.4.1",
+        "@types/minimist": "^1.2.2",
+        "@types/selenium-webdriver": "^4.0.18",
+        "chromedriver": "^100.0.0",
         "eslint": "^8.1.0",
         "eslint-plugin-import": "^2.22.1",
         "eslint-plugin-mocha": "^10.0.1",
         "eslint-plugin-node": "^11.1.0",
+        "geckodriver": "^3.0.1",
         "gh-pages": "^3.2.3",
         "globby": "^13.1.0",
+        "http-server": "^14.1.0",
+        "jest": "^27.5.1",
         "js-base64": "^3.6.0",
         "jsdoc": "^3.6.7",
         "npm-run-all": "^4.1.5",
         "rollup": "^2.41.4",
-        "rollup-plugin-copy": "^3.4.0"
+        "rollup-plugin-copy": "^3.4.0",
+        "selenium-webdriver": "^4.1.1",
+        "ts-jest": "^27.1.4"
     },
     "engines": {
         "node": ">=14.0.0"
