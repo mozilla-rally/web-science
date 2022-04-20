@@ -125,6 +125,7 @@ import * as idle from "./idle.js";
 import * as messaging from "./messaging.js";
 import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
+import * as contentScripts from "./contentScripts.js"
 import pageManagerContentScript from "include:./content-scripts/pageManager.content.js";
 
 /**
@@ -488,19 +489,17 @@ export async function initialize() {
     // Register background script event handlers
 
     // If a tab's audible state changed, send webScience.pageManager.pageAudioUpdate
-    browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    browser.tabs.onUpdated.addListener((tabId, changeInfo, extraParameters) => {
         if(!initialized) {
             return;
         }
 
         messaging.sendMessageToTab(tabId, {
             type: "webScience.pageManager.pageAudioUpdate",
-            pageHasAudio: changeInfo.audible,
+            pageHasAudio: Boolean(extraParameters.audible),
             timeStamp: timing.now()
         });
-    }, {
-        urls: [ "http://*/*", "https://*/*" ],
-        properties: [ "audible" ]
+
     });
 
     // If a tab's URL changed because of the History API, send webScience.pageManager.urlChanged
@@ -521,8 +520,6 @@ export async function initialize() {
             // committed. See: https://github.com/mdn/content/issues/4469
             webNavigationTimeStamp: details.timeStamp
         });
-    }, {
-        url: [ { schemes: [ "http", "https" ] } ]
     });
 
     browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
@@ -706,14 +703,8 @@ export async function initialize() {
         }
     }
 
-    // Register the pageManager content script for all URLs permitted by the extension manifest
-    browser.contentScripts.register({
-        matches: permissions.getManifestOriginMatchPatterns(),
-        js: [{
-            file: pageManagerContentScript
-        }],
-        runAt: "document_start"
-    });
+    // Register the pageManager content script for all URLs permitted by the extension manifest.
+    contentScripts.registerContentScript(permissions.getManifestOriginMatchPatterns(), pageManagerContentScript);
 
     initializing = false;
     initialized = true;

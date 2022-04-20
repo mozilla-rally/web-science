@@ -1,2 +1,4 @@
+
 dist/*
 intermediate/*
+tests/integration/extension/*
