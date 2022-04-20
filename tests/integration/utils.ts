@@ -65,30 +65,36 @@ export async function findAndAct(
  *        Message to search for.
  * @returns {Promise<boolean>}
  *        Whether or not the message was found.
- *
- *     // FIXME it would be more efficient to keep track of where we are in the log vs. re-reading it each time.
  */
 export async function extensionLogsPresent(
   driver: WebDriver,
   testBrowser: string,
-  message: RegExp
+  matches: Array<RegExp>
 ): Promise<boolean> {
-  switch (testBrowser) {
-    case "chrome":
-      const logEntries = await driver.manage().logs().get(logging.Type.BROWSER);
-      let found = false;
-      for (const logEntry of logEntries) {
-        console.debug(message.test(logEntry.message), logEntry.message, message);
-        if (message.test(logEntry.message)) {
+  if (testBrowser === "chrome") {
+    const logEntries = await driver.manage().logs().get(logging.Type.BROWSER);
+    let found = false;
+    for (const logEntry of logEntries) {
+      for (const match of matches) {
+        if (match.test(logEntry.message)) {
           found = true;
         }
       }
-      return found;
-    case "firefox":
-      const fileBuffer = await fs.promises.readFile("./integration.log");
-      return message.test(fileBuffer.toString());
-    default:
-      throw new Error(`Unsupported browser: ${testBrowser}`);
+    }
+    return found;
+  } else if (testBrowser === "firefox") {
+    const fileBuffer = await fs.promises.readFile("./integration.log");
+    let found = false;
+    // FIXME it would be more efficient to keep track of where we are in the log vs. re-reading it each time.
+    // FIXME this would also make it more like the behavior of Chrome's log interface.
+    for (const match of matches) {
+      if (match.test(fileBuffer.toString())) {
+        found = true;
+      }
+    }
+    return found;
+  } else {
+    throw new Error(`Unsupported browser: ${testBrowser}`);
   }
 }
 
