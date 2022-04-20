@@ -49,7 +49,6 @@ let screenshotCount = 0;
 let server;
 
 let logWindow;
-let testWindow;
 
 const PORT = "8000";
 const BASE_URL = `http://localhost:${PORT}`;
