@@ -73,29 +73,36 @@ export async function extensionLogsPresent(
 ): Promise<boolean> {
   if (testBrowser === "chrome") {
     const logEntries = await driver.manage().logs().get(logging.Type.BROWSER);
-    let found = false;
-    for (const logEntry of logEntries) {
-      for (const match of matches) {
+
+    for (const match of matches) {
+      let found = false;
+      for (const logEntry of logEntries) {
         if (match.test(logEntry.message)) {
           found = true;
         }
       }
+      if (!found) {
+        return false;
+      }
     }
-    return found;
   } else if (testBrowser === "firefox") {
     const fileBuffer = await fs.promises.readFile("./integration.log");
-    let found = false;
     // FIXME it would be more efficient to keep track of where we are in the log vs. re-reading it each time.
     // FIXME this would also make it more like the behavior of Chrome's log interface.
     for (const match of matches) {
+      let found = false;
       if (match.test(fileBuffer.toString())) {
         found = true;
       }
+      if (!found) {
+        return false;
+      }
     }
-    return found;
   } else {
     throw new Error(`Unsupported browser: ${testBrowser}`);
   }
+
+  return true;
 }
 
 /**
