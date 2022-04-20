@@ -125,7 +125,7 @@ import * as idle from "./idle.js";
 import * as messaging from "./messaging.js";
 import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
-import * as utils from "./utils.js"
+import * as contentScripts from "./contentScripts.js"
 import pageManagerContentScript from "include:./content-scripts/pageManager.content.js";
 
 /**
@@ -704,7 +704,7 @@ export async function initialize() {
     }
 
     // Register the pageManager content script for all URLs permitted by the extension manifest.
-    utils.registerContentScripts(permissions.getManifestOriginMatchPatterns(), pageManagerContentScript);
+    contentScripts.registerContentScript(permissions.getManifestOriginMatchPatterns(), pageManagerContentScript);
 
     initializing = false;
     initialized = true;

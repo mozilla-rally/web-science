@@ -9,7 +9,7 @@ import * as events from "./events.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
 import * as matching from "./matching.js";
-import * as utils from "./utils.js";
+import * as contentScripts from "./contentScripts.js";
 import pageNavigationContentScript from "include:./content-scripts/pageNavigation.content.js";
 
 /**
@@ -148,7 +148,7 @@ async function addListener(listener, {
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
-    const contentScript = await utils.registerContentScripts(matchPatterns, pageNavigationContentScript);
+    const contentScript = await contentScripts.registerContentScript(matchPatterns, pageNavigationContentScript);
 
     // Store a record for the listener
     pageDataListeners.set(listener, {

@@ -1,12 +1,11 @@
-
 /**
- * Register content scripts. Only Firefox supports dynamic content scripts at this time, so
+ * Register content script. Only Firefox supports dynamic content scripts at this time, so
  * log them in this case so callers know they need to declaratively register.
  *
- * @param matchPatternSet {Array<String>}
- * @param contentScript {import}
+ * @param {Array<String>} matchPattern
+ * @param {import} contentScript
  */
-export async function registerContentScripts(matchPatternSet, contentScript) {
+export async function registerContentScript(matchPattern, contentScript) {
     try {
         // getBrowserInfo is Firefox-only as well.
         const browserInfo = await browser.runtime.getBrowserInfo();
@@ -14,7 +13,7 @@ export async function registerContentScripts(matchPatternSet, contentScript) {
         // Register a content script for the listener
         if (browserInfo.name === "Firefox") {
             const registeredContentScript = await browser.contentScripts.register({
-                matches: matchPatternSet,
+                matches: matchPattern,
                 js: [{
                     file: contentScript
                 }],
