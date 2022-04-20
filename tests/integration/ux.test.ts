@@ -106,7 +106,6 @@ describe("WebScience Test Extension", function () {
     // Start a new window for tests, the original will be used to collect logs from the extension.
     // Selenium is currently not able to access Chrome extension logs directly, so they are messaged to the
     // original window
-    // TODO save handle
     logWindow = await driver.getWindowHandle();
     await driver.switchTo().newWindow('window');
   });
@@ -159,7 +158,7 @@ describe("WebScience Test Extension", function () {
     );
 
     await waitForLogs([
-      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/,
+      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
       /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/
     ]);
   });
@@ -176,7 +175,6 @@ describe("WebScience Test Extension", function () {
     );
 
     await waitForLogs([
-      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
       /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/
     ]);
 
@@ -208,7 +206,6 @@ describe("WebScience Test Extension", function () {
     );
 
     await waitForLogs([
-      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
       /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/
     ]);
 
