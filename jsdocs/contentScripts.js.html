@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Home</title>
+    <title>JSDoc: Source: contentScripts.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,32 +17,56 @@
 
 <div id="main">
 
-    <h1 class="page-title">Home</h1>
+    <h1 class="page-title">Source: contentScripts.js</h1>
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Register content script. Only Firefox supports dynamic content scripts at this time, so
+ * log them in this case so callers know they need to declaratively register.
+ *
+ * @param {Array&lt;String>} matchPattern
+ * @param {import} contentScript
+ */
+export async function registerContentScript(matchPattern, contentScript) {
+    try {
+        // getBrowserInfo is Firefox-only as well.
+        const browserInfo = await browser.runtime.getBrowserInfo();
 
+        // Register a content script for the listener
+        if (browserInfo.name === "Firefox") {
+            const registeredContentScript = await browser.contentScripts.register({
+                matches: matchPattern,
+                js: [{
+                    file: contentScript
+                }],
+                runAt: "document_start"
+            });
 
-    <h3> </h3>
+            return registeredContentScript;
+        } else {
+            // If `runtime.getBrowserInfo` API is implemented but is not Firefox, assume
+            console.debug("WebScience pageNavigator loaded, requires content script:", contentScript);
 
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
+        }
+    } catch (ex) {
+        // If the `runtime.getBrowserInfo` APIs is not implemented, then assume this is a Chromium browser.
+        // This is the case for all non-Firefox browsers as of this writing
+        // @see https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo#browser_compatibility
+        if (ex.message === "browser.runtime.getBrowserInfo is not a function") {
+            console.debug("WebScience pageNavigator loaded, requires content script:", contentScript);
+        } else {
+            throw ex;
+        }
+    }
+}</code></pre>
+        </article>
+    </section>
 
 
 
