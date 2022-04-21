@@ -422,8 +422,7 @@ import { fromMonotonicClock } from "../timing.js";
     // Send the page visit stop event on the window unload event,
     // using the timestamp for the unload event on the global
     // monotonic clock 
-    window.addEventListener("unload", (event) => {
+    window.addEventListener("pagehide", (event) => {
         pageVisitStop(fromMonotonicClock(event.timeStamp, true));
     });
-    
 })();
