@@ -82,7 +82,7 @@ export async function extensionLogsPresent(
         }
       }
       if (!found) {
-        return false;
+        throw new Error(`Failed to find match: ${match} in Chrome logs`);
       }
     }
   } else if (testBrowser === "firefox") {
@@ -95,7 +95,7 @@ export async function extensionLogsPresent(
         found = true;
       }
       if (!found) {
-        return false;
+        throw new Error(`Failed to find match: ${match} in integration.log`);
       }
     }
   } else {
