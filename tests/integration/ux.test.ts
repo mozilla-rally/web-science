@@ -138,17 +138,33 @@ describe("WebScience Test Extension", function () {
       WAIT_FOR_PROPERTY
     );
 
+    await driver.get(`${BASE_URL}/test2.html`);
+    await driver.wait(
+      until.titleIs("Test2"),
+      WAIT_FOR_PROPERTY
+    );
+
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/,
+      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/,
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/
     ]);
 
     await driver.navigate().back();
 
     await waitForLogs([
-      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/
+      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test2.html)/,
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/
     ]);
+
+    await driver.navigate().forward();
+
+    await waitForLogs([
+      /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/,
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/
+    ]);
+
 
     await driver.get(`${BASE_URL}/test2.html`);
     await driver.wait(

@@ -87,6 +87,7 @@ export async function extensionLogsPresent(
     }
   } else if (testBrowser === "firefox") {
     const fileBuffer = await fs.promises.readFile("./integration.log");
+
     // FIXME it would be more efficient to keep track of where we are in the log vs. re-reading it each time.
     // FIXME this would also make it more like the behavior of Chrome's log interface.
     for (const match of matches) {
