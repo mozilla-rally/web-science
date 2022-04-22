@@ -67,16 +67,7 @@ async function waitForLogs(matches: RegExp[]) {
   // Switch to original window to read logs.
   await driver.switchTo().window(logWindow);
 
-  // Wait until log message is present, or time out.
-  await driver.wait(
-    async () =>
-      await extensionLogsPresent(
-        driver,
-        testBrowser,
-        matches
-      ),
-    WAIT_FOR_PROPERTY
-  );
+  await extensionLogsPresent(driver, testBrowser, matches);
 
   // Restore focus to test window.
   await driver.switchTo().window(testWindow);
