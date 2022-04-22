@@ -4,6 +4,8 @@
  *
  * @param {Array<String>} matchPattern
  * @param {import} contentScript
+ *
+ * @returns {(browser.contentScripts.RegisteredContentScript|null)} - a registered content script if Firefox, null if otherwise.
  */
 export async function registerContentScript(matchPattern, contentScript) {
     try {
