@@ -61,8 +61,8 @@ export async function findAndAct(
  *        WebDriver in use.
  * @param {string} testBrowser
  *        Browser in use.
- * @param {RegExp} message
- *        Message to search for.
+ * @param {Array<RegExp>} message
+ *        Messages to search for. All messages must be present.
  * @returns {Promise<boolean>}
  *        Whether or not the message was found.
  */
