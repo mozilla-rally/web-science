@@ -91,11 +91,7 @@ export async function extensionLogsPresent(
     // FIXME it would be more efficient to keep track of where we are in the log vs. re-reading it each time.
     // FIXME this would also make it more like the behavior of Chrome's log interface.
     for (const match of matches) {
-      let found = false;
-      if (match.test(fileBuffer.toString())) {
-        found = true;
-      }
-      if (!found) {
+      if (!match.test(fileBuffer.toString())) {
         throw new Error(`Failed to find match: ${match} in integration.log`);
       }
     }
