@@ -170,6 +170,8 @@ function removeListener(listener) {
     if(listenerRecord === undefined) {
         return;
     }
-    listenerRecord.contentScript.unregister();
+    if (listenerRecord.contentScript) {
+        listenerRecord.contentScript.unregister();
+    }
     pageDataListeners.delete(listener);
 }
