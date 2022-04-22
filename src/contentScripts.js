@@ -26,7 +26,7 @@ export async function registerContentScript(matchPattern, contentScript) {
         } else {
             // If `runtime.getBrowserInfo` API is implemented but is not Firefox, assume
             console.debug("WebScience pageNavigator loaded, requires content script:", contentScript);
-
+            return null;
         }
     } catch (ex) {
         // If the `runtime.getBrowserInfo` APIs is not implemented, then assume this is a Chromium browser.
@@ -34,6 +34,7 @@ export async function registerContentScript(matchPattern, contentScript) {
         // @see https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo#browser_compatibility
         if (ex.message === "browser.runtime.getBrowserInfo is not a function") {
             console.debug("WebScience pageNavigator loaded, requires content script:", contentScript);
+            return null;
         } else {
             throw ex;
         }
