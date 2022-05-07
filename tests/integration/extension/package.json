@@ -13,7 +13,7 @@
   "license": "MPL-2.0",
   "devDependencies": {
     "@mozilla/web-science": "file:../../..",
-    "@rollup/plugin-commonjs": "^21.1.0",
+    "@rollup/plugin-commonjs": "^22.0.0",
     "@rollup/plugin-node-resolve": "^13.3.0",
     "rollup": "^2.72.0",
     "rollup-plugin-copy": "^3.4.0",
