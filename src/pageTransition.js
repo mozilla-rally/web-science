@@ -515,6 +515,7 @@ async function initialize() {
         schema: {
             pageId: "string",
             url: "string",
+            referrer: "string",
             isHistoryChange: "boolean",
             isOpenedTab: "boolean",
             openerTabId: "number",

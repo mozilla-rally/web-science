@@ -317,6 +317,7 @@ import { fromMonotonicClock } from "../timing.js";
                 type: "webScience.pageTransition.contentScriptEventUpdate",
                 pageId: pageManager.pageId,
                 url: pageManager.url,
+                referrer: document.referrer,
                 isHistoryChange,
                 isOpenedTab,
                 openerTabId,
