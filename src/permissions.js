@@ -203,8 +203,8 @@ export async function check({
 export function getManifestOriginMatchPatterns() {
     const manifest = browser.runtime.getManifest();
     const matchPatterns = [ ];
-    if(("permissions" in manifest) && Array.isArray(manifest.permissions)) {
-        for(const permission of manifest.permissions) {
+    if(("host_permissions" in manifest) && Array.isArray(manifest.host_permissions)) {
+        for(const permission of manifest.host_permissions) {
             try {
                 matching.matchPatternsToRegExp([ permission ]);
                 matchPatterns.push(permission);

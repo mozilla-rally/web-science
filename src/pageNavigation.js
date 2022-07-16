@@ -9,7 +9,6 @@ import * as events from "./events.js";
 import * as messaging from "./messaging.js";
 import * as pageManager from "./pageManager.js";
 import * as matching from "./matching.js";
-import * as contentScripts from "./contentScripts.js";
 import pageNavigationContentScript from "include:./content-scripts/pageNavigation.content.js";
 
 /**
@@ -148,7 +147,11 @@ async function addListener(listener, {
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
-    const contentScript = await contentScripts.registerContentScript(matchPatterns, pageNavigationContentScript);
+    const contentScript = await browser.scripting.registerContentScripts([{
+        id: "pageNavigation",
+        js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
+        matches: matchPatterns
+    }]);
 
     // Store a record for the listener
     pageDataListeners.set(listener, {
