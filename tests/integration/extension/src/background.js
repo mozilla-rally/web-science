@@ -2,6 +2,9 @@ import * as webScience from "@mozilla/web-science"
 import browser from "webextension-polyfill";
 
 async function sendMessageToSelenium(message) {
+    // Log to console for Firefox
+    console.debug(message);
+
     // Send message to web content for Chromium
     const tabs = await browser.tabs.query({});
     console.debug(tabs);
@@ -26,3 +29,12 @@ webScience.pageManager.onPageVisitStart.addListener(pageVisitStartListener);
 webScience.pageManager.onPageVisitStop.addListener(pageVisitStopListener);
 
 webScience.pageNavigation.onPageData.addListener(pageDataListener, { matchPatterns: ["<all_urls>"] });
+
+// Load content script(s) required by this extension.
+browser.scripting.registerContentScripts([{
+    id: "webextension-test",
+    js: ["dist/browser-polyfill.min.js", "dist/test.content.js"],
+    matches: ["<all_urls>"]
+}])
+    .then(result => console.debug(result))
+    .catch(err => console.err(err));
