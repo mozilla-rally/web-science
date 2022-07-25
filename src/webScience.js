@@ -67,7 +67,3 @@ export { workers }
 
 import * as pageTransition from "./pageTransition.js"
 export { pageTransition }
-
-import * as contentScripts from "./contentScripts.js"
-export { contentScripts }
-
