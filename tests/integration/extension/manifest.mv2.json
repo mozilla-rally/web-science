@@ -12,7 +12,9 @@
     }
   },
   "background": {
-    "service_worker": "dist/background-loader.js"
+    "scripts": [
+      "dist/background.js"
+    ]
   },
   "permissions": [
     "idle",
