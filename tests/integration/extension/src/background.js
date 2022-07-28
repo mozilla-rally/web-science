@@ -34,7 +34,8 @@ webScience.pageNavigation.onPageData.addListener(pageDataListener, { matchPatter
 browser.scripting.registerContentScripts([{
     id: "webextension-test",
     js: ["dist/browser-polyfill.min.js", "dist/test.content.js"],
-    matches: ["<all_urls>"]
+    matches: ["<all_urls>"],
+    persistAcrossSessions: false
 }])
     .then(result => console.debug(result))
     .catch(err => console.err(err));
