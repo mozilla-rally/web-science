@@ -150,7 +150,8 @@ async function addListener(listener, {
     const contentScript = await browser.scripting.registerContentScripts([{
         id: "pageNavigation",
         js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
-        matches: matchPatterns
+        matches: matchPatterns,
+        persistAcrossSessions: false
     }]);
 
     // Store a record for the listener
