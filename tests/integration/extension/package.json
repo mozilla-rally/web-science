@@ -5,8 +5,9 @@
   "main": "dist/background.js",
   "scripts": {
     "build": "rollup -c",
-    "dev": "rollup -c -w --config-enable-developer-mode",
-    "package": "web-ext build --overwrite-dest",
+    "dev": "cp manifest.mv3.json manifest.json && rollup -c -w --config-enable-developer-mode",
+    "package:mv2": "cp manifest.mv2.json manifest.json && rollup -c && web-ext build --overwrite-dest",
+    "package:mv3": "cp manifest.mv3.json manifest.json && rollup -c && web-ext build --overwrite-dest",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
