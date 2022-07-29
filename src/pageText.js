@@ -54,7 +54,6 @@ import * as messaging from "./messaging.js";
 import * as matching from "./matching.js";
 import * as events from "./events.js";
 import * as pageManager from "./pageManager.js";
-import * as permissions from "./permissions.js";
 import pageTextContentScript from "include:./content-scripts/pageText.content.js";
 
 /**
