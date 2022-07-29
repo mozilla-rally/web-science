@@ -30,6 +30,14 @@ webScience.pageManager.onPageVisitStop.addListener(pageVisitStopListener);
 
 webScience.pageNavigation.onPageData.addListener(pageDataListener, { matchPatterns: ["<all_urls>"] });
 
+const domains = ["localhost"];
+
+webScience.pageText.onTextParsed.addListener(async (pageData) => {
+    await sendMessageToSelenium(`WebScienceTest - Page text received: ${JSON.stringify(pageData)}`);
+}, {
+    matchPatterns: webScience.matching.domainsToMatchPatterns(domains)
+});
+
 // Load content script(s) required by this extension.
 browser.scripting.registerContentScripts([{
     id: "webextension-test",

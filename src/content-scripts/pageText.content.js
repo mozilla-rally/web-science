@@ -44,6 +44,10 @@ import * as readability from "@mozilla/readability";
                 try {
                     // Readability modifies the DOM, so clone the document first and then call Readability
                     const documentClone = document.cloneNode(true); 
+                    if (!new readability.isProbablyReaderable(documentClone)) {
+                        console.debug("Document is probably not parseable by Readability");
+                        return;
+                    }
                     const article = (new readability.Readability(documentClone)).parse();
                     // Send the text content to the background script
                     browser.runtime.sendMessage({

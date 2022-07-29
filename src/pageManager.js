@@ -488,14 +488,14 @@ export async function initialize() {
     // Register background script event handlers
 
     // If a tab's audible state changed, send webScience.pageManager.pageAudioUpdate
-    browser.tabs.onUpdated.addListener((tabId, changeInfo, extraParameters) => {
+    browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if(!initialized) {
             return;
         }
 
         messaging.sendMessageToTab(tabId, {
             type: "webScience.pageManager.pageAudioUpdate",
-            pageHasAudio: Boolean(extraParameters.audible),
+            pageHasAudio: Boolean(changeInfo.audible),
             timeStamp: timing.now()
         });
 

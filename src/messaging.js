@@ -291,7 +291,7 @@ export function sendMessageToTab(tabId, message) {
         return new Promise((resolve) => { resolve(false); });
     }
     return browser.tabs.sendMessage(tabId, message).catch((reason) => {
-        debugLog(`Unable to send message to tab: ${JSON.stringify(message)}`);
+        debugLog(`Unable to send message to tab: ${JSON.stringify(message), reason}`);
         return false;
     });
 }

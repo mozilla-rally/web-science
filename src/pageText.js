@@ -170,25 +170,25 @@ async function addListener(listener, {
                 }
             }
         },
-        {
-            type: "webScience.pageText.parsedText",
-            schema: {
-                pageId: "string",
-                url: "string",
-                title: "string",
-                content: "string",
-                textContent: "string",
-                privateWindow: "boolean"
-            }
-        });
+            {
+                type: "webScience.pageText.parsedText",
+                schema: {
+                    pageId: "string",
+                    url: "string",
+                    title: "string",
+                    content: "string",
+                    textContent: "string",
+                    privateWindow: "boolean"
+                }
+            });
 
         // Notify the content script when there is a new Readability status
         // for a page and the page URL matches at least one listener
         messaging.registerSchema("webScience.pageText.isArticle", {
             isArticle: "boolean"
         });
-        browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-            if("isArticle" in changeInfo && "url" in tab) {
+        browser.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {
+            if ("url" in tab) {
                 // Test match patterns here rather than in the tabs.onUpdated
                 // listener options so we don't have to manage multiple listeners
                 // or remove and add the listener while events might be queued
@@ -196,28 +196,31 @@ async function addListener(listener, {
                     if (listenerRecord.matchPatternSet.matches(tab.url)) {
                         messaging.sendMessageToTab(tabId, {
                             type: "webScience.pageText.isArticle",
-                            isArticle: tab.isArticle
+                            isArticle: true
                         });
                         break;
                     }
                 }
             }
-        }, {
-            urls: permissions.getManifestOriginMatchPatterns(),
-            properties: [ "isArticle" ]
         });
     }
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
+
     // Register a content script for the listener
-    const contentScript = await browser.contentScripts.register({
+    await browser.scripting.registerContentScripts([{
+        id: "pageText",
+        js: ["dist/browser-polyfill.min.js", pageTextContentScript],
         matches: matchPatterns,
-        js: [{
-            file: pageTextContentScript
-        }],
+        persistAcrossSessions: false,
         runAt: "document_idle"
-    });
+    }]);
+
+    // TODO record all content scripts so they can be unloaded later
+    const contentScript = (await browser.scripting.getRegisteredContentScripts({
+        ids: ["pageText"],
+    }))[1];
 
     // Store a record for the listener
     textParsedListeners.set(listener, {
