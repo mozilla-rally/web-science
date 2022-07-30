@@ -151,7 +151,8 @@ async function addListener(listener, {
         id: "pageNavigation",
         js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
         matches: matchPatterns,
-        persistAcrossSessions: false
+        persistAcrossSessions: false,
+        runAt: "document_start"
     }]);
 
     // Store a record for the listener

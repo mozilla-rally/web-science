@@ -488,7 +488,7 @@ export async function initialize() {
     // Register background script event handlers
 
     // If a tab's audible state changed, send webScience.pageManager.pageAudioUpdate
-    browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
         if(!initialized) {
             return;
         }
@@ -710,7 +710,8 @@ export async function initialize() {
         id: "pageManager",
         js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
         matches: matchPatterns,
-        persistAcrossSessions: false
+        persistAcrossSessions: false,
+        runAt: "document_start"
     }]);
 
     initializing = false;
