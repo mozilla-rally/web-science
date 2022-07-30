@@ -710,7 +710,8 @@ export async function initialize() {
         id: "pageManager",
         js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
         matches: matchPatterns,
-        persistAcrossSessions: false
+        persistAcrossSessions: false,
+        runAt: "document_start"
     }]);
 
     initializing = false;
