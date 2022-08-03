@@ -193,7 +193,7 @@ import pageTransitionClickContentScript from "include:./content-scripts/pageTran
  * @property {boolean} privateWindows - Whether to notify the listener about page transitions in
  * private windows and whether to consider pages loaded in private windows when generating
  * time-based transition information.
- * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * @property {browser.scripting.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
  * @private
  */
