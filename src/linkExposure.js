@@ -72,7 +72,7 @@ const ignoreSelfLinks = true;
  * @property {matching.MatchPatternSet} linkMatchPatternSet - The match patterns for link URLs.
  * @property {matching.MatchPatternSet} pageMatchPatternSet - The match patterns for pages.
  * @property {boolean} privateWindows - Whether to report exposures in private windows.
- * @property {browser.scripting.RegisteredContentScript} contentScript - The content
+ * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
  * @private
  */
