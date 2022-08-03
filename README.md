@@ -49,7 +49,7 @@ Documentation for the latest release of WebScience is available at [https://mozi
 | `messaging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `pageManager`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `pageNavigation`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
-| `pageText`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
+| `pageText`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `pageTransition`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
 | `permissions`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `randomization`          | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
