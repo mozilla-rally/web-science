@@ -35,7 +35,7 @@ import pageNavigationContentScript from "include:./content-scripts/pageNavigatio
  * @typedef {Object} PageDataListenerRecord
  * @property {matching.MatchPatternSet} matchPatternSet - The match patterns for the listener.
  * @property {boolean} privateWindows - Whether to notify the listener about pages in private windows.
- * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * @property {browser.scripting.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
  * @private
  */
