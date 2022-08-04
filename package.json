@@ -1,6 +1,6 @@
 {
     "name": "@mozilla/web-science",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "scripts": {
         "lint": "eslint .",
         "test:integration:jest": "jest ./tests/integration/",
