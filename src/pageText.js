@@ -169,17 +169,17 @@ async function addListener(listener, {
                 }
             }
         },
-            {
-                type: "webScience.pageText.parsedText",
-                schema: {
-                    pageId: "string",
-                    url: "string",
-                    title: "string",
-                    content: "string",
-                    textContent: "string",
-                    privateWindow: "boolean"
-                }
-            });
+        {
+            type: "webScience.pageText.parsedText",
+            schema: {
+                pageId: "string",
+                url: "string",
+                title: "string",
+                content: "string",
+                textContent: "string",
+                privateWindow: "boolean"
+            }
+        });
 
         // Notify the content script when the page URL matches at least one listener.
         // Readability status will be checked in the content script.
