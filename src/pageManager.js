@@ -125,7 +125,6 @@ import * as idle from "./idle.js";
 import * as messaging from "./messaging.js";
 import * as permissions from "./permissions.js";
 import * as timing from "./timing.js";
-import * as contentScripts from "./contentScripts.js"
 import pageManagerContentScript from "include:./content-scripts/pageManager.content.js";
 
 /**
@@ -704,7 +703,16 @@ export async function initialize() {
     }
 
     // Register the pageManager content script for all URLs permitted by the extension manifest.
-    contentScripts.registerContentScript(permissions.getManifestOriginMatchPatterns(), pageManagerContentScript);
+    const matchPatterns = permissions.getManifestOriginMatchPatterns();
+
+    // TODO register this content script so it may be unloaded later. 
+    await browser.scripting.registerContentScripts([{
+        id: "pageManager",
+        js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
+        matches: matchPatterns,
+        persistAcrossSessions: false,
+        runAt: "document_start"
+    }]);
 
     initializing = false;
     initialized = true;

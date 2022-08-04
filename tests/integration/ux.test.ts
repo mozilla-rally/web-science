@@ -97,6 +97,10 @@ describe("WebScience Test Extension", function () {
   beforeEach(async () => {
     driver = await getDriver(loadExtension, headlessMode);
 
+    // Chrome extensions don't seem to load scripts if we load the initial page within the first second.
+    // FIXME add a better way to detect when Chrome is ready to start tests.
+    await driver.sleep(1000);
+
     await driver.get(BASE_URL);
     await driver.wait(
       until.titleIs("Test"),
@@ -106,7 +110,6 @@ describe("WebScience Test Extension", function () {
     // Start a new window for tests, the original will be used to collect logs from the extension.
     // Selenium is currently not able to access Chrome extension logs directly, so they are messaged to the
     // original window
-    // TODO save handle
     logWindow = await driver.getWindowHandle();
     await driver.switchTo().newWindow('window');
   });

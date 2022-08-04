@@ -36,27 +36,27 @@ You will then be able to use those components of the API (e.g., `pageNavigation.
 Documentation for the latest release of WebScience is available at [https://mozilla-rally.github.io/web-science/jsdocs/](https://mozilla-rally.github.io/web-science/jsdocs/). The documentation is automatically generated from JSDoc annotations in the WebScience implementation.
 
 ## API Implementation Progress
-| Module                   | No Breaking Changes Planned | No Known Bugs      | Good Documentation | Good Test Coverage |   
-| ------------------------ | --------------------------- | ------------------ | ------------------ | ------------------ |
-| `debugging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `events`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `id`                     | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `idle`                   | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `inline`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `linkExposure`           | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `linkResolution`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `matching`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `messaging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `pageManager`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `pageNavigation`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `pageText`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `pageTransition`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `permissions`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `randomization`          | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `scheduling`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `socialMediaActivity`    | :x: [#23](https://github.com/mozilla-rally/web-science/issues/23)                        | :white_check_mark: | :white_check_mark: | :x:                |
-| `socialMediaLinkSharing` | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                        | :white_check_mark: | :white_check_mark: | :x:                |
-| `storage`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `timing`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `userSurvey`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
-| `workers`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                |
+| Module                   | No Breaking Changes Planned | No Known Bugs      | Good Documentation | Good Test Coverage | Browser Support    |
+| ------------------------ | --------------------------- | ------------------ | ------------------ | ------------------ | ------------------ |
+| `debugging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `events`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `id`                     | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `idle`                   | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `inline`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `linkExposure`           | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
+| `linkResolution`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
+| `matching`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `messaging`              | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `pageManager`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `pageNavigation`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `pageText`               | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
+| `pageTransition`         | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
+| `permissions`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `randomization`          | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `scheduling`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `socialMediaActivity`    | :x: [#23](https://github.com/mozilla-rally/web-science/issues/23)                        | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
+| `socialMediaLinkSharing` | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                        | :white_check_mark: | :white_check_mark: | :x:                | Firefox             |
+| `storage`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `timing`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `userSurvey`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
+| `workers`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |

@@ -13,30 +13,16 @@
   },
   "background": {
     "scripts": [
-      "dist/browser-polyfill.min.js",
       "dist/background.js"
     ]
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "dist/browser-polyfill.min.js",
-        "dist/webScience/pageManager.content.js",
-        "dist/webScience/pageNavigation.content.js",
-        "dist/test.content.js"
-      ],
-      "run_at": "document_start"
-    }
-  ],
   "permissions": [
-    "<all_urls>",
     "idle",
     "webNavigation",
     "webRequest",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "scripting",
+    "<all_urls>"
   ],
   "incognito": "not_allowed"
 }
