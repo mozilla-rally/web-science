@@ -202,33 +202,28 @@ export async function check({
  */
 export function getManifestOriginMatchPatterns() {
     const manifest = browser.runtime.getManifest();
-    const matchPatterns = [ ];
-    if(("permissions" in manifest) && Array.isArray(manifest.permissions)) {
-        for(const permission of manifest.permissions) {
-            try {
-                matching.matchPatternsToRegExp([ permission ]);
-                matchPatterns.push(permission);
-            }
-            catch(error) {
-                continue;
-            }
-        }
-    }
+
+    const manifestPermissions = [ ];
 
     // Manifest v3 requires host match patterns to be in an array under the host_permissions key.
     // For manifest v2, continue to look in the permissions key.
     // @see https://developer.chrome.com/docs/extensions/mv3/intro/mv3-migration/#host-permissions
-    if ("manifest_version" in manifest && manifest.manifest_version === 3) {
-        if (("host_permissions" in manifest) && Array.isArray(manifest.host_permissions)) {
-            for (const permission of manifest.host_permissions) {
-                try {
-                    matching.matchPatternsToRegExp([permission]);
-                    matchPatterns.push(permission);
-                }
-                catch (error) {
-                    continue;
-                }
-            }
+    ("permissions" in manifest) &&
+    Array.isArray(manifest.permissions) &&
+    manifestPermissions.push(...manifest.permissions);
+
+    ("host_permissions" in manifest) &&
+    Array.isArray(manifest.host_permissions) &&
+    manifestPermissions.push(...manifest.host_permissions);
+
+    const matchPatterns = [ ];
+    for(const permission of manifestPermissions) {
+        try {
+            matching.matchPatternsToRegExp([ permission ]);
+            matchPatterns.push(permission);
+        }
+        catch(error) {
+            continue;
         }
     }
 
