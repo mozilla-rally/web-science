@@ -73,7 +73,7 @@ import pageTextContentScript from "include:./content-scripts/pageText.content.js
  * @typedef {Object} TextParsedListenerRecord
  * @property {matching.MatchPatternSet} matchPatternSet - The match patterns for the listener.
  * @property {boolean} privateWindows - Whether to notify the listener about pages in private windows.
- * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * @property {browser.scripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
  * @private
  */
@@ -181,11 +181,9 @@ async function addListener(listener, {
                 }
             });
 
-        // Notify the content script when there is a new Readability status
-        // for a page and the page URL matches at least one listener
-        messaging.registerSchema("webScience.pageText.isArticle", {
-            isArticle: "boolean"
-        });
+        // Notify the content script when the page URL matches at least one listener.
+        // Readability status will be checked in the content script.
+        messaging.registerSchema("webScience.pageText.isArticle", {});
         browser.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {
             if ("url" in tab) {
                 // Test match patterns here rather than in the tabs.onUpdated
@@ -194,8 +192,7 @@ async function addListener(listener, {
                 for (const listenerRecord of textParsedListeners.values()) {
                     if (listenerRecord.matchPatternSet.matches(tab.url)) {
                         messaging.sendMessageToTab(tabId, {
-                            type: "webScience.pageText.isArticle",
-                            isArticle: true
+                            type: "webScience.pageText.isArticle"
                         });
                         break;
                     }
@@ -206,20 +203,14 @@ async function addListener(listener, {
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
-
     // Register a content script for the listener
-    await browser.scripting.registerContentScripts([{
+    const contentScript = await browser.scripting.registerContentScripts([{
         id: "pageText",
         js: ["dist/browser-polyfill.min.js", pageTextContentScript],
         matches: matchPatterns,
         persistAcrossSessions: false,
         runAt: "document_idle"
     }]);
-
-    // TODO record all content scripts so they can be unloaded later
-    const contentScript = (await browser.scripting.getRegisteredContentScripts({
-        ids: ["pageText"],
-    }))[1];
 
     // Store a record for the listener
     textParsedListeners.set(listener, {
