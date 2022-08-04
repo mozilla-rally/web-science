@@ -54,7 +54,6 @@ import * as messaging from "./messaging.js";
 import * as matching from "./matching.js";
 import * as events from "./events.js";
 import * as pageManager from "./pageManager.js";
-import * as permissions from "./permissions.js";
 import pageTextContentScript from "include:./content-scripts/pageText.content.js";
 
 /**
@@ -74,7 +73,7 @@ import pageTextContentScript from "include:./content-scripts/pageText.content.js
  * @typedef {Object} TextParsedListenerRecord
  * @property {matching.MatchPatternSet} matchPatternSet - The match patterns for the listener.
  * @property {boolean} privateWindows - Whether to notify the listener about pages in private windows.
- * @property {browser.contentScripts.RegisteredContentScript} contentScript - The content
+ * @property {browser.scripts.RegisteredContentScript} contentScript - The content
  * script associated with the listener.
  * @private
  */
@@ -182,42 +181,36 @@ async function addListener(listener, {
             }
         });
 
-        // Notify the content script when there is a new Readability status
-        // for a page and the page URL matches at least one listener
-        messaging.registerSchema("webScience.pageText.isArticle", {
-            isArticle: "boolean"
-        });
-        browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-            if("isArticle" in changeInfo && "url" in tab) {
+        // Notify the content script when the page URL matches at least one listener.
+        // Readability status will be checked in the content script.
+        messaging.registerSchema("webScience.pageText.isArticle", {});
+        browser.tabs.onUpdated.addListener((tabId, _changeInfo, tab) => {
+            if ("url" in tab) {
                 // Test match patterns here rather than in the tabs.onUpdated
                 // listener options so we don't have to manage multiple listeners
                 // or remove and add the listener while events might be queued
                 for (const listenerRecord of textParsedListeners.values()) {
                     if (listenerRecord.matchPatternSet.matches(tab.url)) {
                         messaging.sendMessageToTab(tabId, {
-                            type: "webScience.pageText.isArticle",
-                            isArticle: tab.isArticle
+                            type: "webScience.pageText.isArticle"
                         });
                         break;
                     }
                 }
             }
-        }, {
-            urls: permissions.getManifestOriginMatchPatterns(),
-            properties: [ "isArticle" ]
         });
     }
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
     // Register a content script for the listener
-    const contentScript = await browser.contentScripts.register({
+    const contentScript = await browser.scripting.registerContentScripts([{
+        id: "pageText",
+        js: ["dist/browser-polyfill.min.js", pageTextContentScript],
         matches: matchPatterns,
-        js: [{
-            file: pageTextContentScript
-        }],
+        persistAcrossSessions: false,
         runAt: "document_idle"
-    });
+    }]);
 
     // Store a record for the listener
     textParsedListeners.set(listener, {

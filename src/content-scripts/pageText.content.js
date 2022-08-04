@@ -33,17 +33,19 @@ import * as readability from "@mozilla/readability";
     // Wait for pageManager to load
     function pageManagerLoaded() {
         const pageManager = window.webScience.pageManager;
-        // Listen for the background script to message that the page can likely be parsed with Readability
+        // Probable readability must be checked in the content script, which has access to the content.
         browser.runtime.onMessage.addListener((message) => {
-            // If the page can likely be parsed with Readability, there's an ongoing page visit, and
-            // the page hasn't been parsed, parse the page
+            // If there's an ongoing page visit, and the page hasn't been parsed, parse the page
             if((message.type === "webScience.pageText.isArticle") && 
-            message.isArticle &&
             pageManager.pageVisitStarted &&
             !parsedPage) {
                 try {
                     // Readability modifies the DOM, so clone the document first and then call Readability
                     const documentClone = document.cloneNode(true); 
+                    if (!readability.isProbablyReaderable(documentClone)) {
+                        console.debug("Document is probably not parseable by Readability");
+                        return;
+                    }
                     const article = (new readability.Readability(documentClone)).parse();
                     // Send the text content to the background script
                     browser.runtime.sendMessage({

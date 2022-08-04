@@ -145,14 +145,16 @@ describe("WebScience Test Extension", function () {
 
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/,
+      /(WebScienceTest - Page text received):.*/
     ]);
 
     await driver.navigate().back();
 
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/,
+      /(WebScienceTest - Page text received):.*/
     ]);
 
     await driver.get(`${BASE_URL}/test2.html`);
@@ -163,7 +165,8 @@ describe("WebScience Test Extension", function () {
 
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/,
+      /(WebScienceTest - Page text received):.*/
     ]);
   });
 
@@ -180,7 +183,8 @@ describe("WebScience Test Extension", function () {
 
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/,
+      /(WebScienceTest - Page text received):.*/
     ]);
 
     await driver.close();
@@ -212,7 +216,8 @@ describe("WebScience Test Extension", function () {
 
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000)/,
+      /(WebScienceTest - Page text received):.*/
     ]);
 
     await driver.close();
@@ -228,7 +233,8 @@ describe("WebScience Test Extension", function () {
 
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test1.html)/,
+      /(WebScienceTest - Page text received):.*/
     ]);
 
     await driver.close();
@@ -244,7 +250,8 @@ describe("WebScience Test Extension", function () {
 
     await waitForLogs([
       /(WebScienceTest - Page visit stop).*(http:\/\/localhost:8000\/test1.html)/,
-      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/
+      /(WebScienceTest - Page visit start).*(http:\/\/localhost:8000\/test2.html)/,
+      /(WebScienceTest - Page text received):.*/
     ]);
   });
 });
