@@ -147,18 +147,25 @@ async function addListener(listener, {
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
-    const contentScript = await browser.scripting.registerContentScripts([{
-        id: "pageNavigation",
+    const contentScriptId = "pageNavigation";
+    try {
+        await browser.scripting.unregisterContentScripts({
+            ids: [contentScriptId]
+        });
+    } catch (ex) {
+        console.debug(`Not unregistering content script ${contentScriptId}`, ex);
+    }
+    await browser.scripting.registerContentScripts([{
+        id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
         matches: matchPatterns,
-        persistAcrossSessions: false,
+        persistAcrossSessions: true,
         runAt: "document_start"
     }]);
 
     // Store a record for the listener
     pageDataListeners.set(listener, {
         matchPatternSet,
-        contentScript,
         privateWindows
     });
 }

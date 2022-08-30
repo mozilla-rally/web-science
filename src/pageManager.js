@@ -705,12 +705,19 @@ export async function initialize() {
     // Register the pageManager content script for all URLs permitted by the extension manifest.
     const matchPatterns = permissions.getManifestOriginMatchPatterns();
 
-    // TODO register this content script so it may be unloaded later. 
+    const contentScriptId = "pageManager";
+    try {
+        await browser.scripting.unregisterContentScripts({
+            ids: [contentScriptId]
+        });
+    } catch (ex) {
+        console.debug(`Not unregistering content script ${contentScriptId}`, ex);
+    }
     await browser.scripting.registerContentScripts([{
-        id: "pageManager",
+        id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
         matches: matchPatterns,
-        persistAcrossSessions: false,
+        persistAcrossSessions: true,
         runAt: "document_start"
     }]);
 

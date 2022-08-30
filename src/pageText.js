@@ -204,11 +204,19 @@ async function addListener(listener, {
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
     // Register a content script for the listener
+    const contentScriptId = "pageText";
+    try {
+        await browser.scripting.unregisterContentScripts({
+            ids: [contentScriptId]
+        });
+    } catch (ex) {
+        console.debug(`Not unregistering content script ${contentScriptId}`, ex.message);
+    }
     const contentScript = await browser.scripting.registerContentScripts([{
-        id: "pageText",
+        id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", pageTextContentScript],
         matches: matchPatterns,
-        persistAcrossSessions: false,
+        persistAcrossSessions: true,
         runAt: "document_idle"
     }]);
 

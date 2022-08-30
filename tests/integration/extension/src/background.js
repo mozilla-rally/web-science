@@ -44,7 +44,7 @@ browser.scripting.registerContentScripts([{
     id: "webextension-test",
     js: ["dist/browser-polyfill.min.js", "dist/test.content.js"],
     matches: ["<all_urls>"],
-    persistAcrossSessions: false,
+    persistAcrossSessions: true,
     runAt: "document_start"
 }])
     .then(result => console.debug(result))
