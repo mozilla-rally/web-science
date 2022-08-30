@@ -147,6 +147,14 @@ async function addListener(listener, {
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
+
+    // Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
+    let persistAcrossSessions = true;
+    const browserInfo = browser.runtime && browser.runtime.getBrowserInfo && await browser.runtime.getBrowserInfo();
+    if (browserInfo && browserInfo.name === "Firefox") {
+        persistAcrossSessions = false;
+    }
+
     const contentScriptId = "pageNavigation";
     try {
         await browser.scripting.unregisterContentScripts({
@@ -159,7 +167,7 @@ async function addListener(listener, {
         id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
         matches: matchPatterns,
-        persistAcrossSessions: true,
+        persistAcrossSessions,
         runAt: "document_start"
     }]);
 
