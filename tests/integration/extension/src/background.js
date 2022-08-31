@@ -40,7 +40,7 @@ webScience.pageText.onTextParsed.addListener(async (pageData) => {
 
 // Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
 let persistAcrossSessions = true;
-browser.runtime && browser.runtime.getBrowserInfo && browser.runtime.getBrowserInfo().then(browserInfo => {
+browser.runtime && browser.runtime.getBrowserInfo && browser.runtime.getBrowserInfo().then(async browserInfo => {
     if (browserInfo && browserInfo.name === "Firefox") {
         persistAcrossSessions = false;
     }
