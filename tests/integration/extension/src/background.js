@@ -38,9 +38,10 @@ webScience.pageText.onTextParsed.addListener(async (pageData) => {
     matchPatterns: webScience.matching.domainsToMatchPatterns(domains)
 });
 
-// Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
-let persistAcrossSessions = true;
-browser.runtime && browser.runtime.getBrowserInfo && browser.runtime.getBrowserInfo().then(async browserInfo => {
+async function main() {
+    // Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
+    let persistAcrossSessions = true;
+    const browserInfo = browser.runtime && browser.runtime.getBrowserInfo && await browser.runtime.getBrowserInfo();
     if (browserInfo && browserInfo.name === "Firefox") {
         persistAcrossSessions = false;
     }
@@ -57,13 +58,15 @@ browser.runtime && browser.runtime.getBrowserInfo && browser.runtime.getBrowserI
     }
 
     // Load content script(s) required by this extension.
-    browser.scripting.registerContentScripts([{
+    await browser.scripting.registerContentScripts([{
         id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", "dist/test.content.js"],
         matches: ["<all_urls>"],
         persistAcrossSessions,
         runAt: "document_start"
-    }])
-        .then(result => console.debug(result))
-        .catch(err => console.err(err));
-});
+    }]);
+}
+
+main()
+    .then(res => console.debug(res))
+    .catch(err => console.err(err));
