@@ -166,7 +166,7 @@ async function addListener(listener, {
         });
     }
 
-    await browser.scripting.registerContentScripts([{
+    const contentScript = await browser.scripting.registerContentScripts([{
         id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
         matches: matchPatterns,
@@ -177,6 +177,7 @@ async function addListener(listener, {
     // Store a record for the listener
     pageDataListeners.set(listener, {
         matchPatternSet,
+        contentScript,
         privateWindows
     });
 }
