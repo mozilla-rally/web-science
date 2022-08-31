@@ -156,13 +156,16 @@ async function addListener(listener, {
     }
 
     const contentScriptId = "pageNavigation";
-    try {
+    let scripts = await browser.scripting.getRegisteredContentScripts({
+        ids: [contentScriptId],
+    });
+
+    if (scripts.length > 0) {
         await browser.scripting.unregisterContentScripts({
             ids: [contentScriptId]
         });
-    } catch (ex) {
-        console.debug(`Not unregistering content script ${contentScriptId}`, ex);
     }
+
     await browser.scripting.registerContentScripts([{
         id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],

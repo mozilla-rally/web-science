@@ -213,12 +213,15 @@ async function addListener(listener, {
     }
 
     const contentScriptId = "pageText";
-    try {
+    let scripts = await browser.scripting.getRegisteredContentScripts({
+        ids: [contentScriptId],
+    });
+
+    if (scripts.length > 0) {
         await browser.scripting.unregisterContentScripts({
             ids: [contentScriptId]
         });
-    } catch (ex) {
-        console.debug(`Not unregistering content script ${contentScriptId}`, ex.message);
+
     }
     const contentScript = await browser.scripting.registerContentScripts([{
         id: contentScriptId,

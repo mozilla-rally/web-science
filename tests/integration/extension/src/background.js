@@ -45,9 +45,20 @@ browser.runtime && browser.runtime.getBrowserInfo && browser.runtime.getBrowserI
         persistAcrossSessions = false;
     }
 
+    const contentScriptId = "webextension-test";
+    let scripts = await browser.scripting.getRegisteredContentScripts({
+        ids: [contentScriptId],
+    });
+
+    if (scripts.length > 0) {
+        await browser.scripting.unregisterContentScripts({
+            ids: [contentScriptId]
+        });
+    }
+
     // Load content script(s) required by this extension.
     browser.scripting.registerContentScripts([{
-        id: "webextension-test",
+        id: contentScriptId,
         js: ["dist/browser-polyfill.min.js", "dist/test.content.js"],
         matches: ["<all_urls>"],
         persistAcrossSessions,
