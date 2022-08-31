@@ -204,18 +204,33 @@ async function addListener(listener, {
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
     // Register a content script for the listener
-    const contentScript = await browser.scripting.registerContentScripts([{
-        id: "pageText",
-        js: ["dist/browser-polyfill.min.js", pageTextContentScript],
-        matches: matchPatterns,
-        persistAcrossSessions: false,
-        runAt: "document_idle"
-    }]);
+
+    // Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
+    let persistAcrossSessions = true;
+    const browserInfo = browser.runtime && browser.runtime.getBrowserInfo && await browser.runtime.getBrowserInfo();
+    if (browserInfo && browserInfo.name === "Firefox") {
+        persistAcrossSessions = false;
+    }
+
+    const contentScriptId = "pageText";
+    let scripts = await browser.scripting.getRegisteredContentScripts({
+        ids: [contentScriptId],
+    });
+
+    if (scripts.length === 0) {
+        await browser.scripting.registerContentScripts([{
+            id: contentScriptId,
+            js: ["dist/browser-polyfill.min.js", pageTextContentScript],
+            matches: matchPatterns,
+            persistAcrossSessions,
+            runAt: "document_idle"
+        }]);
+    }
 
     // Store a record for the listener
     textParsedListeners.set(listener, {
         matchPatternSet,
-        contentScript,
+        contentScriptId,
         privateWindows
     });
 }
@@ -225,13 +240,15 @@ async function addListener(listener, {
  * @param {textParsedListener} listener - The listener that is being removed.
  * @private
  */
-function removeListener(listener) {
+async function removeListener(listener) {
     // If there is a record of the listener, unregister its content script
     // and delete the record
     const listenerRecord = textParsedListeners.get(listener);
     if (listenerRecord === undefined) {
         return;
     }
-    listenerRecord.contentScript.unregister();
+    await browser.scripting.unregisterContentScripts({
+        ids: [listenerRecord.contentScriptId]
+    });
     textParsedListeners.delete(listener);
 }

@@ -705,14 +705,27 @@ export async function initialize() {
     // Register the pageManager content script for all URLs permitted by the extension manifest.
     const matchPatterns = permissions.getManifestOriginMatchPatterns();
 
-    // TODO register this content script so it may be unloaded later. 
-    await browser.scripting.registerContentScripts([{
-        id: "pageManager",
-        js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
-        matches: matchPatterns,
-        persistAcrossSessions: false,
-        runAt: "document_start"
-    }]);
+    // Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
+    let persistAcrossSessions = true;
+    const browserInfo = browser.runtime && browser.runtime.getBrowserInfo && await browser.runtime.getBrowserInfo();
+    if (browserInfo && browserInfo.name === "Firefox") {
+        persistAcrossSessions = false;
+    }
+
+    const contentScriptId = "pageManager";
+    let scripts = await browser.scripting.getRegisteredContentScripts({
+        ids: [contentScriptId],
+    });
+
+    if (scripts.length === 0) {
+        await browser.scripting.registerContentScripts([{
+            id: contentScriptId,
+            js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
+            matches: matchPatterns,
+            persistAcrossSessions,
+            runAt: "document_start"
+        }]);
+    }
 
     initializing = false;
     initialized = true;

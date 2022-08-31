@@ -147,18 +147,33 @@ async function addListener(listener, {
 
     // Compile the match patterns for the listener
     const matchPatternSet = matching.createMatchPatternSet(matchPatterns);
-    const contentScript = await browser.scripting.registerContentScripts([{
-        id: "pageNavigation",
-        js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
-        matches: matchPatterns,
-        persistAcrossSessions: false,
-        runAt: "document_start"
-    }]);
+
+    // Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
+    let persistAcrossSessions = true;
+    const browserInfo = browser.runtime && browser.runtime.getBrowserInfo && await browser.runtime.getBrowserInfo();
+    if (browserInfo && browserInfo.name === "Firefox") {
+        persistAcrossSessions = false;
+    }
+
+    const contentScriptId = "pageNavigation";
+    let scripts = await browser.scripting.getRegisteredContentScripts({
+        ids: [contentScriptId],
+    });
+
+    if (scripts.length === 0) {
+        await browser.scripting.registerContentScripts([{
+            id: contentScriptId,
+            js: ["dist/browser-polyfill.min.js", pageNavigationContentScript],
+            matches: matchPatterns,
+            persistAcrossSessions,
+            runAt: "document_start"
+        }]);
+    }
 
     // Store a record for the listener
     pageDataListeners.set(listener, {
         matchPatternSet,
-        contentScript,
+        contentScriptId,
         privateWindows
     });
 }
@@ -168,15 +183,17 @@ async function addListener(listener, {
  * @param {pageDataCallback} listener - The listener that is being removed.
  * @private
  */
-function removeListener(listener) {
+async function removeListener(listener) {
     // If there is a record of the listener, unregister its content script
     // and delete the record
     const listenerRecord = pageDataListeners.get(listener);
     if(listenerRecord === undefined) {
         return;
     }
-    if (listenerRecord.contentScript) {
-        listenerRecord.contentScript.unregister();
+    if (listenerRecord.contentScriptId) {
+        await browser.scripting.unregisterContentScripts({
+            ids: [listenerRecord.contentScriptId]
+        });
     }
     pageDataListeners.delete(listener);
 }
