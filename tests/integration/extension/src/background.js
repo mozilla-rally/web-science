@@ -51,20 +51,17 @@ async function main() {
         ids: [contentScriptId],
     });
 
-    if (scripts.length > 0) {
-        await browser.scripting.unregisterContentScripts({
-            ids: [contentScriptId]
-        });
-    }
+    if (scripts.length === 0) {
 
-    // Load content script(s) required by this extension.
-    await browser.scripting.registerContentScripts([{
-        id: contentScriptId,
-        js: ["dist/browser-polyfill.min.js", "dist/test.content.js"],
-        matches: ["<all_urls>"],
-        persistAcrossSessions,
-        runAt: "document_start"
-    }]);
+        // Load content script(s) required by this extension.
+        await browser.scripting.registerContentScripts([{
+            id: contentScriptId,
+            js: ["dist/browser-polyfill.min.js", "dist/test.content.js"],
+            matches: ["<all_urls>"],
+            persistAcrossSessions,
+            runAt: "document_start"
+        }]);
+    }
 }
 
 main()

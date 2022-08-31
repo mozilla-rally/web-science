@@ -717,19 +717,15 @@ export async function initialize() {
         ids: [contentScriptId],
     });
 
-    if (scripts.length > 0) {
-        await browser.scripting.unregisterContentScripts({
-            ids: [contentScriptId]
-        });
+    if (scripts.length === 0) {
+        await browser.scripting.registerContentScripts([{
+            id: contentScriptId,
+            js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
+            matches: matchPatterns,
+            persistAcrossSessions,
+            runAt: "document_start"
+        }]);
     }
-
-    await browser.scripting.registerContentScripts([{
-        id: contentScriptId,
-        js: ["dist/browser-polyfill.min.js", pageManagerContentScript],
-        matches: matchPatterns,
-        persistAcrossSessions,
-        runAt: "document_start"
-    }]);
 
     initializing = false;
     initialized = true;

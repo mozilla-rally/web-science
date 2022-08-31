@@ -217,24 +217,20 @@ async function addListener(listener, {
         ids: [contentScriptId],
     });
 
-    if (scripts.length > 0) {
-        await browser.scripting.unregisterContentScripts({
-            ids: [contentScriptId]
-        });
-
+    if (scripts.length === 0) {
+        await browser.scripting.registerContentScripts([{
+            id: contentScriptId,
+            js: ["dist/browser-polyfill.min.js", pageTextContentScript],
+            matches: matchPatterns,
+            persistAcrossSessions,
+            runAt: "document_idle"
+        }]);
     }
-    const contentScript = await browser.scripting.registerContentScripts([{
-        id: contentScriptId,
-        js: ["dist/browser-polyfill.min.js", pageTextContentScript],
-        matches: matchPatterns,
-        persistAcrossSessions,
-        runAt: "document_idle"
-    }]);
 
     // Store a record for the listener
     textParsedListeners.set(listener, {
         matchPatternSet,
-        contentScript,
+        contentScriptId,
         privateWindows
     });
 }
@@ -244,13 +240,15 @@ async function addListener(listener, {
  * @param {textParsedListener} listener - The listener that is being removed.
  * @private
  */
-function removeListener(listener) {
+async function removeListener(listener) {
     // If there is a record of the listener, unregister its content script
     // and delete the record
     const listenerRecord = textParsedListeners.get(listener);
     if (listenerRecord === undefined) {
         return;
     }
-    listenerRecord.contentScript.unregister();
+    await browser.scripting.unregisterContentScripts({
+        ids: [listenerRecord.contentScriptId]
+    });
     textParsedListeners.delete(listener);
 }
