@@ -53,7 +53,7 @@ webScience.socialMediaLinkSharing.onShare.addListener(async shareData => {
         await sendMessageToSelenium(`WebScienceTest - Social media link share received: ${JSON.stringify(shareData)}`);
     }
 }, {
-    destinationMatchPatterns: allDestinationMatchPatterns,
+    destinationMatchPatterns: ["<all_urls>"],
     facebook: true,
     twitter: true,
     reddit: true
