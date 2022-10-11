@@ -22,5 +22,9 @@
     "uuid": "^8.3.2",
     "web-ext": "^7.1.1",
     "webextension-polyfill": "^0.9.0"
+  },
+  "dependencies": {
+    "js-base64": "^3.7.2",
+    "tldts": "^5.7.94"
   }
 }
