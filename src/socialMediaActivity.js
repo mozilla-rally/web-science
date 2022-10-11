@@ -93,7 +93,7 @@ function registerPlatformListener(platform, eventType, blockingType, callback) {
  * @param [String] events - array of events to be tracked
  * @param blocking - whether the listener should be blocking. Allows canceling the event.
  */
-export function registerTwitterActivityTracker(
+export async function registerTwitterActivityTracker(
     callback,
     events,
     blocking = false) {
@@ -106,7 +106,8 @@ export function registerTwitterActivityTracker(
     if (events.includes("favorite") || events.includes("<all_events>")) {
         registerPlatformListener("twitter", "favorite", blocking ? "blocking" : "nonblocking", callback);
     }
-    tweetContentInit();
+
+    await tweetContentInit();
 }
 
 /**
@@ -116,7 +117,7 @@ export function registerTwitterActivityTracker(
  * @param [String] events - array of events to be tracked
  * @param blocking - whether the listener should be blocking. Allows canceling the event.
  */
-export function registerFacebookActivityTracker(
+export async function registerFacebookActivityTracker(
     callback,
     events,
     blocking = false ){
@@ -132,7 +133,8 @@ export function registerFacebookActivityTracker(
     if (events.includes("comment") || events.includes("<all_events>")) {
         registerPlatformListener("facebook", "comment", blocking ? "blocking" : "nonblocking", callback);
     }
-    fbPostContentInit();
+
+    await fbPostContentInit();
 }
 
 /**
@@ -526,16 +528,17 @@ export function getTweetContent(tweetId) {
  * changing periodically, we log them each time we see them sent.
  * @private
  */
-function tweetContentInit() {
+async function tweetContentInit() {
     if (tweetContentSetUp) { return; }
     tweetContentSetUp = true;
-    browser.contentScripts.register({
+
+    await browser.scripting.registerContentScripts([{
+        id: "twitterSocialMediaActivity",
+        js: ["dist/browser-polyfill.min.js", twitterContentScript],
         matches: ["https://twitter.com/*", "https://twitter.com/"],
-        js: [{
-            file: twitterContentScript
-        }],
+        persistAcrossSessions: true,
         runAt: "document_idle"
-    });
+    }]);
     browser.webRequest.onBeforeSendHeaders.addListener((details) => {
         for (const header of details.requestHeaders) {
             if (header.name == "x-csrf-token") {
@@ -567,13 +570,13 @@ async function fbPostContentInit() {
             }
         }, { type: "webScience.socialMediaActivity" });
     // Register the content script that will find posts inside the page when reshares happen
-    await browser.contentScripts.register({
+    await browser.scripting.registerContentScripts([{
+        id: "facebookSocialMediaActivity",
+        js: ["dist/browser-polyfill.min.js", facebookContentScript],
         matches: ["https://www.facebook.com/*", "https://www.facebook.com/"],
-        js: [{
-            file: facebookContentScript
-        }],
+        persistAcrossSessions: true,
         runAt: "document_start"
-    });
+    }]);
 }
 
 /**

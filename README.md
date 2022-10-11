@@ -54,8 +54,8 @@ Documentation for the latest release of WebScience is available at [https://mozi
 | `permissions`            | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `randomization`          | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `scheduling`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
-| `socialMediaActivity`    | :x: [#23](https://github.com/mozilla-rally/web-science/issues/23)                        | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |
-| `socialMediaLinkSharing` | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                        | :white_check_mark: | :white_check_mark: | :x:                | Firefox             |
+| `socialMediaActivity`    | :x: [#23](https://github.com/mozilla-rally/web-science/issues/23)                        | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
+| `socialMediaLinkSharing` | :x: [#17](https://github.com/mozilla-rally/web-science/issues/17)                        | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `storage`                | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `timing`                 | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox, Chrome    |
 | `userSurvey`             | :white_check_mark:          | :white_check_mark: | :white_check_mark: | :x:                | Firefox            |

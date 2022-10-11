@@ -38,6 +38,39 @@ webScience.pageText.onTextParsed.addListener(async (pageData) => {
     matchPatterns: webScience.matching.domainsToMatchPatterns(domains)
 });
 
+// Register listener for shares of links to tracked domains on Facebook, Twitter, and Reddit.
+webScience.socialMediaLinkSharing.onShare.addListener(async shareData => {
+    if (shareData.type == "tracked") {
+        shareData.url = matching.normalizeUrl(shareData.url);
+        const historyVisits = await browser.history.search({
+            text: shareData.url,
+            startTime: 0, //search all history
+            endTime: shareData.shareTime
+        });
+        shareData.visitPresentInHistory = historyVisits.length > 0;
+    }
+    if (shareData.type == "tracked" || (shareData.type == "untracked" && shareData.untrackedCount > 0)) {
+        await sendMessageToSelenium(`WebScienceTest - Social media link share received: ${JSON.stringify(shareData)}`);
+    }
+}, {
+    destinationMatchPatterns: allDestinationMatchPatterns,
+    facebook: true,
+    twitter: true,
+    reddit: true
+});
+
+webScience.socialMediaActivity.registerFacebookActivityTracker(async details => {
+    await sendMessageToSelenium(`WebScienceTest - Social media activity from Facebook received: ${JSON.stringify(details)}`);
+}, ["post", "reshare"]);
+
+webScience.socialMediaActivity.registerRedditActivityTracker(async details => {
+    await sendMessageToSelenium(`WebScienceTest - Social media activity from Facebook received: ${JSON.stringify(details)}`);
+}, ["post"]);
+
+webScience.socialMediaActivity.registerTwitterActivityTracker(async details => {
+    await sendMessageToSelenium(`WebScienceTest - Social media activity from Facebook received: ${JSON.stringify(details)}`);
+}, ["tweet", "retweet", "favorite"]);
+
 async function main() {
     // Firefox only supports this as of version 105, remove this check when that version of Firefox ships.
     let persistAcrossSessions = true;

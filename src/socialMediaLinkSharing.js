@@ -84,13 +84,13 @@ async function startMeasurement({
     reddit = false
 }) {
     if (facebook) {
-        socialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare"]);
+        await socialMediaActivity.registerFacebookActivityTracker(facebookLinks, ["post", "reshare"]);
     }
     if (reddit) {
-        socialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
+        await socialMediaActivity.registerRedditActivityTracker(redditLinks, ["post"]);
     }
     if (twitter) {
-        socialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet", "favorite"]);
+        await socialMediaActivity.registerTwitterActivityTracker(twitterLinks, ["tweet", "retweet", "favorite"]);
     }
 
     destinationMatcher = matching.createMatchPatternSet(destinationMatchPatterns);
