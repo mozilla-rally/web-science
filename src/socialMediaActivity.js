@@ -28,7 +28,8 @@ permissions.check({
  */
 const debugLog = debugging.getDebuggingLog("socialMediaActivity");
 
-let privateWindows = false;
+// FIXME disable private window support for now, current impl is Firefox-only.
+// let privateWindows = false;
 
 let tweetContentSetUp = false;
 let twitter_x_csrf_token = "";
@@ -43,9 +44,10 @@ const processedRequestIds = {};
 /**
  * Configure listeners to run in private windows.
  */
-export function enablePrivateWindows() {
-    privateWindows = true;
-}
+// FIXME disable private window support for now, current impl is Firefox-only.
+// export function enablePrivateWindows() {
+//    privateWindows = true;
+//}
 
 /** Unregister old handlers for an event, and register a new one, if necessary.
  * Unregistering is only necessary when there's already a nonblocking handler registered
@@ -79,7 +81,9 @@ function registerPlatformListener(platform, eventType, blockingType, callback) {
         browser.webRequest[stage].addListener(handler.registeredListener,
         {
             urls: urls,
-            incognito: (privateWindows ? null : false)
+            // FIXME this filter is Firefox-only, if we support incognito this will need
+            // to be handled in the callback.
+            // incognito: (privateWindows ? null : false)
         },
             blocking ? ["requestBody", blockingType] : ["requestBody"]);
     }
