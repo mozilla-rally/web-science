@@ -16,7 +16,7 @@
     "@mozilla/readability": "^0.4.2",
     "@mozilla/web-science": "file:../../..",
     "@rollup/plugin-commonjs": "^22.0.1",
-    "@rollup/plugin-node-resolve": "^13.3.0",
+    "@rollup/plugin-node-resolve": "^15.0.1",
     "rollup": "^2.75.7",
     "rollup-plugin-copy": "^3.4.0",
     "uuid": "^8.3.2",
