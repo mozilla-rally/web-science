@@ -68,7 +68,7 @@ jobs:
             git config user.name "ci-build"
       - add_ssh_keys:
           fingerprints:
-            - "c2:bb:84:de:5b:fb:f6:7b:90:38:2b:75:ee:b7:bf:59"
+            - "9d:ca:d0:d7:32:4a:3c:5a:74:49:90:3f:64:67:87:25"
       - run:
           name: Deploy site to gh-pages branch
           command: npm run gh-pages
